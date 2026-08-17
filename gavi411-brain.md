@@ -1,0 +1,257 @@
+# Gavi411 — Project Brain Repository
+_Last updated: 2026-08-16_
+_Purpose: running knowledge base for planning the fullstack course final project. Will feed into Claude Code later. Not a project plan yet — that comes after planning is done._
+ 
+---
+ 
+## 1. Context & Constraints
+ 
+- **What:** Final project for Gavi's fullstack course.
+- **Requirements:** NOT yet received from instructor. Everything below is based on assumptions and must be reconciled once requirements arrive.
+- **Requirements:** React frontend, Node.js backend, PostgreSQL (via Neon), API usage (internal OK), authentication via Clerk, unit testing, CI/CD, GitHub, Jira. Course plan presented and approved as-is (decision #37) — no longer pending official confirmation.
+- **Timeline:** ~1 month.
+- **Availability:**
+  - Job keeps Gavi out of the house 12–13 hrs/day.
+  - Class Sun & Tue 18:00–22:45 (includes work time).
+  - ~1 hour available on a few other days per week.
+  - Effectively: 2 semi-long blocks + a few 1-hr slots per week.
+- **Learning goal:** Gavi personally writes at least a section of every kind of piece (a component, a route, an API call, etc.). The rest via Claude agents under his supervision. He must be able to explain everything submitted.
+- **Existing skills/context:** SheCodes fullstack course background (Express, SQL, MongoDB, Prisma, React, Git). ES modules. Ubuntu VM dev environment exists from a previous project (Node, Express, Mongoose, Prisma, Claude Code CLI + VS Code extension) — considering reusing it for this one. MongoDB Atlas + Neon accounts. Testing: used Vitest in that previous project; learned Node built-in test runner in class; testing knowledge is weak overall, so whichever framework is chosen will require learning it properly.
+## 2. The Concept — Gavi411
+ 
+A webapp digitizing the informal concierge/info-booth/assistance service Gavi already provides to friends & family.
+ 
+**Real-world service examples (from Gavi):** setting up internet/cell plans for relatives moving to Israel; last-minute travel rescue (connections at unfamiliar airports, flight updates before gate announcements, kosher food at airports, maximizing bump compensation); vacation activity planning; product research & selection; directions; opening hours; reaching a person at a company; finding elusive ebooks; middleman purchases (embarrassing or geo-unavailable products).
+ 
+**Current channels:** WhatsApp/Telegram mostly, sometimes calls, sometimes email.
+ 
+### Core feature set (draft, unprioritized)
+1. **Request submission** — friends submit requests via the app.
+2. **Smart intake/triage chatbot** — replaces a static form. Conversationally gathers all needed info before a ticket is created. NOT an answer-serving bot (decided: answer-serving likely expensive + would duplicate what users can already google, risking annoyance). Triage only.
+3. **Ticketing system (admin)** — Gavi sees incoming requests, manages tickets, users, statuses.
+4. **Credit system** — anti-abuse / demand shaping / AI-cost control (likely MVP, not v1.1):
+   - Each user gets X credits per period (week/month TBD).
+   - Possibly different amounts per user tier.
+   - Max Y open tickets at any time.
+   - No rollover.
+   - Earn-back mechanic DROPPED: the reward for a closed ticket is the solved problem. Framing is fairness among friends, not gamification/incentives.
+   - Side benefit: credits naturally cap AI API call volume.
+5. **PWA** (Progressive Web App) — installable on phones via Chrome. Native Android acknowledged as out of scope.
+6. **Admin experience** — a full interface for Gavi to review tickets, respond, manage users/statuses. Not merely an "admin mode" toggle on the user UI.
+7. **Image support** — users must at minimum be able to send images with requests.
+8. **Invite-gated signup** — Gavi sends custom individual invite links; homepage has a "request access" flow approved case-by-case.
+9. **Gavi-initiated requests** — from an outside conversation (WhatsApp etc.), Gavi pastes the chat/image into a new request and gets a shareable link:
+   - Existing user → gets a notification that a request was opened for them.
+   - Non-user → link opens a "one-time" guest chat view of that request, associated with their phone number; if they're later invited and sign up, that history attaches to their account.
+10. *(More ideas exist, not yet captured.)*
+### Request lifecycle (from 2026-08-08 brainstorm)
+- **User actions on own request:** cancel (credit refunded, especially if untouched), "solved it myself" close, and — for urgent requests only — downgrade to "no longer urgent."
+- **Urgency:** captured during triage, not a separate user toggle. No promises about response speed anywhere (especially nights/Shabbat).
+- **States (draft):** in queue → received → working on it → waiting on friend (clarification OR confirming a solution) → resolved-pending-confirmation → closed. Plus cancelled / self-solved exits.
+  - Definitions: **queue** = Gavi hasn't seen it. **received** = seen, not yet handling. **working on it** = actively started.
+- **Nudges:** manual nudge by Gavi for stale waiting-on-friend requests. Auto-close undecided.
+- **Closing:** Gavi initiates "did this resolve it?" → friend confirms → closed. Post-close reaction: nice-to-have, questionable actionability, parked.
+- **Reopening:** closed requests are re-openable, no time limit — a continuation of the same issue shouldn't re-triage.
+- **Reminders (new idea):** time-based reminders attached to a request — for Gavi ("check on X at 15:00") or set for the friend ("make sure to X"). Some solutions are time-dependent.
+### Service presence (online/offline)
+- Gavi can set the service "offline": requests still accepted, but it's clearly communicated responses will wait until he's back.
+- Triggers: automatic (Shabbat times) or manual (vacation, busy at work, unreliable internet).
+- Deliberately NOT official hours — expectation-setting without a schedule.
+- (Note: auto-Shabbat is a fun little feature — candle-lighting times via a free API like Hebcal.)
+- Auto-Shabbat requirements: configurable buffer before candle-lighting and after havdala; must handle Gavi being in a different timezone/location (times follow where HE is, not a fixed Jerusalem setting).
+### Admin cockpit (to workshop further)
+- Sort: by age and by urgency (urgency view defaults oldest-first). Filter: open/closed. Group: by person.
+- No canned responses needed.
+- **Private notes per request** (not per user) — only visible to Gavi.
+### User profiles
+- Core: photo, full name, phone, email.
+- Optional self-service fields: phone OS/model, computer OS, location, other practical info.
+- Philosophy: store the info Gavi *can't* remember (device models change), not preferences he already knows (kosher, travel tastes). These are friends, not CRM contacts.
+### User group tags (new, 2026-08-09)
+- Users get a group "tag" (tier). Purpose: (1) determines credit amount for that user, (2) usable as an admin sort/filter dimension on requests.
+- Relationship to existing "tier" idea in credit system (§ credits mechanics) — likely the same concept; reconcile naming later.
+### Credits mechanics (firming up)
+- Visible to users. Flat cost: 1 credit per request.
+- At zero: "request anyway" available, but only once per reset period.
+### UX decisions so far
+- **Home screen (user):** list of open requests; button to reveal closed ones; if everything is closed, surface the most recent closed request (info may still be relevant). Prominent "new request" button.
+- **Terminology:** the word "ticket" must never appear user-facing. Working term: "request." Better term TBD.
+- **Conversations:** live fully in-app. The whole point is consolidation — no bouncing back to WhatsApp.
+- **Notifications:**
+  - Users: Web Push (PWA notifications) — works on Android/desktop; on iOS only for installed PWAs (16.4+).
+  - Gavi: Telegram bot pinging on new requests/messages with a deep link into the admin view. (Telegram Bot API is free and simple — a single POST to send a message.) **Telegram is Gavi-only** — many friends don't have Telegram, so it's never used for user-facing notifications, only Gavi's own alerts.
+- **Language/RTL:** UI framework must support RTL + Hebrew from day one (layout direction, text alignment). Content itself can be English-only for now.
+- **Branding:** no mascot. Logo deferred.
+- **Tone:** friendly, almost informal — the app should feel like the service already feels.
+### Auth direction — DECIDED: OAuth
+- OAuth via a hosted provider (Clerk / Supabase Auth / Auth0 / Firebase — provider TBD), invite-only user base.
+- WhatsApp OTP dropped (not zero-budget/zero-hassle: official API needs Meta approval + per-message costs; unofficial libs are ban-risk).
+- Gavi prefers NOT to hand-roll secure auth. If the course expects JWT/bcrypt/protected routes: he has demonstrated these in other projects, and they may be woven into other features anyway (e.g., protected admin routes).
+## Copywriting Pass (dedicated dev milestone — placeholder strings until then)
+Purely wording/phrasing items, decoupled from logic — batched into one pass late in dev since strings can change freely without touching code:
+- "Ticket" → user-facing replacement term (currently placeholder: "request")
+- Disambiguation prompt wording (draft "This sounds like it could be: X · Y. Which fits best?" rejected as not friendly enough)
+- General tone pass across all user-facing copy (friendly/informal per brand direction)
+## 3. Decisions Log
+ 
+| # | Timestamp | Decision |
+|---|-----------|----------|
+| 1 | 2026-08-07 ~AM | Chatbot = smart intake/triage, not answer-serving. |
+| 2 | 2026-08-07 ~AM | This doc is the running brain; formal project plan docs come after planning phase. |
+| 3 | 2026-08-07 ~PM | Auth = OAuth via hosted provider, invite-only. WhatsApp OTP dropped. |
+| 4 | 2026-08-07 ~PM | Unit testing framework = Vitest. |
+| 5 | 2026-08-07 ~PM | Credit system leans MVP (doubles as AI cost control). |
+| 6 | 2026-08-07 ~PM | Credit earn-back mechanic dropped. |
+| 7 | 2026-08-07 ~PM | Admin side = full dedicated interface, not an admin-mode toggle. |
+| 8 | 2026-08-07 ~PM | App must support image sending (minimum media requirement). |
+| 9 | 2026-08-08 | One DB only — split-by-domain rejected. |
+| 10 | 2026-08-08 | Deployment: Vercel + Render acceptable; cold start OK IRL, will pre-warm before demo. |
+| 11 | 2026-08-08 | Signup: custom individual invite links + homepage "request access" approved case-by-case. |
+| 12 | 2026-08-08 | No "ticket" in any user-facing copy — "request" as working term. |
+| 13 | 2026-08-08 | Conversations live fully in-app; no bouncing to WhatsApp. |
+| 14 | 2026-08-08 | UI must support RTL/Hebrew from the start; content English-only for now. No mascot. |
+| 15 | 2026-08-08 | Urgency set at triage; zero speed promises. |
+| 16 | 2026-08-08 | Close flow = Gavi asks "resolved?" → friend confirms. |
+| 17 | 2026-08-08 | Requests re-openable indefinitely (no re-triage for continuations). |
+| 18 | 2026-08-08 | Notes are per-request, not per-user. |
+| 19 | 2026-08-08 | Credits: visible, flat 1/request, one "request anyway" overdraft per reset. |
+| 20 | 2026-08-08 | Service online/offline presence state (auto-Shabbat or manual), not official hours. |
+| 21 | 2026-08-09 | Tech support confirmed as its own request type. |
+| 22 | 2026-08-09 | Intake trigger config is DB-backed and admin-editable (not hardcoded), for live keyword tuning. |
+| 23 | 2026-08-09 | Disambiguation UI = multi-select chips. |
+| 24 | 2026-08-09 | User group tag added: drives credit tier + admin sort/filter. |
+| 25 | 2026-08-09 | Copywriting is a dedicated later dev pass, not decided inline during feature work. |
+| 26 | 2026-08-13 | JavaScript only, no TypeScript, project-wide — Gavi will learn TS after this project. |
+| 27 | 2026-08-13 | No real-time chat / WebSockets — message thread + notifications instead. WhatsApp real-time integration ruled out. |
+| 28 | 2026-08-13 | Messaging security target: escrowed/conversation-scoped E2E (ECDH + AES-GCM), with admin-side client search and off-server key escrow for recovery. Encryption-at-rest is the fallback if time runs short. |
+| 29 | 2026-08-13 | Multi-device recovery model: admin-approved device linking is the primary path (Gavi approves new devices live); off-server escrow is the last-resort fallback for total device loss. |
+| 30 | 2026-08-13 | Escrow refined: per-user passphrase (not raw key) generated at invite creation, embedded in invite link fragment, exported via CSV for 1Password at invite time. CSV keyed by name only, no email. |
+| 31 | 2026-08-16 | Feasibility check (separate chat): full PRD not buildable hand-written solo in the available time/skill level. Hand-write vs. agentic split defined per feature, with a fallback rule — anything falling behind moves to agentic rather than being cut or rushed. |
+| 32 | 2026-08-16 | Multi-agent workflow reconciled with the hand-write split: agents run **alongside** Gavi's commits (triggered by them — e.g. test scaffolding, design/styling passes, CI/CD), not as blocking standalone days. OAuth wiring and E2E encryption remain agentic but are not commit-triggered (they're built in parallel/upfront rather than reacting to a commit). |
+| 33 | 2026-08-16 | Testing and CI/CD reclassified as **collaborative**, not fully agentic — Gavi is weak in both and wants to learn them, not just receive finished output. Test scaffolds happen per-feature as each one lands, not batched at the end. |
+| 34 | 2026-08-16 | Jira issue template for the Aegis Method finalized — Parent/Child field lists, falsifier and evidence-bar fields placed per SPEC.md, plus a `Role` field on children (Falsifier/State/Diagnosis/ADR/Sandbox/Verifier/Policy/Gate/Follow-up) drawn from real issue-train examples in the Aegis deck (NAP, FTC, BADAS cases), and an Owner/Authorship field tying to decision #31's split. See `gavi411-jira-aegis-template.md`. |
+| 35 | 2026-08-16 | Commit convention for Repowise agent-provenance tracking finalized: one git identity (email) + branch prefix + commit trailer per agent role (backend/design/test/e2e/cicd), not per session. See `gavi411-commit-convention.md`. |
+| 36 | 2026-08-16 | PRODUCT.md (Impeccable) will NOT be pre-drafted in planning chat — it's generated interactively by `/impeccable init` inside Claude Code, which scans the actual codebase and interviews on 2-3 questions. Deferred to a Claude Code task once the repo exists. |
+| 37 | 2026-08-16 | Course requirements resolved: Gavi's plan was presented to the instructor and approved as-is. No further reconciliation needed against official requirements. |
+| 38 | 2026-08-16 | DB = PostgreSQL (via existing Neon account), not MongoDB — data is naturally relational (users↔requests↔messages↔credits). |
+| 39 | 2026-08-16 | OAuth provider = Clerk. At this project's scale, cost is a non-issue across all four candidates (Clerk/Supabase/Auth0/Firebase all comfortably free-tier); decision made on fit instead. Clerk chosen for DX and prebuilt components; kept decoupled from Neon (already set up) rather than migrating to Supabase to consolidate DB+auth. |
+| 40 | 2026-08-16 | Ponytail (YAGNI/minimal-code discipline plugin) adopted, settled in a separate chat. Enforces least-code-that-works: stdlib/native features before custom code or dependencies, no speculative abstractions. Install via `/plugin marketplace add DietrichGebert/ponytail` → `/plugin install ponytail@ponytail` — must be the actual plugin install, since copying SKILL.md into a skills folder does NOT reliably self-activate (confirmed zero activation that way; the plugin wires a SessionStart hook the copy method skips). Requires `node` on PATH for its two lifecycle hooks — fails silently, not loudly, if missing, so worth a one-time check. Given multiple subagents will be committing code, verify the hooks are live in every subagent's context after install, not just the first tested — inconsistent activation would show up as inconsistent code style and skew Repowise's per-agent code-health comparisons. |
+| 41 | 2026-08-16 | Correction to decision #31's fallback rule: moving a behind-schedule task to agentic is an **option Gavi can invoke**, not an automatic trigger. Earlier wording implied automatic reassignment; that's wrong. |
+| 42 | 2026-08-16 | V2/stretch tier established for PRD v1: **auto-Shabbat detection, reminders, guest view + history merge** — cut from v1 during the 15-day solo feasibility check and never reinstated (unlike Telegram, Web Push, group tags, and E2E, which were explicitly reinstated). **Post-close reaction** reclassified from "Won't" to v2/stretch — Gavi wants this feature, just not in v1; "Won't" wording was misleading. **Tips/donation link (Bit/Paybox)** promoted from a parked half-joke to an explicit v2/stretch candidate — being a joke about monetization doesn't mean it's excluded from the spec, just that it's not a v1 priority. |
+| 43 | 2026-08-16 | Dev environment: working entirely in the Ubuntu VM (not split with Windows) — avoids case-sensitivity mismatches with the Linux deploy target (Render) and keeps git identity/tooling config in one place. VS Code can remote into the VM, so no editor experience is lost. |
+| 44 | 2026-08-16 | Jira structure: repurpose existing issue types rather than creating custom ones — **Epic → Parent, Task → Child** (no Subtask usage — Aegis children don't nest). The five Aegis states (Open/Implementing/Reviewing/Landed/Reconciled) become the **workflow/status** field, not a custom field — gives the trail for free via Jira's activity log and maps directly onto Kanban board columns. Confirmed working in a **Kanban-style project** (no Scrum/sprint dependency) — fits the flat, freely-reorderable backlog approach already in use. Remaining custom fields to add: Claim, Scope, Assumptions ledger, Falsifier, Evidence required to close, Evidence bar met, Owner/Authorship, Role (children only), Reviewer type. |
+| 45 | 2026-08-16 | PRD §9.6 MVP priorities finalized (were "provisional"): **Web Push, PWA installability, User management, Presence control (manual)** move to Must. **Private notes** and **Trigger/keyword admin** stay Should (low priority). **Telegram notifications** stays Should — deprioritized behind Web Push; acceptable to wait if Web Push alone covers notification needs. **Gavi-initiated requests** stays Should. |
+| 46 | 2026-08-16 | PRD §9.4 Admin cockpit layout finalized (mobile-first drill-down pattern, not side-by-side): **Screen 1 (list)** — sort/filter/group as a persistent dropdown row at top (not tucked behind a toggle), flat list below sorted by urgency oldest-first by default, each row showing a small WhatsApp-style avatar (initials fallback if no photo), friend's name, request type, short preview, urgency indicator, time since last activity. **Screen 2 (detail)** — header with name/type/status/urgency + back button, segmented tabs for Thread / Details (intake answers) / Notes (private), status-change control pinned near top. |
+| 47 | 2026-08-16 | PRD §9.1 Image storage: Cloudinary (free tier), not DB storage — DB just stores the URL. Free tier: 25 credits/month pooled across storage/bandwidth/transformations (1 credit = 1GB storage OR 1GB bandwidth OR 1K transformations), 3 users, no video/advanced-AI on free, soft limit (account suspension risk on sustained overage, not automatic billing). Comfortably sufficient at Gavi411's friends-and-family scale. Also fits the E2E encryption plan better than DB storage, since images already need an "encrypt before upload" step. |
+| 48 | 2026-08-16 | PRD §9.2 Credit mechanics finalized: **monthly** reset, **tiered** amounts by group tag (not flat) — Acquaintance: 2/month, Regular: 5/month, Close: 7/month. No rollover, one "request anyway" overdraft per reset period regardless of tier (unchanged from earlier decision #19). |
+| 49 | 2026-08-16 | PRD §9.3 Auto-close finalized: a request sitting in **"waiting on friend" for 14 days of inactivity auto-closes**. Before closing, a warning message is sent to the friend notifying them the request will close. Reopening still works per decision #17 (indefinite, no re-triage) — auto-close is a tidiness measure, not a hard end state. **Sending a message in a closed request reopens it** — this is the reopen mechanism itself, not a separate button. |
+| 50 | 2026-08-16 | Aegis child-issue authoring rule: Claim, Falsifier, and Evidence bar fields are **not** pre-drafted in bulk during backlog creation — they're written at pickup time, when a child is actually about to move to Implementing, so they reflect real system state (SPEC §5.1 Move 1) rather than speculation against a codebase that doesn't exist yet. Children can be created in Jira with Scope/Role/Owner filled and Claim/Falsifier/Evidence left blank until pickup. |
+| 50 | 2026-08-16 | Aegis child-issue authoring rule: Claim, Falsifier, and Evidence bar fields are **not** pre-drafted in bulk during backlog creation — they're written at pickup time, when a child is actually about to move to Implementing, so they reflect real system state (SPEC §5.1 Move 1) rather than speculation against a codebase that doesn't exist yet. Children can be created in Jira with Scope/Role/Owner filled and Claim/Falsifier/Evidence left blank until pickup. |
+ 
+## 4. Open Questions
+ 
+- User-facing term to replace "ticket"/"request" — brainstorm later.
+- Notification stack: Web Push for users (+ iOS caveats), Telegram bot for Gavi — confirm in planning.
+- Chatbot: LLM-powered (Claude API pay-as-you-go) vs rule-based semi-smart triage vs hybrid. See §7 cost notes.
+- PWA: in MVP or stretch goal? (Very low effort — see §7.)
+- Image handling: storage approach (DB vs object storage e.g. Cloudinary free tier) — for planning phase.
+- Jira + GitHub workflow structure — Parent/Child template now defined (see §3 #34); Jira project itself not yet created.
+- What "CI/CD" needs to mean for this project — now reclassified as collaborative (decision #33); Gavi still needs the conceptual explainer during that work.
+- PRODUCT.md (Impeccable) — confirmed staying deferred to `/impeccable init` inside Claude Code once repo exists (decision #36). No PRODUCT.md draft exists or should exist from this planning chat — any earlier kickoff-doc instruction to pre-draft it is superseded.
+## 5. Parking Lot (ideas mentioned, not yet explored)
+ 
+- Gavi has more feature ideas not yet written out.
+- User tiers.
+## 6. Reference Notes (from planning discussions)
+ 
+### Real-time chat vs. message thread (2026-08-13)
+- Teacher raised "real-time chat" as something to scope carefully.
+- DECIDED: not a real-time system (no WebSockets) — free Render tier can't hold persistent connections well (same spin-down issue as elsewhere), and it's not needed.
+- What's actually built: a message thread per request — fetch on load, POST to send, notifications (Web Push for friends, Telegram for Gavi) tell people to come check. This satisfies "I respond, they reply" without real-time infrastructure. Frame this explicitly to the teacher as the scope boundary.
+- WhatsApp integration for real-time: ruled out — same reasoning as WhatsApp OTP earlier (official API needs Meta approval + per-message cost; unofficial libs are ban-risk). Not pursuing.
+### Message encryption (2026-08-13) — DECIDED: conversation-scoped E2E, admin-side client search, off-server escrow
+- Target design (stretch, agentically implemented; Gavi needs to understand/explain it, not hand-write it):
+  - Each user (friends + Gavi) generates an asymmetric keypair client-side via the browser's Web Crypto API on first use. Private key stays in the browser (IndexedDB); public key stored openly on the server.
+  - Each 1:1 conversation (always exactly friend + Gavi — no group-chat complexity) derives a shared secret via **ECDH** from the two parties' keys. Messages encrypted client-side with **AES-GCM** using that secret before ever reaching the server. Images get the same treatment (encrypt before upload, decrypt on display).
+  - Server stores/relays ciphertext only — genuinely unreadable to it. Protects against DB leaks/backups AND full server compromise (unlike encryption-at-rest, where a full server compromise exposes the key too).
+  - **Admin-side search solved**: Gavi is a legitimate party to every conversation (always one of the two keys). The admin panel can derive shared secrets for all conversations and build a local, client-side decrypted index to search — same trick WhatsApp uses for "search all my chats" despite E2E. This is NOT server-side search and doesn't compromise the server's blindness.
+  - **Key-loss problem (friend wipes browser data) solved via escrow**: per-user escrow (not one shared key — a shared key would mean one leak exposes everyone; per-user contains a leak to one person). Design detail: what's escrowed is NOT the raw private key — it's an encrypted backup of it. Flow:
+    1. Gavi creates an invite (existing case-by-case flow) → admin panel generates a random escrow passphrase at that moment, before the friend does anything.
+    2. Passphrase embedded in the invite link's URL **fragment** (`#escrow=...`) — never sent to the server, same trick as recovery links.
+    3. Gavi exports the passphrase to a CSV immediately at invite-creation time (see export feature below) — doesn't depend on friend completing signup.
+    4. Friend clicks invite, signs up. Browser generates real keypair, reads the passphrase from the link fragment, uses it locally to encrypt a backup of the private key, uploads only that ENCRYPTED BLOB to the server (unreadable without the passphrase), then discards the passphrase — friend never needs to know it exists.
+    5. Server stores the encrypted blob freely (safe — useless without the passphrase). Gavi holds the only usable copy of the passphrase, off-server, in 1Password.
+  - **Escrow export feature**: on invite creation, a CSV download for 1Password import — columns `title, username, password, notes` (1Password-friendly, manually mappable): title = "Gavi411 escrow — <friend's name>", username = left blank (no email — invites aren't tied to a pre-known signup email, so name is the only reliable identifier at invite time), password = the escrow passphrase, notes = generation date + "Gavi411 recovery key — do not share." Gavi deletes the CSV from Downloads after import (Downloads not cloud-synced, confirmed low risk).
+  - Threat model: this is technically "escrowed/recoverable E2E," not pure E2E (since Gavi can restore any user's key) — but that's correct and intended given Gavi is meant to see all messages by design. The critical detail making it worth building over plain encryption-at-rest: the escrow key must live OFF the server. If it lived server-side, a full server breach would expose everything, collapsing this back to equivalent-to-EaR.
+  - Comparison locked in:
+    - **Encryption-at-rest (fallback)**: simple (encrypt/decrypt column with a server-side key via Node's `crypto`), full server search, but a full server compromise exposes everything (server holds data + key together).
+    - **Escrowed E2E (target)**: DB-only leak AND full server compromise both stay protected (attacker would need to separately compromise Gavi's password manager); full admin search preserved via legitimate client-side decryption; friend data-loss solved via off-server recovery link. Cost: meaningfully more moving parts (keypairs, ECDH, escrow flow, recovery mechanism, local search index) than EaR.
+  - Plan: attempt escrowed E2E once the core app works; encryption-at-rest is the guaranteed v1 fallback if time runs out.
+### Multi-device model (2026-08-13, refinement of E2E design)
+- New device (or new browser/PWA context) has no local key — this is expected, not broken. Login (OAuth) always works regardless; it's identity/access/the public-key registry, separate from per-device message-decryption ability.
+- **Primary recovery path: admin-approved device linking.** Friend opens Gavi411 on a new device, logs in, sees "request access to your message history." Gavi gets notified, approves via admin panel. Gavi's admin session already holds decrypted content for that conversation (Gavi is a party to it) and re-encrypts/shares what's needed to the new device's public key. Server only ever relays ciphertext. Modeled on WhatsApp's QR device-linking handshake, adapted since Gavi (not another user device) is the one who can approve.
+- **Escrow (see above) = last resort**, for when there's no already-approved device left at all (e.g. lost every device) — no live device to approve from, so the off-server recovery-key/link flow is the only remaining path.
+- Adding a device is additive, not a swap — old devices keep working; multi-device is normal (same model as Signal/WhatsApp).
+- Future (v2-of-v2, not urgent): explicit device revocation for lost/stolen phones — removes that device's key from receiving future messages. Doesn't undo past decryption on that device.
+### Claude API cost reality
+- The API is pay-as-you-go and separate from claude.ai subscriptions — no Pro plan needed. You add a small amount (e.g., $5) to a Claude Platform account and it lasts.
+- A triage conversation (short, bounded, using a small model like Haiku) costs fractions of a cent. Dozens of friend-tickets/month ≈ well under a dollar.
+- Real risk isn't cost per call, it's unbounded usage — mitigated by credits, invite-only user base, and message caps per triage session.
+### Intake v1 design (2026-08-08/09, refined)
+- **Free-text box** always present: "tell me what's going on."
+- **Debounced keyword matching** (wait ~400ms after typing pauses, then check) against a trigger list stored in the DB (not hardcoded) — editable live from an admin screen, no redeploy needed to tune keywords.
+- **Matched type(s)** reveal relevant follow-up fields. Multiple matches → disambiguation UI: multi-select chips (DECIDED, 2026-08-09 — supersedes earlier single-select-plus-"both apply" idea; submit-click on mobile judged acceptable). Wording is a copywriting-pass item (see below), not decided now.
+- **Info/Research type has no follow-up fields** — free text + the generic fallback question is enough for that category (lighter-weight than other types).
+- **Generic fallback field** always shown regardless of match: "anything else I should know, when do you need this by."
+- **Starter keyword taxonomy (draft, to refine from real submissions):**
+  - Travel: flight, airport, layover, connection, gate, boarding, terminal, trip, vacation, hotel, itinerary, visa, luggage, baggage, delayed, cancelled flight, rebook, compensation, bumped
+  - Tech support: phone, sim, sim card, plan, cellular, wifi, wi-fi, internet, router, setup, set up, laptop, computer, app, account, login, password, sync, connect, device, upgrade, update, install
+  - Purchase/Find: buy, find, order, purchase, ship, shipping, available, unavailable, ebook, epub, pdf, book, product, price, deal, discount, out of stock, import
+  - Info/Research: where, how, hours, open, closed, address, directions, reach, contact, phone number, recommend, recommendation, review, kosher, nearby
+  - Overlap between lists (e.g. "find" in Purchase, "phone" in Tech support) is intentional — resolved by the disambiguation UI, not by over-engineering the lists.
+- Tech support confirmed as its own category (previously undiscussed until now — a real gap in earlier planning, since several of Gavi's real examples are tech support).
+### Triage approach — DECIDED (2026-08-08, revised): simple form, no LLM
+- LLM ruled OUT for v1. Reasoning: privacy concerns, and a deliberate principle — don't make a non-critical feature depend on a third-party interface to function.
+- v1 intake: a free-text box + preset checkboxes (request type, urgency, possibly other fields TBD). Fully deterministic, runs entirely on Gavi's own server, no external calls, no data leaves the infrastructure.
+- History: earlier direction was LLM-first conversational triage (rejected decision-tree for forcing categories); then local-LLM was considered (rejected — still an always-on third-party-interface-shaped dependency, plus deployment/always-on problems); landed on simple form as the version that actually satisfies both "no forced rigid categories" (checkboxes aren't rigid branching, no adaptive dead-ends) and "no non-critical third-party dependency."
+- Open: exact checkbox taxonomy (request type options, urgency scale) — TBD.
+- Claude API may still be used elsewhere in the app (this decision is about triage specifically, not a ban on all AI usage in the project).
+### PWA (Progressive Web App)
+- PWA = a website that Chrome/Android can "install": home-screen icon, own window, optional offline support.
+- Minimum requirements: HTTPS + a manifest.json (name, icons, colors) + a service worker (can be near-empty). With Vite there's a plugin (vite-plugin-pwa) that generates most of it.
+- Effort: hours, not days. Safe to consider MVP-cheap.
+- **iOS:** PWAs DO work — installed via Safari's Share → "Add to Home Screen" (not Chrome; Chrome on iOS can't install PWAs). Once installed they run standalone (own icon, no browser chrome). Limitations vs Android: install flow is manual and non-obvious (no install prompt), and some capabilities are more restricted. Push notifications work on iOS only for installed PWAs (iOS 16.4+). Good enough for a friends-audience app; may want a small "how to install on iPhone" instruction page.
+### DB choice notes
+- Using BOTH DBs adds real complexity (two connections, two data layers, two things to break) for little benefit at this scale — not recommended.
+- "Users switch between open and old requests" is not a DB-choice factor — it's a status field + a query filter in either DB.
+- The actual decision drivers: relational shape of the data (users ↔ tickets ↔ messages ↔ credits is naturally relational → Postgres/Prisma), vs. flexible message/chat documents (→ Mongo). Both workable; decision deferred to planning phase.
+- Split-by-domain (Mongo for chat, SQL for the rest) discussed: technically valid pattern at scale, but at this scale it's a waste — chat messages are perfectly served by a relational `messages` table (id, ticket_id, sender, body, image_url, timestamp), and the split costs two connections, two ORMs/clients, two backup stories, and cross-DB queries (e.g., "ticket + its messages") become application-level joins. Recommendation: one DB. (Counter-consideration: using both could demo more skills for the course — depends on requirements.)
+### Deployment notes
+- Gavi's existing pattern: Vercel (frontend) + Render free tier (backend). Pattern is fine and familiar.
+- Render free tier caveat: services spin down after ~15 min idle → first request takes ~30–60s cold start. Annoying for a "concierge" app where friends expect responsiveness; also embarrassing in a live course demo.
+- Options: cron-style ping to keep Render warm (common workaround), Railway/Fly.io free alternatives, or paid-tier Render (~$7/mo) for the demo month. Also check whether the course mandates a deployment target.
+- DB hosting: MongoDB Atlas or Neon (Postgres) free tiers — accounts already exist.
+### Fullstack build feasibility & ownership split (2026-08-16)
+- Separate "Feasibility of manual project implementation" chat established: against the full PRD, Gavi hand-writing "most" of the code in the available time (15 days × ~3.5-4hrs, later revised upward) is not realistic — the scope needs to shrink, not just his involvement.
+- Real hour-costed backlog built (not day-slotted — day-slotting produced artificially sparse/full days once actual per-task hours were estimated). Kanban/sprint-friendly: a flat task list with hour estimates, freely reorderable except along the dependency spine (DB schema → Express skeleton → Auth → Request model, everything else branches off that).
+- Ownership split (decision #31): **You** write logic/structure — backend routes, DB, request/messaging/lifecycle/admin/credits logic, frontend component structure and wiring. **Agentic, fully explained**: design system + styling passes (based on Gavi's existing inspo board, not Tailwind — Gavi doesn't know Tailwind), OAuth wiring, E2E encryption, PWA/service worker config, CI/CD, deploy. **Collaborative**: test scaffolds, built per-feature as each one lands (Gavi wants to learn testing and CI/CD, not just receive them finished).
+- Frontend design/component styling was an initially missed scope gap — full PRD requires designing and building every page/component, not just wiring logic to endpoints. Resolved via a one-time agentic "design system foundation" (base component styles, typography, tokens, RTL logical properties, derived from Gavi's inspo board) after which each UI task splits into structure (Gavi writes) + styling (agentic applies design system).
+- React frontend setup and PWA manifest/service worker were also initially missed as their own line items (nothing currently exists — no frontend, no backend) — now explicit tasks.
+- Fallback rule (decision #31, corrected by #41): if Gavi is falling behind on a task that's currently his, moving it to agentic is an option he can invoke — not an automatic trigger. This is the live adjustment mechanism instead of trying to perfectly predict the schedule up front.
+- Agentic-built pieces Gavi wants to personally rebuild/study post-deadline (design system passes, OAuth wiring, E2E core, PWA/service worker config, deploy) are tracked separately in `gavi411-post-deadline-learning-backlog.md` — not a PRD item, not a decision, just a running reference for future-you.
+- Full real-hour backlog (~82.5hrs total: ~47hrs Gavi build + ~9.5hrs collaborative + ~26hrs agentic) exceeds a naive "15 days × 4hrs" (60hrs) estimate by ~22hrs — explicitly surfaced as a real gap, not glossed over. Decision: proceed with the plan as scoped and apply the fallback rule live rather than pre-cutting further.
+### Multi-agent workflow reconciliation (2026-08-16)
+- The ownership split above was reconciled against an earlier, separately-planned multi-agent setup (Aegis Method + Repowise + Impeccable, from the "Multi-agent Claude project with frameworks" chat) — confirmed these are not in tension.
+- "Agentic" work in the ownership split is actually **multiple subagents** committing code, with Repowise tracking agent provenance from git history and Aegis-style discipline (falsifiers, evidence bar, adversarial review, closure-against-reality) governing how that work gets closed out — not just "Claude does it and explains it."
+- Commit-triggered agents (react to Gavi's commits): test scaffolding, CI/CD, design/styling passes (agent picks up a commit of plain structure and applies the design system to it).
+- NOT commit-triggered, run in parallel/upfront instead: OAuth wiring (scaffolding Gavi builds against, not a reaction to his code), E2E encryption core (keypairs/ECDH/AES-GCM is a parallel subsystem that later integrates with messaging once that's committed, not triggered by any single commit).
+- Two of the three deliverables originally requested from this reconciliation (Jira issue template, commit convention) are now built — see decisions #34–35 and the standalone files. The third (PRODUCT.md) is not a planning-chat deliverable at all — see decision #36.
+### Design system setup — how the inspo board actually feeds Impeccable (2026-08-16)
+- Impeccable does not ingest an external site or "point at" a reference. It only reads two files it expects in the project root: `PRODUCT.md` (strategy, written interactively via `/impeccable init`) and `DESIGN.md` (visual system — colors, type, components, radii), the latter generated by `/impeccable document`, which scans the **actual Gavi411 codebase** — existing tokens, components, rendered output — not any external reference.
+- The inspo board (a separate site Claude Code built earlier to hold reference screenshots) does **not** transmit design direction through its own code. Its CSS/markup is just the gallery shell built to display references — it was never styled to embody the direction itself, so pointing Claude Code at that site's own styling is a dead end (corrects an earlier wrong suggestion in this chat).
+- What actually carries the direction: the **screenshot image files themselves**, wherever they live on disk inside that project (e.g. an assets/images folder). Claude Code can view these directly as images, same as a fresh upload.
+- Correct sequence: (1) point Claude Code at the inspo board's actual image files, or re-upload the specific screenshots directly into the session; (2) Claude Code builds Gavi411's first real components informed by those images; (3) once real styled code exists, run `/impeccable document` to scan *that* into `DESIGN.md`. Impeccable only ever sees code that already exists in the project — the inspo board influences the code first, Impeccable reads the code second, never the board directly.
+- Practical implication for the design-system-foundation setup task: don't run `/impeccable document` first. Show the screenshots, build a couple of components/pages against them, then document.
+## 7. Not Yet Discussed
+ 
+- Data model, architecture, tech decisions (schema itself not yet drafted — first task on deck).
