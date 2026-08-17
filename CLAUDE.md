@@ -26,9 +26,11 @@ just a deliverable.
 |---|---|
 | `gavi411-prd.md` | Full product spec — flows, features, priorities |
 | `gavi411-brain.md` | Numbered decision log — the "why" behind every call |
-| `gavi411-jira-aegis-template.md` | Parent/Child issue field template (Aegis Method) |
-| `gavi411-commit-convention.md` | Per-role git identity/branch/trailer scheme (Repowise) — *not yet in this file set, confirm it exists in the repo before relying on it* |
+| `Aegis-spec.md` | Primary source spec for the Aegis Method (Claim/Falsifier/Evidence workflow) — `gavi411-jira-aegis-template.md` is derived from this; consult this file directly for anything the template doesn't cover |
+| `gavi411-jira-aegis-template.md` | Parent/Child issue field template (Aegis Method), derived from `Aegis-spec.md` |
+| `gavi411-commit-convention.md` | Per-role git identity/branch/trailer scheme (Repowise) |
 | `gavi411-task-list-draft.md` | Full Parent/Child backlog, hour-costed, tagged by owner |
+| `gavi411-jira-tree.md` | Snapshot of the actual G411 Jira Epic → Task structure with issue keys, generated after backlog population |
 | `gavi411-post-deadline-learning-backlog.md` | Agentic work Gavi wants to rebuild/study later — informational only, doesn't affect how you build now |
 
 ## Ownership split — the single most important rule here
@@ -43,6 +45,15 @@ these even if the request sounds generic ("build the request endpoint").
 Offer scaffolding, review, targeted explanation, or pair on a specific
 stuck point instead — and if you're unsure whether something crosses into
 `[You]` territory, ask rather than assume.
+
+**Comment-stub scaffolds** (decision #52): for any `[You]` task — backend
+*or* frontend — you can ask for a file with the structure stubbed out as
+comments (e.g. `// OAuth middleware goes here`, `// connect to DB`,
+`// GET request - data from DB`) so Gavi fills in the real logic instead of
+starting from blank. Produce these **per-task, on request, right when
+Gavi's about to start that task** — not pre-generated in bulk. Gavi writes
+all real content, so the resulting commit is entirely his — plain
+`git-as-gavi`, no agent role involved.
 
 **`[Agentic]`** — design system/styling passes, Clerk OAuth wiring, E2E
 encryption core, PWA/service worker config, deploy pipeline setup. Build
@@ -63,6 +74,7 @@ behind schedule — surface the concern and let him decide.
 - Frontend: React (Vite), **JavaScript only — no TypeScript**
 - Backend: Node.js + Express, ES modules
 - DB: PostgreSQL via Neon (relational — users↔requests↔messages↔credits)
+- ORM: Prisma
 - Auth: Clerk (OAuth, invite-gated)
 - Testing: Vitest
 - Deploy: Vercel (frontend) + Render free tier (backend, cold-start accepted)
@@ -93,10 +105,12 @@ behind schedule — surface the concern and let him decide.
   no Subtasks. The five Aegis states (Open → Implementing → Reviewing →
   Landed → Reconciled) *are* the workflow/status field.
 - **Aegis Method**: every Child needs a Falsifier and an Evidence bar before
-  it can be marked Reconciled. Full field definitions in
-  `gavi411-jira-aegis-template.md`. Claim/Falsifier/Evidence are written
-  **at pickup time**, against real system state — not pre-drafted in bulk
-  against a codebase that doesn't exist yet.
+  it can be marked Reconciled. Field definitions in
+  `gavi411-jira-aegis-template.md`; if a question comes up that the
+  template doesn't answer, consult `Aegis-spec.md` directly — it's the
+  primary source the template was derived from. Claim/Falsifier/Evidence
+  are written **at pickup time**, against real system state — not
+  pre-drafted in bulk against a codebase that doesn't exist yet.
 - **Repowise**: tracks agent provenance from git history. Requires the
   per-role commit identity/branch-prefix/trailer scheme in
   `gavi411-commit-convention.md` to be respected by every subagent, not

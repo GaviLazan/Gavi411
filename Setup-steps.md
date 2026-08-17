@@ -20,17 +20,23 @@ Empty repo, matches what Jira/Repowise/CI-CD will all point at.
  
 Neon: create the Postgres project (if not already project-specific)
 Clerk: create the actual Clerk application/project, grab API keys
+*DONE* — decisions logged in gavi411-brain.md #53 (Clerk config) and #54
+(Neon Auth rejected in favor of Clerk). Keys in scratch .env (gitignored).
  
 6. Install Claude Code pointed at the new repo
+*DONE*
  
 7. Inside Claude Code, install the three plugins
  
 Repowise (/plugin marketplace add repowise-dev/repowise → /plugin install repowise@repowise)
 Impeccable (npx impeccable install)
 Ponytail (/plugin marketplace add DietrichGebert/ponytail → /plugin install ponytail@ponytail) — check node is on PATH first
+*DONE*
  
 8. Configure git identities
 Set up the per-role email/branch-prefix scheme from gavi411-commit-convention.md before any subagent starts committing.
+*DONE* — full mechanism (git worktrees per role, identity setup, tagging
+rule) documented in gavi411-commit-convention.md.
  
 9. Design system kickoff
 Gather the inspo board's actual screenshot image files (not the board's own code) ready to show Claude Code before building any component — per the corrected sequencing in the brain doc.

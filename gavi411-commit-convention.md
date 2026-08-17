@@ -19,15 +19,32 @@ correctly.
 **Commit author email** — use one consistent, distinct address per agent
 role, not per session. This is the strongest signal Repowise reads.
  
-- `gavi@` — your own manual commits (default git identity, no change needed)
-- `agent-backend@` — backend/logic subagent
+- `gavi@` — placeholder label for your own manual commits. No literal
+  address change required: your existing global git identity
+  (`gavriel.lazan@gmail.com`) already satisfies the rule, since it's one
+  consistent, distinct address used only for your own work. Only the agent
+  roles below need a dedicated local-only address set up.
+- `agent-backend@` — backend/logic subagent. Also owns **Clerk OAuth
+  wiring** (callback handling, session/token mgmt) — that task is
+  `[Agentic]` per CLAUDE.md's Ownership Split, but it's server-side
+  auth/session work, closest in kind to the rest of backend logic, so it
+  doesn't get a separate role/worktree.
 - `agent-design@` — design/styling subagent (Impeccable-driven passes)
 - `agent-test@` — test-scaffold subagent
 - `agent-e2e@` — E2E encryption subagent
 - `agent-cicd@` — CI/CD and deploy subagent
-(These don't need to be real mailboxes — `git config user.email` just needs
-to be set per-worktree/session before that agent commits. A local-only
-address like `agent-backend@gavi411.local` works fine.)
+
+No `agent-frontend` role: per CLAUDE.md's Ownership Split, "frontend
+component structure and wiring" is explicitly `[You]` — Gavi writes it
+himself. Only the *design/styling pass* on top of frontend work is
+`[Agentic]`, and that's `agent-design`'s job. An agent-frontend role would
+imply an agent builds frontend product code, which contradicts the split.
+
+(These don't need to be real mailboxes — each agent role now has its own
+persistent git worktree (`../Gavi411-agent-<role>/`, set up during
+Setup-steps step 8) with its identity fixed via `git config --worktree`,
+so it never needs switching mid-session. A local-only address like
+`agent-backend@gavi411.local` works fine.)
  
 **Commit trailer** — every agent-authored commit includes:
  
@@ -83,6 +100,38 @@ to the agent's address and then typing a manual fix under it — that's the
 one case where Repowise has no way to tell a human touched it, and the
 whole branch reads as pure agent work, which is simply wrong.
  
+## Applying identities in practice (git-as-* switchers)
+
+Six functions live in `~/.bashrc` (added during Setup-steps step 8), one
+per identity above — `git-as-gavi`, `git-as-agent-backend`,
+`git-as-agent-design`, `git-as-agent-test`, `git-as-agent-e2e`,
+`git-as-agent-cicd`. Each sets `user.name`/`user.email` for the **current
+repo only** (never `--global`), so switching identity for Gavi411 never
+leaks into any other project and nothing goes stale in the background.
+
+**What you do next (open a fresh terminal, or `source ~/.bashrc`):**
+Before any commit — yours or an agent's — run the matching function first,
+e.g. `git-as-agent-backend` before a backend-agent commit, `git-as-gavi`
+before your own. It's one line, and it fails loudly (command not found) if
+you're not in a repo with git initialized, rather than silently doing
+nothing.
+
+**The tagging rule, since all commits run through Claude Code:** identity
+is set by whichever `git-as-*` function ran *most recently* against the
+repo's local git config — it's read at commit time regardless of how the
+commit is made (terminal `git commit`, Claude Code running it on your
+behalf, or a GUI like VS Code's Source Control panel). So the question is
+never "who clicked commit," it's **who is actually responsible for the
+change**, per the Ownership Split in `CLAUDE.md`:
+
+- Gavi wrote/drove the change himself (even if Claude Code types the git
+  command, or you commit via a GUI) → run `git-as-gavi` first.
+- An agent produced the change autonomously (Agentic-tagged work) → run
+  the matching `git-as-agent-*` first.
+- If you're about to commit through a GUI yourself, that's almost always
+  `git-as-gavi` — run it in a terminal before switching to the GUI, since
+  the GUI has no way to ask which identity to use.
+
 ## Why per-role, not per-session
  
 Repowise attributes at the granularity of what's in the git identity, not
