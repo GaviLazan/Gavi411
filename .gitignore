@@ -1,6 +1,12 @@
 # Dependencies
 node_modules/
 
+# AI assistant plugin installs (e.g. Impeccable) — vendored tool payload,
+# reinstalled via plugin install commands, not project code. settings.local.json
+# is machine-local config too.
+.claude/
+.gemini/
+
 # Environment variables / secrets
 .env
 .env.local
@@ -10,6 +16,10 @@ node_modules/
 # Aegis-spec.md is intentionally NOT ignored — it's the source spec the
 # other Aegis docs were derived from, kept as a true reference.
 Aegis docs/
+
+# Design inspo screenshots — reference material for the one-time design
+# system pass (Setup-steps step 9), not part of the shipped product.
+Design Inspo/
 
 # OS cruft
 .DS_Store

@@ -40,8 +40,13 @@ rule) documented in gavi411-commit-convention.md.
  
 9. Design system kickoff
 Gather the inspo board's actual screenshot image files (not the board's own code) ready to show Claude Code before building any component — per the corrected sequencing in the brain doc.
+*DONE* — sorted into subfolders under "design inspo" by what signal each
+image carries (general direction / specific elements / partial takes like
+layout-or-color-only). One image intentionally placed in two folders.
  
 10. Write the session-start ritual
 You said you want to be actively involved in defining this, not have it run automatically — worth doing before Day 1 work starts, not during.
+*DONE* — ritual (recap → agent/subagent status → pick the task) written
+into CLAUDE.md under "How to work with Gavi."
  
 11. Day 1 — DB schema

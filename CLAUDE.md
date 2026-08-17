@@ -135,8 +135,21 @@ behind schedule — surface the concern and let him decide.
 - Async workflow: Gavi does a step, comes back with a result (success or
   a specific failure), then asks for the next step. Don't assume a
   previous suggestion was tried unless he says so.
-- Session-start ritual is **not yet defined**. Don't invent or run one
-  automatically — Gavi wants to design this deliberately, together.
+- **Session-start ritual** (decided together, Setup-steps step 10): at the
+  start of each work session, before touching any code, run these three in
+  order —
+  1. **Recap**: check `Setup-steps.md`, the Jira backlog, and `git status`/
+     `git log` across the main worktree; give Gavi a short (3-5 line)
+     "here's where we left off, here's what's next" summary.
+  2. **Agent/subagent status**: report anything currently running or
+     recently finished in the other worktrees (`Gavi411-agent-*`) or any
+     background subagents — what's in progress, what's done and needs
+     review/merge, what's stalled or needs a decision.
+  3. **Pick the task**: agree explicitly with Gavi which Jira task he's
+     picking up this session before any code gets touched. If it's a Task
+     moving into Implementing, this is also when its Claim/Falsifier/
+     Evidence-required field get written (decision #50 — at pickup time,
+     against real state, not pre-drafted).
 
 ## Current state
 
