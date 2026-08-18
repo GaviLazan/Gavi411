@@ -1,0 +1,117 @@
+// Gavi411 — DB schema (G411-10)
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  USER
+}
+
+enum GroupTag {
+  CLOSE
+  REGULAR
+  LIMITED
+}
+
+enum Urgency {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum RequestType {
+  TRAVEL
+  RESEARCH
+  PURCHASE
+  TECH_SUPPORT
+  INFO
+  GENERAL
+}
+
+enum Status {
+  IN_QUEUE
+  RECEIVED
+  WORKING_ON_IT
+  WAITING_ON_USER
+  RESOLVED_PENDING_CONFIRMATION
+  CLOSED
+  CANCELLED
+  SELF_SOLVED
+}
+
+model User {
+  clerkId       String   @id
+  role          Role     @default(USER)
+  firstName     String
+  lastName      String
+  phoneNumber   String   @unique
+  profilePic    String?
+  groupTag      GroupTag @default(REGULAR)
+  creditBalance Int
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @default(now())
+
+  request            Request[]
+  messages           Message[]
+  creditTransactions CreditTransaction[]
+}
+
+model Request {
+  id            Int          @id @default(autoincrement())
+  status        Status       @default(IN_QUEUE)
+  urgency       Urgency      @default(MEDIUM)
+  type          RequestType?
+  freeText      String
+  fallbackNotes String?
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @default(now())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [clerkId])
+
+  message Message[]
+  note    Note[]
+}
+
+model Message {
+  id        Int      @id @default(autoincrement())
+  content   String
+  imageUrl  String?
+  createdAt DateTime @default(now())
+
+  requestId Int
+  request   Request @relation(fields: [requestId], references: [id])
+  userId    String
+  user      User    @relation(fields: [userId], references: [clerkId])
+}
+
+model Note {
+  id        Int      @id @default(autoincrement())
+  content   String
+  createdAt DateTime @default(now())
+
+  requestId Int
+  request   Request @relation(fields: [requestId], references: [id])
+}
+
+model CreditTransaction {
+  id        Int      @id @default(autoincrement())
+  amount    Int
+  createdAt DateTime @default(now())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [clerkId])
+}
+
+model Trigger {
+  id          Int         @id @default(autoincrement())
+  keyword     String
+  requestType RequestType
+}
