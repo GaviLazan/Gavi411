@@ -115,6 +115,14 @@ behind schedule — surface the concern and let him decide.
   per-role commit identity/branch-prefix/trailer scheme in
   `gavi411-commit-convention.md` to be respected by every subagent, not
   just Gavi's own commits.
+- **Branching**: no direct commits to `main`. One branch per child issue —
+  `you/G411-XX-slug` for Gavi's own work, `agent-<role>/G411-XX-slug` for
+  agentic — merged back via PR once the child reaches Landed.
+- **PR review**: routine children self-merge once their Evidence bar is
+  met (evidence *is* the review). Load-bearing children (credits, auth,
+  encryption, lifecycle state machine) get a live Sibling review from
+  Claude Code before merge, on top of the evidence bar. Full policy in
+  `gavi411-commit-convention.md`.
 - **Impeccable** (design skill): do **not** run `/impeccable document`
   before real styled components exist. Correct sequence is: show reference
   screenshots from the inspo board (the image files themselves, not the
@@ -135,6 +143,9 @@ behind schedule — surface the concern and let him decide.
 - Async workflow: Gavi does a step, comes back with a result (success or
   a specific failure), then asks for the next step. Don't assume a
   previous suggestion was tried unless he says so.
+- **Starting any Jira task**: before diving in, state what the Jira task
+  actually includes (scope, in plain terms) so Gavi has it in front of him
+  instead of having to scroll back through fast-moving turns to find it.
 - **Session-start ritual** (decided together, Setup-steps step 10): at the
   start of each work session, before touching any code, run these three in
   order —
@@ -153,14 +164,18 @@ behind schedule — surface the concern and let him decide.
 
 ## Current state
 
-No code exists yet. First task on the dependency spine (see
-`gavi411-task-list-draft.md`, Parent 1 — Foundation): **DB schema design**,
-then Express skeleton → Auth wiring → Request model. Everything else in the
-backlog branches off that spine and can be reordered freely around it.
+Foundation spine in progress. **G411-10 (DB schema)** done — `prisma/schema.prisma`
+written, validated, formatted. **G411-11 (Express skeleton)** in progress —
+`package.json` (ES modules), Express/Prisma 6/dotenv installed, `server/`
+folder scaffolded with comment-stubbed `server.js`/`routes/requests.js`/
+`lib/prisma.js` — logic not yet written. Next after 11: G411-12 (React
+frontend, in `client/` to match `server/`), G411-13 (Clerk).
+
+Folder naming: **`server/`** and **`client/`**, not `backend`/`frontend`.
 
 ## Future doc structure (not yet)
 
-Once `backend/` and `frontend/` actually exist, it's worth splitting this
-into a leaner root `CLAUDE.md` plus a `backend/CLAUDE.md` and
-`frontend/CLAUDE.md` for directory-specific context. Not needed yet —
+Once `server/` and `client/` are both fleshed out, it's worth splitting this
+into a leaner root `CLAUDE.md` plus a `server/CLAUDE.md` and
+`client/CLAUDE.md` for directory-specific context. Not needed yet —
 revisit once Foundation lands.
