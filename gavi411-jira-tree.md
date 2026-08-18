@@ -1,6 +1,6 @@
 # Gavi411 — Jira Backlog Tree (G411)
 
-_Reference snapshot of the Epic → Task structure in the G411 Jira project (gavi.atlassian.net). Generated after populating the backlog from `gavi411-task-list-draft.md`. Keys are Jira-assigned and sequential by creation order — not grouped by epic block; this file is the readable map._
+_Reference snapshot of the Epic → Task structure in the G411 Jira project (gavi.atlassian.net). Generated after populating the backlog from `gavi411-task-list-source.md`. Keys are Jira-assigned and sequential by creation order — not grouped by epic block; this file is the readable map._
 
 Legend: **[You]** hand-written · **[Agentic]** subagent-built, fully explained · **[Collab]** collaborative (testing/CI-CD) · _(defaulted)_ = no tag in source, defaulted to [You] per decision #50 · _(split, blank)_ = dual-tag line, Owner/Authorship left blank, split noted in Scope
 

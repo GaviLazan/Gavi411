@@ -29,7 +29,7 @@ just a deliverable.
 | `Aegis-spec.md` | Primary source spec for the Aegis Method (Claim/Falsifier/Evidence workflow) — `gavi411-jira-aegis-template.md` is derived from this; consult this file directly for anything the template doesn't cover |
 | `gavi411-jira-aegis-template.md` | Parent/Child issue field template (Aegis Method), derived from `Aegis-spec.md` |
 | `gavi411-commit-convention.md` | Per-role git identity/branch/trailer scheme (Repowise) |
-| `gavi411-task-list-draft.md` | Full Parent/Child backlog, hour-costed, tagged by owner |
+| `gavi411-task-list-source.md` | Original hour-costed Parent/Child backlog, tagged by owner — the source doc used to populate Jira; Jira itself (see `gavi411-jira-tree.md`) is the live backlog now |
 | `gavi411-jira-tree.md` | Snapshot of the actual G411 Jira Epic → Task structure with issue keys, generated after backlog population |
 | `gavi411-post-deadline-learning-backlog.md` | Agentic work Gavi wants to rebuild/study later — informational only, doesn't affect how you build now |
 
@@ -161,6 +161,27 @@ behind schedule — surface the concern and let him decide.
      moving into Implementing, this is also when its Claim/Falsifier/
      Evidence-required field get written (decision #50 — at pickup time,
      against real state, not pre-drafted).
+- **"Wrap it up"** — codeword. When Gavi says it: check his work against
+  the current task's actual scope, confirm/re-confirm the falsifier,
+  write or update the Aegis fields (Claim/Falsifier/Evidence), commit
+  (self-merge if routine, flag for a live Sibling review first if
+  load-bearing — see `gavi411-commit-convention.md`), then say what's
+  next on the spine. Saves him re-explaining "I'm done, go check" each
+  time.
+- **Context-window handoff** (decided 2026-08-18): there's no verified way
+  for Claude Code to read its own exact context-usage % — don't trust
+  claims of a `CLAUDE_CONTEXT_TOKEN_COUNT`-style env var or similar; none
+  is confirmed real. Instead, two parallel signals:
+  1. Claude self-judges from session shape (turn count, volume read/
+     written, how long the session's run) and proactively flags "getting
+     long, want a handoff?" — a running judgment call, not a precise
+     threshold.
+  2. If Gavi's Claude Code UI shows a real context/token indicator, he
+     can report the number directly and ask for a handoff at ~60-70%.
+  Either signal triggers the same action: update `HANDOFF.md` (session
+  continuity doc — in-flight state, uncommitted branches, open threads;
+  distinct from `gavi411-brain.md`'s permanent decision log) with
+  current state, then suggest starting a fresh chat.
 
 ## Current state
 
