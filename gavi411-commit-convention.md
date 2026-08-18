@@ -68,7 +68,11 @@ agent-backend/G411-14-oauth-callback
 agent-design/G411-22-admin-cockpit-styling
 ```
  
-Your own branches (if you use them) can stay unprefixed or use `you/`.
+Your own branches use `you/G411-XX-short-slug`, e.g. `you/G411-11-express-skeleton`.
+One branch per child issue, branched off `main`, merged back via PR when the
+child reaches Landed. Decided 2026-08-18: direct-to-`main` was the original
+default for `[You]` work, but branch isolation is wanted even solo — see PR
+review section below for the merge/review mechanics.
  
 **PR-body marker** (if/when PRs are used instead of direct commits) —
 include the Jira issue key and a one-line falsifier reference so Repowise's
@@ -78,7 +82,25 @@ PR-evidence signal and the Aegis trail stay linked:
 Closes G411-14
 Falsifier: <copy the child issue's falsifier field>
 ```
- 
+
+## PR review policy (decided 2026-08-18)
+
+Aegis §7.4 disqualifies an author as their own reviewer — but this is a solo
+project, so "who reviews" needs its own rule rather than assuming a teammate
+exists.
+
+- **Routine children**: self-merge once the child's own Evidence bar is met
+  (Falsifier checked against real landed state — Repro/Test/whatever was
+  declared at pickup). The evidence itself is the review; no separate
+  human-in-the-loop step.
+- **Load-bearing children**: credits logic, auth/session handling, E2E
+  encryption, the request lifecycle state machine — anything where a passing
+  test could still hide a real problem (security gap, money-handling bug,
+  broken state transition). These get a live Sibling review from Claude
+  Code before merge, on top of the evidence bar, not instead of it.
+- Judgment call on "is this one load-bearing": ask rather than assume when a
+  child isn't a clean fit either way.
+
 ## The one failure mode to know about
  
 Repowise downgrades confidence when it sees a **human commit landing inside
