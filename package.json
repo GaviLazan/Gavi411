@@ -1,0 +1,28 @@
+{
+  "name": "gavi411",
+  "version": "1.0.0",
+  "description": "Gavi411 concierge app",
+  "scripts": {
+    "dev": "node --watch server/server.js",
+    "start": "node server/server.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/GaviLazan/Gavi411.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "bugs": {
+    "url": "https://github.com/GaviLazan/Gavi411/issues"
+  },
+  "homepage": "https://github.com/GaviLazan/Gavi411#readme",
+  "dependencies": {
+    "@prisma/client": "6.19.3",
+    "cors": "2.8.6",
+    "dotenv": "17.4.2",
+    "express": "5.2.1",
+    "prisma": "6.19.3"
+  }
+}
