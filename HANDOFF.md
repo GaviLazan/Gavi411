@@ -14,47 +14,58 @@ accumulated. If something here turns out to matter long-term, promote it to
 
 ## Last updated
 
-2026-08-18, mid-session (Claude platform-wide outage, write-path safety
-classifier down — see status.claude.ai).
+2026-08-18, end of session — clean stopping point, Gavi starting a fresh
+chat by choice (not forced by context limit or an outage).
 
 ## Where things stand
 
-- **G411-10 (DB schema)**: Landed on `main` (commit `90cad6c`). Not yet
-  Reconciled — needs a real `prisma migrate dev` against Neon, which
-  naturally happens once G411-11's server needs a live DB connection.
-- **G411-11 (Express skeleton)**: code is done and verified — `server.js`
-  boots, mounts `requests` router, cors + JSON middleware, health check.
-  Falsifier confirmed live: `curl localhost:3000/api/health` → `200
-  {"status":"ok"}`. **Still uncommitted** on branch
-  `you/G411-11-express-skeleton` — commit was attempted repeatedly but
-  blocked by the platform outage (safety classifier overloaded on every
-  write-type tool call: git commit, ScheduleWakeup, WebFetch all failed
-  identically). Not a code problem — just needs the commit to actually go
-  through once the outage clears.
-- Branch/PR policy (routine self-merge vs. load-bearing Sibling review) is
-  live in `gavi411-commit-convention.md` and `CLAUDE.md` as of this session.
+- **G411-10 (DB schema)**: Landed on `main`. **Not yet Reconciled** — needs
+  a real `prisma migrate dev` against Neon. This will naturally happen
+  early in G411-12/whenever the server first needs a live DB connection.
+  Don't forget to close this out once that migration runs.
+- **G411-11 (Express skeleton)**: **Landed on `main`**, self-merged
+  (routine, evidence bar met — confirmed live via `curl localhost:3000/
+  api/health` → `200 {"status":"ok"}`). Branch `you/G411-11-express-
+  skeleton` merged and deleted. `server/server.js`, `server/routes/
+  requests.js` have working skeletons; `server/lib/prisma.js` and
+  `server/middleware/auth.js` are still comment-stubs (prisma.js is
+  needed once DB calls start; auth.js is `[Agentic]`/Clerk, G411-13, not
+  yet started).
+- **Branch/PR/review policy**: live as of this session in
+  `gavi411-commit-convention.md` and `CLAUDE.md`. One branch per child
+  (`you/G411-XX-slug`), no direct commits to `main` for actual Jira
+  children (process/doc housekeeping without a Jira-Issue is the
+  exception — committed straight to `main`). Routine children self-merge
+  once their Evidence bar is met; load-bearing children (credits, auth,
+  encryption, lifecycle state machine) get a live Sibling review from
+  Claude Code first.
+- **"Wrap it up" codeword** is live, defined in `CLAUDE.md` under "How to
+  work with Gavi." Use it to trigger: check scope, confirm falsifier,
+  write/update Aegis fields, commit (self-merge or flag for review per
+  the policy above), report what's next.
+- **Context-window signal policy** is live in `CLAUDE.md`: no verified way
+  for Claude Code to read its own token usage (a Reddit-sourced claim
+  about `CLAUDE_CONTEXT_TOKEN_COUNT` env vars was checked and rejected as
+  unconfirmed/likely fabricated). Two parallel signals instead: Claude
+  self-judges from session shape and proactively flags when things feel
+  long; Gavi can also report a real number if his UI shows one. Either
+  triggers a `HANDOFF.md` update + suggestion to start fresh — which is
+  what's happening right now.
+- **`gavi411-task-list-draft.md` renamed** to `gavi411-task-list-source.md`
+  — it's the doc Jira was populated from, not an active draft. References
+  updated in `CLAUDE.md`, `gavi411-jira-tree.md`, this file.
+- Folder naming is **`server/`** and **`client/`** (not `backend`/
+  `frontend`) — `client/` doesn't exist yet.
 
-## Open threads
+## Open threads / nothing currently blocking
 
-- **Codeword "wrap it up"**: not yet written into `CLAUDE.md` — outage hit
-  before that doc edit landed. Meaning: when Gavi says it, check his work
-  against the current task's scope, confirm the falsifier, write/update
-  Aegis fields, commit (self-merge if routine / flag load-bearing for
-  review first), then say what's next — without him re-explaining each
-  time.
-- **Context-window alert feature**: requested but not built. Constraint:
-  no tool currently gives Claude Code introspective access to its own
-  context-usage %, so a self-monitoring "alert at 60%, force switch before
-  70%" can't be built as literally described. A Reddit thread
-  (r/ClaudeAI, "is there a way for claude code the model to see...") was
-  suggested as a possible mechanism — not yet confirmed, fetch attempt hit
-  the same outage. Revisit once reachable. This HANDOFF.md file is the
-  first half of the fix regardless of the detection mechanism (the
-  brain-dump target); still need to decide how the "getting close" signal
-  actually fires.
+None — this handoff is a clean checkpoint, not a recovery from an outage
+or an interrupted task. Everything above is committed and landed.
 
-## Immediate next step, once things are working again
+## Next on the spine
 
-1. Retry the G411-11 commit (message already drafted, was mid-attempt).
-2. Add the "wrap it up" codeword definition to `CLAUDE.md`.
-3. Revisit the context-window alert mechanism (check the Reddit thread).
+**G411-12 — React frontend setup (Vite, JS-only)** — `[You]`, not started.
+Per the "starting any Jira task" rule in `CLAUDE.md`, state its Jira scope
+plainly before diving in, and run the session-start ritual (recap → agent/
+subagent worktree status → agree on the task) before touching code, same
+as this session opened.
