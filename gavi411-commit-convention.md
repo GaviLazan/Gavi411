@@ -47,6 +47,53 @@ persistent git worktree (`../Gavi411-agent-<role>/`, set up during
 Setup-steps step 8) with its identity fixed via `git config --worktree`,
 so it never needs switching mid-session. A local-only address like
 `agent-backend@gavi411.local` works fine.)
+
+## Subagent launch checklist (decided 2026-08-19)
+
+Persistent worktrees sit idle between sessions while `main` keeps moving —
+a role's worktree can silently be many commits behind. Before launching any
+subagent into a role worktree:
+
+1. `git -C ../Gavi411-agent-<role> log --oneline -3` and `git status -s` —
+   confirm it's clean (no leftover uncommitted work from a prior run).
+2. `git -C ../Gavi411-agent-<role> merge main --no-edit` — bring it up to
+   date with `main` before the subagent starts, so it isn't working
+   against a stale snapshot (missing recent scaffolding, doc corrections,
+   etc.) and doesn't duplicate or conflict with what already landed.
+3. Only then launch, with the subagent's prompt explicitly pinned to that
+   worktree's absolute path and its git identity/trailer — this isn't
+   inferred automatically, it has to be spelled out per launch (see the
+   identity/trailer convention above).
+
+This is a manual pre-flight, not automated — same "no enforcement layer,
+just a checklist that has to actually be followed" situation as the
+wrap-it-up checklist in `CLAUDE.md`.
+
+**Secrets across worktrees**: `.env` files are gitignored, so they're
+untracked — worktrees only share tracked history, meaning a `.env` in one
+worktree is invisible to the others (this bit G411-13: the subagent had
+to build against placeholder-format keys because `agent-backend`'s `.env`
+didn't exist). Fix: `.env` (server-side, root) and `client/.env`
+(client-side, `VITE_`-prefixed vars only — Vite doesn't expose bare env
+vars to client code) live for real in the main worktree only, and get
+symlinked into each agent worktree:
+```
+ln -sf /path/to/Gavi411/.env /path/to/Gavi411-agent-<role>/.env
+ln -sf /path/to/Gavi411/client/.env /path/to/Gavi411-agent-<role>/client/.env
+```
+One edit in the main worktree, all worktrees see it immediately. Re-run
+the symlink for `client/.env` once a worktree's `client/` directory
+exists (a fresh/stale worktree won't have it until `client/` is merged in
+— covered by the launch checklist's "merge main first" step above, but
+the symlink itself isn't automatic and needs re-doing after that merge).
+
+**Parallel launches**: only run subagents side by side when their file
+scopes genuinely don't overlap and neither's output feeds the other's
+input. Before launching more than one at once, name each one's expected
+touched files/directories and check for intersection — if two roles would
+plausibly both touch, e.g., `server/server.js` or `client/src/main.jsx`,
+or one's task depends on the other's not-yet-built output, run them
+sequentially instead. When unsure, default to sequential.
  
 **Commit trailer** — every agent-authored commit includes:
  
