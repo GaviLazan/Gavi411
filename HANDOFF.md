@@ -36,8 +36,8 @@ accumulated. If something here turns out to matter long-term, promote it to
     includes a staleness check: re-verify a task's Description against
     the PRD/task-list-source before starting work, since if those source
     docs change later, the batch-written description could drift stale.
-  - This CLAUDE.md edit is the only uncommitted change from this part of
-    the session — commit it together with this HANDOFF.md update.
+  - Committed along with the rest of this session's doc changes —
+    commit `fd068d1`.
 
 - **"Wrap it up" rewritten as an enforced checklist** (`CLAUDE.md`): the old
   prose version let steps silently drop — confirmed this happened to
