@@ -18,6 +18,31 @@ accumulated. If something here turns out to matter long-term, promote it to
 
 ## Where things stand
 
+- **G411-15 (PWA) and G411-17 (design system) both at Landed** — merged
+  to `main`, pushed, real deploy evidence confirmed on the live Vercel
+  URL (`https://gavi411-ten.vercel.app/`) — manifest reachable, JS/CSS
+  bundles return 200. **Not yet Reconciled**: both need a human eyeball
+  in a real browser (DevTools installability check for 15; does the app
+  actually render vs. hit a runtime JS error, for 17) — curl/WebFetch
+  can't execute JS so this is the one remaining check for each.
+- **G411-16 (deploy pipeline) at Implementing, not further.** Real
+  progress: `render.yaml`/`DEPLOY.md` merged to `main` (had been stuck on
+  the `agent-cicd` branch — that's why Render couldn't find the Blueprint
+  at first, fixed by merging). Gavi connected both Vercel and Render
+  dashboards. **Render confirmed live**: `gavi411-server` deployed,
+  `https://gavi411-server.onrender.com/api/health` → real `{"status":"ok"}`.
+  **Vercel confirmed reachable** (`https://gavi411-ten.vercel.app/`) but
+  `VITE_CLERK_PUBLISHABLE_KEY` env var not yet set there per `DEPLOY.md`
+  — needed before Clerk sign-in works on the live client. Still open.
+- **Session-boundary rule for `[Agentic]` work, decided this session**:
+  `[Agentic]` subagent work always runs in a separate Claude Code
+  session from `[You]`/`[Collab]` pairing — never backgrounded inside a
+  session doing live pairing, confirmed painful when 15/16/17 ran
+  backgrounded during live G411-14 prep and the transcripts became
+  unreadable (all subagents' raw tool calls interleave into the same
+  transcript — no true isolation from inside one session). Documented in
+  `CLAUDE.md` and `gavi411-commit-convention.md`. G411-14 itself has not
+  started yet as a result — this was the reason the session paused on it.
 - **G411-13 Reconciled** (Clerk OAuth wiring). Full chain: `agent-backend`
   subagent built middleware/wiring against placeholder keys first → real
   `.env`/`client/.env` symlinked in from the main worktree (new setup,
@@ -127,11 +152,11 @@ this session.
 
 ## Next on the spine
 
-G411-10, G411-11, G411-12, G411-13 are all Reconciled — Foundation's
-backend/frontend/DB/auth core is done. Remaining Foundation items:
-**G411-14** (bidi text rendering for Hebrew content fields, `[Collab]`),
-**G411-15** (PWA, `[Agentic]` → `agent-frontend`), **G411-16** (deploy
-pipeline, `[Agentic]` → `agent-cicd`), **G411-17** (design system,
-`[Agentic]` → `agent-design`). Per the new parallel-launch rule, check
-file-scope overlap before running any two of these side by side. Agree
-with Gavi which to pick up next; nothing pre-selected.
+G411-10, G411-11, G411-12, G411-13 are Reconciled. G411-15 and G411-17
+are Landed (need a human browser check to reach Reconciled — see above).
+G411-16 is Implementing (needs the Vercel `VITE_CLERK_PUBLISHABLE_KEY`
+env var set, then re-verify). **G411-14** (bidi text rendering for
+Hebrew content fields, `[Collab]`) has not started — was queued up right
+before the session-boundary rule got sorted out, then background
+launches took over the rest of the session. This is genuinely next: pure
+`[You]`/`[Collab]` pairing, no subagents, in this same session/worktree.
