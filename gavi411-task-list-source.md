@@ -9,10 +9,10 @@ Legend: **[You]** hand-written · **[Agentic]** subagent-built, fully explained 
 _Nothing else can start until this lands. No commit-triggering here — this is upfront/parallel work._
  
 - DB schema design (users, requests, messages, credits, group tags, triggers table) **[You]**
-- Express backend skeleton (ES modules) **[Collab]** — Gavi sets up the base scaffold, then logic is built together step by step
-- React frontend setup (Vite, JS-only) **[Collab]** — Gavi sets up the base scaffold, then logic is built together step by step
+- Express backend skeleton (ES modules) **[Collab]** — Claude sets up the base scaffold, then logic is built together step by step
+- React frontend setup (Vite, JS-only) **[Collab]** — Claude sets up the base scaffold, then logic is built together step by step
 - Clerk OAuth wiring (callback handling, session/token mgmt) **[Agentic]** — not commit-triggered, built in parallel
-- RTL/Hebrew logical-CSS layout scaffolding **[Collab]** — new concept (logical CSS properties), needs a walkthrough before/while writing; ties into Design System for actual tokens
+- Bidi text rendering for Hebrew content fields **[Collab]** — UI stays English/LTR; only user-entered content fields (request text, messages) need correct mixed Hebrew/English/number display (`dir="auto"`/`unicode-bidi: plain-text`, scoped to those fields, not a page-layout pass)
 - PWA manifest + service worker (installability baseline) **[Agentic]**
 - Deploy pipeline initial setup — Vercel (frontend) + Render (backend) + Neon (DB) **[Agentic]**
 - Design system foundation — inspo-board screenshots → Impeccable-styled base components **[Agentic]**, sequenced per decision (screenshots first, `/impeccable document` only after real styled code exists)

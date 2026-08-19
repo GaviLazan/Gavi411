@@ -94,8 +94,13 @@ behind schedule — surface the concern and let him decide.
   works, stdlib/native features before custom code or dependencies, no
   speculative abstractions. If it's installed correctly it self-activates;
   don't fight it with over-engineered suggestions.
-- RTL/Hebrew-ready CSS (logical properties, not physical) from day one.
-  Content itself is English-only for now.
+- UI is English-only, LTR — no page-layout mirroring, no logical-CSS
+  sweep needed for app chrome. Hebrew only ever shows up as *content*
+  friends type/read (request text, messages) — those specific display
+  fields need correct bidi text rendering (mixed Hebrew/English/numbers
+  in one string), via `dir="auto"` or `unicode-bidi: plain-text` scoped
+  to that content, not the whole page. Scope corrected 2026-08-19 — was
+  previously (wrongly) framed as full page RTL support.
 - **"Ticket" never appears in user-facing copy.** Working term: "request"
   (placeholder — final term TBD, deferred to the copywriting pass). Internal
   code/variable names can use standard ticketing vocabulary freely.

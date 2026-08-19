@@ -80,7 +80,7 @@ A webapp digitizing the informal concierge/info-booth/assistance service Gavi al
 - **Notifications:**
   - Users: Web Push (PWA notifications) — works on Android/desktop; on iOS only for installed PWAs (16.4+).
   - Gavi: Telegram bot pinging on new requests/messages with a deep link into the admin view. (Telegram Bot API is free and simple — a single POST to send a message.) **Telegram is Gavi-only** — many friends don't have Telegram, so it's never used for user-facing notifications, only Gavi's own alerts.
-- **Language/RTL:** UI framework must support RTL + Hebrew from day one (layout direction, text alignment). Content itself can be English-only for now.
+- **Language/RTL:** ~~UI framework must support RTL + Hebrew from day one (layout direction, text alignment).~~ Corrected by decision #22: UI stays English/LTR only; only user-entered/read content needs correct bidi text rendering, not page-layout mirroring.
 - **Branding:** no mascot. Logo deferred.
 - **Tone:** friendly, almost informal — the app should feel like the service already feels.
 ### Auth direction — DECIDED: OAuth
@@ -117,6 +117,7 @@ Purely wording/phrasing items, decoupled from logic — batched into one pass la
 | 19 | 2026-08-08 | Credits: visible, flat 1/request, one "request anyway" overdraft per reset. |
 | 20 | 2026-08-08 | Service online/offline presence state (auto-Shabbat or manual), not official hours. |
 | 21 | 2026-08-09 | Tech support confirmed as its own request type. |
+| 22 | 2026-08-19 | Correction to #14: UI itself stays English/LTR only — no page-layout mirroring, no logical-CSS sweep of app chrome. Hebrew only ever appears as user-typed/read *content* (request text, messages); those specific display fields need correct bidi text rendering (mixed Hebrew/English/numbers in one string — `dir="auto"` or `unicode-bidi: plain-text` scoped to that content), not the whole page. |
 | 22 | 2026-08-09 | Intake trigger config is DB-backed and admin-editable (not hardcoded), for live keyword tuning. |
 | 23 | 2026-08-09 | Disambiguation UI = multi-select chips. |
 | 24 | 2026-08-09 | User group tag added: drives credit tier + admin sort/filter. |
@@ -238,7 +239,7 @@ Purely wording/phrasing items, decoupled from logic — batched into one pass la
 - Separate "Feasibility of manual project implementation" chat established: against the full PRD, Gavi hand-writing "most" of the code in the available time (15 days × ~3.5-4hrs, later revised upward) is not realistic — the scope needs to shrink, not just his involvement.
 - Real hour-costed backlog built (not day-slotted — day-slotting produced artificially sparse/full days once actual per-task hours were estimated). Kanban/sprint-friendly: a flat task list with hour estimates, freely reorderable except along the dependency spine (DB schema → Express skeleton → Auth → Request model, everything else branches off that).
 - Ownership split (decision #31): **You** write logic/structure — backend routes, DB, request/messaging/lifecycle/admin/credits logic, frontend component structure and wiring. **Agentic, fully explained**: design system + styling passes (based on Gavi's existing inspo board, not Tailwind — Gavi doesn't know Tailwind), OAuth wiring, E2E encryption, PWA/service worker config, CI/CD, deploy. **Collaborative**: test scaffolds, built per-feature as each one lands (Gavi wants to learn testing and CI/CD, not just receive them finished).
-- Frontend design/component styling was an initially missed scope gap — full PRD requires designing and building every page/component, not just wiring logic to endpoints. Resolved via a one-time agentic "design system foundation" (base component styles, typography, tokens, RTL logical properties, derived from Gavi's inspo board) after which each UI task splits into structure (Gavi writes) + styling (agentic applies design system).
+- Frontend design/component styling was an initially missed scope gap — full PRD requires designing and building every page/component, not just wiring logic to endpoints. Resolved via a one-time agentic "design system foundation" (base component styles, typography, tokens, derived from Gavi's inspo board) after which each UI task splits into structure (Gavi writes) + styling (agentic applies design system).
 - React frontend setup and PWA manifest/service worker were also initially missed as their own line items (nothing currently exists — no frontend, no backend) — now explicit tasks.
 - Fallback rule (decision #31, corrected by #41): if Gavi is falling behind on a task that's currently his, moving it to agentic is an option he can invoke — not an automatic trigger. This is the live adjustment mechanism instead of trying to perfectly predict the schedule up front.
 - Agentic-built pieces Gavi wants to personally rebuild/study post-deadline (design system passes, OAuth wiring, E2E core, PWA/service worker config, deploy) are tracked separately in `gavi411-post-deadline-learning-backlog.md` — not a PRD item, not a decision, just a running reference for future-you.
