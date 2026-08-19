@@ -14,16 +14,16 @@ accumulated. If something here turns out to matter long-term, promote it to
 
 ## Last updated
 
-2026-08-19, end of session — clean stopping point, Gavi ending by choice
-(not forced by context limit or an outage).
+2026-08-19, mid-session.
 
 ## Where things stand
 
 - **G411-11 and G411-12 ownership retagged**: both moved from `[You]` to
   `[Collab]` this session. Definition for these two specifically (added to
-  `CLAUDE.md`'s ownership-split section): Gavi sets up the base scaffold,
-  then the real logic gets built together step by step, same collaborative
-  model as Testing/CI-CD. This does **not** undo G411-11's existing
+  `CLAUDE.md`'s ownership-split section, corrected 2026-08-19): Claude does
+  the initial scaffold, then the real logic gets built together step by
+  step, same collaborative model as Testing/CI-CD. This does **not** undo
+  G411-11's existing
   comment-stub scaffolding (`server/server.js`, `server/routes/
   requests.js` landed; `server/lib/prisma.js` and `server/middleware/
   auth.js` still stubs) — it changes how the remaining work on 11 and all
@@ -60,12 +60,26 @@ accumulated. If something here turns out to matter long-term, promote it to
 None — clean checkpoint, not a recovery from an outage or interrupted task.
 Everything above is committed.
 
+- **Collab scaffold ownership corrected**: earlier this session's note that
+  "Gavi sets up the base scaffold" for `[Collab]` tasks was backwards —
+  confirmed with Gavi that it's **Claude scaffolds, Gavi drives logic**.
+  Fixed in `CLAUDE.md` and this file.
+- **G411-11 fully closed out**: the `[Collab]` retag's only real code delta
+  was `server/lib/prisma.js` (2-line PrismaClient singleton, pure
+  boilerplate — filled in, not treated as a collab step).
+  `server/middleware/auth.js` stays a stub — it's G411-13's scope, not
+  11's. Jira ticket was still sitting at "Open" despite the code being
+  merged/verified back in G411-11's original session; walked it through
+  Implementing → Reviewing → Reconciled this session, with Aegis
+  Claim/Falsifier/Evidence posted as a issue comment (custom Aegis fields
+  don't exist on this issue type, so comment is the record) and evidence
+  re-verified fresh (`curl localhost:3000/api/health` → 200, re-run this
+  session, not just carried over).
+
 ## Next on the spine
 
-**G411-12 — React frontend setup (Vite, JS-only)** — now `[Collab]`, not
+**G411-12 — React frontend setup (Vite, JS-only)** — `[Collab]`, not
 started. Per the "starting any Jira task" rule in `CLAUDE.md`, state its
-Jira scope plainly before diving in, and run the session-start ritual
-(recap → agent/subagent worktree status → agree on the task) before
-touching code. Since it's now Collab, agree explicitly with Gavi on the
-scaffold/logic split before writing anything — who does the initial Vite
-setup vs. where the step-by-step collaboration starts.
+Jira scope plainly before diving in. Under the corrected Collab model,
+Claude does the initial Vite scaffold; step-by-step logic collaboration
+starts from there.

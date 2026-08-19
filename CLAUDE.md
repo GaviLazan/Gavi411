@@ -64,9 +64,10 @@ rebuild/understand these post-deadline (see the learning backlog).
 2026-08-19) Express backend skeleton (G411-11) and React frontend setup
 (G411-12). Build these *with* Gavi incrementally, per feature as it
 ships — not batched, not handed over finished. For 11/12 specifically:
-Gavi sets up the base scaffold, then the real logic is built together
-step by step from there — the existing comment-stub scaffolding for
-G411-11 stands, this changes how it's finished, not what's already down.
+Claude does the initial scaffold (file/folder structure, boilerplate,
+comment-stubs), then the real logic is built together step by step from
+there — the existing comment-stub scaffolding for G411-11 stands, this
+changes how it's finished, not what's already down.
 
 **Fallback rule:** moving a `[You]` task to agentic is an option **only
 Gavi can invoke**. Never do this on your own judgment because he seems
