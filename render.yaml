@@ -1,0 +1,36 @@
+# Render Blueprint (IaC) for the Gavi411 Express backend (G411-16).
+# https://render.com/docs/blueprint-spec
+#
+# This file describes the service; it does NOT create it. Gavi still has
+# to connect the repo in the Render dashboard once (see DEPLOY.md) before
+# Render will read this file and provision anything.
+
+services:
+  - type: web
+    name: gavi411-server
+    runtime: node
+    plan: free
+    region: oregon # closest free-tier region to Neon's default; change if latency matters later
+    branch: main
+    rootDir: . # server/ isn't a separate npm package — root package.json owns the server scripts
+    buildCommand: npm install && npx prisma generate
+    startCommand: npm start
+    healthCheckPath: /api/health
+    autoDeploy: true
+    envVars:
+      # Secrets — never committed. Marked sync:false so Render prompts for
+      # manual entry in the dashboard instead of expecting a value here.
+      # Real values already live in Neon/Clerk; see .env.example for the
+      # full list this must match.
+      - key: DATABASE_URL
+        sync: false
+      - key: CLERK_SECRET_KEY
+        sync: false
+      - key: CLERK_PUBLISHABLE_KEY
+        sync: false
+      # Render sets PORT itself at runtime — server.js already falls back
+      # to it via process.env.PORT, so no value is set here on purpose.
+      - key: PORT
+        sync: false
+      - key: NODE_VERSION
+        value: 22.23.1
