@@ -59,6 +59,13 @@ all real content, so the resulting commit is entirely his — plain
 encryption core, PWA/service worker config, deploy pipeline setup. Build
 these fully, but explain fully as you go — Gavi wants to be able to
 rebuild/understand these post-deadline (see the learning backlog).
+**Session boundary (decided 2026-08-19):** `[Agentic]` subagent work
+always runs in a separate Claude Code session from `[You]`/`[Collab]`
+pairing — never launched as a background subagent inside a session doing
+live pairing, even sequentially, since the transcripts mix regardless of
+timing. Gavi opens a dedicated tab/session for `[Agentic]` work. Full
+rationale in `gavi411-commit-convention.md`'s "Where to launch from"
+section.
 
 **`[Collab]`** — testing (Vitest), CI/CD (GitHub Actions), and (as of
 2026-08-19) Express backend skeleton (G411-11) and React frontend setup
