@@ -1,30 +1,34 @@
 :root {
-  /* --- Design tokens (G411-17) ---
-     Derived from Design Inspo images, not invented:
-     - "General layout" (Nexus AI screens, appears 5+ times) + "chat interface"
-       (Hebrew concierge chat) + "layout color and elemnts" (budget tracker)
-       independently converge on the same pattern: warm cream page background,
-       white bordered cards, near-black ink, deep green as the one accent color,
-       pill-shaped buttons/inputs.
-     - "elements style" (Serviqo AI support app) confirmed the card/stat-tile
-       shape and pill input pattern for a support/concierge product specifically.
-     - The purple/lavender gradient screens ("color" folder's Stranger Chat kit,
-       "General layout"'s dating app, "layout color and elemnts" wallet screen)
-       were treated as noise — social/dating/wallet apps, not concierge-shaped,
-       and inconsistent with the majority direction. Not used.
-     Kept the pre-existing --text/--bg/etc names and dark-mode block from the
-     Vite template rather than renaming, extended with new tokens alongside. */
+  /* --- Design tokens (G411-17, revised after Gavi's direct review) ---
+     Corrected direction, Gavi's explicit calls:
+     - Primary accent is warm yellow/gold, from "layout color and elemnts"
+       (budget tracker screenshot) — cream bg, white cards, gold progress
+       bar + key numbers, sans-serif throughout. Yellow leads, not green.
+     - Green is a secondary/data accent only, and lighter than the first
+       pass — matches the sage tone from the Nexus AI message bubbles /
+       this file's old dark-mode green (~#6fae8f), not the dark forest
+       green (#2f4a3c) that wrongly became primary the first time.
+     - Purple ("color" folder's Stranger Chat kit) confirmed as a second,
+       lighter accent — not primary, not the deep green either.
+     - No serif anywhere. The first pass over-generalized from 1-2 rare
+       serif headline moments inside the Nexus AI screens (nearly
+       everything else in every reference image is plain sans) into a
+       default heading font — wrong; Gavi also specifically dislikes the
+       serif "4" glyph. Sans-serif for all headings and body now. */
 
   --text: #6b6355;
   --text-h: #221f19;
-  --bg: #f6f3ea;
+  --bg: #fbfaf6;
   --surface: #ffffff;
-  --border: #e6e1d3;
-  --code-bg: #efece0;
-  --accent: #2f4a3c;
-  --accent-strong: #1f3329;
-  --accent-bg: rgba(47, 74, 60, 0.08);
-  --accent-border: rgba(47, 74, 60, 0.35);
+  --border: #ece8dc;
+  --code-bg: #f5f3ea;
+  --accent: #f2a900;
+  --accent-strong: #d99400;
+  --accent-bg: rgba(242, 169, 0, 0.12);
+  --accent-border: rgba(242, 169, 0, 0.4);
+  --accent-2: #6fae8f;
+  --accent-2-strong: #4f8a6c;
+  --accent-3: #9b8cce;
   --social-bg: rgba(239, 236, 224, 0.5);
   --shadow:
     rgba(0, 0, 0, 0.1) 0 10px 15px -3px, rgba(0, 0, 0, 0.05) 0 4px 6px -2px;
@@ -47,10 +51,8 @@
   --radius-pill: 999px;
 
   --sans: system-ui, 'Segoe UI', Roboto, sans-serif;
-  /* serif display face for headings — the "Intelligent Conversations"
-     Nexus AI screens pair a serif headline with plain sans body; that
-     pairing repeats across the majority of the General layout folder */
-  --heading: Georgia, 'Times New Roman', serif;
+  /* heading font = body font. See note above — no serif. */
+  --heading: var(--sans);
   --mono: ui-monospace, Consolas, monospace;
 
   font: 18px/145% var(--sans);
@@ -70,17 +72,20 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --text: #b8b2a1;
-    --text-h: #f1efe6;
-    --bg: #1a1c18;
-    --surface: #232620;
-    --border: #33362e;
-    --code-bg: #232620;
-    --accent: #6fae8f;
-    --accent-strong: #8fc7ab;
-    --accent-bg: rgba(111, 174, 143, 0.15);
-    --accent-border: rgba(111, 174, 143, 0.4);
-    --social-bg: rgba(35, 38, 32, 0.5);
+    --text: #b3b0aa;
+    --text-h: #f5f4f0;
+    --bg: #17181a;
+    --surface: #212327;
+    --border: #34363b;
+    --code-bg: #212327;
+    --accent: #ffb700;
+    --accent-strong: #ffc933;
+    --accent-bg: rgba(255, 183, 0, 0.15);
+    --accent-border: rgba(255, 183, 0, 0.45);
+    --accent-2: #6fae8f;
+    --accent-2-strong: #8fc7ab;
+    --accent-3: #b3a5e0;
+    --social-bg: rgba(33, 35, 39, 0.5);
     --shadow:
       rgba(0, 0, 0, 0.4) 0 10px 15px -3px, rgba(0, 0, 0, 0.25) 0 4px 6px -2px;
   }

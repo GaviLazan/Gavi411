@@ -15,7 +15,6 @@ function App() {
         <Input label="What do you need?" placeholder="Find me a flight home tonight" />
         <div className="design-preview-actions">
           <Button variant="primary">Send request</Button>
-          <Button variant="secondary">Save for later</Button>
         </div>
       </Card>
     </div>
