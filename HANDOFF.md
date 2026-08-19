@@ -14,58 +14,58 @@ accumulated. If something here turns out to matter long-term, promote it to
 
 ## Last updated
 
-2026-08-18, end of session — clean stopping point, Gavi starting a fresh
-chat by choice (not forced by context limit or an outage).
+2026-08-19, end of session — clean stopping point, Gavi ending by choice
+(not forced by context limit or an outage).
 
 ## Where things stand
 
-- **G411-10 (DB schema)**: Landed on `main`. **Not yet Reconciled** — needs
-  a real `prisma migrate dev` against Neon. This will naturally happen
-  early in G411-12/whenever the server first needs a live DB connection.
-  Don't forget to close this out once that migration runs.
-- **G411-11 (Express skeleton)**: **Landed on `main`**, self-merged
-  (routine, evidence bar met — confirmed live via `curl localhost:3000/
-  api/health` → `200 {"status":"ok"}`). Branch `you/G411-11-express-
-  skeleton` merged and deleted. `server/server.js`, `server/routes/
-  requests.js` have working skeletons; `server/lib/prisma.js` and
-  `server/middleware/auth.js` are still comment-stubs (prisma.js is
-  needed once DB calls start; auth.js is `[Agentic]`/Clerk, G411-13, not
-  yet started).
-- **Branch/PR/review policy**: live as of this session in
-  `gavi411-commit-convention.md` and `CLAUDE.md`. One branch per child
-  (`you/G411-XX-slug`), no direct commits to `main` for actual Jira
-  children (process/doc housekeeping without a Jira-Issue is the
-  exception — committed straight to `main`). Routine children self-merge
-  once their Evidence bar is met; load-bearing children (credits, auth,
-  encryption, lifecycle state machine) get a live Sibling review from
-  Claude Code first.
-- **"Wrap it up" codeword** is live, defined in `CLAUDE.md` under "How to
-  work with Gavi." Use it to trigger: check scope, confirm falsifier,
-  write/update Aegis fields, commit (self-merge or flag for review per
-  the policy above), report what's next.
-- **Context-window signal policy** is live in `CLAUDE.md`: no verified way
-  for Claude Code to read its own token usage (a Reddit-sourced claim
-  about `CLAUDE_CONTEXT_TOKEN_COUNT` env vars was checked and rejected as
-  unconfirmed/likely fabricated). Two parallel signals instead: Claude
-  self-judges from session shape and proactively flags when things feel
-  long; Gavi can also report a real number if his UI shows one. Either
-  triggers a `HANDOFF.md` update + suggestion to start fresh — which is
-  what's happening right now.
-- **`gavi411-task-list-draft.md` renamed** to `gavi411-task-list-source.md`
-  — it's the doc Jira was populated from, not an active draft. References
-  updated in `CLAUDE.md`, `gavi411-jira-tree.md`, this file.
-- Folder naming is **`server/`** and **`client/`** (not `backend`/
-  `frontend`) — `client/` doesn't exist yet.
+- **G411-11 and G411-12 ownership retagged**: both moved from `[You]` to
+  `[Collab]` this session. Definition for these two specifically (added to
+  `CLAUDE.md`'s ownership-split section): Gavi sets up the base scaffold,
+  then the real logic gets built together step by step, same collaborative
+  model as Testing/CI-CD. This does **not** undo G411-11's existing
+  comment-stub scaffolding (`server/server.js`, `server/routes/
+  requests.js` landed; `server/lib/prisma.js` and `server/middleware/
+  auth.js` still stubs) — it changes how the remaining work on 11 and all
+  of 12 gets finished, not what's already down.
+  - Updated in three places: `CLAUDE.md`, `gavi411-jira-tree.md`,
+    `gavi411-task-list-source.md`, plus the live Jira issues (Owner/
+    Authorship custom field, `customfield_10077`, option id `10028` =
+    "Collaborative") for both G411-11 and G411-12.
+  - Committed straight to `main` (doc/process housekeeping, no Jira child
+    of its own) — commit `15ed522`.
+  - Scanned the rest of the backlog (Parents 2–9) for other automatable
+    non-logic tasks per Gavi's request. Only real candidate found was
+    "Trigger taxonomy seed data" (Parent 2) — Gavi chose to keep it
+    `[You]` since the seed content shapes intake behavior. Nothing else
+    in the list is boilerplate; the rest is genuinely request/messaging/
+    lifecycle/admin/credits logic and stays as originally tagged.
+- **G411-10 (DB schema)**: Landed on `main`. **Still not Reconciled** —
+  still needs a real `prisma migrate dev` against Neon. Will naturally
+  happen once G411-11/12 work needs a live DB connection. Don't forget to
+  close this out when that migration runs.
+- **G411-11 (Express skeleton)**: Landed on `main` (self-merged, evidence
+  bar met — `curl localhost:3000/api/health` → `200 {"status":"ok"}`).
+  Ownership now `[Collab]` (see above) for whatever's left on it — check
+  with Gavi whether he considers 11 itself done or whether the Collab
+  retag reopens any of its remaining scope.
+- **Branch/PR/review policy, "wrap it up" codeword, context-signal
+  policy**: all still live as documented in `CLAUDE.md` — unchanged this
+  session.
+- Folder naming is **`server/`** and **`client/`** — `client/` doesn't
+  exist yet.
 
 ## Open threads / nothing currently blocking
 
-None — this handoff is a clean checkpoint, not a recovery from an outage
-or an interrupted task. Everything above is committed and landed.
+None — clean checkpoint, not a recovery from an outage or interrupted task.
+Everything above is committed.
 
 ## Next on the spine
 
-**G411-12 — React frontend setup (Vite, JS-only)** — `[You]`, not started.
-Per the "starting any Jira task" rule in `CLAUDE.md`, state its Jira scope
-plainly before diving in, and run the session-start ritual (recap → agent/
-subagent worktree status → agree on the task) before touching code, same
-as this session opened.
+**G411-12 — React frontend setup (Vite, JS-only)** — now `[Collab]`, not
+started. Per the "starting any Jira task" rule in `CLAUDE.md`, state its
+Jira scope plainly before diving in, and run the session-start ritual
+(recap → agent/subagent worktree status → agree on the task) before
+touching code. Since it's now Collab, agree explicitly with Gavi on the
+scaffold/logic split before writing anything — who does the initial Vite
+setup vs. where the step-by-step collaboration starts.
