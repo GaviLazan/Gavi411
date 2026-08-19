@@ -69,6 +69,24 @@ This is a manual pre-flight, not automated — same "no enforcement layer,
 just a checklist that has to actually be followed" situation as the
 wrap-it-up checklist in `CLAUDE.md`.
 
+**Secrets across worktrees**: `.env` files are gitignored, so they're
+untracked — worktrees only share tracked history, meaning a `.env` in one
+worktree is invisible to the others (this bit G411-13: the subagent had
+to build against placeholder-format keys because `agent-backend`'s `.env`
+didn't exist). Fix: `.env` (server-side, root) and `client/.env`
+(client-side, `VITE_`-prefixed vars only — Vite doesn't expose bare env
+vars to client code) live for real in the main worktree only, and get
+symlinked into each agent worktree:
+```
+ln -sf /path/to/Gavi411/.env /path/to/Gavi411-agent-<role>/.env
+ln -sf /path/to/Gavi411/client/.env /path/to/Gavi411-agent-<role>/client/.env
+```
+One edit in the main worktree, all worktrees see it immediately. Re-run
+the symlink for `client/.env` once a worktree's `client/` directory
+exists (a fresh/stale worktree won't have it until `client/` is merged in
+— covered by the launch checklist's "merge main first" step above, but
+the symlink itself isn't automatic and needs re-doing after that merge).
+
 **Parallel launches**: only run subagents side by side when their file
 scopes genuinely don't overlap and neither's output feeds the other's
 input. Before launching more than one at once, name each one's expected
