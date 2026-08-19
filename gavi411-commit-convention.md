@@ -176,8 +176,20 @@ exists.
   test could still hide a real problem (security gap, money-handling bug,
   broken state transition). These get a live Sibling review from Claude
   Code before merge, on top of the evidence bar, not instead of it.
-- Judgment call on "is this one load-bearing": ask rather than assume when a
-  child isn't a clean fit either way.
+- **Subjective-judgment children (added 2026-08-19)**: visual/design
+  direction, copy/tone, UX decisions — anything where a technical evidence
+  bar (build passes, no errors) can be fully met while the actual content
+  is still wrong, because "correct" here means "matches what Gavi actually
+  wants," not "functions." A passing build is not evidence of a good
+  design decision. G411-17's first pass self-merged clean (build green,
+  Impeccable detector clean) with a genuinely wrong color/font direction —
+  Gavi wasn't consulted before it landed, only caught it after seeing the
+  live deploy. These children get Gavi's own eyes (screenshots, live
+  deploy, whatever's fastest) before merge, not just a clean evidence bar.
+  Applies regardless of `[Agentic]`/`[Collab]`/`[You]` tag — the split is
+  about who *writes* it, not whether a subjective call still needs a human.
+- Judgment call on "is this one load-bearing" or "subjective": ask rather
+  than assume when a child isn't a clean fit either way.
 
 ## The one failure mode to know about
  
