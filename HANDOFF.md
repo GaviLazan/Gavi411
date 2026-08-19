@@ -18,6 +18,14 @@ accumulated. If something here turns out to matter long-term, promote it to
 
 ## Where things stand
 
+- **G411-17 final polish**: system-font fallback stacks rendered
+  inconsistently across OS/devices. Loaded real Google Fonts — Google
+  Sans (weight 600) for the "Gavi411" wordmark only, Rubik for
+  everything else — via `<link>` in `client/index.html`, `--wordmark`/
+  `--sans` tokens in `index.css`. Verified via Playwright (computed
+  font-family, real glyph render, zero console errors), confirmed good
+  by Gavi. Commits `df973e1`, `79471ce`. Still Reconciled, no reopen
+  needed — Jira comment added recording the change.
 - **G411-15, G411-16, G411-17 all Reconciled.** Gavi caught a real
   process gap: G411-17's design direction (dark green primary, serif
   headings) self-merged clean (green build) without ever being checked
