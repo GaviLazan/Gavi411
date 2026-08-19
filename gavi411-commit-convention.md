@@ -47,6 +47,27 @@ persistent git worktree (`../Gavi411-agent-<role>/`, set up during
 Setup-steps step 8) with its identity fixed via `git config --worktree`,
 so it never needs switching mid-session. A local-only address like
 `agent-backend@gavi411.local` works fine.)
+
+## Subagent launch checklist (decided 2026-08-19)
+
+Persistent worktrees sit idle between sessions while `main` keeps moving —
+a role's worktree can silently be many commits behind. Before launching any
+subagent into a role worktree:
+
+1. `git -C ../Gavi411-agent-<role> log --oneline -3` and `git status -s` —
+   confirm it's clean (no leftover uncommitted work from a prior run).
+2. `git -C ../Gavi411-agent-<role> merge main --no-edit` — bring it up to
+   date with `main` before the subagent starts, so it isn't working
+   against a stale snapshot (missing recent scaffolding, doc corrections,
+   etc.) and doesn't duplicate or conflict with what already landed.
+3. Only then launch, with the subagent's prompt explicitly pinned to that
+   worktree's absolute path and its git identity/trailer — this isn't
+   inferred automatically, it has to be spelled out per launch (see the
+   identity/trailer convention above).
+
+This is a manual pre-flight, not automated — same "no enforcement layer,
+just a checklist that has to actually be followed" situation as the
+wrap-it-up checklist in `CLAUDE.md`.
  
 **Commit trailer** — every agent-authored commit includes:
  
