@@ -50,9 +50,14 @@
   --radius-lg: 20px;
   --radius-pill: 999px;
 
-  --sans: system-ui, 'Segoe UI', Roboto, sans-serif;
-  /* heading font = body font. See note above — no serif. */
+  /* Rubik for everything (body + headings) — replaces the system-font
+     fallback stack, which rendered inconsistently across OS/devices.
+     --wordmark is Google Sans, used only for the literal "Gavi411"
+     logo/wordmark text, not general headings. Both loaded via Google
+     Fonts <link> in index.html. */
+  --sans: 'Rubik', system-ui, 'Segoe UI', Roboto, sans-serif;
   --heading: var(--sans);
+  --wordmark: 'Google Sans', var(--sans);
   --mono: ui-monospace, Consolas, monospace;
 
   font: 18px/145% var(--sans);

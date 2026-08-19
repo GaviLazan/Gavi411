@@ -5,6 +5,10 @@
   align-items: center;
 }
 
+.wordmark {
+  font-family: var(--wordmark);
+}
+
 .design-preview .card {
   width: 100%;
   max-width: 420px;

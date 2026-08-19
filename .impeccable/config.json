@@ -1,0 +1,20 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "design-system-font",
+        "value": "google sans",
+        "createdAt": "2026-08-19T14:49:55.695Z",
+        "reason": "user confirmed: Gavi requested Google Sans for wordmark, Rubik for body, replacing system-font fallback stack"
+      },
+      {
+        "rule": "design-system-font",
+        "value": "rubik",
+        "createdAt": "2026-08-19T14:49:55.776Z",
+        "reason": "user confirmed: Gavi requested Rubik for body text, replacing system-font fallback stack"
+      }
+    ]
+  }
+}

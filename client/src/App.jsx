@@ -9,7 +9,7 @@ import Input from './components/Input'
 function App() {
   return (
     <div className="design-preview">
-      <h1>Gavi411</h1>
+      <h1 className="wordmark">Gavi411</h1>
       <Card>
         <h2>New request</h2>
         <Input label="What do you need?" placeholder="Find me a flight home tonight" />
