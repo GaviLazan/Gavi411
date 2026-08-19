@@ -18,6 +18,37 @@ accumulated. If something here turns out to matter long-term, promote it to
 
 ## Where things stand
 
+- **G411-13 Reconciled** (Clerk OAuth wiring). Full chain: `agent-backend`
+  subagent built middleware/wiring against placeholder keys first → real
+  `.env`/`client/.env` symlinked in from the main worktree (new setup,
+  see `gavi411-commit-convention.md`) → **G411-10 finally migrated**
+  (`npx prisma migrate dev --name init` against live Neon — was open
+  since G411-10's original session) → live Sibling review caught
+  `@clerk/clerk-react` as npm-deprecated, swapped to `@clerk/react` →
+  that swap wasn't a safe drop-in (v6 dropped `SignedIn`/`SignedOut` for
+  `<Show when="signed-in"|"signed-out">`, caught via a real white-screen
+  regression, fixed via Clerk's actual migration docs) → re-verified live
+  end-to-end **twice** (real browser sign-in → `/api/me` → 200) → merged
+  to `main` → **post-merge `client/` build failed** on `main` because
+  `node_modules` there was stale relative to the newly-merged
+  `package.json` (`npm install` fixed it; documented as a new
+  merge-back staleness risk, same class as the pre-launch one). Jira
+  walked the full Open→Reconciled path with two separate evidence
+  rounds recorded as comments.
+- **New process from this session**: `.env` files are gitignored so
+  they're invisible across worktrees by default — real files live in the
+  main worktree, symlinked into each agent worktree
+  (`ln -sf .../Gavi411/.env .../Gavi411-agent-<role>/.env`, same for
+  `client/.env`). Documented in `gavi411-commit-convention.md` along with
+  a subagent-launch checklist (check worktree staleness, merge `main` in,
+  re-symlink `client/.env` if `client/` didn't exist before) and a
+  parallel-launch safety rule (only run subagents side by side when file
+  scopes genuinely don't overlap).
+- **New `agent-frontend` role/worktree** added (`../Gavi411-agent-frontend`,
+  `agent-frontend@gavi411.local`) — none of the existing 5 roles fit
+  G411-15 (PWA). Scoped narrowly to client-side *infra* only (build
+  config, service worker) — frontend product UI stays `[You]` as before,
+  this doesn't reopen that boundary.
 - **G411-12 Reconciled.** Scaffold merged to `main` (commit merges
   `you/G411-12-vite-scaffold`), Jira walked Open → Implementing →
   Reviewing → Landed → Reconciled via named transitions, Aegis fields
@@ -96,9 +127,11 @@ this session.
 
 ## Next on the spine
 
-G411-11 and G411-12 (Foundation scaffolding) are both Reconciled. Next
-Foundation items per `gavi411-jira-tree.md`: **G411-13 (Clerk OAuth,
-`[Agentic]`)**, **G411-14 (bidi text rendering for Hebrew content fields,
-`[Collab]`, renamed/rescoped this session)**, or **G411-15/16/17** (PWA,
-deploy pipeline, design system — all `[Agentic]`). Agree with Gavi which
-one to pick up next; nothing pre-selected.
+G411-10, G411-11, G411-12, G411-13 are all Reconciled — Foundation's
+backend/frontend/DB/auth core is done. Remaining Foundation items:
+**G411-14** (bidi text rendering for Hebrew content fields, `[Collab]`),
+**G411-15** (PWA, `[Agentic]` → `agent-frontend`), **G411-16** (deploy
+pipeline, `[Agentic]` → `agent-cicd`), **G411-17** (design system,
+`[Agentic]` → `agent-design`). Per the new parallel-launch rule, check
+file-scope overlap before running any two of these side by side. Agree
+with Gavi which to pick up next; nothing pre-selected.

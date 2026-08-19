@@ -69,6 +69,16 @@ This is a manual pre-flight, not automated — same "no enforcement layer,
 just a checklist that has to actually be followed" situation as the
 wrap-it-up checklist in `CLAUDE.md`.
 
+**Same staleness risk applies on merge-back, not just launch**: merging
+an agent branch into `main` brings in `package.json` changes, but
+`node_modules` is gitignored and won't update itself — a stale
+`node_modules` in whichever worktree you verify from will build-fail even
+though the code is correct (bit G411-13: `main`'s `client/` build failed
+post-merge on a missing `@clerk/react` until `npm install` was re-run
+there). Re-run `npm install` (root and `client/`, as applicable) after any
+merge, in the worktree you're about to verify evidence from, before
+trusting a build/run check.
+
 **Secrets across worktrees**: `.env` files are gitignored, so they're
 untracked — worktrees only share tracked history, meaning a `.env` in one
 worktree is invisible to the others (this bit G411-13: the subagent had
