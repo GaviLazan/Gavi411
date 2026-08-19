@@ -33,12 +33,14 @@ role, not per session. This is the strongest signal Repowise reads.
 - `agent-test@` — test-scaffold subagent
 - `agent-e2e@` — E2E encryption subagent
 - `agent-cicd@` — CI/CD and deploy subagent
-
-No `agent-frontend` role: per CLAUDE.md's Ownership Split, "frontend
-component structure and wiring" is explicitly `[You]` — Gavi writes it
-himself. Only the *design/styling pass* on top of frontend work is
-`[Agentic]`, and that's `agent-design`'s job. An agent-frontend role would
-imply an agent builds frontend product code, which contradicts the split.
+- `agent-frontend@` — client-side *infra* subagent (added 2026-08-19, for
+  G411-15 PWA manifest/service worker). Scope is deliberately narrow:
+  build config, service worker, install/manifest plumbing — never product
+  UI. Frontend component structure/wiring/pages stay `[You]` exactly as
+  before; the *design/styling pass* on top of that work is still
+  `agent-design`'s job. Don't let this role's scope creep into either of
+  those — it's for infra that happens to live in `client/`, not a general
+  "frontend agent."
 
 (These don't need to be real mailboxes — each agent role now has its own
 persistent git worktree (`../Gavi411-agent-<role>/`, set up during

@@ -269,6 +269,9 @@ Purely wording/phrasing items, decoupled from logic — batched into one pass la
 - The live Jira workflow had a `Landed` column with 0 issues and no transitions routing into it — not stray board config (my first wrong guess), and not something to delete (my second wrong instinct, before actually reading the spec). It was the workflow being incomplete relative to the spec it's supposed to implement.
 - Fixed: named transitions added and published (Open→Implementing, Implementing→Reviewing, Reviewing→Landed, Landed→Reconciled) plus a global "Any→" reopen transition on all five statuses including Landed. Confirmed live via the Jira transitions API.
 - `CLAUDE.md`'s Jira section and the wrap-it-up checklist's Jira-transition step both updated to name the real five states and the two separate closing transitions (→Landed, then →Landed→Reconciled) instead of collapsing them into one.
+### New `agent-frontend` role (2026-08-19)
+- G411-15 (PWA manifest + service worker, `[Agentic]`) didn't fit any of the 5 existing agent roles: not styling (`agent-design`), not deploy/CI (`agent-cicd`), not server-side (`agent-backend`). The prior "no agent-frontend role" ruling in `gavi411-commit-convention.md` was specifically about frontend *product* code (`[You]`) — it doesn't rule out a role for client-side *infra*, which is a different thing that was simply undecided until now.
+- Added `agent-frontend` as a 6th role/worktree (`../Gavi411-agent-frontend/`, `agent-frontend@gavi411.local`), deliberately scoped narrow: build config, service worker, install/manifest plumbing — never product UI. Frontend component structure/wiring/pages stay `[You]`; the design/styling pass on top stays `agent-design`'s job. Explicitly reusable for future agentic client-side infra work, not a one-off PWA-only role — but the product-UI boundary must hold or it collapses back into the thing the original "no agent-frontend" ruling was guarding against.
 
 ## 7. Not Yet Discussed
  
