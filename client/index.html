@@ -4,6 +4,17 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- G411-15: PWA installability baseline -->
+    <link rel="manifest" href="/manifest.json" />
+    <meta name="theme-color" content="#7e14ff" />
+    <!-- iOS ignores the web manifest for "Add to Home Screen" styling —
+         these two tags are the iOS-specific equivalent. apple-touch-icon
+         wants a real PNG (iOS doesn't accept SVG here); using the SVG
+         favicon as a placeholder until real icon assets exist (see
+         gavi411-brain.md / manifest.json comment). -->
+    <link rel="apple-touch-icon" href="/favicon.svg" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="Gavi411" />
     <title>Gavi411</title>
   </head>
   <body>

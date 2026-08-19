@@ -21,3 +21,14 @@ createRoot(document.getElementById('root')).render(
     </ClerkProvider>
   </StrictMode>,
 )
+
+// G411-15: register the service worker (client/public/sw.js) so the app
+// meets the installability bar (manifest + registered SW). Guarded by a
+// feature check since older/non-standard browsers don't have
+// navigator.serviceWorker at all. Runs after the initial render so it
+// never blocks first paint.
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js')
+  })
+}
