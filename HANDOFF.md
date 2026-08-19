@@ -18,6 +18,20 @@ accumulated. If something here turns out to matter long-term, promote it to
 
 ## Where things stand
 
+- **G411-12 Reconciled.** Scaffold merged to `main` (commit merges
+  `you/G411-12-vite-scaffold`), Jira walked Open → Implementing →
+  Reviewing → Landed → Reconciled via named transitions, Aegis fields
+  posted as an issue comment, evidence (`npm run build`) re-run fresh at
+  close, not carried over. Also corrected two doc mistakes found this
+  session while resuming G411-12: (1) Collab-task scaffold ownership was
+  recorded backwards ("Gavi scaffolds" — fixed to "Claude scaffolds, Gavi
+  drives logic"); (2) RTL/Hebrew scope was overstated as full page-layout
+  RTL support — corrected to bidi text rendering only, scoped to any
+  freeform text field (input or display) on either side of the app, not
+  friends'-input-only and not a page-mirroring pass. See `gavi411-brain.md`
+  decision #22. G411-14's Jira summary/description updated to match.
+
+
 - **All 62 Jira issues (52 Tasks + 10 Epics) now have real Descriptions**,
   populated in one batch by a background agent from ONLY the existing
   source docs (`gavi411-prd.md`, `gavi411-task-list-source.md`,
@@ -82,8 +96,9 @@ this session.
 
 ## Next on the spine
 
-**G411-12 — React frontend setup (Vite, JS-only)** — `[Collab]`. Scaffold
-already landed (commit 572a423, "Vite React scaffold for client/"); check
-with Gavi how much of 12 is considered done vs. what's left before treating
-it as in-progress or picking a new task. Per the "starting any Jira task"
-rule in `CLAUDE.md`, state its Jira scope plainly before diving in.
+G411-11 and G411-12 (Foundation scaffolding) are both Reconciled. Next
+Foundation items per `gavi411-jira-tree.md`: **G411-13 (Clerk OAuth,
+`[Agentic]`)**, **G411-14 (bidi text rendering for Hebrew content fields,
+`[Collab]`, renamed/rescoped this session)**, or **G411-15/16/17** (PWA,
+deploy pipeline, design system — all `[Agentic]`). Agree with Gavi which
+one to pick up next; nothing pre-selected.
