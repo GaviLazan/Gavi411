@@ -1,1 +1,20 @@
-/* app-level styles go here */
+.design-preview {
+  padding: var(--space-6);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.design-preview .card {
+  width: 100%;
+  max-width: 420px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.design-preview-actions {
+  display: flex;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}

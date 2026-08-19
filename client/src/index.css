@@ -1,18 +1,56 @@
 :root {
-  --text: #6b6375;
-  --text-h: #08060d;
-  --bg: #fff;
-  --border: #e5e4e7;
-  --code-bg: #f4f3ec;
-  --accent: #aa3bff;
-  --accent-bg: rgba(170, 59, 255, 0.1);
-  --accent-border: rgba(170, 59, 255, 0.5);
-  --social-bg: rgba(244, 243, 236, 0.5);
+  /* --- Design tokens (G411-17) ---
+     Derived from Design Inspo images, not invented:
+     - "General layout" (Nexus AI screens, appears 5+ times) + "chat interface"
+       (Hebrew concierge chat) + "layout color and elemnts" (budget tracker)
+       independently converge on the same pattern: warm cream page background,
+       white bordered cards, near-black ink, deep green as the one accent color,
+       pill-shaped buttons/inputs.
+     - "elements style" (Serviqo AI support app) confirmed the card/stat-tile
+       shape and pill input pattern for a support/concierge product specifically.
+     - The purple/lavender gradient screens ("color" folder's Stranger Chat kit,
+       "General layout"'s dating app, "layout color and elemnts" wallet screen)
+       were treated as noise — social/dating/wallet apps, not concierge-shaped,
+       and inconsistent with the majority direction. Not used.
+     Kept the pre-existing --text/--bg/etc names and dark-mode block from the
+     Vite template rather than renaming, extended with new tokens alongside. */
+
+  --text: #6b6355;
+  --text-h: #221f19;
+  --bg: #f6f3ea;
+  --surface: #ffffff;
+  --border: #e6e1d3;
+  --code-bg: #efece0;
+  --accent: #2f4a3c;
+  --accent-strong: #1f3329;
+  --accent-bg: rgba(47, 74, 60, 0.08);
+  --accent-border: rgba(47, 74, 60, 0.35);
+  --social-bg: rgba(239, 236, 224, 0.5);
   --shadow:
     rgba(0, 0, 0, 0.1) 0 10px 15px -3px, rgba(0, 0, 0, 0.05) 0 4px 6px -2px;
 
+  /* spacing scale — 4px base, matches the generous card padding seen
+     throughout the inspo (Nexus AI cards, Serviqo stat tiles) */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+
+  /* radius scale — inspo cards/pills read as consistently rounded,
+     never sharp corners */
+  --radius-sm: 8px;
+  --radius-md: 14px;
+  --radius-lg: 20px;
+  --radius-pill: 999px;
+
   --sans: system-ui, 'Segoe UI', Roboto, sans-serif;
-  --heading: system-ui, 'Segoe UI', Roboto, sans-serif;
+  /* serif display face for headings — the "Intelligent Conversations"
+     Nexus AI screens pair a serif headline with plain sans body; that
+     pairing repeats across the majority of the General layout folder */
+  --heading: Georgia, 'Times New Roman', serif;
   --mono: ui-monospace, Consolas, monospace;
 
   font: 18px/145% var(--sans);
@@ -32,15 +70,17 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --text: #9ca3af;
-    --text-h: #f3f4f6;
-    --bg: #16171d;
-    --border: #2e303a;
-    --code-bg: #1f2028;
-    --accent: #c084fc;
-    --accent-bg: rgba(192, 132, 252, 0.15);
-    --accent-border: rgba(192, 132, 252, 0.5);
-    --social-bg: rgba(47, 48, 58, 0.5);
+    --text: #b8b2a1;
+    --text-h: #f1efe6;
+    --bg: #1a1c18;
+    --surface: #232620;
+    --border: #33362e;
+    --code-bg: #232620;
+    --accent: #6fae8f;
+    --accent-strong: #8fc7ab;
+    --accent-bg: rgba(111, 174, 143, 0.15);
+    --accent-border: rgba(111, 174, 143, 0.4);
+    --social-bg: rgba(35, 38, 32, 0.5);
     --shadow:
       rgba(0, 0, 0, 0.4) 0 10px 15px -3px, rgba(0, 0, 0, 0.25) 0 4px 6px -2px;
   }
