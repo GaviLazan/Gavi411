@@ -18,22 +18,26 @@ accumulated. If something here turns out to matter long-term, promote it to
 
 ## Where things stand
 
-- **G411-15 (PWA) and G411-17 (design system) both at Landed** — merged
-  to `main`, pushed, real deploy evidence confirmed on the live Vercel
-  URL (`https://gavi411-ten.vercel.app/`) — manifest reachable, JS/CSS
-  bundles return 200. **Not yet Reconciled**: both need a human eyeball
-  in a real browser (DevTools installability check for 15; does the app
-  actually render vs. hit a runtime JS error, for 17) — curl/WebFetch
-  can't execute JS so this is the one remaining check for each.
-- **G411-16 (deploy pipeline) at Implementing, not further.** Real
-  progress: `render.yaml`/`DEPLOY.md` merged to `main` (had been stuck on
-  the `agent-cicd` branch — that's why Render couldn't find the Blueprint
-  at first, fixed by merging). Gavi connected both Vercel and Render
-  dashboards. **Render confirmed live**: `gavi411-server` deployed,
-  `https://gavi411-server.onrender.com/api/health` → real `{"status":"ok"}`.
-  **Vercel confirmed reachable** (`https://gavi411-ten.vercel.app/`) but
-  `VITE_CLERK_PUBLISHABLE_KEY` env var not yet set there per `DEPLOY.md`
-  — needed before Clerk sign-in works on the live client. Still open.
+- **G411-15, G411-16, G411-17 all Reconciled.** Gavi caught a real
+  process gap: G411-17's design direction (dark green primary, serif
+  headings) self-merged clean (green build) without ever being checked
+  against Gavi's actual intent — he'd given 16 reference images, the
+  subagent picked a direction unilaterally. Corrected live together:
+  gold/amber primary (from the actual budget-tracker inspo image), sage
+  green demoted to secondary accent, serif dropped entirely (sans
+  everywhere), an invented "Save for later" button removed, CTA
+  centered. Iterated on saturation/lightness using **Playwright**
+  (newly installed as a `client` devDependency this session — no
+  headless-browser tool existed before, made visual verification
+  painfully indirect/unreliable). New standing policy in
+  `gavi411-commit-convention.md`: **subjective-judgment children**
+  (visual/design/copy/UX) always need Gavi's own eyes before merge,
+  regardless of ownership tag — a clean build was never evidence of a
+  correct design call. G411-15/16 also fully verified live via
+  Playwright (SW confirmed `active`, zero console errors on both
+  Vercel/Render); caught and fixed a stale-purple `theme-color` leftover
+  from before the palette correction. All pushed, redeployed, confirmed
+  live matches locally-approved screenshots exactly.
 - **Session-boundary rule for `[Agentic]` work, decided this session**:
   `[Agentic]` subagent work always runs in a separate Claude Code
   session from `[You]`/`[Collab]` pairing — never backgrounded inside a
@@ -152,11 +156,7 @@ this session.
 
 ## Next on the spine
 
-G411-10, G411-11, G411-12, G411-13 are Reconciled. G411-15 and G411-17
-are Landed (need a human browser check to reach Reconciled — see above).
-G411-16 is Implementing (needs the Vercel `VITE_CLERK_PUBLISHABLE_KEY`
-env var set, then re-verify). **G411-14** (bidi text rendering for
-Hebrew content fields, `[Collab]`) has not started — was queued up right
-before the session-boundary rule got sorted out, then background
-launches took over the rest of the session. This is genuinely next: pure
+All of Foundation's Agentic/Collab-scaffold items (G411-10, 11, 12, 13,
+15, 16, 17) are Reconciled. **G411-14** (bidi text rendering for Hebrew
+content fields, `[Collab]`) is next and has not started — pure
 `[You]`/`[Collab]` pairing, no subagents, in this same session/worktree.
