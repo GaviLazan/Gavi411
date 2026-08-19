@@ -18,68 +18,51 @@ accumulated. If something here turns out to matter long-term, promote it to
 
 ## Where things stand
 
-- **G411-11 and G411-12 ownership retagged**: both moved from `[You]` to
-  `[Collab]` this session. Definition for these two specifically (added to
-  `CLAUDE.md`'s ownership-split section, corrected 2026-08-19): Claude does
-  the initial scaffold, then the real logic gets built together step by
-  step, same collaborative model as Testing/CI-CD. This does **not** undo
-  G411-11's existing
-  comment-stub scaffolding (`server/server.js`, `server/routes/
-  requests.js` landed; `server/lib/prisma.js` and `server/middleware/
-  auth.js` still stubs) — it changes how the remaining work on 11 and all
-  of 12 gets finished, not what's already down.
-  - Updated in three places: `CLAUDE.md`, `gavi411-jira-tree.md`,
-    `gavi411-task-list-source.md`, plus the live Jira issues (Owner/
-    Authorship custom field, `customfield_10077`, option id `10028` =
-    "Collaborative") for both G411-11 and G411-12.
-  - Committed straight to `main` (doc/process housekeeping, no Jira child
-    of its own) — commit `15ed522`.
-  - Scanned the rest of the backlog (Parents 2–9) for other automatable
-    non-logic tasks per Gavi's request. Only real candidate found was
-    "Trigger taxonomy seed data" (Parent 2) — Gavi chose to keep it
-    `[You]` since the seed content shapes intake behavior. Nothing else
-    in the list is boilerplate; the rest is genuinely request/messaging/
-    lifecycle/admin/credits logic and stays as originally tagged.
-- **G411-10 (DB schema)**: Landed on `main`. **Still not Reconciled** —
-  still needs a real `prisma migrate dev` against Neon. Will naturally
-  happen once G411-11/12 work needs a live DB connection. Don't forget to
-  close this out when that migration runs.
-- **G411-11 (Express skeleton)**: Landed on `main` (self-merged, evidence
-  bar met — `curl localhost:3000/api/health` → `200 {"status":"ok"}`).
-  Ownership now `[Collab]` (see above) for whatever's left on it — check
-  with Gavi whether he considers 11 itself done or whether the Collab
-  retag reopens any of its remaining scope.
-- **Branch/PR/review policy, "wrap it up" codeword, context-signal
-  policy**: all still live as documented in `CLAUDE.md` — unchanged this
-  session.
-- Folder naming is **`server/`** and **`client/`** — `client/` doesn't
-  exist yet.
+- **"Wrap it up" rewritten as an enforced checklist** (`CLAUDE.md`): the old
+  prose version let steps silently drop — confirmed this happened to
+  G411-11's Jira transition, which sat unmoved across multiple sessions
+  even after the codeword was said twice. Replaced with an 8-step
+  checklist ending in a mandatory ✓/✗ report line, so a skipped step is
+  visible in the same turn instead of discovered later. This is a *process*
+  fix only — nothing auto-runs; it still depends on the codeword being
+  said and every step actually being executed correctly, same as before.
+- **Aegis-spec.md finally read directly this session** (was cited but never
+  opened before). Corrected a real misunderstanding: Jira's workflow has
+  **five** states, not four — `Aegis-spec.md` §4.1 defines Open →
+  Implementing → Reviewing → **Landed** → Reconciled. Landed = merged/live,
+  not yet reconciled against acceptance criteria; Reconciled = acceptance
+  formally re-checked against landed state (§5.5) — the true terminal
+  "Done."
+- **Live Jira workflow fixed to match the spec**: the board had a `Landed`
+  column with 0 issues and no transitions into it. Gavi added the missing
+  named transitions in Jira workflow settings and published: Open —Start
+  Implementing→ Implementing —Move to Review→ Reviewing —Reviewing →
+  Landed→ Landed —Landed → Reconciled→ Reconciled, plus a global "Any →"
+  on all five statuses (including Landed, the one gap). Confirmed live via
+  the Jira transitions API against G411-11.
+- **G411-11 status re-verified, not re-decided**: still `Reconciled` (was
+  already closed out in an earlier session, per this file's prior
+  version — this session just re-confirmed it live rather than assuming).
+  Checked routes/requests.js against the source backlog doc: it's still
+  comment-stubbed, and correctly so — the real route logic belongs to
+  G411-23 and G411-30..36 (separate `[You]` tasks, different Epic), not
+  G411-11's scope. `CLAUDE.md`'s "Current state" section updated to say
+  Reconciled instead of stale "in progress."
+- **Branch/PR/review policy, ownership split, context-signal policy**: all
+  still live as documented in `CLAUDE.md` — unchanged this session.
+- Folder naming is **`server/`** and **`client/`** — `client/` scaffold
+  landed per recent commits (572a423), not yet built out further.
 
 ## Open threads / nothing currently blocking
 
-None — clean checkpoint, not a recovery from an outage or interrupted task.
-Everything above is committed.
-
-- **Collab scaffold ownership corrected**: earlier this session's note that
-  "Gavi sets up the base scaffold" for `[Collab]` tasks was backwards —
-  confirmed with Gavi that it's **Claude scaffolds, Gavi drives logic**.
-  Fixed in `CLAUDE.md` and this file.
-- **G411-11 fully closed out**: the `[Collab]` retag's only real code delta
-  was `server/lib/prisma.js` (2-line PrismaClient singleton, pure
-  boilerplate — filled in, not treated as a collab step).
-  `server/middleware/auth.js` stays a stub — it's G411-13's scope, not
-  11's. Jira ticket was still sitting at "Open" despite the code being
-  merged/verified back in G411-11's original session; walked it through
-  Implementing → Reviewing → Reconciled this session, with Aegis
-  Claim/Falsifier/Evidence posted as a issue comment (custom Aegis fields
-  don't exist on this issue type, so comment is the record) and evidence
-  re-verified fresh (`curl localhost:3000/api/health` → 200, re-run this
-  session, not just carried over).
+None — clean checkpoint. All doc edits this session are process/reference
+corrections, not code changes; nothing uncommitted on the code side from
+this session.
 
 ## Next on the spine
 
-**G411-12 — React frontend setup (Vite, JS-only)** — `[Collab]`, not
-started. Per the "starting any Jira task" rule in `CLAUDE.md`, state its
-Jira scope plainly before diving in. Under the corrected Collab model,
-Claude does the initial Vite scaffold; step-by-step logic collaboration
-starts from there.
+**G411-12 — React frontend setup (Vite, JS-only)** — `[Collab]`. Scaffold
+already landed (commit 572a423, "Vite React scaffold for client/"); check
+with Gavi how much of 12 is considered done vs. what's left before treating
+it as in-progress or picking a new task. Per the "starting any Jira task"
+rule in `CLAUDE.md`, state its Jira scope plainly before diving in.

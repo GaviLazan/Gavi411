@@ -112,8 +112,17 @@ behind schedule — surface the concern and let him decide.
 ## Process & discipline
 
 - **Jira** ("G411" project, Kanban, no sprints): Epic = Parent, Task = Child,
-  no Subtasks. The five Aegis states (Open → Implementing → Reviewing →
-  Landed → Reconciled) *are* the workflow/status field.
+  no Subtasks. Five real states per `Aegis-spec.md` §4.1: Open →
+  Implementing → Reviewing → Landed → Reconciled. **Landed** = merged/live
+  (code shipped, in the target's real running state) but acceptance
+  criteria not yet re-validated against that landed state. **Reconciled**
+  = acceptance criteria formally checked against landed state (spec §5.5,
+  "Closure Against Reality") — that's the actual terminal "Done". Named
+  transitions on the live workflow (fixed 2026-08-19, confirmed via API):
+  Open —Start Implementing→ Implementing —Move to Review→ Reviewing
+  —Reviewing → Landed→ Landed —Landed → Reconciled→ Reconciled. Every
+  status also has a global "Any →" transition for corrections/reopens,
+  including Landed (was the one gap, now closed).
 - **Aegis Method**: every Child needs a Falsifier and an Evidence bar before
   it can be marked Reconciled. Field definitions in
   `gavi411-jira-aegis-template.md`; if a question comes up that the
@@ -171,13 +180,38 @@ behind schedule — surface the concern and let him decide.
      moving into Implementing, this is also when its Claim/Falsifier/
      Evidence-required field get written (decision #50 — at pickup time,
      against real state, not pre-drafted).
-- **"Wrap it up"** — codeword. When Gavi says it: check his work against
-  the current task's actual scope, confirm/re-confirm the falsifier,
-  write or update the Aegis fields (Claim/Falsifier/Evidence), commit
-  (self-merge if routine, flag for a live Sibling review first if
-  load-bearing — see `gavi411-commit-convention.md`), then say what's
-  next on the spine. Saves him re-explaining "I'm done, go check" each
-  time.
+- **"Wrap it up"** — codeword. Run every step below, every time, in order.
+  This replaces the old prose version of this instruction — that version
+  is why G411-11's Jira ticket sat at Open for multiple sessions after
+  "wrap it up" was said twice: the habitual steps (commit, HANDOFF.md)
+  ran, the one requiring a separate tool call (Jira transition) silently
+  didn't, and nothing surfaced the gap. The fix is step 8 — a mandatory
+  itemized report, not a summary — so a skipped step is visible in the
+  same turn instead of discovered days later.
+  1. **Scope check** — re-read the task's actual Jira scope, confirm what
+     was done matches it (not more, not less).
+  2. **Falsifier** — confirm or re-confirm it against real system state,
+     not memory of what should be true.
+  3. **Aegis fields** — write/update Claim, Falsifier, Evidence on the
+     Jira child.
+  4. **Evidence bar** — actually run the check (curl, test, build) fresh,
+     right now — not "it passed earlier."
+  5. **Jira transition** — move the ticket's status field explicitly,
+     using the named transitions ("Reviewing → Landed" once code is
+     actually merged/live, then "Landed → Reconciled" once acceptance
+     criteria are re-checked against that landed state, per spec §5.5).
+     These are two separate transitions, not one — don't collapse them.
+     Per the hard-to-reverse-action rule, confirm with Gavi before the
+     final Landed → Reconciled move rather than doing it unprompted.
+     This step does not happen as a side effect of steps 1-4 — it needs
+     its own tool call, every time.
+  6. **Commit** — self-merge if routine, flag for a live Sibling review
+     first if load-bearing (see `gavi411-commit-convention.md`).
+  7. **HANDOFF.md** — update with current state.
+  8. **Report back** — one line per step above, ✓ or ✗, so a skipped step
+     is visible immediately. Example: "Scope ✓ · Falsifier ✓ · Aegis
+     fields ✓ · Evidence ✓ · Jira → Reconciled ✓ · Committed ✓ ·
+     HANDOFF.md ✓." Then say what's next on the spine.
 - **Context-window handoff** (decided 2026-08-18): there's no verified way
   for Claude Code to read its own exact context-usage % — don't trust
   claims of a `CLAUDE_CONTEXT_TOKEN_COUNT`-style env var or similar; none
@@ -196,10 +230,10 @@ behind schedule — surface the concern and let him decide.
 ## Current state
 
 Foundation spine in progress. **G411-10 (DB schema)** done — `prisma/schema.prisma`
-written, validated, formatted. **G411-11 (Express skeleton)** in progress —
-`package.json` (ES modules), Express/Prisma 6/dotenv installed, `server/`
-folder scaffolded with comment-stubbed `server.js`/`routes/requests.js`/
-`lib/prisma.js` — logic not yet written. Next after 11: G411-12 (React
+written, validated, formatted. **G411-11 (Express skeleton)** Reconciled in
+Jira — `package.json` (ES modules), Express/Prisma 6/dotenv installed,
+`server/` folder scaffolded with comment-stubbed `server.js`/
+`routes/requests.js`/`lib/prisma.js`. Next after 11: G411-12 (React
 frontend, in `client/` to match `server/`), G411-13 (Clerk).
 
 Folder naming: **`server/`** and **`client/`**, not `backend`/`frontend`.
