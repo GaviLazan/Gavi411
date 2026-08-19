@@ -11,7 +11,7 @@ Legend: **[You]** hand-written · **[Agentic]** subagent-built, fully explained 
   - G411-11 Express backend skeleton (ES modules) — [Collab]
   - G411-12 React frontend setup (Vite, JS-only) — [Collab]
   - G411-13 Clerk OAuth wiring (callback handling, session/token mgmt) — [Agentic]
-  - G411-14 RTL/Hebrew logical-CSS layout scaffolding — [Collab]
+  - G411-14 Bidi text rendering for Hebrew content fields — [Collab]
   - G411-15 PWA manifest + service worker (installability baseline) — [Agentic]
   - G411-16 Deploy pipeline initial setup — Vercel + Render + Neon — [Agentic]
   - G411-17 Design system foundation — inspo-board → Impeccable-styled components — [Agentic]
