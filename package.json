@@ -19,6 +19,7 @@
   },
   "homepage": "https://github.com/GaviLazan/Gavi411#readme",
   "dependencies": {
+    "@clerk/express": "^2.1.59",
     "@prisma/client": "6.19.3",
     "cors": "2.8.6",
     "dotenv": "17.4.2",
