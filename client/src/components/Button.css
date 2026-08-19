@@ -1,0 +1,37 @@
+/* Pill-shaped buttons — every CTA across the inspo board (Nexus AI's
+   "Get Started", the onboarding kit's "Get verification code", Serviqo's
+   "Message"/"New ticket") is a full-radius pill, never a rounded-rect. */
+.btn {
+  font: inherit;
+  font-size: 16px;
+  font-weight: 600;
+  border-radius: var(--radius-pill);
+  padding: 14px 28px;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: opacity 0.15s ease, background-color 0.15s ease;
+}
+
+.btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.btn-primary {
+  background: var(--accent);
+  color: var(--surface);
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: var(--accent-strong);
+}
+
+.btn-secondary {
+  background: transparent;
+  color: var(--accent);
+  border-color: var(--accent-border);
+}
+
+.btn-secondary:hover:not(:disabled) {
+  background: var(--accent-bg);
+}

@@ -1,0 +1,90 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-08-19T00:00:00Z",
+  "title": "Design System: Gavi411",
+  "extensions": {
+    "colorMeta": {
+      "forest-green": { "role": "primary", "displayName": "Forest Green", "canonical": "#2f4a3c", "tonalRamp": ["#0f1712", "#1a2820", "#243a2f", "#2f4a3c", "#4a6e5b", "#6fae8f", "#a4d3bc", "#d5eee1"] },
+      "ink": { "role": "neutral", "displayName": "Ink", "canonical": "#221f19", "tonalRamp": ["#000000", "#12100c", "#221f19", "#3a352c", "#544d40", "#726a58", "#a39c8a", "#d6d1c2"] },
+      "body-text": { "role": "neutral", "displayName": "Warm Taupe", "canonical": "#6b6355", "tonalRamp": ["#1a1712", "#312c24", "#4a4337", "#6b6355", "#8a8272", "#a9a290", "#c8c2b1", "#e6e1d3"] },
+      "cream-bg": { "role": "neutral", "displayName": "Cream", "canonical": "#f6f3ea", "tonalRamp": ["#2a271e", "#4d483a", "#736c59", "#9a927a", "#c2baa2", "#e0dbc9", "#f6f3ea", "#fdfcf8"] },
+      "surface": { "role": "neutral", "displayName": "Surface White", "canonical": "#ffffff", "tonalRamp": ["#d9d9d9", "#e6e6e6", "#f0f0f0", "#f7f7f7", "#fafafa", "#fcfcfc", "#fefefe", "#ffffff"] },
+      "border": { "role": "neutral", "displayName": "Hairline", "canonical": "#e6e1d3", "tonalRamp": ["#3a362a", "#59543f", "#7a7458", "#9c9575", "#bdb695", "#d3cdb4", "#e6e1d3", "#f4f1e8"] }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Display", "purpose": "Page-level h1 only (app name, section-defining headline)." },
+      "title": { "displayName": "Title", "purpose": "Card/section h2 headings, e.g. 'New request'." },
+      "body": { "displayName": "Body", "purpose": "All running text, request/message content, form values." },
+      "label": { "displayName": "Label", "purpose": "Form field labels, sitting above the input." }
+    },
+    "shadows": [
+      { "name": "card-ambient", "value": "rgba(0,0,0,0.1) 0 10px 15px -3px, rgba(0,0,0,0.05) 0 4px 6px -2px", "purpose": "The only shadow in the system; soft lift under cards, never a hard drop shadow." }
+    ],
+    "motion": [
+      { "name": "state-transition", "value": "opacity 0.15s ease, background-color 0.15s ease", "purpose": "Button hover/disabled transitions — the only motion currently in the codebase." }
+    ],
+    "breakpoints": [
+      { "name": "compact", "value": "1024px", "purpose": "Below this, base font drops 18px->16px and display/title sizes step down." }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Solid forest-green pill CTA — the app's one high-emphasis action style.",
+      "html": "<button class=\"ds-btn-primary\">Send request</button>",
+      "css": ".ds-btn-primary { font-size: 16px; font-weight: 600; border-radius: 999px; padding: 14px 28px; border: 1px solid transparent; cursor: pointer; background: #2f4a3c; color: #ffffff; transition: opacity 0.15s ease, background-color 0.15s ease; } .ds-btn-primary:hover { background: #1f3329; } .ds-btn-primary:focus-visible { outline: 2px solid #2f4a3c; outline-offset: 2px; } .ds-btn-primary:disabled { cursor: not-allowed; opacity: 0.5; }"
+    },
+    {
+      "name": "Secondary Button",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "Outline pill for lower-emphasis actions alongside a primary button.",
+      "html": "<button class=\"ds-btn-secondary\">Save for later</button>",
+      "css": ".ds-btn-secondary { font-size: 16px; font-weight: 600; border-radius: 999px; padding: 14px 28px; cursor: pointer; background: transparent; color: #2f4a3c; border: 1px solid rgba(47,74,60,0.35); transition: opacity 0.15s ease, background-color 0.15s ease; } .ds-btn-secondary:hover { background: rgba(47,74,60,0.08); } .ds-btn-secondary:focus-visible { outline: 2px solid #2f4a3c; outline-offset: 2px; }"
+    },
+    {
+      "name": "Card",
+      "kind": "card",
+      "refersTo": "card",
+      "description": "White bordered container on the cream page background — holds a request, a message group, or a stat tile.",
+      "html": "<div class=\"ds-card\"><h2 class=\"ds-card-title\">New request</h2><p class=\"ds-card-body\">Find me a flight home tonight.</p></div>",
+      "css": ".ds-card { background: #ffffff; border: 1px solid #e6e1d3; border-radius: 20px; padding: 24px; text-align: left; box-shadow: rgba(0,0,0,0.1) 0 10px 15px -3px, rgba(0,0,0,0.05) 0 4px 6px -2px; } .ds-card-title { font-family: Georgia, 'Times New Roman', serif; font-weight: 500; font-size: 24px; line-height: 118%; letter-spacing: -0.24px; color: #221f19; margin: 0 0 8px; } .ds-card-body { font-family: system-ui, 'Segoe UI', Roboto, sans-serif; font-size: 18px; line-height: 145%; color: #6b6355; margin: 0; }"
+    },
+    {
+      "name": "Text Input",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "Pill-shaped text field with a label above it, matching the Edit Profile inspo pattern.",
+      "html": "<div class=\"ds-field\"><label class=\"ds-field-label\" for=\"ds-demo-input\">What do you need?</label><input id=\"ds-demo-input\" class=\"ds-field-input\" placeholder=\"Find me a flight home tonight\" /></div>",
+      "css": ".ds-field { display: flex; flex-direction: column; gap: 8px; text-align: left; } .ds-field-label { font-family: system-ui, 'Segoe UI', Roboto, sans-serif; font-size: 14px; font-weight: 600; color: #221f19; } .ds-field-input { font-family: system-ui, 'Segoe UI', Roboto, sans-serif; font-size: 16px; color: #221f19; background: #ffffff; border: 1px solid #e6e1d3; border-radius: 999px; padding: 12px 20px; } .ds-field-input::placeholder { color: #6b6355; } .ds-field-input:focus { outline: none; border-color: rgba(47,74,60,0.35); box-shadow: 0 0 0 3px rgba(47,74,60,0.08); }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Concierge's Notebook",
+    "overview": "Gavi411 reads like a trusted assistant's warm, paper-toned notebook rather than a slick SaaS dashboard: a cream page, ink-dark text, white index cards for every request and message, and a single deep forest-green accent used sparingly for action. The pairing of a serif display headline with a plain sans body signals 'a person is handling this, not a bot farm' — capable and a little literary, never cold or corporate.\n\nThis direction was extracted from the project's Design Inspo board, not invented. It is the pattern that recurred independently across three separate folders: the 'Nexus AI' screens in General layout (appearing in 5 of that folder's images), the Hebrew-language concierge chat screenshot in chat interface, and the budget-tracker screen in layout color and elemnts. The elements style folder's Serviqo AI-support kit confirmed the card/stat-tile shape and pill-input pattern specifically for a support-request product. The purple/lavender gradient screens seen elsewhere on the board were treated as anti-reference: a different product category (social/dating), inconsistent with the majority pattern.",
+    "keyCharacteristics": [
+      "Warm cream page background, never stark white behind the whole viewport — only cards are pure white.",
+      "One accent color only: deep forest green. No secondary or tertiary accent.",
+      "Serif display type for headlines, plain sans for everything functional.",
+      "Everything interactive (buttons, inputs) is a full pill — no rounded-rectangles for actionable elements.",
+      "Cards carry a soft ambient shadow and a hairline border, not a hard drop shadow."
+    ],
+    "rules": [
+      { "name": "The One Accent Rule", "body": "Forest green is the only saturated color in the system. If a new UI need shows up wanting a second brand color, reach for a neutral or an opacity variant of green before introducing a new hue.", "section": "colors" },
+      { "name": "The Pill-or-Card Rule", "body": "If it's clickable/typeable, it's a pill. If it's a container, it's a large-radius card. Nothing in between.", "section": "shapes" }
+    ],
+    "dos": [
+      "Do keep the page background cream (#f6f3ea) and reserve pure white (#ffffff) for cards and inputs only.",
+      "Do use the serif (Georgia) only for headings; body copy, labels, and buttons stay sans.",
+      "Do make every clickable/typeable element a full pill; every container a 20px-radius card.",
+      "Do keep forest green as the only accent."
+    ],
+    "donts": [
+      "Don't introduce the purple/lavender gradient look seen in some inspo images — it was explicitly identified as off-brand noise.",
+      "Don't add a UI component library or CSS-in-JS dependency — plain CSS + custom properties by project convention.",
+      "Don't apply logical/bidi CSS properties system-wide — UI chrome is English/LTR only."
+    ]
+  }
+}
