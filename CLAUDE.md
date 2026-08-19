@@ -60,10 +60,13 @@ encryption core, PWA/service worker config, deploy pipeline setup. Build
 these fully, but explain fully as you go — Gavi wants to be able to
 rebuild/understand these post-deadline (see the learning backlog).
 
-**`[Collab]`** — testing (Vitest), CI/CD (GitHub Actions). Build these
-*with* Gavi incrementally, per feature as it ships — not batched, not
-handed over finished. He's weak in both and explicitly wants to learn
-them, not receive output.
+**`[Collab]`** — testing (Vitest), CI/CD (GitHub Actions), and (as of
+2026-08-19) Express backend skeleton (G411-11) and React frontend setup
+(G411-12). Build these *with* Gavi incrementally, per feature as it
+ships — not batched, not handed over finished. For 11/12 specifically:
+Gavi sets up the base scaffold, then the real logic is built together
+step by step from there — the existing comment-stub scaffolding for
+G411-11 stands, this changes how it's finished, not what's already down.
 
 **Fallback rule:** moving a `[You]` task to agentic is an option **only
 Gavi can invoke**. Never do this on your own judgment because he seems

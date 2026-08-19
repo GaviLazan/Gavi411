@@ -9,8 +9,8 @@ Legend: **[You]** hand-written · **[Agentic]** subagent-built, fully explained 
 _Nothing else can start until this lands. No commit-triggering here — this is upfront/parallel work._
  
 - DB schema design (users, requests, messages, credits, group tags, triggers table) **[You]**
-- Express backend skeleton (ES modules) **[You]**
-- React frontend setup (Vite, JS-only) **[You]**
+- Express backend skeleton (ES modules) **[Collab]** — Gavi sets up the base scaffold, then logic is built together step by step
+- React frontend setup (Vite, JS-only) **[Collab]** — Gavi sets up the base scaffold, then logic is built together step by step
 - Clerk OAuth wiring (callback handling, session/token mgmt) **[Agentic]** — not commit-triggered, built in parallel
 - RTL/Hebrew logical-CSS layout scaffolding **[Collab]** — new concept (logical CSS properties), needs a walkthrough before/while writing; ties into Design System for actual tokens
 - PWA manifest + service worker (installability baseline) **[Agentic]**
