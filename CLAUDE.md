@@ -94,9 +94,10 @@ behind schedule — surface the concern and let him decide.
   works, stdlib/native features before custom code or dependencies, no
   speculative abstractions. If it's installed correctly it self-activates;
   don't fight it with over-engineered suggestions.
-- UI is English-only, LTR — no page-layout mirroring, no logical-CSS
-  sweep needed for app chrome. Hebrew only ever shows up as *content*
-  friends type/read (request text, messages) — those specific display
+- UI chrome is English-only, LTR — no page-layout mirroring, no
+  logical-CSS sweep needed. Hebrew can show up in *any* freeform text
+  field — input or display, friend-facing (request text, messages) or
+  Gavi/admin-facing (notes, replies) alike, whoever's typing — those
   fields need correct bidi text rendering (mixed Hebrew/English/numbers
   in one string), via `dir="auto"` or `unicode-bidi: plain-text` scoped
   to that content, not the whole page. Scope corrected 2026-08-19 — was

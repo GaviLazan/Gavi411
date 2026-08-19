@@ -12,7 +12,7 @@ _Nothing else can start until this lands. No commit-triggering here — this is 
 - Express backend skeleton (ES modules) **[Collab]** — Claude sets up the base scaffold, then logic is built together step by step
 - React frontend setup (Vite, JS-only) **[Collab]** — Claude sets up the base scaffold, then logic is built together step by step
 - Clerk OAuth wiring (callback handling, session/token mgmt) **[Agentic]** — not commit-triggered, built in parallel
-- Bidi text rendering for Hebrew content fields **[Collab]** — UI stays English/LTR; only user-entered content fields (request text, messages) need correct mixed Hebrew/English/number display (`dir="auto"`/`unicode-bidi: plain-text`, scoped to those fields, not a page-layout pass)
+- Bidi text rendering for Hebrew content fields **[Collab]** — UI chrome stays English/LTR; every freeform text field, input or display, on either side of the app (friend-facing or Gavi/admin-facing) needs correct mixed Hebrew/English/number display (`dir="auto"`/`unicode-bidi: plain-text`, scoped to those fields, not a page-layout pass)
 - PWA manifest + service worker (installability baseline) **[Agentic]**
 - Deploy pipeline initial setup — Vercel (frontend) + Render (backend) + Neon (DB) **[Agentic]**
 - Design system foundation — inspo-board screenshots → Impeccable-styled base components **[Agentic]**, sequenced per decision (screenshots first, `/impeccable document` only after real styled code exists)

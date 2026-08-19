@@ -80,7 +80,7 @@ A webapp digitizing the informal concierge/info-booth/assistance service Gavi al
 - **Notifications:**
   - Users: Web Push (PWA notifications) — works on Android/desktop; on iOS only for installed PWAs (16.4+).
   - Gavi: Telegram bot pinging on new requests/messages with a deep link into the admin view. (Telegram Bot API is free and simple — a single POST to send a message.) **Telegram is Gavi-only** — many friends don't have Telegram, so it's never used for user-facing notifications, only Gavi's own alerts.
-- **Language/RTL:** ~~UI framework must support RTL + Hebrew from day one (layout direction, text alignment).~~ Corrected by decision #22: UI stays English/LTR only; only user-entered/read content needs correct bidi text rendering, not page-layout mirroring.
+- **Language/RTL:** ~~UI framework must support RTL + Hebrew from day one (layout direction, text alignment).~~ Corrected by decision #22: UI chrome stays English/LTR only; any freeform text field (input or display, friend-facing or Gavi/admin-facing — request text, messages, notes) needs correct bidi text rendering, not page-layout mirroring.
 - **Branding:** no mascot. Logo deferred.
 - **Tone:** friendly, almost informal — the app should feel like the service already feels.
 ### Auth direction — DECIDED: OAuth
@@ -117,7 +117,7 @@ Purely wording/phrasing items, decoupled from logic — batched into one pass la
 | 19 | 2026-08-08 | Credits: visible, flat 1/request, one "request anyway" overdraft per reset. |
 | 20 | 2026-08-08 | Service online/offline presence state (auto-Shabbat or manual), not official hours. |
 | 21 | 2026-08-09 | Tech support confirmed as its own request type. |
-| 22 | 2026-08-19 | Correction to #14: UI itself stays English/LTR only — no page-layout mirroring, no logical-CSS sweep of app chrome. Hebrew only ever appears as user-typed/read *content* (request text, messages); those specific display fields need correct bidi text rendering (mixed Hebrew/English/numbers in one string — `dir="auto"` or `unicode-bidi: plain-text` scoped to that content), not the whole page. |
+| 22 | 2026-08-19 | Correction to #14: UI itself stays English/LTR only — no page-layout mirroring, no logical-CSS sweep of app chrome. Hebrew can appear in *any* freeform text field, input or display, on either side of the app — friend-facing (request text, messages) or Gavi/admin-facing (notes, replies) alike; whoever's typing, not just friends. Those fields need correct bidi text rendering (mixed Hebrew/English/numbers in one string — `dir="auto"` or `unicode-bidi: plain-text` scoped to that field), not the whole page. |
 | 22 | 2026-08-09 | Intake trigger config is DB-backed and admin-editable (not hardcoded), for live keyword tuning. |
 | 23 | 2026-08-09 | Disambiguation UI = multi-select chips. |
 | 24 | 2026-08-09 | User group tag added: drives credit tier + admin sort/filter. |
