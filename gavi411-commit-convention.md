@@ -97,6 +97,20 @@ exists (a fresh/stale worktree won't have it until `client/` is merged in
 — covered by the launch checklist's "merge main first" step above, but
 the symlink itself isn't automatic and needs re-doing after that merge).
 
+**Where to launch from (decided 2026-08-19)**: every subagent's tool
+calls (Bash, Read, its own commits) stream into the *same* Claude Code
+session transcript that launched it — foreground or background, there's
+no true separate-chat isolation available from inside a session. Running
+several subagents' raw activity interleaved with the main thread's own
+work (e.g. G411-14 pairing) makes the transcript unreadable — confirmed
+by Gavi hitting this directly when 15/16/17 ran backgrounded during 14.
+Going forward: Claude does not launch multiple background subagents
+inside a session that also has live foreground pairing work happening.
+For genuinely parallel/background work (like the 15/16/17 batch), Gavi
+opens a separate Claude Code tab/session himself and hands that session
+the task directly — real isolation, not simulated via backgrounding
+inside one thread.
+
 **Parallel launches**: only run subagents side by side when their file
 scopes genuinely don't overlap and neither's output feeds the other's
 input. Before launching more than one at once, name each one's expected
