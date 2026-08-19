@@ -14,9 +14,30 @@ accumulated. If something here turns out to matter long-term, promote it to
 
 ## Last updated
 
-2026-08-19, mid-session.
+2026-08-19, mid-session (later than the entries below — see top item).
 
 ## Where things stand
+
+- **All 62 Jira issues (52 Tasks + 10 Epics) now have real Descriptions**,
+  populated in one batch by a background agent from ONLY the existing
+  source docs (`gavi411-prd.md`, `gavi411-task-list-source.md`,
+  `gavi411-jira-tree.md`, `gavi411-jira-aegis-template.md`) — no invented
+  scope or acceptance criteria. Each Task description has three parts:
+  **Scope** (from task-list-source, with owner tag), **Detail** (PRD
+  excerpt cited by section, e.g. "per PRD §4.4" — or an explicit "no
+  additional PRD detail beyond scope above" where the PRD is thin), and
+  **Not covered by this task** (explicit boundary to sibling tasks).
+  Zero API errors, zero skipped. Spot-checked G411-30 and G411-11 against
+  their source docs directly — both accurate, no fabrication found.
+  Reason this was done: Gavi flagged real ambiguity about what tasks
+  actually include; this closes that gap using only what already existed,
+  rather than writing new spec on the fly.
+  - `CLAUDE.md`'s session-start ritual (step 3, pick-the-task) now
+    includes a staleness check: re-verify a task's Description against
+    the PRD/task-list-source before starting work, since if those source
+    docs change later, the batch-written description could drift stale.
+  - This CLAUDE.md edit is the only uncommitted change from this part of
+    the session — commit it together with this HANDOFF.md update.
 
 - **"Wrap it up" rewritten as an enforced checklist** (`CLAUDE.md`): the old
   prose version let steps silently drop — confirmed this happened to

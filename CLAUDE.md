@@ -179,7 +179,12 @@ behind schedule — surface the concern and let him decide.
      picking up this session before any code gets touched. If it's a Task
      moving into Implementing, this is also when its Claim/Falsifier/
      Evidence-required field get written (decision #50 — at pickup time,
-     against real state, not pre-drafted).
+     against real state, not pre-drafted). Also re-check the task's
+     Description field against `gavi411-prd.md` and
+     `gavi411-task-list-source.md` for staleness (2026-08-19: descriptions
+     were batch-populated from these sources — if the PRD or source doc
+     changed since, the ticket's description may be out of date; fix it
+     before starting work, don't silently work against a stale one).
 - **"Wrap it up"** — codeword. Run every step below, every time, in order.
   This replaces the old prose version of this instruction — that version
   is why G411-11's Jira ticket sat at Open for multiple sessions after
