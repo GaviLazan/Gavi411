@@ -68,6 +68,14 @@ subagent into a role worktree:
 This is a manual pre-flight, not automated — same "no enforcement layer,
 just a checklist that has to actually be followed" situation as the
 wrap-it-up checklist in `CLAUDE.md`.
+
+**Parallel launches**: only run subagents side by side when their file
+scopes genuinely don't overlap and neither's output feeds the other's
+input. Before launching more than one at once, name each one's expected
+touched files/directories and check for intersection — if two roles would
+plausibly both touch, e.g., `server/server.js` or `client/src/main.jsx`,
+or one's task depends on the other's not-yet-built output, run them
+sequentially instead. When unsure, default to sequential.
  
 **Commit trailer** — every agent-authored commit includes:
  
