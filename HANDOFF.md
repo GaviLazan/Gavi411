@@ -18,6 +18,41 @@ accumulated. If something here turns out to matter long-term, promote it to
 
 ## Where things stand
 
+- **G411-18 (intake form shell) Landed, awaiting Gavi's go-ahead for
+  Reconciled.** Real, live-designed session — flow was substantially
+  redesigned from the original PRD wording, live with Gavi, not built
+  from a spec handed down: no live/debounce matching (runs once on
+  Continue instead), single-select disambiguation chips with an
+  always-present "None of these" escape hatch (not multi-select "pick
+  all that apply"), fallback field conditional on "None of these" (not
+  always-present), urgency asked in the shared follow-up step regardless
+  of matched type. `gavi411-prd.md` §4.1 rewritten to match (old wording
+  kept struck-through for history); G411-19/21/22's Jira
+  summaries/descriptions updated to match (G411-20 untouched, genuinely
+  unaffected); full rationale posted as a comment on G411-18.
+  Built: `client/src/pages/NewRequest.jsx` (step-driven form: describe →
+  chips → followup), new `Select.jsx`/`Select.css` component (matches
+  `Input`'s field pattern, for the urgency dropdown), `App.jsx` now
+  mounts `NewRequest` for real (was a labeled "temporary preview," this
+  is what its own comment called for — no router added, single-screen
+  only). Enter-to-continue wired on the free-text input. Chips
+  rendering, type-specific follow-up fields, and the match/submit
+  handler bodies are correctly left as comment stubs — they're
+  G411-19/21/22/23's own scope, not this ticket's; verified via a live
+  Playwright check that Continue correctly does NOT advance the step
+  while the match-call stub is empty (proves the boundary holds, not
+  faked). **Also surfaced and fixed in passing**: `Urgency` enum's
+  `MEDIUM → NORMAL` rename (Gavi's call, discussed this session) had
+  only ever been edited in `schema.prisma`, never migrated to live
+  Neon — found via `prisma migrate status`'s false "up to date" (it
+  only checks migration-folder vs. applied-migrations, not schema-file
+  vs. live DB). Verified the `Request` table was empty (zero rows, real
+  risk-free) before hand-writing and applying a migration
+  (`prisma migrate deploy`, since `migrate dev`'s interactive mode isn't
+  supported here) — confirmed live via raw enum query afterward. Also:
+  `Input`/`Select`'s shared radius moved from `--radius-pill` to
+  `--radius-lg` (Gavi's call — pill worked for `Button`, read as
+  over-rounded on text fields). All pushed to `main`.
 - **G411-10 process gap found and fixed**: the DB schema code itself was
   genuinely done and migrated to live Neon back in the G411-13 session,
   but the Jira ticket had silently sat at **Open** since then — never
@@ -198,7 +233,10 @@ this session.
 
 ## Next on the spine
 
-All of Foundation's Agentic/Collab-scaffold items (G411-10, 11, 12, 13,
-14, 15, 16, 17) are Reconciled. Foundation's spine moves on to the next
-`[You]`/`[Collab]` task next session (check Jira board for what's
-actually next — not re-derived here to avoid staleness).
+All of Foundation (G411-10 through 17) is Reconciled. **G411-18 is
+Landed**, waiting on Gavi's go-ahead to move Reconciled — do that first
+next session if not done before this one ends. After that: G411-19
+(keyword-matching engine) is the natural next pickup since G411-18's
+Continue button now genuinely has somewhere real to call into — G411-21
+(chips) and G411-22 (fallback field) both depend on G411-19 existing
+first.
