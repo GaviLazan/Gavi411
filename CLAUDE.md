@@ -241,12 +241,14 @@ behind schedule — surface the concern and let him decide.
 
 ## Current state
 
-Foundation spine in progress. **G411-10 (DB schema)** done — `prisma/schema.prisma`
-written, validated, formatted. **G411-11 (Express skeleton)** Reconciled in
-Jira — `package.json` (ES modules), Express/Prisma 6/dotenv installed,
-`server/` folder scaffolded with comment-stubbed `server.js`/
-`routes/requests.js`/`lib/prisma.js`. Next after 11: G411-12 (React
-frontend, in `client/` to match `server/`), G411-13 (Clerk).
+**G411-1 (Foundation epic) Reconciled** — all 8 children (G411-10 through
+G411-17: DB schema, Express skeleton, React setup, Clerk OAuth, bidi text
+rendering, PWA baseline, deploy pipeline, design system foundation) are
+Reconciled in Jira. `prisma/schema.prisma` written/validated/formatted;
+`server/` scaffolded (`package.json` ES modules, Express/Prisma 6/dotenv,
+comment-stubbed `server.js`/`routes/requests.js`/`lib/prisma.js`); `client/`
+scaffolded. Next: first `[You]`/`[Collab]` task under Parent 2 (Requests /
+Intake) — check Jira board for what's actually next.
 
 Folder naming: **`server/`** and **`client/`**, not `backend`/`frontend`.
 
