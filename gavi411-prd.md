@@ -38,13 +38,35 @@ The app is also the final project for Gavi's fullstack course and must demonstra
 ## 4. Core Flows
  
 ### 4.1 Request intake (friend-initiated)
+Revised 2026-08-20 (Gavi, live during G411-18 pickup) — matching is no
+longer live/debounced, and disambiguation always includes an explicit
+"not this" escape hatch. Superseded steps struck through below are kept
+for history, not current behavior.
 1. Friend taps "new request."
-2. Free-text box: "tell me what's going on." Debounced keyword matching (against a DB-backed, admin-editable trigger list) suggests a request type as they type.
-3. If one type matches → its follow-up fields appear (except Info/Research, which has none). If multiple types match → multi-select disambiguation chips let the friend pick all that apply.
-4. Generic fallback field always present: "anything else I should know? When do you need this by?"
-5. Urgency selected (preset options).
-6. Request is created, credit deducted, Gavi is notified via Telegram.
+2. Free-text box: "how can I help? / what's up?" Friend describes the
+   issue, no live matching while typing.
+3. Friend taps **Continue**. Keyword matching (against a DB-backed,
+   admin-editable trigger list) runs once, against the full text.
+4. Match results render as chips — one per candidate type, plus an
+   always-present **"None of these"** chip (present even on a single
+   match, so a wrong auto-guess is correctable rather than forced).
+   Friend picks one.
+5. Follow-up fields appear based on the pick: that type's specific
+   fields (except Info/Research, which has none), or — if "None of
+   these" — the generic fallback field: "please provide any additional
+   info you can." Urgency (preset options) is asked here too, same for
+   every path regardless of matched type.
+6. Friend submits. Request is created, credit deducted, Gavi is
+   notified via Telegram.
 - No LLM involved anywhere in this flow — fully deterministic, runs on Gavi's own server. (LLM-based triage was considered and explicitly ruled out for v1: privacy concerns, and a principle of not making a non-critical feature depend on a third-party interface.)
+
+~~Superseded~~: originally spec'd as live debounced-as-you-type matching
+with multi-select disambiguation chips (pick all that apply) and a
+fallback field shown unconditionally alongside urgency. Gavi's call:
+live debounce added no value for this input shape; multi-select
+disambiguation didn't fit since a request is exactly one type, not
+several; fallback should only appear when no type was confidently
+identified, not as a permanent extra field.
 ### 4.2 Request intake (Gavi-initiated)
 1. From an outside conversation, Gavi pastes chat text/images into a new request in the admin UI.
 2. Gets a shareable link:
