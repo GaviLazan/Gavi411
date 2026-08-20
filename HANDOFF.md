@@ -18,6 +18,29 @@ accumulated. If something here turns out to matter long-term, promote it to
 
 ## Where things stand
 
+- **G411-20 (trigger taxonomy seed data) Landed, awaiting Gavi's
+  go-ahead for Reconciled.** Built in one-step-at-a-time collaborative
+  mode per Gavi's explicit pacing request this session — each real
+  code/content change stopped for his review before the next; status
+  transitions and doc updates didn't count as steps needing a pause.
+  `prisma/seed.js`: 57 keyword→RequestType rows across 5 of 6 types
+  (GENERAL deliberately has none — it's the fallback when nothing else
+  matches). Content is Gavi's own real judgment calls, not auto-filled:
+  "get" intentionally duplicated as both RESEARCH and PURCHASE (two
+  Trigger rows, same keyword — reflects that Gavi finds/prices things
+  but doesn't transact); "book" excluded as ambiguous/redundant;
+  "returning"/"departing" considered for TRAVEL then dropped by Gavi to
+  avoid a real substring collision against PURCHASE's "return" under
+  the current non-word-boundary matcher (concrete example feeding
+  G411-63); media nouns (ebook/movie/tv show) considered and skipped —
+  existing intent words already cover the real signal. Run against live
+  Neon: table confirmed empty before, 57 rows after (cross-checked via
+  `grep -c` on the file vs. live DB count, exact match). Falsifier run
+  via real curl calls against the live `/api/requests/match` route
+  post-seed: "flight got cancelled" → TRAVEL, "get a good deal on a
+  laptop" → RESEARCH+PURCHASE (confirms the dual-mapping works),
+  "wifi stopped working" → TECH_SUPPORT, unrelated text → `[]`
+  (correct empty match, not a false positive). All pushed to `main`.
 - **G411-19 through 23 moved [You] -> [Collab] mid-session** — Gavi's
   own fallback-rule call, tired and wanting faster visible progress
   while staying involved and still writing/understanding the code, not
@@ -267,11 +290,11 @@ this session.
 ## Next on the spine
 
 All of Foundation (G411-10 through 17) is Reconciled. G411-18 and
-G411-19 both Reconciled. Next: G411-21 (chip UI) is the natural next
-pickup — it's
-what makes the intake flow visually complete (matching already returns
-real data, just nothing renders it yet). G411-20 (trigger seed data)
-could also go first/in parallel since G411-21's chips have nothing real
-to show without it either. G411-63 (word-boundary matching fix) is
-tracked but not urgent — no real keyword data exists yet to expose the
-bug.
+G411-19 both Reconciled. **G411-20 is Landed**, waiting on Gavi's
+go-ahead to move Reconciled — do that first next session if not done
+before this one ends. After that: **G411-21** (disambiguation chip UI)
+is the natural next pickup, in order — real seed data now exists, so
+chips will show genuine matches, not just empty state. G411-63
+(word-boundary matching fix) is tracked and now has a real live example
+to reference (the "return" vs "returning" collision Gavi caught) but
+still not urgent since no user has hit it yet.
