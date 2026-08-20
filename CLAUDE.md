@@ -80,6 +80,14 @@ changes how it's finished, not what's already down.
 Gavi can invoke**. Never do this on your own judgment because he seems
 behind schedule — surface the concern and let him decide.
 
+**Invoked 2026-08-20:** Gavi moved the rest of Parent 2 — Requests/Intake
+(G411-19 through 23, everything after G411-18) from `[You]` to
+`[Collab]`, mid-session, feeling tired and wanting a faster sense of
+progress while staying involved and still writing/understanding the
+code — not a full `[Agentic]` handoff. Applies to those five tickets
+specifically, not a blanket change to the ownership split; re-confirm
+per-task rather than assuming it extends further without being told.
+
 ## Tech stack
 
 - Frontend: React (Vite), **JavaScript only — no TypeScript**

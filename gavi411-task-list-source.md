@@ -19,12 +19,12 @@ _Nothing else can start until this lands. No commit-triggering here — this is 
 ## Parent 2 — Requests / Intake
 _Depends on: Foundation (DB, Express, Auth)._
  
-- Intake UI: free-text box + urgency preset **[You]**
-- Debounced keyword-matching engine (DB-backed trigger list, deterministic, no LLM) **[You]**
-- Trigger taxonomy seed data (Admin builds/edits the trigger UI itself — see Admin parent) **[You]**
-- Disambiguation UI — multi-select chips for multi-type matches **[You]**
-- Generic fallback field ("anything else / when do you need this by") **[You]**
-- Request creation endpoint + credit deduction on submit **[You]**
+- Intake UI: free-text box + urgency preset **[You]** — done, Reconciled (G411-18)
+- Keyword-matching engine, run-on-Continue (DB-backed trigger list, deterministic, no LLM) **[Collab]** (moved from [You] 2026-08-20, Gavi's call — see CLAUDE.md ownership split)
+- Trigger taxonomy seed data (Admin builds/edits the trigger UI itself — see Admin parent) **[Collab]**
+- Disambiguation UI — single-select chips + always-present "None of these" **[Collab]**
+- Generic fallback field ("please provide any additional info you can"), shown only on "None of these" **[Collab]**
+- Request creation endpoint + credit deduction on submit **[Collab]**
 - Tech support confirmed as its own intake category — taxonomy entry, no separate build
 ## Parent 3 — Messaging
 _Depends on: Requests/Intake (a request must exist to have a thread)._
