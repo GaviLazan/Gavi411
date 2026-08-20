@@ -18,6 +18,19 @@ accumulated. If something here turns out to matter long-term, promote it to
 
 ## Where things stand
 
+- **G411-10 process gap found and fixed**: the DB schema code itself was
+  genuinely done and migrated to live Neon back in the G411-13 session,
+  but the Jira ticket had silently sat at **Open** since then — never
+  walked through transitions, zero Aegis-field comments. Caught while
+  picking G411-18, per Gavi's "double check before moving on" call.
+  Fixed properly, not just fast-forwarded: re-verified real state fresh
+  (`npx prisma migrate status` → up to date against live `neondb`,
+  schema file reviewed directly for all required entities), retroactive
+  Claim/Falsifier/Evidence posted as a comment, walked Open →
+  Implementing → Reviewing → **Landed**. Intentionally **not** moved to
+  Reconciled yet — needs Gavi's go-ahead per the hard-to-reverse rule,
+  same as G411-14 this session. No code changes (nothing to commit) —
+  this was purely a tracking-state correction.
 - **G411-14 (bidi text rendering) Reconciled.** `dir="auto"` added to `client/src/components/Input.jsx`'s
   `<input>` — the only freeform text field that exists yet (`App.jsx` is
   a throwaway preview, `Input.jsx` is the real shared primitive from
