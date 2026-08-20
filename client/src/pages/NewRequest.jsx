@@ -10,17 +10,9 @@ const URGENCY_OPTIONS = [
   { value: "HIGH", label: "High" },
 ];
 
-// New request intake screen (G411-18).
-// Flow (per Gavi, not live-debounced — match runs once on Continue):
-//   1. free text -> 2. Continue -> keyword match runs once, renders chips
-//   (every candidate type + always a "None of these") -> 3. user picks a
-//   chip -> 4. follow-up fields for that type (or generic fallback field
-//   if "None of these"), urgency lives in this step for every path ->
-//   5. Submit.
-// Not this task: disambiguation chip UI itself (G411-21), generic
-// fallback field build (G411-22), create endpoint + credit deduction
-// (G411-23). Keyword-matching engine (G411-19) is built and wired in
-// handleContinue below.
+// New request intake screen (G411-18/19). Matching runs once on Continue
+// (not live-debounced, per Gavi). Not yet built: chip UI (G411-21),
+// fallback field (G411-22), create endpoint (G411-23).
 function NewRequest() {
   const [freeText, setFreeText] = useState("");
   const [step, setStep] = useState("describe"); // 'describe' | 'chips' | 'followup'
