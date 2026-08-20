@@ -18,8 +18,7 @@ accumulated. If something here turns out to matter long-term, promote it to
 
 ## Where things stand
 
-- **G411-14 (bidi text rendering) Landed, awaiting Gavi's go-ahead for
-  Reconciled.** `dir="auto"` added to `client/src/components/Input.jsx`'s
+- **G411-14 (bidi text rendering) Reconciled.** `dir="auto"` added to `client/src/components/Input.jsx`'s
   `<input>` — the only freeform text field that exists yet (`App.jsx` is
   a throwaway preview, `Input.jsx` is the real shared primitive from
   G411-17). One-line change, `you/G411-14-bidi-input` merged to `main`
@@ -36,13 +35,11 @@ accumulated. If something here turns out to matter long-term, promote it to
   **impossible to do reliably for arbitrary user-generated freeform
   text** (no safe general segmentation exists). Explicitly out of scope,
   logged as a `ponytail:` ceiling comment on the ticket, not pursued.
-  Jira: Open → Implementing → Reviewing → **Landed** (transition call was
-  blocked once by the permission classifier mid-session, retried
-  successfully after Gavi's own check — flagged live rather than
-  silently retried/skipped). **Landed → Reconciled intentionally not
-  yet done** — needs Gavi's explicit go-ahead per the hard-to-reverse
-  rule, even though acceptance criteria are already re-verified against
-  landed state.
+  Jira: Open → Implementing → Reviewing → Landed → **Reconciled**
+  (transition to Landed was blocked once by the permission classifier
+  mid-session, retried successfully after Gavi's own check — flagged
+  live rather than silently retried/skipped; Landed → Reconciled done
+  after Gavi's explicit go-ahead, per the hard-to-reverse rule).
 - **G411-17 final polish**: system-font fallback stacks rendered
   inconsistently across OS/devices. Loaded real Google Fonts — Google
   Sans (weight 600) for the "Gavi411" wordmark only, Rubik for
@@ -190,8 +187,6 @@ this session.
 ## Next on the spine
 
 All of Foundation's Agentic/Collab-scaffold items (G411-10, 11, 12, 13,
-15, 16, 17) are Reconciled. **G411-14 is Landed**, waiting on Gavi's
-go-ahead to move Reconciled — do that first next session if not done
-before this one ends. After that, Foundation's spine moves on to the
-next `[You]`/`[Collab]` task (check Jira board for what's actually next —
-not re-derived here to avoid staleness).
+14, 15, 16, 17) are Reconciled. Foundation's spine moves on to the next
+`[You]`/`[Collab]` task next session (check Jira board for what's
+actually next — not re-derived here to avoid staleness).
