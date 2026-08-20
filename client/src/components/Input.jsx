@@ -14,7 +14,7 @@ function Input({ label, id, ...rest }) {
           {label}
         </label>
       )}
-      <input id={id} className="field-input" {...rest} />
+      <input id={id} dir="auto" className="field-input" {...rest} />
     </div>
   )
 }
