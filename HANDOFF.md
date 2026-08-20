@@ -18,8 +18,42 @@ accumulated. If something here turns out to matter long-term, promote it to
 
 ## Where things stand
 
-- **G411-18 (intake form shell) Landed, awaiting Gavi's go-ahead for
-  Reconciled.** Real, live-designed session — flow was substantially
+- **G411-19 through 23 moved [You] -> [Collab] mid-session** — Gavi's
+  own fallback-rule call, tired and wanting faster visible progress
+  while staying involved and still writing/understanding the code, not
+  a full [Agentic] handoff. Documented in CLAUDE.md's fallback-rule
+  section and `gavi411-task-list-source.md`; all 5 tickets' Jira
+  descriptions updated to match.
+- **G411-19 (keyword-matching engine) Landed, awaiting Gavi's go-ahead
+  for Reconciled.** Built directly (per the [Collab] pace), Gavi
+  reviewing/asking questions live rather than typing it himself line by
+  line — walked through `handleContinue`, the fetch/JSON/async
+  mechanics, `matchKeywords.js` logic, and the dev proxy vs. CORS
+  distinction together. Built: `server/lib/matchKeywords.js` (queries
+  `Trigger` table, case-insensitive substring match, returns distinct
+  matched RequestTypes — deterministic, no LLM), `POST /api/requests/match`
+  route in `requests.js`, a dev-only Vite proxy (`client/vite.config.js`,
+  forwards `/api/*` to :3000) so the frontend can use relative fetch
+  paths, and `NewRequest.jsx`'s `handleContinue` now genuinely calls it
+  and advances the step. Verified end-to-end via live Playwright (real
+  200 response through the full chain) and a fresh direct curl at
+  wrap-up time, including a Hebrew-text check (no crash, Unicode-safe
+  `.toLowerCase()`/`.includes()`). Also removed a stale "not this task:
+  G411-19" line from `NewRequest.jsx`'s scope comment now that it's
+  implemented — the ticket's own scope re-verified line-by-line against
+  its Jira description at wrap-up per Gavi's ask, nothing missed.
+  **Known gap, filed separately as G411-63** (not fixed inline, avoided
+  scope creep mid-ticket): the substring match isn't word-boundary-aware
+  — a keyword like "light" would false-positive inside "flights."
+  Harmless today since G411-20 (trigger seed data) doesn't exist yet, so
+  no real keywords are live. `ponytail:` comment in `matchKeywords.js`
+  points to G411-63. Production caveat, not yet fixed (deferred by
+  Gavi's call): the frontend's `/api/requests/match` fetch uses a
+  relative path that only works via the dev proxy — will need an env var
+  or same-origin deploy shape once G411-16-style deploy touches this
+  flow; CORS is already set up as the fallback for a cross-origin deploy.
+  All pushed to `main`.
+- **G411-18 (intake form shell) Reconciled** (Gavi confirmed). Real, live-designed session — flow was substantially
   redesigned from the original PRD wording, live with Gavi, not built
   from a spec handed down: no live/debounce matching (runs once on
   Continue instead), single-select disambiguation chips with an
@@ -233,10 +267,13 @@ this session.
 
 ## Next on the spine
 
-All of Foundation (G411-10 through 17) is Reconciled. **G411-18 is
-Landed**, waiting on Gavi's go-ahead to move Reconciled — do that first
-next session if not done before this one ends. After that: G411-19
-(keyword-matching engine) is the natural next pickup since G411-18's
-Continue button now genuinely has somewhere real to call into — G411-21
-(chips) and G411-22 (fallback field) both depend on G411-19 existing
-first.
+All of Foundation (G411-10 through 17) is Reconciled. G411-18
+Reconciled. **G411-19 is Landed**, waiting on Gavi's go-ahead to move
+Reconciled — do that first next session if not done before this one
+ends. After that: G411-21 (chip UI) is the natural next pickup — it's
+what makes the intake flow visually complete (matching already returns
+real data, just nothing renders it yet). G411-20 (trigger seed data)
+could also go first/in parallel since G411-21's chips have nothing real
+to show without it either. G411-63 (word-boundary matching fix) is
+tracked but not urgent — no real keyword data exists yet to expose the
+bug.
