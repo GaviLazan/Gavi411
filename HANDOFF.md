@@ -18,8 +18,7 @@ accumulated. If something here turns out to matter long-term, promote it to
 
 ## Where things stand
 
-- **G411-20 (trigger taxonomy seed data) Landed, awaiting Gavi's
-  go-ahead for Reconciled.** Built in one-step-at-a-time collaborative
+- **G411-20 (trigger taxonomy seed data) Reconciled.** Built in one-step-at-a-time collaborative
   mode per Gavi's explicit pacing request this session — each real
   code/content change stopped for his review before the next; status
   transitions and doc updates didn't count as steps needing a pause.
@@ -289,11 +288,9 @@ this session.
 
 ## Next on the spine
 
-All of Foundation (G411-10 through 17) is Reconciled. G411-18 and
-G411-19 both Reconciled. **G411-20 is Landed**, waiting on Gavi's
-go-ahead to move Reconciled — do that first next session if not done
-before this one ends. After that: **G411-21** (disambiguation chip UI)
-is the natural next pickup, in order — real seed data now exists, so
+All of Foundation (G411-10 through 17) is Reconciled. G411-18, G411-19,
+and G411-20 all Reconciled. Next, in order: **G411-21** (disambiguation
+chip UI) — real seed data now exists, so
 chips will show genuine matches, not just empty state. G411-63
 (word-boundary matching fix) is tracked and now has a real live example
 to reference (the "return" vs "returning" collision Gavi caught) but
