@@ -24,8 +24,7 @@ accumulated. If something here turns out to matter long-term, promote it to
   a full [Agentic] handoff. Documented in CLAUDE.md's fallback-rule
   section and `gavi411-task-list-source.md`; all 5 tickets' Jira
   descriptions updated to match.
-- **G411-19 (keyword-matching engine) Landed, awaiting Gavi's go-ahead
-  for Reconciled.** Built directly (per the [Collab] pace), Gavi
+- **G411-19 (keyword-matching engine) Reconciled.** Built directly (per the [Collab] pace), Gavi
   reviewing/asking questions live rather than typing it himself line by
   line — walked through `handleContinue`, the fetch/JSON/async
   mechanics, `matchKeywords.js` logic, and the dev proxy vs. CORS
@@ -267,10 +266,9 @@ this session.
 
 ## Next on the spine
 
-All of Foundation (G411-10 through 17) is Reconciled. G411-18
-Reconciled. **G411-19 is Landed**, waiting on Gavi's go-ahead to move
-Reconciled — do that first next session if not done before this one
-ends. After that: G411-21 (chip UI) is the natural next pickup — it's
+All of Foundation (G411-10 through 17) is Reconciled. G411-18 and
+G411-19 both Reconciled. Next: G411-21 (chip UI) is the natural next
+pickup — it's
 what makes the intake flow visually complete (matching already returns
 real data, just nothing renders it yet). G411-20 (trigger seed data)
 could also go first/in parallel since G411-21's chips have nothing real
