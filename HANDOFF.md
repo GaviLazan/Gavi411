@@ -14,10 +14,35 @@ accumulated. If something here turns out to matter long-term, promote it to
 
 ## Last updated
 
-2026-08-19, mid-session (later than the entries below — see top item).
+2026-08-20, mid-session (later than the entries below — see top item).
 
 ## Where things stand
 
+- **G411-14 (bidi text rendering) Landed, awaiting Gavi's go-ahead for
+  Reconciled.** `dir="auto"` added to `client/src/components/Input.jsx`'s
+  `<input>` — the only freeform text field that exists yet (`App.jsx` is
+  a throwaway preview, `Input.jsx` is the real shared primitive from
+  G411-17). One-line change, `you/G411-14-bidi-input` merged to `main`
+  (`805bc1d` → `5f559c1`, pushed). Verified three ways: (1) initial
+  Playwright check, (2) an 8-case Playwright matrix (Hebrew-only,
+  Hebrew-leading, English-leading, number+Hebrew both orders, dense
+  mixed, English-only, numbers-only), (3) Gavi's own live dev-server
+  check in a real browser. All correct **except** one real, expected
+  limitation: densely-alternating Hebrew/English/number strings (e.g.
+  "CAN YOU לעזור לי TO למצוא 45 THINGS") don't visually read as clean
+  prose — standard UAX#9 run-reordering behavior, not a bug. Real fix
+  would be `unicode-bidi: isolate` wrapping per embedded run, which
+  requires the text to already be *segmented* into per-language chunks —
+  **impossible to do reliably for arbitrary user-generated freeform
+  text** (no safe general segmentation exists). Explicitly out of scope,
+  logged as a `ponytail:` ceiling comment on the ticket, not pursued.
+  Jira: Open → Implementing → Reviewing → **Landed** (transition call was
+  blocked once by the permission classifier mid-session, retried
+  successfully after Gavi's own check — flagged live rather than
+  silently retried/skipped). **Landed → Reconciled intentionally not
+  yet done** — needs Gavi's explicit go-ahead per the hard-to-reverse
+  rule, even though acceptance criteria are already re-verified against
+  landed state.
 - **G411-17 final polish**: system-font fallback stacks rendered
   inconsistently across OS/devices. Loaded real Google Fonts — Google
   Sans (weight 600) for the "Gavi411" wordmark only, Rubik for
@@ -165,6 +190,8 @@ this session.
 ## Next on the spine
 
 All of Foundation's Agentic/Collab-scaffold items (G411-10, 11, 12, 13,
-15, 16, 17) are Reconciled. **G411-14** (bidi text rendering for Hebrew
-content fields, `[Collab]`) is next and has not started — pure
-`[You]`/`[Collab]` pairing, no subagents, in this same session/worktree.
+15, 16, 17) are Reconciled. **G411-14 is Landed**, waiting on Gavi's
+go-ahead to move Reconciled — do that first next session if not done
+before this one ends. After that, Foundation's spine moves on to the
+next `[You]`/`[Collab]` task (check Jira board for what's actually next —
+not re-derived here to avoid staleness).
