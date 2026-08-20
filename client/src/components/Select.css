@@ -1,17 +1,4 @@
-.field {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-  text-align: start;
-}
-
-.field-label {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--text-h);
-}
-
-.field-input {
+.field-select {
   font: inherit;
   font-size: 16px;
   color: var(--text-h);
@@ -21,11 +8,7 @@
   padding: 12px 20px;
 }
 
-.field-input::placeholder {
-  color: var(--text);
-}
-
-.field-input:focus {
+.field-select:focus {
   outline: none;
   border-color: var(--accent-border);
   box-shadow: 0 0 0 3px var(--accent-bg);

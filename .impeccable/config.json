@@ -14,6 +14,12 @@
         "value": "rubik",
         "createdAt": "2026-08-19T14:49:55.776Z",
         "reason": "user confirmed: Gavi requested Rubik for body text, replacing system-font fallback stack"
+      },
+      {
+        "rule": "design-system-font-size",
+        "value": "16px",
+        "createdAt": "2026-08-20T16:35:26.310Z",
+        "reason": "matches Input.css's existing field-input font-size, same design system, same field-* pattern"
       }
     ]
   }
