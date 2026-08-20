@@ -17,9 +17,10 @@ const URGENCY_OPTIONS = [
 //   chip -> 4. follow-up fields for that type (or generic fallback field
 //   if "None of these"), urgency lives in this step for every path ->
 //   5. Submit.
-// Not this task: matching engine itself (G411-19), disambiguation chip
-// UI itself (G411-21), generic fallback field build (G411-22), create
-// endpoint + credit deduction (G411-23).
+// Not this task: disambiguation chip UI itself (G411-21), generic
+// fallback field build (G411-22), create endpoint + credit deduction
+// (G411-23). Keyword-matching engine (G411-19) is built and wired in
+// handleContinue below.
 function NewRequest() {
   const [freeText, setFreeText] = useState("");
   const [step, setStep] = useState("describe"); // 'describe' | 'chips' | 'followup'
@@ -28,10 +29,15 @@ function NewRequest() {
   const [urgency, setUrgency] = useState("NORMAL");
   const [fallbackNotes, setFallbackNotes] = useState("");
 
-  function handleContinue() {
-    // Call the keyword-matching engine here (G411-19), once, against
-    // the full freeText value.
-    // setMatchedTypes(...) with whatever it returns, then setStep('chips')
+  async function handleContinue() {
+    const res = await fetch("/api/requests/match", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ freeText }),
+    });
+    const { matchedTypes } = await res.json();
+    setMatchedTypes(matchedTypes);
+    setStep("chips");
   }
 
   function handleChipSelect(type) {
