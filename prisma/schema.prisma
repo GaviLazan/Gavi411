@@ -22,7 +22,7 @@ enum GroupTag {
 
 enum Urgency {
   LOW
-  MEDIUM
+  NORMAL
   HIGH
 }
 
@@ -66,7 +66,7 @@ model User {
 model Request {
   id            Int          @id @default(autoincrement())
   status        Status       @default(IN_QUEUE)
-  urgency       Urgency      @default(MEDIUM)
+  urgency       Urgency      @default(NORMAL)
   type          RequestType?
   freeText      String
   fallbackNotes String?
