@@ -115,25 +115,30 @@ function NewRequest() {
 
       {step === "followup" && (
         <>
-          {selectedType === "NONE" ? (
-            <GeneralFollowupFields
-              additionalInfo={additionalInfo}
-              onAdditionalInfoChange={setAdditionalInfo}
-              onPickCategory={() => {
-                setShowFullTypeList(true);
-                setStep("chips");
-              }}
-            />
-          ) : selectedType === "TRAVEL" ? (
+          {/* A keyword match can be a false positive on any type (e.g.
+              "research vacation options" matches RESEARCH on the word
+              "research" alone, but is really TRAVEL-shaped) — so every
+              followup, matched or not, gets the same way back to the
+              full type list, not just the GENERAL/"None of these" path. */}
+          <Button
+            variant="secondary"
+            onClick={() => {
+              setShowFullTypeList(true);
+              setStep("chips");
+            }}
+          >
+            Not quite? Pick a category
+          </Button>
+
+          {selectedType === "TRAVEL" ? (
             <TravelFields value={travelDetails} onChange={setTravelDetails} />
           ) : selectedType === "PURCHASE" ? (
             <PurchaseFields value={purchaseDetails} onChange={setPurchaseDetails} />
           ) : selectedType === "TECH_SUPPORT" ? (
             <TechSupportFields value={techSupportDetails} onChange={setTechSupportDetails} />
           ) : (
-            // RESEARCH/INFO have no dedicated fields per PRD, but still
-            // get the shared additionalInfo field — a correct match
-            // shouldn't leave the friend with less than an unmatched one.
+            // NONE (zero-match) and RESEARCH/INFO (no dedicated fields
+            // per PRD) all share the same additionalInfo field/state.
             <GeneralFollowupFields
               additionalInfo={additionalInfo}
               onAdditionalInfoChange={setAdditionalInfo}
