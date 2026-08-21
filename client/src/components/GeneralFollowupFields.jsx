@@ -1,17 +1,20 @@
 import Input from "./Input";
 import Button from "./Button";
 
-// Fields for the GENERAL/"None of these" path (G411-21/22): the shared
-// additionalInfo field, plus a "Not quite?" control to reveal the full
-// type list so the friend can still pick a specific category without
-// losing what they've typed (additionalInfo is shared state, not
-// per-type — see G411-21).
+// Shared additionalInfo field (G411-21/22/65) — same field/state across
+// every follow-up path per the PRD, not per-type. On the GENERAL/"None
+// of these" path it's paired with a "Not quite?" control to reveal the
+// full type list; RESEARCH/INFO (no dedicated fields of their own, see
+// G411-65) reuse this same field but skip that control by omitting
+// onPickCategory — they already have a correct match, nothing to redo.
 function GeneralFollowupFields({ additionalInfo, onAdditionalInfoChange, onPickCategory }) {
   return (
     <>
-      <Button variant="secondary" onClick={onPickCategory}>
-        Not quite? Pick a category
-      </Button>
+      {onPickCategory && (
+        <Button variant="secondary" onClick={onPickCategory}>
+          Not quite? Pick a category
+        </Button>
+      )}
       <Input
         label="Anything else I should know?"
         placeholder="Provide any additional details"

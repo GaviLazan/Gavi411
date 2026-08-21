@@ -4,6 +4,8 @@ import Input from "../components/Input";
 import Select from "../components/Select";
 import Button from "../components/Button";
 import TravelFields, { EMPTY_TRAVEL_DETAILS } from "../components/TravelFields";
+import PurchaseFields, { EMPTY_PURCHASE_DETAILS } from "../components/PurchaseFields";
+import TechSupportFields, { EMPTY_TECH_SUPPORT_DETAILS } from "../components/TechSupportFields";
 import DisambiguationChips from "../components/DisambiguationChips";
 import GeneralFollowupFields from "../components/GeneralFollowupFields";
 
@@ -39,6 +41,8 @@ function NewRequest() {
   const [additionalInfo, setAdditionalInfo] = useState("");
   const [showFullTypeList, setShowFullTypeList] = useState(false);
   const [travelDetails, setTravelDetails] = useState(EMPTY_TRAVEL_DETAILS);
+  const [purchaseDetails, setPurchaseDetails] = useState(EMPTY_PURCHASE_DETAILS);
+  const [techSupportDetails, setTechSupportDetails] = useState(EMPTY_TECH_SUPPORT_DETAILS);
 
   async function handleContinue() {
     const res = await fetch("/api/requests/match", {
@@ -122,12 +126,18 @@ function NewRequest() {
             />
           ) : selectedType === "TRAVEL" ? (
             <TravelFields value={travelDetails} onChange={setTravelDetails} />
+          ) : selectedType === "PURCHASE" ? (
+            <PurchaseFields value={purchaseDetails} onChange={setPurchaseDetails} />
+          ) : selectedType === "TECH_SUPPORT" ? (
+            <TechSupportFields value={techSupportDetails} onChange={setTechSupportDetails} />
           ) : (
-            <>
-              {/* other type-specific follow-up fields land here as they're
-                  built (RESEARCH/INFO have none per PRD, PURCHASE/TECH_SUPPORT
-                  still pending) */}
-            </>
+            // RESEARCH/INFO have no dedicated fields per PRD, but still
+            // get the shared additionalInfo field — a correct match
+            // shouldn't leave the friend with less than an unmatched one.
+            <GeneralFollowupFields
+              additionalInfo={additionalInfo}
+              onAdditionalInfoChange={setAdditionalInfo}
+            />
           )}
 
           <Select
