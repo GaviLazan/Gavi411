@@ -24,3 +24,9 @@
   gap: var(--space-3);
   flex-wrap: wrap;
 }
+
+.chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
