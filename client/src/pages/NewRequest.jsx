@@ -3,7 +3,11 @@ import Card from "../components/Card";
 import Input from "../components/Input";
 import Select from "../components/Select";
 import Button from "../components/Button";
-import Chip from "../components/Chip";
+import TravelFields, { EMPTY_TRAVEL_DETAILS } from "../components/TravelFields";
+import PurchaseFields, { EMPTY_PURCHASE_DETAILS } from "../components/PurchaseFields";
+import TechSupportFields, { EMPTY_TECH_SUPPORT_DETAILS } from "../components/TechSupportFields";
+import DisambiguationChips from "../components/DisambiguationChips";
+import GeneralFollowupFields from "../components/GeneralFollowupFields";
 
 const URGENCY_OPTIONS = [
   { value: "LOW", label: "Low" },
@@ -36,6 +40,9 @@ function NewRequest() {
   const [urgency, setUrgency] = useState("NORMAL");
   const [additionalInfo, setAdditionalInfo] = useState("");
   const [showFullTypeList, setShowFullTypeList] = useState(false);
+  const [travelDetails, setTravelDetails] = useState(EMPTY_TRAVEL_DETAILS);
+  const [purchaseDetails, setPurchaseDetails] = useState(EMPTY_PURCHASE_DETAILS);
+  const [techSupportDetails, setTechSupportDetails] = useState(EMPTY_TECH_SUPPORT_DETAILS);
 
   async function handleContinue() {
     const res = await fetch("/api/requests/match", {
@@ -96,48 +103,41 @@ function NewRequest() {
       )}
 
       {step === "chips" && (
-        <div className="chip-row">
-          {showFullTypeList
-            ? ALL_TYPES.map((type) => (
-                <Chip key={type} onClick={() => handleChipSelect(type)}>
-                  {TYPE_LABELS[type]}
-                </Chip>
-              ))
-            : matchedTypes.map((type) => (
-                <Chip key={type} onClick={() => handleChipSelect(type)}>
-                  {TYPE_LABELS[type]}
-                </Chip>
-              ))}
-          {!showFullTypeList && (
-            <Chip onClick={handleNoneOfThese}>None of these</Chip>
-          )}
-        </div>
+        <DisambiguationChips
+          matchedTypes={matchedTypes}
+          allTypes={ALL_TYPES}
+          typeLabels={TYPE_LABELS}
+          showFullTypeList={showFullTypeList}
+          onSelect={handleChipSelect}
+          onNoneOfThese={handleNoneOfThese}
+        />
       )}
 
       {step === "followup" && (
         <>
           {selectedType === "NONE" ? (
-            <>
-              <Button
-                variant="secondary"
-                onClick={() => {
-                  setShowFullTypeList(true);
-                  setStep("chips");
-                }}
-              >
-                Not quite? Pick a category
-              </Button>
-              <Input
-                label="Anything else I should know?"
-                placeholder="Provide any additional details"
-                value={additionalInfo}
-                onChange={(e) => setAdditionalInfo(e.target.value)}
-              />
-            </>
+            <GeneralFollowupFields
+              additionalInfo={additionalInfo}
+              onAdditionalInfoChange={setAdditionalInfo}
+              onPickCategory={() => {
+                setShowFullTypeList(true);
+                setStep("chips");
+              }}
+            />
+          ) : selectedType === "TRAVEL" ? (
+            <TravelFields value={travelDetails} onChange={setTravelDetails} />
+          ) : selectedType === "PURCHASE" ? (
+            <PurchaseFields value={purchaseDetails} onChange={setPurchaseDetails} />
+          ) : selectedType === "TECH_SUPPORT" ? (
+            <TechSupportFields value={techSupportDetails} onChange={setTechSupportDetails} />
           ) : (
-            <>
-              {/* type-specific follow-up fields render here, keyed off selectedType */}
-            </>
+            // RESEARCH/INFO have no dedicated fields per PRD, but still
+            // get the shared additionalInfo field — a correct match
+            // shouldn't leave the friend with less than an unmatched one.
+            <GeneralFollowupFields
+              additionalInfo={additionalInfo}
+              onAdditionalInfoChange={setAdditionalInfo}
+            />
           )}
 
           <Select
