@@ -18,6 +18,33 @@ accumulated. If something here turns out to matter long-term, promote it to
 
 ## Where things stand
 
+- **G411-21 (disambiguation chip UI) Landed, awaiting Gavi's go-ahead
+  for Reconciled.** Built in the same one-step-at-a-time collaborative
+  mode as G411-19/20 — real code changes stopped for Gavi's review
+  before the next; status/doc updates didn't pause the flow (per his
+  explicit clarification this session). Design walked through together
+  live before any code: zero-match case, "None of these" vs. zero-match
+  landing on different places, whether follow-up fields should be
+  per-type or shared. Real flow built (4 paths, all verified live via
+  Playwright): (1) real match → chips + "None of these", pick advances
+  to that type's followup; (2) "None of these" → straight to full
+  5-type list (not GENERAL first — an explicit rejection shouldn't
+  re-show a partial list); (3) zero match → skips chips, lands directly
+  on GENERAL; (4) "Not quite?" control on GENERAL reveals the same full
+  list. New `Chip.jsx`/`Chip.css` component (matches `Input`/`Select`'s
+  field pattern). **Also renamed `fallbackNotes` → `additionalInfo`**
+  end-to-end (React state, Prisma schema, live Neon migration) — Gavi's
+  own naming call, since the field is genuinely shared across every
+  followup path now (single state, not per-type fields — so switching
+  category never loses what was typed, no copy-over logic needed).
+  Table verified empty before migrating, no data risk. `gavi411-prd.md`
+  §4.1 and G411-21's Jira description both updated to match the real
+  flow (superseding the simpler 2026-08-20 version, kept for history).
+  **New G411-64 filed** (Open, not started): whole-flow visual/animation
+  redesign — Gavi's explicit call to defer styling until the flow is
+  functionally complete rather than chase a moving target (current
+  implementation is one `Card` that grows per step, not the intended
+  feel). All pushed to `main`.
 - **G411-20 (trigger taxonomy seed data) Reconciled.** Built in one-step-at-a-time collaborative
   mode per Gavi's explicit pacing request this session — each real
   code/content change stopped for his review before the next; status
@@ -289,9 +316,13 @@ this session.
 ## Next on the spine
 
 All of Foundation (G411-10 through 17) is Reconciled. G411-18, G411-19,
-and G411-20 all Reconciled. Next, in order: **G411-21** (disambiguation
-chip UI) — real seed data now exists, so
-chips will show genuine matches, not just empty state. G411-63
-(word-boundary matching fix) is tracked and now has a real live example
-to reference (the "return" vs "returning" collision Gavi caught) but
-still not urgent since no user has hit it yet.
+and G411-20 all Reconciled. **G411-21 is Landed**, waiting on Gavi's
+go-ahead to move Reconciled — do that first next session if not done
+before this one ends. After that, in order: **G411-22** (generic
+fallback field build) — note most of its scope may already be
+subsumed by G411-21's `additionalInfo` field work; check its real
+remaining scope at pickup rather than assuming it's untouched. Then
+**G411-23** (create endpoint + credit deduction), which is what finally
+makes `handleSubmit` real. G411-63 (word-boundary matching) and G411-64
+(visual/animation redesign) both tracked, both deliberately deferred —
+not urgent yet.
