@@ -18,11 +18,22 @@ accumulated. If something here turns out to matter long-term, promote it to
 
 ## Where things stand
 
-- **G411-65 (type-specific follow-up fields) Landed** (merged to `main`
-  via PR #1 `017e148` and PR #2 `928eb27`; Jira: Implementing →
-  Reviewing → Landed done this session). **Landed → Reconciled not yet
-  done** — needs Gavi's explicit go-ahead per the hard-to-reverse rule,
-  ask at next pickup if not already given. All four matched-type paths
+- **G411-65 (type-specific follow-up fields) Reconciled.** Merged to
+  `main` via PR #1 `017e148` and PR #2 `928eb27`; Jira walked
+  Implementing → Reviewing → Landed → Reconciled, Gavi's go-ahead given
+  explicitly for the final transition per the hard-to-reverse rule.
+  Before Reconciling, Gavi asked for a comprehensive re-check of chip
+  disambiguation across all match combinations (not just what was
+  already spot-checked) — 21/21 live Playwright checks passed: each of
+  5 types matched alone, zero-match, the built-in dual-keyword case
+  ("get" → RESEARCH+PURCHASE), a constructed 2-type combo, a 3-type
+  combo, every chip-click advancing to the right followup, and "Not
+  quite?"/"None of these" correctly showing the full list (no stray
+  "None of these") from every entry point. Confirms multi-match
+  disambiguation was never actually dropped — real, worthwhile check,
+  not just a rubber stamp. Parent 2 (Requests/Intake) left as-is, not
+  rolled to Done — G411-23/63/64 are still Open under it. All four
+  matched-type paths
   (TRAVEL/PURCHASE/TECH_SUPPORT/RESEARCH+INFO) now render real optional
   fields instead of just Urgency+Submit; RESEARCH/INFO reuse the shared
   `additionalInfo` field (no dedicated fields per PRD). Built this
@@ -388,21 +399,14 @@ accumulated. If something here turns out to matter long-term, promote it to
 
 ## Open threads / nothing currently blocking
 
-**One open thread**: G411-65 is Landed but not yet Reconciled — needs
-Gavi's explicit go-ahead for that final transition (hard-to-reverse
-rule), ask first thing next session if not already confirmed live in
-this one. Nothing else blocking — working tree clean, all code merged
-to `main`.
+None — clean checkpoint. G411-65 fully Reconciled this session, working
+tree clean, all code merged to `main`.
 
 ## Next on the spine
 
 All of Foundation (G411-10 through 17) is Reconciled. G411-18 through
-G411-22 all Reconciled. **G411-65 is Landed** — all code merged to
-`main` (PR #1 `017e148`, PR #2 `928eb27`). **Landed → Reconciled not
-yet confirmed** — ask Gavi at next pickup if not already given, per the
-hard-to-reverse rule (this is the very next thing to do, before
-anything else). Once Reconciled, **G411-23** (create endpoint + credit
-deduction) is next on the spine — it's what finally makes
+G411-22 and **G411-65 all Reconciled.** **G411-23** (create endpoint +
+credit deduction) is next on the spine — it's what finally makes
 `handleSubmit` real, and needs G411-65's field data to actually have
 something to submit. G411-63 (word-boundary matching) and G411-64
 (visual/animation redesign) both tracked, both deliberately deferred —
