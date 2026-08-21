@@ -18,8 +18,7 @@ accumulated. If something here turns out to matter long-term, promote it to
 
 ## Where things stand
 
-- **G411-21 (disambiguation chip UI) Landed, awaiting Gavi's go-ahead
-  for Reconciled.** Built in the same one-step-at-a-time collaborative
+- **G411-21 (disambiguation chip UI) Reconciled.** Built in the same one-step-at-a-time collaborative
   mode as G411-19/20 — real code changes stopped for Gavi's review
   before the next; status/doc updates didn't pause the flow (per his
   explicit clarification this session). Design walked through together
@@ -316,9 +315,7 @@ this session.
 ## Next on the spine
 
 All of Foundation (G411-10 through 17) is Reconciled. G411-18, G411-19,
-and G411-20 all Reconciled. **G411-21 is Landed**, waiting on Gavi's
-go-ahead to move Reconciled — do that first next session if not done
-before this one ends. After that, in order: **G411-22** (generic
+G411-20, and G411-21 all Reconciled. Next, in order: **G411-22** (generic
 fallback field build) — note most of its scope may already be
 subsumed by G411-21's `additionalInfo` field work; check its real
 remaining scope at pickup rather than assuming it's untouched. Then
