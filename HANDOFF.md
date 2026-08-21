@@ -18,6 +18,59 @@ accumulated. If something here turns out to matter long-term, promote it to
 
 ## Where things stand
 
+- **G411-65 (type-specific follow-up fields) in progress, on branch
+  `collab/G411-65-travel-fields` (pushed, NOT merged to main).** Do not
+  treat this as done — TRAVEL is built, PURCHASE and TECH_SUPPORT are
+  not started. Currently Implementing in Jira (not Landed/Reconciled —
+  correctly reflects real state). Built so far, one step at a time per
+  Gavi's explicit pacing (real code changes pause for review, status/doc
+  updates don't):
+  - `client/src/components/TravelFields.jsx` + `.css` — full TRAVEL
+    field set. `EMPTY_TRAVEL_DETAILS` is exported **from this file**,
+    not duplicated in `NewRequest.jsx` — the file that owns a type's
+    field list also owns that type's empty-shape constant;
+    `NewRequest.jsx` just imports it for its `useState`. Apply the same
+    pattern to PURCHASE/TECH_SUPPORT.
+  - `NewRequest.jsx` wired to render `TravelFields` when
+    `selectedType === "TRAVEL"`, holding `travelDetails` state, passed
+    down as controlled `value`/`onChange` (same pattern as `Input`/
+    `Select` — the field component itself holds no state).
+  - **Also extracted** `DisambiguationChips.jsx` and
+    `GeneralFollowupFields.jsx` out of `NewRequest.jsx` (Gavi's
+    readability request, done alongside the field work since the file
+    was already being edited) — `NewRequest.jsx` is now mostly state +
+    handlers + step routing, not inline markup for every branch.
+  - **Design rationale, distilled for reuse on PURCHASE/TECH_SUPPORT**
+    (see the fuller pattern explanation given directly to Gavi in this
+    session's transcript, not duplicated in full here): all fields
+    optional (prompts to jog memory, not a required gate — this applies
+    to every type). No group headers, just `<hr>` separators between
+    logical clusters (Gavi's call: less form-y). Avoid re-asking
+    anything the free-text description would already cover (a real
+    correction mid-session — an early "issue type" checkbox idea was
+    dropped for exactly this reason, redundant with what triggered the
+    match in the first place). Prefer concrete, specific questions over
+    abstract categories (e.g. name the actual thing — "a connecting
+    flight" — rather than asking about "constraints"). A repeatable
+    sub-entry list (TRAVEL's flight entries) needs an array in the
+    value object + an add-another handler, not flat fields. A
+    sensitive optional field (booking number) gets an explicit
+    consent-gated checkbox before it's enterable, not just a plain
+    input.
+  - **Known real gap, not yet resolved**: RESEARCH/INFO have no
+    dedicated fields per PRD, but the current followup branching only
+    shows `additionalInfo` when `selectedType === "NONE"` — a matched
+    RESEARCH/INFO type currently falls into the same empty comment-stub
+    branch PURCHASE/TECH_SUPPORT are in, with no field at all (not even
+    the shared one). Needs a decision: give every matched type access to
+    `additionalInfo` regardless of having dedicated fields too, or leave
+    RESEARCH/INFO with literally nothing extra. Flagged in G411-65's own
+    description as an open question — resolve before closing the
+    ticket.
+  - Not yet built/verified live for TRAVEL: no Playwright check has been
+    run on the new fields yet — build is clean but nothing's been
+    click-tested (dates, repeatable flights, consent gate). Do that
+    before wrap-up, not just at the very end.
 - **Real gap found and filed live**: while picking up G411-22, Gavi
   caught that the matched-type followup path (a real RequestType like
   TRAVEL/PURCHASE gets picked from chips) renders nothing but Urgency +
@@ -338,16 +391,17 @@ this session.
 ## Next on the spine
 
 All of Foundation (G411-10 through 17) is Reconciled. G411-18 through
-G411-21 all Reconciled. **G411-22 is Landed** (closed as subsumed by
-G411-21, no new code), waiting on Gavi's go-ahead to move Reconciled —
-do that first next session if not done before this one ends. Next, in
-order: **G411-23** (create endpoint + credit deduction), which is what
-finally makes `handleSubmit` real — but **G411-65** (type-specific
-follow-up fields, new this session) genuinely blocks a *complete* real
-submission for matched types, since there's currently no way to attach
-any info to a TRAVEL/PURCHASE/etc. request. Worth deciding order
-between 23 and 65 at next pickup rather than assuming strict numeric
-order — 65 needs real product-content decisions first (what fields does
-each type need?). G411-63 (word-boundary matching) and G411-64
+G411-22 all Reconciled. **G411-65 is IN PROGRESS** (Implementing,
+branch `collab/G411-65-travel-fields` pushed but not merged) — pick
+this back up first, don't start something else. TRAVEL fields done;
+PURCHASE and TECH_SUPPORT still need the same treatment (design
+questions live with Gavi first, per-type, then build — see "Where
+things stand" above for the reusable pattern). After PURCHASE/
+TECH_SUPPORT are built, resolve the RESEARCH/INFO `additionalInfo` gap
+noted above, run a live Playwright check on all of it (not done yet for
+TRAVEL either), then wrap up G411-65 normally. **G411-23** (create
+endpoint + credit deduction) is next after that — it's what finally
+makes `handleSubmit` real, and needs G411-65's field data to actually
+have something to submit. G411-63 (word-boundary matching) and G411-64
 (visual/animation redesign) both tracked, both deliberately deferred —
 not urgent yet.
