@@ -27,8 +27,8 @@ accumulated. If something here turns out to matter long-term, promote it to
   **G411-65** (Open, not started) — needs real product-content decisions
   (what fields does TRAVEL/PURCHASE/etc. actually need?), not just
   wiring.
-- **G411-22 (generic fallback field) Landed, awaiting Gavi's go-ahead
-  for Reconciled.** Closed as subsumed, not built separately — its exact
+- **G411-22 (generic fallback field) Reconciled** (closed as subsumed
+  by G411-21, no new code). Closed as subsumed, not built separately — its exact
   scope (conditional additionalInfo field, shown only on "None
   of these"/zero-match) was already fully built as an inseparable part
   of G411-21's own design (the field had to be shared/conditional to
