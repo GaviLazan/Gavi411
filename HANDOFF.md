@@ -18,6 +18,29 @@ accumulated. If something here turns out to matter long-term, promote it to
 
 ## Where things stand
 
+- **Real gap found and filed live**: while picking up G411-22, Gavi
+  caught that the matched-type followup path (a real RequestType like
+  TRAVEL/PURCHASE gets picked from chips) renders nothing but Urgency +
+  Submit — no info field at all, just "tags" the request. Confirmed via
+  JQL that no existing child of Parent 2 actually owns this — it fell
+  through the cracks between G411-18/19/20/21/22/23. Filed as new
+  **G411-65** (Open, not started) — needs real product-content decisions
+  (what fields does TRAVEL/PURCHASE/etc. actually need?), not just
+  wiring.
+- **G411-22 (generic fallback field) Landed, awaiting Gavi's go-ahead
+  for Reconciled.** Closed as subsumed, not built separately — its exact
+  scope (conditional additionalInfo field, shown only on "None
+  of these"/zero-match) was already fully built as an inseparable part
+  of G411-21's own design (the field had to be shared/conditional to
+  support the "Not quite?" override without losing typed text). Same
+  code, same evidence, cross-referenced back to G411-21's own Aegis
+  comment rather than re-verified redundantly. Considered merging
+  G411-22 into G411-65 to cut down on near-duplicate-looking tickets —
+  decided against it: they cover genuinely different work (fallback
+  field vs. matched-type fields), and repurposing 22's number would mean
+  rewriting its Claim/Falsifier to describe unrelated work, losing the
+  accurate "already done" record. Two tickets, two different pieces of
+  work, both correctly tracked instead.
 - **G411-21 (disambiguation chip UI) Reconciled.** Built in the same one-step-at-a-time collaborative
   mode as G411-19/20 — real code changes stopped for Gavi's review
   before the next; status/doc updates didn't pause the flow (per his
@@ -314,12 +337,17 @@ this session.
 
 ## Next on the spine
 
-All of Foundation (G411-10 through 17) is Reconciled. G411-18, G411-19,
-G411-20, and G411-21 all Reconciled. Next, in order: **G411-22** (generic
-fallback field build) — note most of its scope may already be
-subsumed by G411-21's `additionalInfo` field work; check its real
-remaining scope at pickup rather than assuming it's untouched. Then
-**G411-23** (create endpoint + credit deduction), which is what finally
-makes `handleSubmit` real. G411-63 (word-boundary matching) and G411-64
+All of Foundation (G411-10 through 17) is Reconciled. G411-18 through
+G411-21 all Reconciled. **G411-22 is Landed** (closed as subsumed by
+G411-21, no new code), waiting on Gavi's go-ahead to move Reconciled —
+do that first next session if not done before this one ends. Next, in
+order: **G411-23** (create endpoint + credit deduction), which is what
+finally makes `handleSubmit` real — but **G411-65** (type-specific
+follow-up fields, new this session) genuinely blocks a *complete* real
+submission for matched types, since there's currently no way to attach
+any info to a TRAVEL/PURCHASE/etc. request. Worth deciding order
+between 23 and 65 at next pickup rather than assuming strict numeric
+order — 65 needs real product-content decisions first (what fields does
+each type need?). G411-63 (word-boundary matching) and G411-64
 (visual/animation redesign) both tracked, both deliberately deferred —
 not urgent yet.
