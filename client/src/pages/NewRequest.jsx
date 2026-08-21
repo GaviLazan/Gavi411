@@ -3,12 +3,27 @@ import Card from "../components/Card";
 import Input from "../components/Input";
 import Select from "../components/Select";
 import Button from "../components/Button";
+import Chip from "../components/Chip";
 
 const URGENCY_OPTIONS = [
   { value: "LOW", label: "Low" },
   { value: "NORMAL", label: "Normal" },
   { value: "HIGH", label: "High" },
 ];
+
+const TYPE_LABELS = {
+  TRAVEL: "Travel",
+  RESEARCH: "Research",
+  PURCHASE: "Purchase",
+  TECH_SUPPORT: "Tech Support",
+  INFO: "Info",
+  GENERAL: "General",
+};
+
+// All real types, excluding GENERAL — used for the full-list override
+// ("Not quite?" / after "None of these"), since GENERAL is where the
+// friend already is in both of those cases, not a pickable escape.
+const ALL_TYPES = Object.keys(TYPE_LABELS).filter((t) => t !== "GENERAL");
 
 // New request intake screen (G411-18/19). Matching runs once on Continue
 // (not live-debounced, per Gavi). Not yet built: chip UI (G411-21),
@@ -19,7 +34,8 @@ function NewRequest() {
   const [matchedTypes, setMatchedTypes] = useState([]);
   const [selectedType, setSelectedType] = useState(null); // a matched type, or 'NONE'
   const [urgency, setUrgency] = useState("NORMAL");
-  const [fallbackNotes, setFallbackNotes] = useState("");
+  const [additionalInfo, setAdditionalInfo] = useState("");
+  const [showFullTypeList, setShowFullTypeList] = useState(false);
 
   async function handleContinue() {
     const res = await fetch("/api/requests/match", {
@@ -29,13 +45,31 @@ function NewRequest() {
     });
     const { matchedTypes } = await res.json();
     setMatchedTypes(matchedTypes);
-    setStep("chips");
+
+    if (matchedTypes.length === 0) {
+      // Nothing matched — skip chips, land straight on the GENERAL
+      // follow-up (a "Not quite?" control there can still reveal the
+      // full type list, per Gavi's call).
+      setSelectedType("NONE");
+      setStep("followup");
+    } else {
+      setStep("chips");
+    }
   }
 
   function handleChipSelect(type) {
     // type is a matched RequestType, or 'NONE' for "None of these"
     setSelectedType(type);
     setStep("followup");
+    setShowFullTypeList(false);
+  }
+
+  function handleNoneOfThese() {
+    // Rejecting real suggestions goes straight to the full type list,
+    // not through GENERAL first — re-showing a partial list would be
+    // redundant since the friend already said none of it fit.
+    setShowFullTypeList(true);
+    setStep("chips");
   }
 
   function handleSubmit() {
@@ -62,22 +96,44 @@ function NewRequest() {
       )}
 
       {step === "chips" && (
-        <>
-          {/* disambiguation chips render here (G411-21) — one per
-              matchedTypes entry, plus an always-present "None of these"
-              chip that calls handleChipSelect('NONE') */}
-        </>
+        <div className="chip-row">
+          {showFullTypeList
+            ? ALL_TYPES.map((type) => (
+                <Chip key={type} onClick={() => handleChipSelect(type)}>
+                  {TYPE_LABELS[type]}
+                </Chip>
+              ))
+            : matchedTypes.map((type) => (
+                <Chip key={type} onClick={() => handleChipSelect(type)}>
+                  {TYPE_LABELS[type]}
+                </Chip>
+              ))}
+          {!showFullTypeList && (
+            <Chip onClick={handleNoneOfThese}>None of these</Chip>
+          )}
+        </div>
       )}
 
       {step === "followup" && (
         <>
           {selectedType === "NONE" ? (
-            <Input
-              label="Anything else I should know?"
-              placeholder="Provide any additional details"
-              value={fallbackNotes}
-              onChange={(e) => setFallbackNotes(e.target.value)}
-            />
+            <>
+              <Button
+                variant="secondary"
+                onClick={() => {
+                  setShowFullTypeList(true);
+                  setStep("chips");
+                }}
+              >
+                Not quite? Pick a category
+              </Button>
+              <Input
+                label="Anything else I should know?"
+                placeholder="Provide any additional details"
+                value={additionalInfo}
+                onChange={(e) => setAdditionalInfo(e.target.value)}
+              />
+            </>
           ) : (
             <>
               {/* type-specific follow-up fields render here, keyed off selectedType */}

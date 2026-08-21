@@ -64,14 +64,14 @@ model User {
 }
 
 model Request {
-  id            Int          @id @default(autoincrement())
-  status        Status       @default(IN_QUEUE)
-  urgency       Urgency      @default(NORMAL)
-  type          RequestType?
-  freeText      String
-  fallbackNotes String?
-  createdAt     DateTime     @default(now())
-  updatedAt     DateTime     @default(now())
+  id             Int          @id @default(autoincrement())
+  status         Status       @default(IN_QUEUE)
+  urgency        Urgency      @default(NORMAL)
+  type           RequestType?
+  freeText       String
+  additionalInfo String?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @default(now())
 
   userId String
   user   User   @relation(fields: [userId], references: [clerkId])
