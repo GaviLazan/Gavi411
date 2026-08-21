@@ -38,32 +38,50 @@ The app is also the final project for Gavi's fullstack course and must demonstra
 ## 4. Core Flows
  
 ### 4.1 Request intake (friend-initiated)
-Revised 2026-08-20 (Gavi, live during G411-18 pickup) — matching is no
-longer live/debounced, and disambiguation always includes an explicit
-"not this" escape hatch. Superseded steps struck through below are kept
-for history, not current behavior.
+Revised 2026-08-21 (Gavi, live during G411-21 pickup) — adds zero-match
+handling and a full-type-list override on top of the 2026-08-20
+revision below. Superseded steps struck through/labeled are kept for
+history, not current behavior.
 1. Friend taps "new request."
 2. Free-text box: "how can I help? / what's up?" Friend describes the
    issue, no live matching while typing.
 3. Friend taps **Continue**. Keyword matching (against a DB-backed,
    admin-editable trigger list) runs once, against the full text.
-4. Match results render as chips — one per candidate type, plus an
-   always-present **"None of these"** chip (present even on a single
-   match, so a wrong auto-guess is correctable rather than forced).
-   Friend picks one.
+4. **If one or more types matched**: results render as chips — one per
+   candidate type, plus an always-present **"None of these"** chip
+   (present even on a single match, so a wrong auto-guess is
+   correctable). Friend picks one. Picking "None of these" goes
+   straight to the full 6-type chip list (not the General follow-up
+   first) — the friend already rejected the suggestion, so a partial
+   list would be redundant.
+   **If zero types matched**: skip the chip step entirely, land
+   directly on the General follow-up. A "Not quite?" control there
+   reveals the full 6-type chip list so the friend can still pick a
+   specific category.
 5. Follow-up fields appear based on the pick: that type's specific
-   fields (except Info/Research, which has none), or — if "None of
-   these" — the generic fallback field: "please provide any additional
-   info you can." Urgency (preset options) is asked here too, same for
-   every path regardless of matched type.
+   fields (except Info/Research, which has none), or — for General —
+   a shared additional-info field: "please provide any additional info
+   you can." This field is the **same field/state** across every path
+   (General and every type-specific follow-up), not separate per-type
+   fields — switching category via "Not quite?" never loses what was
+   typed, since nothing needs to be copied over. Urgency (preset
+   options) is asked here too, same for every path.
 6. Friend submits. Request is created, credit deducted, Gavi is
    notified via Telegram.
 - No LLM involved anywhere in this flow — fully deterministic, runs on Gavi's own server. (LLM-based triage was considered and explicitly ruled out for v1: privacy concerns, and a principle of not making a non-critical feature depend on a third-party interface.)
 
-~~Superseded~~: originally spec'd as live debounced-as-you-type matching
-with multi-select disambiguation chips (pick all that apply) and a
-fallback field shown unconditionally alongside urgency. Gavi's call:
-live debounce added no value for this input shape; multi-select
+~~Superseded (2026-08-20)~~: chips only handled the case where at least
+one type matched; zero-match behavior and "None of these" both landed
+on the same General follow-up with no way back to a full type list.
+Gavi's call: zero-match should skip chips and go straight to General
+(nothing to disambiguate yet), but "None of these" (an explicit
+rejection of real suggestions) should jump straight to the full list
+instead of routing through General first.
+
+~~Superseded (original)~~: originally spec'd as live debounced-as-you-type
+matching with multi-select disambiguation chips (pick all that apply)
+and a fallback field shown unconditionally alongside urgency. Gavi's
+call: live debounce added no value for this input shape; multi-select
 disambiguation didn't fit since a request is exactly one type, not
 several; fallback should only appear when no type was confidently
 identified, not as a permanent extra field.
