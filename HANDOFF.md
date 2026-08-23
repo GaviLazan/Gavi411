@@ -14,7 +14,9 @@ accumulated. If something here turns out to matter long-term, promote it to
 
 ## Last updated
 
-2026-08-23, later session (later than the entries below — see top item).
+2026-08-23, later session — PR #4 merged, gap-analysis followup closed
+out, agentic-first shift decision recorded (later than the entries below,
+see top items).
 
 ## Where things stand
 
@@ -25,23 +27,43 @@ accumulated. If something here turns out to matter long-term, promote it to
   not duplicated here. Two Low findings (E2, E3) are deliberately left
   open pending the planned agentic-first shift (item 6 below) rather than
   acted on now. Nothing left to pick up from this list on its own.
-- **G411-23 (request creation endpoint + credit deduction) — status:
-  Reviewing, not Reconciled.** Scope grew mid-session: the backend
-  endpoint Landed first, then `handleSubmit` (the frontend wiring that
-  actually calls it) was folded into this same ticket per Gavi's call,
-  since no other ticket owned it either. That frontend piece is built
-  and live-verified (real POST fires, handles success/failure, gets a
-  correct 401 since G411-66 isn't built yet) but currently only exists
-  on **PR #4** (`you/G411-23-wire-handlesubmit`), open, awaiting
-  **Matan's review**. Jira status corrected Landed → Reviewing to
-  reflect that (see brain.md decision #57 for the general lesson this
-  produced: Reconciled needs the ticket's *current* full scope landed,
-  not just whatever reached Landed first). **Once PR #4 merges**: sync
-  `main`, do one final combined check, then Reviewing → Landed →
-  Reconciled with Gavi's go-ahead — the individual pieces (transaction
-  logic, race-condition fix, stripEmpty scalar+array cases, migration,
-  handleSubmit's own Playwright check) are already verified and don't
-  need re-running.
+- **G411-23 (request creation endpoint + credit deduction) — PR #4
+  merged, Jira still shows Reviewing, not yet walked to Landed/
+  Reconciled.** Scope grew mid-session: the backend endpoint Landed
+  first, then `handleSubmit` (the frontend wiring that actually calls
+  it) was folded into this same ticket per Gavi's call, since no other
+  ticket owned it either (see brain.md decision #57 for the general
+  lesson this produced: Reconciled needs the ticket's *current* full
+  scope landed, not just whatever reached Landed first).
+  **PR #4 review, fix, and merge (this session, later pass)**: Matan
+  left two real review comments — missing `res.ok` check before
+  `res.json()` in `handleContinue` (a failed match call could throw
+  with no user feedback), and a missing `e.preventDefault()` on
+  Enter-to-continue. Both fixed and pushed (`c6015db`) — `handleContinue`
+  now guards on `res.ok`, shows an inline error on the `describe` step
+  (not just `followup`, since this error can fire before the step
+  advances), clears stale errors on retry; Enter now calls
+  `preventDefault()` before continuing. Fixes verified live via
+  Playwright (Enter still advances correctly on a real match; a
+  simulated 500 on `/api/requests/match` shows the error inline with no
+  crash, no unhandled console error) — replied to both threads inline.
+  **Merge blocker turned out to be access, not review quality**: Matan
+  (read-only at the time) left `APPROVE THANKS!` plus two actual
+  `APPROVED` reviews, but `reviewDecision` stayed `REVIEW_REQUIRED` —
+  branch protection doesn't count an approval from a read-only
+  collaborator. Fixed by upgrading **both Matan and eldaduz to write
+  access** (Eldad's was still a pending, unaccepted invite — updated the
+  invitation's permission to `push` so it takes effect once he accepts).
+  Once Matan's existing approval counted, `reviewDecision` flipped to
+  `APPROVED` immediately, no new review needed. **PR #4 merged**
+  (squash, `adb3d8e`), branch deleted (remote and local), `main`
+  fast-forwarded — `handleSubmit` wiring and the review-comment fixes
+  are now genuinely on `main`. Local `main` synced this session; a
+  fresh combined check (not re-running the individual pieces already
+  verified — transaction logic, race-condition fix, stripEmpty
+  scalar+array cases, migration, handleSubmit's Playwright check) is
+  still needed before walking Reviewing → Landed → Reconciled with
+  Gavi's go-ahead for the final step.
   - `Request.typeDetails Json?` column (**decision #55**,
     `gavi411-brain.md`) added and migrated to live Neon this session,
     table confirmed empty first.
@@ -59,13 +81,19 @@ accumulated. If something here turns out to matter long-term, promote it to
     a destructive reset unprompted). **Side effect worth knowing**:
     this also discarded Gavi's own uncommitted parallel `DESIGN.md`
     edit from earlier the same session — check whether that needs
-    redoing. PR #3 (backend) merged properly afterward; PR #4
-    (handleSubmit) still open.
-- **GitHub collaborators added this session**: Matan and eldaduz,
-  **read-only** (review/comment, no push/merge) — corrected from an
-  initial write-access invite that didn't match their actual
-  review-only role. **Branch protection added to `main`**: blocks
-  force-push/deletion, requires 1 PR approval before merge, admin
+    redoing. PR #3 (backend) and PR #4 (handleSubmit) both merged now —
+    see the G411-23 entry above for PR #4's full story.
+- **GitHub collaborator access, corrected twice this session**: added
+  as read-only initially (matching their actual review-only role at the
+  time), then **upgraded to write** later the same session — branch
+  protection's "1 approval required" rule turned out not to count an
+  approval from a read-only collaborator (Matan's `APPROVED` reviews on
+  PR #4 sat there without flipping `reviewDecision` until his access was
+  upgraded). **Matan: write, active immediately** (already-accepted
+  collaborator). **eldaduz: write, pending** — he has an outstanding,
+  unaccepted invite; its permission was updated to `push` so he lands on
+  write once he accepts, not read. **Branch protection on `main`**:
+  blocks force-push/deletion, requires 1 PR approval before merge, admin
   (Gavi) exempt. No CI status check required yet — no workflow exists;
   add one once G411's CI/CD ticket lands a real GitHub Actions
   workflow.
@@ -450,25 +478,19 @@ accumulated. If something here turns out to matter long-term, promote it to
 
 ## Open threads / nothing currently blocking
 
-**Two open threads:**
-1. **PR #4** (`you/G411-23-wire-handlesubmit`) is open. Matan left two
-   review comments (`COMMENTED`, not an approval) — a missing `res.ok`
-   check before `res.json()` in `handleContinue`, and a missing
-   `e.preventDefault()` on Enter-to-continue. Both fixed and pushed
-   (`c6015db`), replied to inline, and Gavi asked Matan directly (PR
-   comment) to take another look and approve. Still `BLOCKED` /
-   `REVIEW_REQUIRED` per branch protection (1 approval required) —
-   nothing to do now except wait for that approval, don't merge
-   preemptively. Once approved and merged: sync local `main`,
-   re-confirm the combined landed state once more (not re-running
-   individual checks already done — see the gap-analysis entry in
-   "Where things stand"), then walk G411-23 Reviewing → Landed →
-   Reconciled with Gavi's explicit go-ahead for the final step.
-2. **Gap-analysis followup is done** — see
-   `gavi411-gap-analysis-followup.md` for the full per-finding record
-   (what was resolved, corrections made along the way). E2/E3 (Low)
-   deliberately left open, tied to the agentic-first shift below —
-   nothing else to pick up from this list.
+**One open thread:**
+1. **G411-23's Jira status needs walking forward.** PR #4 is merged
+   (`adb3d8e`, `main` synced) — the code side is fully done. What's left
+   is process only: a fresh combined check, then Reviewing → Landed →
+   Reconciled with Gavi's explicit go-ahead for the final transition
+   (see "Where things stand" above for full detail). Not started yet
+   this session — do this first at next pickup.
+
+**Closed this session, no longer open:**
+- Gap-analysis followup — done, see `gavi411-gap-analysis-followup.md`
+  for the full per-finding record. E2/E3 (Low) deliberately left open,
+  tied to the agentic-first shift below — nothing else to pick up from
+  that list.
 
 Also worth a heads-up at next pickup: Gavi's uncommitted parallel
 `DESIGN.md` edit from earlier this session was discarded by a
@@ -477,30 +499,36 @@ whether that needs redoing. Working tree clean otherwise.
 
 ## Next on the spine
 
-Foundation (G411-10–17), G411-18–22, G411-65 all Reconciled. **G411-23
-is Reviewing** (not Landed, not Reconciled — see above, blocked on PR
-#4). `handleSubmit` in `NewRequest.jsx` **is** wired (folded into
-G411-23, PR #4) — do not redo this or treat it as unstarted.
+Foundation (G411-10–17), G411-18–22, G411-65 all Reconciled. **G411-23's
+code is done and merged** (PR #4, `adb3d8e`) — Jira just hasn't been
+walked forward to match yet (still shows Reviewing). `handleSubmit` in
+`NewRequest.jsx` **is** wired and live on `main`, including the
+post-review fixes (`res.ok` guard, `preventDefault`) — do not redo this
+or treat it as unstarted.
 
 **Immediate next actions, in order:**
-1. Whenever PR #4 merges: finish G411-23's Reconciled process (see
-   "Open threads" above).
-2. Gap-analysis followup is done — see `gavi411-gap-analysis-followup.md`.
-3. **G411-66** (sign-in UI gate) — still flagged urgent once #1 clears;
+1. **Finish G411-23's Jira process**: fresh combined check, then walk
+   Reviewing → Landed → Reconciled (Gavi's go-ahead needed for the
+   final step, per the hard-to-reverse rule). Nothing code-side left —
+   this is the one open thread carried into next session.
+2. **G411-66** (sign-in UI gate) — still flagged urgent once #1 clears;
    it's the last piece blocking full authenticated E2E testing of
    everything built so far.
-4. New tickets filed this session, not yet picked up: **G411-67**
+3. New tickets filed this session, not yet picked up: **G411-67**
    (request list screen + GET/PATCH routes — high-leverage, unblocks
    messaging/admin/lifecycle), **G411-68** (request-access homepage
    form), **G411-69** (post-signup profile completion).
-5. Previously tracked, still deliberately deferred: G411-47 (overdraft
-   — mechanism captured as a Jira comment), G411-63 (word-boundary
-   matching), G411-64 (visual/animation redesign).
-6. **Now unblocked**: shift back toward an agentic-first workflow
+4. Previously tracked, still deliberately deferred: G411-47 (overdraft
+   — mechanism now folded into its Description, not just a comment,
+   per gap-analysis finding F3), G411-63 (word-boundary matching),
+   G411-64 (visual/animation redesign).
+5. **Now unblocked**: shift back toward an agentic-first workflow
    (multiple agents working in parallel on more of the backlog), per
-   Gavi's explicit instruction — with two guardrails he wants kept:
-   major decisions still come to him before being acted on, and each
-   completed chunk gets a clear, documented rundown of what was done
-   and how it works, not just a diff. Was waiting on the gap-analysis
-   followup being fully resolved — that's now done, so this can start.
+   Gavi's explicit instruction (recorded as **brain.md decision #60**)
+   — with two guardrails he wants kept: major decisions still come to
+   him before being acted on, and each completed chunk gets a clear,
+   documented rundown of what was done and how it works, not just a
+   diff. Was waiting on the gap-analysis followup being fully resolved
+   — that's done, so this can start whenever Gavi gives the word.
+   Mechanics (which agents, which tickets first) not yet decided.
 

@@ -255,8 +255,11 @@ rendering, PWA baseline, deploy pipeline, design system foundation) are
 Reconciled in Jira. `prisma/schema.prisma` written/validated/formatted;
 `server/` scaffolded (`package.json` ES modules, Express/Prisma 6/dotenv,
 comment-stubbed `server.js`/`routes/requests.js`/`lib/prisma.js`); `client/`
-scaffolded. Next: first `[You]`/`[Collab]` task under Parent 2 (Requests /
-Intake) — check Jira board for what's actually next.
+scaffolded. Parent 2 (Requests/Intake) is well underway — G411-18 through
+22 and G411-65 Reconciled, G411-23's code is merged (Jira transition
+pending). Real-time status/next task always lives in `HANDOFF.md`, not
+here — check that file, not this stale-prone summary, for what's
+actually next.
 
 Folder naming: **`server/`** and **`client/`**, not `backend`/`frontend`.
 
