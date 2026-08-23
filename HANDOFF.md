@@ -14,11 +14,48 @@ accumulated. If something here turns out to matter long-term, promote it to
 
 ## Last updated
 
-2026-08-23, later session — PR #4 merged, gap-analysis followup closed
-out, agentic-first shift decision recorded (later than the entries below,
-see top items).
+2026-08-23, later session — G411-66 (first agentic-first pilot) built
+unattended, sibling-reviewed live, PR #8 open awaiting merge (later than
+the entries below, see top item).
 
 ## Where things stand
+
+- **G411-66 (sign-in UI gate) — first agentic-first pilot (decision #62),
+  PR #8 open, not yet merged.** `agent-backend` role built it unattended
+  on branch `agent-backend/G411-66-signin-gate`: gated `App.jsx` behind
+  Clerk auth state (signed-in → `NewRequest`, signed-out → Clerk's
+  hosted `<SignIn>`). Ran its own 8-step wrap-it-up checklist and
+  reported honestly that it could only verify at the code/build level —
+  no real Clerk credentials exist in this environment for a live
+  browser sign-in check, flagged explicitly rather than glossed over.
+  **Real gap the agent caught along the way**: the ticket's own
+  assumption was wrong — the installed package is `@clerk/react`
+  (lower-level), not `@clerk/clerk-react`; it has no `SignedIn`/
+  `SignedOut` components, only hooks (`useUser`, `useAuth`) plus
+  `SignIn`/`ClerkLoaded`/`ClerkLoading`. Built the same gating with
+  `useUser().isSignedIn` instead — no new dependency. First attempt
+  (assuming `SignedIn`/`SignedOut` existed) failed a real build, caught
+  and corrected, not just reasoned about.
+  **Live Sibling review** (this session, immediately after): diff
+  matches scope exactly (`App.jsx` only), no new dependency, logic
+  correct (`ClerkLoaded`/`ClerkLoading` avoids a flash of wrong state).
+  Found and fixed one more thing: `main.jsx`'s own comment repeated the
+  same wrong `SignedIn`/`SignedOut` claim — the actual root cause of the
+  ticket's error — corrected it (`f7e4ded`). Confirmed independently
+  that no `.env.local` / real Clerk key exists in this environment
+  either, so the live-browser verification gap is real and structural,
+  not a corner the agent cut.
+  **Aegis fields written to Jira, status moved Implementing → Reviewing**
+  (transition "Move to Review", id 5). PR #8 opened
+  (`https://github.com/GaviLazan/Gavi411/pull/8`) rather than
+  self-merged, since auth/session work is load-bearing per the existing
+  PR-review policy regardless of the agentic-first blanket rule.
+  **Next**: PR #8 needs an actual approval (same branch-protection gate
+  PR #4 hit — check collaborator write access if a review doesn't flip
+  `reviewDecision`), then Reviewing → Landed once merged, then
+  Landed → Reconciled once someone with a real Clerk test key verifies
+  the falsifier live in a browser — that live-credential check is the
+  one open item blocking Reconciled, flag it to whoever picks that up.
 
 - **Gap analysis complete.** All 31 findings from `gavi411-gap-analysis.md`
   (6 High, 13 Medium, 12 Low) are resolved or explicitly deferred with
