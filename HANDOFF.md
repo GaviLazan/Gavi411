@@ -14,56 +14,63 @@ accumulated. If something here turns out to matter long-term, promote it to
 
 ## Last updated
 
-2026-08-23 (later than the entries below — see top item).
+2026-08-23, later session (later than the entries below — see top item).
 
 ## Where things stand
 
-- **G411-23 (request creation endpoint + credit deduction) Landed**,
-  merged to `main` via PR #3 (`5b88d51`). **Landed → Reconciled not yet
-  confirmed** — ask Gavi at next pickup if not already given, per the
-  hard-to-reverse rule. Built collaboratively (`[Collab]`, one-off
-  exception this session: Gavi asked for the whole handler written at
-  once rather than piece-by-piece, explicitly confirmed as a one-off,
-  not a change to the ownership split) — real gaps found and fixed by
-  Gavi's own review after: a race condition (balance was checked once
-  before the transaction using a stale `req.user` snapshot; fixed by
-  re-reading fresh inside the tx right before decrementing) and missing
-  try/catch (unhandled failures would've leaked a raw stack trace;
-  fixed with a tagged-error pattern so the 402 can still propagate out
-  of the `$transaction` callback where `res` isn't reachable). Comments
-  were also over-verbose after several rounds of building explanation
-  into them — trimmed to ≤2 lines per block per Gavi's explicit ask,
-  logic untouched.
-  - `Request.typeDetails Json?` column added (**decision #55** in
-    `gavi411-brain.md`, not this file — it's a real project decision,
-    not session-perishable) — single JSON column over per-type
-    relational tables, empty/blank values stripped before save
-    (`stripEmpty`, keeps `false`/`0` as real values). Migration
-    `20260823_add_type_details` applied to live Neon, table confirmed
-    empty first.
-  - Verified via a **direct route-logic test against the live DB**, not
-    full browser E2E — a real gap surfaced during this: Clerk's
-    provider is wired (G411-13) but no actual sign-in screen/gate
-    exists anywhere in the UI (`App.jsx` renders unconditionally, no
-    `<SignedIn>`/`<SignedOut>` usage at all). Filed as **G411-66**,
-    flagged urgent, explicitly next up after G411-23 wraps.
-  - Overdraft mechanism idea (Gavi's own design: "request anyway" tops
-    balance to exactly 1, consumed immediately by the same existing
-    create-and-deduct path, no further requests until real period
-    reset) captured as a comment on **G411-47** for its own future
-    pickup — not built now, deliberately out of this ticket's scope.
-  - **Process slip, caught and fixed**: the commit initially landed
-    directly on local `main` instead of a `you/G411-23-...` branch,
-    violating the no-direct-commits-to-main rule. Caught before
-    pushing — branched it off (`you/G411-23-create-endpoint`), then
-    `git reset --hard origin/main` to restore `main` (Gavi ran this
-    himself; the harness correctly refused to let Claude run a
-    destructive reset unprompted). **Side effect**: this also discarded
-    Gavi's own uncommitted parallel edit to `DESIGN.md` from earlier in
-    the session — surfaced plainly rather than glossed over; that edit
-    may need redoing if it mattered. PR #3 opened properly, merged
-    after being flagged as a load-bearing (credits) review per the
-    commit convention.
+- **Gap analysis in progress**: a full PRD/Jira/code audit ran this
+  session (31 findings — 6 High, 13 Medium, 12 Low). The original
+  report is `gavi411-gap-analysis.md` (repo root, permanent); the live
+  working status of acting on each finding — what's resolved, what's
+  next, corrections Gavi made along the way — is tracked separately in
+  **`gavi411-gap-analysis-followup.md`**, not duplicated here. Check
+  that file for the real state of this effort; this file just needs
+  you to know it's happening and isn't done yet (currently at: all 6
+  High done, several Medium done, next up is C6).
+- **G411-23 (request creation endpoint + credit deduction) — status:
+  Reviewing, not Reconciled.** Scope grew mid-session: the backend
+  endpoint Landed first, then `handleSubmit` (the frontend wiring that
+  actually calls it) was folded into this same ticket per Gavi's call,
+  since no other ticket owned it either. That frontend piece is built
+  and live-verified (real POST fires, handles success/failure, gets a
+  correct 401 since G411-66 isn't built yet) but currently only exists
+  on **PR #4** (`you/G411-23-wire-handlesubmit`), open, awaiting
+  **Matan's review**. Jira status corrected Landed → Reviewing to
+  reflect that (see brain.md decision #57 for the general lesson this
+  produced: Reconciled needs the ticket's *current* full scope landed,
+  not just whatever reached Landed first). **Once PR #4 merges**: sync
+  `main`, do one final combined check, then Reviewing → Landed →
+  Reconciled with Gavi's go-ahead — the individual pieces (transaction
+  logic, race-condition fix, stripEmpty scalar+array cases, migration,
+  handleSubmit's own Playwright check) are already verified and don't
+  need re-running.
+  - `Request.typeDetails Json?` column (**decision #55**,
+    `gavi411-brain.md`) added and migrated to live Neon this session,
+    table confirmed empty first.
+  - Real gap found along the way: Clerk's provider is wired (G411-13)
+    but no sign-in screen/gate exists anywhere in the UI — filed as
+    **G411-66**, flagged urgent, next after the current threads clear.
+  - Overdraft mechanism idea (Gavi's design: "request anyway" tops
+    balance to 1, consumed immediately by the same create-and-deduct
+    path) captured as a Jira comment on **G411-47** for its future
+    pickup, not built now.
+  - **Process slip, caught and fixed**: the original backend commit
+    landed directly on local `main` instead of a proper branch. Fixed
+    by branching it off and `git reset --hard origin/main`-ing `main`
+    back (Gavi ran this himself — the harness correctly refused to run
+    a destructive reset unprompted). **Side effect worth knowing**:
+    this also discarded Gavi's own uncommitted parallel `DESIGN.md`
+    edit from earlier the same session — check whether that needs
+    redoing. PR #3 (backend) merged properly afterward; PR #4
+    (handleSubmit) still open.
+- **GitHub collaborators added this session**: Matan and eldaduz,
+  **read-only** (review/comment, no push/merge) — corrected from an
+  initial write-access invite that didn't match their actual
+  review-only role. **Branch protection added to `main`**: blocks
+  force-push/deletion, requires 1 PR approval before merge, admin
+  (Gavi) exempt. No CI status check required yet — no workflow exists;
+  add one once G411's CI/CD ticket lands a real GitHub Actions
+  workflow.
 - **G411-65 (type-specific follow-up fields) Reconciled.** Merged to
   `main` via PR #1 `017e148` and PR #2 `928eb27`; Jira walked
   Implementing → Reviewing → Landed → Reconciled, Gavi's go-ahead given
@@ -445,31 +452,62 @@ accumulated. If something here turns out to matter long-term, promote it to
 
 ## Open threads / nothing currently blocking
 
-**One open thread**: G411-23 is Landed but not yet Reconciled — ask
-Gavi for the explicit go-ahead at next pickup if not already given, per
-the hard-to-reverse rule. Also worth a heads-up at pickup: Gavi's
-uncommitted parallel `DESIGN.md` edit from this session was discarded
-by the `git reset --hard` used to fix the branching slip (see "Where
-things stand" above) — check with him whether that needs redoing.
-Nothing else blocking — working tree clean, all code merged to `main`.
+**Two open threads:**
+1. **PR #4** (`you/G411-23-wire-handlesubmit`) is open, awaiting
+   **Matan's review** (real GitHub collaborator, read-only access).
+   Nothing to do here except wait — don't ping, don't merge
+   preemptively. Once he approves and it's merged: sync local `main`,
+   re-confirm the combined landed state once more (not re-running
+   individual checks already done — see the gap-analysis entry in
+   "Where things stand"), then walk G411-23 Reviewing → Landed →
+   Reconciled with Gavi's explicit go-ahead for the final step.
+2. **Gap-analysis followup still in progress** — see
+   `gavi411-gap-analysis-followup.md` for the real, current status of
+   every finding (what's resolved, what's next, corrections made along
+   the way). Don't re-derive that list here; that file is the single
+   source of truth for it.
+
+Also worth a heads-up at next pickup: Gavi's uncommitted parallel
+`DESIGN.md` edit from earlier this session was discarded by a
+`git reset --hard` used to fix a branching slip — check with him
+whether that needs redoing. Working tree clean otherwise.
 
 ## Next on the spine
 
-All of Foundation (G411-10 through 17), G411-18 through 22, G411-65,
-and **G411-23 all Landed/Reconciled** (confirm G411-23's Reconciled
-status at pickup). **`handleSubmit` in `NewRequest.jsx` IS wired** —
-folded into G411-23 later in the same session (PR #4, `3af95a2`), after
-the "still needs wiring" note below was first written; that note went
-stale and was corrected by the 2026-08-23 gap-analysis pass
-(`gavi411-gap-analysis.md`, finding C2) rather than silently causing a
-future session to redo or skip verifying it. Real POST fires with the
-full payload, handles success/failure correctly — confirmed live via
-Playwright, gets a real 401 since G411-66 isn't built yet. **G411-66**
-(sign-in UI gate) is still explicitly next — flagged urgent, since it's
-the last piece blocking full authenticated E2E testing of everything
-built so far. G411-47 (overdraft — mechanism idea already captured as a
-Jira comment), G411-63 (word-boundary matching), and G411-64
-(visual/animation redesign) all tracked, all deliberately deferred —
-not urgent yet. See `gavi411-gap-analysis.md` for the fuller picture:
-31 findings from a full PRD/Jira/code audit, 6 High severity, being
-worked through as of this update.
+Foundation (G411-10–17), G411-18–22, G411-65 all Reconciled. **G411-23
+is Reviewing** (not Landed, not Reconciled — see above, blocked on PR
+#4). `handleSubmit` in `NewRequest.jsx` **is** wired (folded into
+G411-23, PR #4) — do not redo this or treat it as unstarted.
+
+**Immediate next actions, in order:**
+1. Whenever PR #4 merges: finish G411-23's Reconciled process (see
+   "Open threads" above).
+2. Continue the gap-analysis followup, one finding at a time with Gavi
+   — see `gavi411-gap-analysis-followup.md`.
+3. **G411-66** (sign-in UI gate) — still flagged urgent once the above
+   two threads are clear; it's the last piece blocking full
+   authenticated E2E testing of everything built so far.
+4. New tickets filed this session, not yet picked up: **G411-67**
+   (request list screen + GET/PATCH routes — high-leverage, unblocks
+   messaging/admin/lifecycle), **G411-68** (request-access homepage
+   form), **G411-69** (post-signup profile completion).
+5. Previously tracked, still deliberately deferred: G411-47 (overdraft
+   — mechanism captured as a Jira comment), G411-63 (word-boundary
+   matching), G411-64 (visual/animation redesign).
+6. **Queued after all of the above**: shift back toward an
+   agentic-first workflow (multiple agents working in parallel on more
+   of the backlog), per Gavi's explicit instruction — with two
+   guardrails he wants kept: major decisions still come to him before
+   being acted on, and each completed chunk gets a clear, documented
+   rundown of what was done and how it works, not just a diff. Waits
+   until the gap-analysis followup is fully resolved — don't start
+   early.
+
+**Also queued, per Gavi's explicit instruction**: once the gap-analysis
+followup work is fully done, move to a broader re-plan — shifting back
+toward an agentic-first workflow (multiple agents working in parallel
+on more of the backlog) with two guardrails Gavi wants kept: major
+decisions still come to him before being acted on, and each completed
+chunk of agentic work gets a clear, documented rundown of what was done
+and how it works — not just a diff. This second phase explicitly waits
+until the gap-analysis phase (#1) is complete; don't start it early.
