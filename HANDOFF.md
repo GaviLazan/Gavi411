@@ -457,14 +457,19 @@ Nothing else blocking — working tree clean, all code merged to `main`.
 
 All of Foundation (G411-10 through 17), G411-18 through 22, G411-65,
 and **G411-23 all Landed/Reconciled** (confirm G411-23's Reconciled
-status at pickup). **G411-66** (sign-in UI gate) is explicitly next —
-flagged urgent, since `NewRequest.jsx`'s real submit flow can't be
-fully browser-tested without it, and it's a genuine product gap (no
-friend can actually sign in through the real UI yet despite G411-13's
-Clerk wiring being done). After that: `handleSubmit` in `NewRequest.jsx`
-still needs wiring to actually call `POST /api/requests` (frontend
-integration, not yet done — G411-23 built the backend endpoint, not
-the frontend call to it). G411-47 (overdraft — mechanism idea already
-captured as a Jira comment), G411-63 (word-boundary matching), and
-G411-64 (visual/animation redesign) all tracked, all deliberately
-deferred — not urgent yet.
+status at pickup). **`handleSubmit` in `NewRequest.jsx` IS wired** —
+folded into G411-23 later in the same session (PR #4, `3af95a2`), after
+the "still needs wiring" note below was first written; that note went
+stale and was corrected by the 2026-08-23 gap-analysis pass
+(`gavi411-gap-analysis.md`, finding C2) rather than silently causing a
+future session to redo or skip verifying it. Real POST fires with the
+full payload, handles success/failure correctly — confirmed live via
+Playwright, gets a real 401 since G411-66 isn't built yet. **G411-66**
+(sign-in UI gate) is still explicitly next — flagged urgent, since it's
+the last piece blocking full authenticated E2E testing of everything
+built so far. G411-47 (overdraft — mechanism idea already captured as a
+Jira comment), G411-63 (word-boundary matching), and G411-64
+(visual/animation redesign) all tracked, all deliberately deferred —
+not urgent yet. See `gavi411-gap-analysis.md` for the fuller picture:
+31 findings from a full PRD/Jira/code audit, 6 High severity, being
+worked through as of this update.
