@@ -20,6 +20,12 @@
         "value": "16px",
         "createdAt": "2026-08-20T16:35:26.310Z",
         "reason": "matches Input.css's existing field-input font-size, same design system, same field-* pattern"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "#b3261e",
+        "createdAt": "2026-08-23T10:03:38.765Z",
+        "reason": "user confirmed: red is fine for the error state for now, no design-system token needed yet"
       }
     ]
   }
