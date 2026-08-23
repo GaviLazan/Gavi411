@@ -70,6 +70,14 @@ model Request {
   type           RequestType?
   freeText       String
   additionalInfo String?
+  // Type-specific follow-up fields (TravelFields/PurchaseFields/
+  // TechSupportFields — G411-65), shape varies per type. Empty/blank
+  // fields are stripped before save (G411-23) so this never holds
+  // untouched keys. Rendered with per-type labels in the admin detail
+  // screen (G411-38, not yet built). Postgres JSONB reorders keys
+  // alphabetically on storage — content is unaffected, don't rely on
+  // key order when reading this back.
+  typeDetails    Json?
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @default(now())
 
