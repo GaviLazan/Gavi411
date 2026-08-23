@@ -451,10 +451,15 @@ accumulated. If something here turns out to matter long-term, promote it to
 ## Open threads / nothing currently blocking
 
 **Two open threads:**
-1. **PR #4** (`you/G411-23-wire-handlesubmit`) is open, awaiting
-   **Matan's review** (real GitHub collaborator, read-only access).
-   Nothing to do here except wait — don't ping, don't merge
-   preemptively. Once he approves and it's merged: sync local `main`,
+1. **PR #4** (`you/G411-23-wire-handlesubmit`) is open. Matan left two
+   review comments (`COMMENTED`, not an approval) — a missing `res.ok`
+   check before `res.json()` in `handleContinue`, and a missing
+   `e.preventDefault()` on Enter-to-continue. Both fixed and pushed
+   (`c6015db`), replied to inline, and Gavi asked Matan directly (PR
+   comment) to take another look and approve. Still `BLOCKED` /
+   `REVIEW_REQUIRED` per branch protection (1 approval required) —
+   nothing to do now except wait for that approval, don't merge
+   preemptively. Once approved and merged: sync local `main`,
    re-confirm the combined landed state once more (not re-running
    individual checks already done — see the gap-analysis entry in
    "Where things stand"), then walk G411-23 Reviewing → Landed →
