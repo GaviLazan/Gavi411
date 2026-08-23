@@ -47,11 +47,16 @@ function NewRequest() {
   const [submitted, setSubmitted] = useState(false);
 
   async function handleContinue() {
+    setSubmitError("");
     const res = await fetch("/api/requests/match", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ freeText }),
     });
+    if (!res.ok) {
+      setSubmitError("Something went wrong matching your request. Try again?");
+      return;
+    }
     const { matchedTypes } = await res.json();
     setMatchedTypes(matchedTypes);
 
@@ -131,8 +136,17 @@ function NewRequest() {
         placeholder="Give a short description of what's up"
         value={freeText}
         onChange={(e) => setFreeText(e.target.value)}
-        onKeyDown={(e) => e.key === "Enter" && handleContinue()}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            e.preventDefault();
+            handleContinue();
+          }
+        }}
       />
+
+      {step === "describe" && submitError && (
+        <p style={{ color: "#b3261e" }}>{submitError}</p>
+      )}
 
       {step === "describe" && (
         <Button variant="primary" onClick={handleContinue}>
