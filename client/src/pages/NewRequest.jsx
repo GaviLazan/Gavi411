@@ -29,9 +29,8 @@ const TYPE_LABELS = {
 // friend already is in both of those cases, not a pickable escape.
 const ALL_TYPES = Object.keys(TYPE_LABELS).filter((t) => t !== "GENERAL");
 
-// New request intake screen (G411-18/19). Matching runs once on Continue
-// (not live-debounced, per Gavi). Not yet built: chip UI (G411-21),
-// fallback field (G411-22), create endpoint (G411-23).
+// New request intake screen (G411-18/19/21/22/23/65). Matching runs
+// once on Continue (not live-debounced, per Gavi).
 function NewRequest() {
   const [freeText, setFreeText] = useState("");
   const [step, setStep] = useState("describe"); // 'describe' | 'chips' | 'followup'
@@ -43,6 +42,9 @@ function NewRequest() {
   const [travelDetails, setTravelDetails] = useState(EMPTY_TRAVEL_DETAILS);
   const [purchaseDetails, setPurchaseDetails] = useState(EMPTY_PURCHASE_DETAILS);
   const [techSupportDetails, setTechSupportDetails] = useState(EMPTY_TECH_SUPPORT_DETAILS);
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState("");
+  const [submitted, setSubmitted] = useState(false);
 
   async function handleContinue() {
     const res = await fetch("/api/requests/match", {
@@ -79,10 +81,46 @@ function NewRequest() {
     setStep("chips");
   }
 
-  function handleSubmit() {
-    // POST to the request-creation endpoint (G411-23)
-    // on success: credit deducted server-side, Gavi notified via Telegram
-    // (both server-side concerns, nothing to do here beyond the POST)
+  // typeDetails per selectedType — undefined for NONE/RESEARCH/INFO,
+  // matching the backend's stripEmpty(undefined) -> undefined handling.
+  function currentTypeDetails() {
+    if (selectedType === "TRAVEL") return travelDetails;
+    if (selectedType === "PURCHASE") return purchaseDetails;
+    if (selectedType === "TECH_SUPPORT") return techSupportDetails;
+    return undefined;
+  }
+
+  async function handleSubmit() {
+    setSubmitting(true);
+    setSubmitError("");
+
+    try {
+      const res = await fetch("/api/requests", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          freeText,
+          type: selectedType,
+          urgency,
+          additionalInfo,
+          typeDetails: currentTypeDetails(),
+        }),
+      });
+
+      if (!res.ok) {
+        const { error } = await res.json().catch(() => ({}));
+        setSubmitError(error || "Something went wrong submitting your request.");
+        return;
+      }
+
+      // Credit deducted, Gavi notified via Telegram — both server-side,
+      // nothing to do here beyond showing the confirmation.
+      setSubmitted(true);
+    } catch {
+      setSubmitError("Something went wrong submitting your request.");
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   return (
@@ -113,7 +151,11 @@ function NewRequest() {
         />
       )}
 
-      {step === "followup" && (
+      {step === "followup" && submitted && (
+        <p>Thanks — your request is in! Gavi's been notified.</p>
+      )}
+
+      {step === "followup" && !submitted && (
         <>
           {/* A keyword match can be a false positive on any type (e.g.
               "research vacation options" matches RESEARCH on the word
@@ -152,8 +194,10 @@ function NewRequest() {
             onChange={(e) => setUrgency(e.target.value)}
           />
 
-          <Button variant="primary" onClick={handleSubmit}>
-            Submit Gavi411 Request
+          {submitError && <p style={{ color: "#b3261e" }}>{submitError}</p>}
+
+          <Button variant="primary" onClick={handleSubmit} disabled={submitting}>
+            {submitting ? "Submitting…" : "Submit Gavi411 Request"}
           </Button>
         </>
       )}
