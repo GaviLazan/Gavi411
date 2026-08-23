@@ -196,7 +196,7 @@ The word "ticket" never appears in user-facing copy. Working user-facing term: *
  
 Resolved since v0.1 (see decisions #45–49 in `gavi411-brain.md`):
 1. **Image storage** — Cloudinary (free tier), URL stored in DB.
-2. **Credit mechanics** — monthly reset, tiered by group tag: Acquaintance 2/mo, Regular 5/mo, Close 7/mo. No rollover, one overdraft/period.
+2. **Credit mechanics** — monthly reset, tiered by group tag: Limited 2/mo, Regular 5/mo, Close 7/mo. No rollover, one overdraft/period.
 3. **Auto-close** — "waiting on friend" requests auto-close after 14 days of inactivity, with a warning message sent first. Reopening happens by sending a message in the closed request — no separate reopen button (see §4.4).
 4. **Admin cockpit layout** — mobile-first drill-down: list screen (persistent sort/filter/group row, urgency-sorted) → detail screen (Thread/Details/Notes tabs). Full spec in decision #46.
 5. **MVP priorities** — finalized in §6 tables above (decision #45); no longer provisional.

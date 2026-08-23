@@ -18,15 +18,13 @@ accumulated. If something here turns out to matter long-term, promote it to
 
 ## Where things stand
 
-- **Gap analysis in progress**: a full PRD/Jira/code audit ran this
-  session (31 findings — 6 High, 13 Medium, 12 Low). The original
-  report is `gavi411-gap-analysis.md` (repo root, permanent); the live
-  working status of acting on each finding — what's resolved, what's
-  next, corrections Gavi made along the way — is tracked separately in
-  **`gavi411-gap-analysis-followup.md`**, not duplicated here. Check
-  that file for the real state of this effort; this file just needs
-  you to know it's happening and isn't done yet (currently at: all 6
-  High done, several Medium done, next up is C6).
+- **Gap analysis complete.** All 31 findings from `gavi411-gap-analysis.md`
+  (6 High, 13 Medium, 12 Low) are resolved or explicitly deferred with
+  reasoning — full live status, per-finding resolution, and corrections
+  Gavi made along the way are in **`gavi411-gap-analysis-followup.md`**,
+  not duplicated here. Two Low findings (E2, E3) are deliberately left
+  open pending the planned agentic-first shift (item 6 below) rather than
+  acted on now. Nothing left to pick up from this list on its own.
 - **G411-23 (request creation endpoint + credit deduction) — status:
   Reviewing, not Reconciled.** Scope grew mid-session: the backend
   endpoint Landed first, then `handleSubmit` (the frontend wiring that
@@ -461,11 +459,11 @@ accumulated. If something here turns out to matter long-term, promote it to
    individual checks already done — see the gap-analysis entry in
    "Where things stand"), then walk G411-23 Reviewing → Landed →
    Reconciled with Gavi's explicit go-ahead for the final step.
-2. **Gap-analysis followup still in progress** — see
-   `gavi411-gap-analysis-followup.md` for the real, current status of
-   every finding (what's resolved, what's next, corrections made along
-   the way). Don't re-derive that list here; that file is the single
-   source of truth for it.
+2. **Gap-analysis followup is done** — see
+   `gavi411-gap-analysis-followup.md` for the full per-finding record
+   (what was resolved, corrections made along the way). E2/E3 (Low)
+   deliberately left open, tied to the agentic-first shift below —
+   nothing else to pick up from this list.
 
 Also worth a heads-up at next pickup: Gavi's uncommitted parallel
 `DESIGN.md` edit from earlier this session was discarded by a
@@ -482,11 +480,10 @@ G411-23, PR #4) — do not redo this or treat it as unstarted.
 **Immediate next actions, in order:**
 1. Whenever PR #4 merges: finish G411-23's Reconciled process (see
    "Open threads" above).
-2. Continue the gap-analysis followup, one finding at a time with Gavi
-   — see `gavi411-gap-analysis-followup.md`.
-3. **G411-66** (sign-in UI gate) — still flagged urgent once the above
-   two threads are clear; it's the last piece blocking full
-   authenticated E2E testing of everything built so far.
+2. Gap-analysis followup is done — see `gavi411-gap-analysis-followup.md`.
+3. **G411-66** (sign-in UI gate) — still flagged urgent once #1 clears;
+   it's the last piece blocking full authenticated E2E testing of
+   everything built so far.
 4. New tickets filed this session, not yet picked up: **G411-67**
    (request list screen + GET/PATCH routes — high-leverage, unblocks
    messaging/admin/lifecycle), **G411-68** (request-access homepage
@@ -494,20 +491,11 @@ G411-23, PR #4) — do not redo this or treat it as unstarted.
 5. Previously tracked, still deliberately deferred: G411-47 (overdraft
    — mechanism captured as a Jira comment), G411-63 (word-boundary
    matching), G411-64 (visual/animation redesign).
-6. **Queued after all of the above**: shift back toward an
-   agentic-first workflow (multiple agents working in parallel on more
-   of the backlog), per Gavi's explicit instruction — with two
-   guardrails he wants kept: major decisions still come to him before
-   being acted on, and each completed chunk gets a clear, documented
-   rundown of what was done and how it works, not just a diff. Waits
-   until the gap-analysis followup is fully resolved — don't start
-   early.
+6. **Now unblocked**: shift back toward an agentic-first workflow
+   (multiple agents working in parallel on more of the backlog), per
+   Gavi's explicit instruction — with two guardrails he wants kept:
+   major decisions still come to him before being acted on, and each
+   completed chunk gets a clear, documented rundown of what was done
+   and how it works, not just a diff. Was waiting on the gap-analysis
+   followup being fully resolved — that's now done, so this can start.
 
-**Also queued, per Gavi's explicit instruction**: once the gap-analysis
-followup work is fully done, move to a broader re-plan — shifting back
-toward an agentic-first workflow (multiple agents working in parallel
-on more of the backlog) with two guardrails Gavi wants kept: major
-decisions still come to him before being acted on, and each completed
-chunk of agentic work gets a clear, documented rundown of what was done
-and how it works — not just a diff. This second phase explicitly waits
-until the gap-analysis phase (#1) is complete; don't start it early.
