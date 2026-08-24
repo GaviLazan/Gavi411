@@ -75,8 +75,12 @@
   }
 }
 
+/* Dark palette (G411-17). Originally OS-only via the media query below;
+   G411-73 adds a manual override — [data-theme="dark"] forces it on
+   regardless of OS preference, :not([data-theme="light"]) keeps the
+   media query working for anyone who hasn't chosen (system default). */
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme="light"]) {
     --text: #b3b0aa;
     --text-h: #f5f4f0;
     --bg: #17181a;
@@ -95,9 +99,32 @@
       rgba(0, 0, 0, 0.4) 0 10px 15px -3px, rgba(0, 0, 0, 0.25) 0 4px 6px -2px;
   }
 
-  #social .button-icon {
+  :root:not([data-theme="light"]) #social .button-icon {
     filter: invert(1) brightness(2);
   }
+}
+
+:root[data-theme="dark"] {
+  --text: #b3b0aa;
+  --text-h: #f5f4f0;
+  --bg: #17181a;
+  --surface: #212327;
+  --border: #34363b;
+  --code-bg: #212327;
+  --accent: #ffb700;
+  --accent-strong: #ffc933;
+  --accent-bg: rgba(255, 183, 0, 0.15);
+  --accent-border: rgba(255, 183, 0, 0.45);
+  --accent-2: #6fae8f;
+  --accent-2-strong: #8fc7ab;
+  --accent-3: #b3a5e0;
+  --social-bg: rgba(33, 35, 39, 0.5);
+  --shadow:
+    rgba(0, 0, 0, 0.4) 0 10px 15px -3px, rgba(0, 0, 0, 0.25) 0 4px 6px -2px;
+}
+
+:root[data-theme="dark"] #social .button-icon {
+  filter: invert(1) brightness(2);
 }
 
 body {
