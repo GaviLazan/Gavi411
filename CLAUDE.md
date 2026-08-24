@@ -33,88 +33,91 @@ just a deliverable.
 | `gavi411-jira-tree.md` | Snapshot of the actual G411 Jira Epic → Task structure with issue keys, generated after backlog population |
 | `gavi411-post-deadline-learning-backlog.md` | Agentic work Gavi wants to rebuild/study later — informational only, doesn't affect how you build now |
 
-## Ownership split — historical record, no longer gates pickup (changed 2026-08-24)
+## Ownership split — historical record only (changed 2026-08-24)
 
-**Read this box before the section below.** As of 2026-08-24 (decision
-#63, `gavi411-brain.md`), the project moved to an **agentic-first**
-plan: agents write tickets by default, full stop. The `[You]` /
-`[Collab]` / `[Agentic]` tags described below are **historical record**
-of how past work was actually done — they do **not** gate who picks up
-a ticket going forward. Do not check a ticket's tag to decide whether
-you're allowed to write it.
+As of 2026-08-24 (decision #63, `gavi411-brain.md`), the project moved
+to **agentic-first**: agents write tickets by default, full stop. The
+`[You]` / `[Collab]` / `[Agentic]` tags that used to appear on tasks are
+**historical record only** — they describe how past tickets were
+actually built, and explain past commit-convention choices (per-role git
+identities, worktrees, the old session-boundary rule), but **do not gate
+who writes a ticket going forward.** Do not check a tag before starting
+work. If you need the old tag definitions for historical context, they're
+preserved in git history for this file (this section, pre-2026-08-24) and
+in `gavi411-brain.md`'s decisions #31–#63.
 
 The only exception is per-ticket and explicit: if Gavi says "I want to
-write this one myself" (e.g. to satisfy the course's per-component
-learning requirement), that specific ticket stays manual for that
-session — call it out when it happens, don't infer it from the tag.
+write this one myself" (e.g. to hit the course's per-component learning
+requirement), that ticket stays manual for that session — call it out
+when it happens, don't infer it from anything else.
 
-**What still applies unchanged**: the two guardrails from decision #60
-— major decisions still come to Gavi before being acted on, and every
-completed chunk gets a real documented rundown, not just a diff — plus
-the enforcement mechanism from decision #62/#63: every agentic child
-self-runs the "wrap it up" checklist below, *and* gets a live Sibling
-review before merge (self-merge once it passes — no outside approval
-required or expected, per decision #63's PR-review correction). The
-session-boundary rule also flips: agentic dispatch is now the normal
-case, so it's live manual pairing that should move to its own tab if it
-needs to coexist with agentic launches, not the reverse.
+Two things from the old regime carry forward unchanged:
+- **`[Agentic]`-era comment-stub scaffolds** (decision #52) are still a
+  valid tool when Gavi does choose to write a ticket himself — ask for
+  the file stubbed out as comments so he fills in real logic, produced
+  per-task at pickup time, not pre-generated in bulk.
+- **Session boundary** still applies, but flipped (decision #63): agentic
+  dispatch is now the default, so it's *live manual pairing* that should
+  move to its own tab if it needs to coexist with an agentic launch — not
+  the reverse. Same underlying reason as before (interleaved transcripts
+  become unreadable); see `gavi411-commit-convention.md`'s "Where to
+  launch from" section for the full mechanics.
 
-The rest of this section (below) is kept as-is for historical
-accuracy — it explains what the tags *meant* when they were live rules,
-useful context for why a given ticket was built the way it was.
+## Required workflow — read this every session, not just once
 
-Every task in `gavi411-task-list-draft.md` is tagged `[You]`, `[Agentic]`,
-or `[Collab]`. Check the tag before starting anything.
+This section exists because of a real failure mode (2026-08-24): a
+session confidently reasoned about "the plan" from memory instead of
+re-reading, gave Gavi advice built on assumptions the tools didn't
+actually support, and needed three separate corrections before the
+description of what actually happens matched reality. These rules exist
+to stop that from repeating, not as aspirational process.
 
-**`[You]`** — backend routes, DB, request/messaging/lifecycle/admin/credits
-logic, frontend component structure and wiring, intake keyword engine.
-**Gavi writes this himself.** Do not write complete implementations for
-these even if the request sounds generic ("build the request endpoint").
-Offer scaffolding, review, targeted explanation, or pair on a specific
-stuck point instead — and if you're unsure whether something crosses into
-`[You]` territory, ask rather than assume.
+**1. Read before acting, every time — don't reason from memory.**
+`CLAUDE.md`, `HANDOFF.md`, and `gavi411-brain.md` all get edited by
+other sessions between your turns (multiple sessions/agents run against
+this repo now). A file you read five turns ago may already be stale.
+Before stating what "the current plan" or "current state" is, re-read
+the relevant doc rather than recall it — especially `HANDOFF.md`
+(perishable, changes constantly) and any file a system-reminder says
+changed on disk since you last read it.
 
-**Comment-stub scaffolds** (decision #52): for any `[You]` task — backend
-*or* frontend — you can ask for a file with the structure stubbed out as
-comments (e.g. `// OAuth middleware goes here`, `// connect to DB`,
-`// GET request - data from DB`) so Gavi fills in the real logic instead of
-starting from blank. Produce these **per-task, on request, right when
-Gavi's about to start that task** — not pre-generated in bulk. Gavi writes
-all real content, so the resulting commit is entirely his — plain
-`git-as-gavi`, no agent role involved.
+**2. Don't assert how a tool behaves — check its actual spec first.**
+Claims like "this will run unattended," "this chains into the next
+step automatically," or "this enforces X" must be verified against the
+tool's real description (`ToolSearch`, its documented behavior) before
+being said out loud. If you haven't checked, say so and check, rather
+than presenting a guess as settled fact. This project has already hit
+one real instance of this: an agentic "pilot" was described as
+self-orchestrating when the actual tools only provide background
+dispatch + notification — every chaining/review/go-ahead step still
+needs a human or a live session to act on it.
 
-**`[Agentic]`** — design system/styling passes, Clerk OAuth wiring, E2E
-encryption core, PWA/service worker config, deploy pipeline setup. Build
-these fully, but explain fully as you go — Gavi wants to be able to
-rebuild/understand these post-deadline (see the learning backlog).
-**Session boundary (decided 2026-08-19):** `[Agentic]` subagent work
-always runs in a separate Claude Code session from `[You]`/`[Collab]`
-pairing — never launched as a background subagent inside a session doing
-live pairing, even sequentially, since the transcripts mix regardless of
-timing. Gavi opens a dedicated tab/session for `[Agentic]` work. Full
-rationale in `gavi411-commit-convention.md`'s "Where to launch from"
-section.
+**3. Three checkpoints per ticket, non-negotiable, regardless of who's
+writing the code** (decision #60's guardrails, restated as concrete
+gates so they can't be silently compressed into one step):
+   - **Mid-flight**: if a real decision comes up that isn't yours to
+     make (scope, ownership, architecture, a judgment call the ticket
+     itself doesn't answer) — stop and bring it to Gavi before acting on
+     it. Don't resolve it and mention it after the fact.
+   - **End-of-ticket rundown**: before/alongside the Sibling review,
+     give Gavi an actual explanation of what was built and how it
+     works — not just a diff, not just "done." He needs to be able to
+     explain everything submitted (course requirement).
+   - **Go/no-go on the next ticket**: a clean Sibling review does not
+     imply "proceed to the next ticket automatically." Report the
+     outcome and let Gavi decide whether to continue, even if nothing
+     looks wrong. Never auto-advance through a queue of tickets.
 
-**`[Collab]`** — testing (Vitest), CI/CD (GitHub Actions), and (as of
-2026-08-19) Express backend skeleton (G411-11) and React frontend setup
-(G411-12). Build these *with* Gavi incrementally, per feature as it
-ships — not batched, not handed over finished. For 11/12 specifically:
-Claude does the initial scaffold (file/folder structure, boilerplate,
-comment-stubs), then the real logic is built together step by step from
-there — the existing comment-stub scaffolding for G411-11 stands, this
-changes how it's finished, not what's already down.
+**4. Sibling review is mandatory on every agentic child, self-merge only
+after it passes** (decision #62/#63) — checks tests exist and pass, docs/
+`HANDOFF.md` are actually updated, Aegis fields are actually written,
+Jira is actually transitioned. No outside human approval is required or
+expected (decision #63) — but skipping the review itself, or treating a
+green build as sufficient evidence the review happened, is not allowed.
 
-**Fallback rule:** moving a `[You]` task to agentic is an option **only
-Gavi can invoke**. Never do this on your own judgment because he seems
-behind schedule — surface the concern and let him decide.
-
-**Invoked 2026-08-20:** Gavi moved the rest of Parent 2 — Requests/Intake
-(G411-19 through 23, everything after G411-18) from `[You]` to
-`[Collab]`, mid-session, feeling tired and wanting a faster sense of
-progress while staying involved and still writing/understanding the
-code — not a full `[Agentic]` handoff. Applies to those five tickets
-specifically, not a blanket change to the ownership split; re-confirm
-per-task rather than assuming it extends further without being told.
+**5. When in doubt about scope, ownership, or whether something needs
+Gavi's sign-off — ask. A wrong guess that quietly ships is worse than a
+question that costs one turn.**
 
 ## Tech stack
 
@@ -180,10 +183,11 @@ per-task rather than assuming it extends further without being told.
 - **Branching**: no direct commits to `main`. One branch per child issue —
   `you/G411-XX-slug` for Gavi's own work, `agent-<role>/G411-XX-slug` for
   agentic — merged back via PR once the child reaches Landed.
-- **PR review**: routine children self-merge once their Evidence bar is
-  met (evidence *is* the review). Load-bearing children (credits, auth,
-  encryption, lifecycle state machine) get a live Sibling review from
-  Claude Code before merge, on top of the evidence bar. Full policy in
+- **PR review** (updated 2026-08-24, decision #62/#63): every agentic
+  child gets a live Sibling review from Claude Code before merge — not
+  just load-bearing ones, since agentic is now the default rather than a
+  special case. Self-merge once it passes; no outside human approval
+  required or expected. See "Required workflow" above and full policy in
   `gavi411-commit-convention.md`.
 - **Impeccable** (design skill): do **not** run `/impeccable document`
   before real styled components exist. Correct sequence is: show reference
@@ -195,12 +199,12 @@ per-task rather than assuming it extends further without being told.
 
 ## How to work with Gavi
 
-- Check the ownership split before writing any code — this is the rule
-  he cares most about.
-- For `[You]` work: brainstorm, explain, review, unstick — don't hand him
-  finished implementations. He wants to submit work he actually did.
-- For `[Agentic]` work: just build it, and explain your reasoning as you
-  go, at a strength proportional to how much the decision matters.
+- Agents write by default now (see "Required workflow" above) — build it,
+  and explain your reasoning as you go, at a strength proportional to how
+  much the decision matters. Don't check a ticket's old tag first.
+- If Gavi explicitly says he wants to write a specific ticket himself:
+  brainstorm, explain, review, unstick — don't hand him a finished
+  implementation for that one. He wants to submit work he actually did.
 - Be opinionated but show your reasoning — don't just assert a choice.
 - Async workflow: Gavi does a step, comes back with a result (success or
   a specific failure), then asks for the next step. Don't assume a
