@@ -319,16 +319,21 @@ Reconciled in Jira. `prisma/schema.prisma` written/validated/formatted;
 `server/` scaffolded (`package.json` ES modules, Express/Prisma 6/dotenv,
 comment-stubbed `server.js`/`routes/requests.js`/`lib/prisma.js`); `client/`
 scaffolded. Parent 2 (Requests/Intake) is well underway — G411-18 through
-23 and G411-65 Reconciled. G411-66 (sign-in UI gate, first agentic-first
-pilot) also Reconciled — friends now actually hit a real Clerk sign-in
-screen before reaching the intake form. A live-state gap analysis
-(2026-08-24) found and fixed two real issues beyond doc-level scope: the
-deployed Vercel frontend had no working backend connection at all (fixed,
-`client/vercel.json`, part of G411-16's correction) and three intake-path
-bugs (G411-72, Reconciled — unauthenticated `/match` route, a duplicate
-seeded keyword, a missing DB uniqueness constraint). Real-time
-status/next task always lives in `HANDOFF.md`, not here — check that
-file, not this stale-prone summary, for what's actually next.
+23, G411-65, G411-66, G411-67, G411-63, and G411-73 all Reconciled.
+Friends now hit a real Clerk sign-in screen (G411-66), have a request
+list/home screen with backing `GET`/`PATCH` routes (G411-67), keyword
+matching is word-boundary-aware not naive substring (G411-63), and a
+manual dark/light/system theme toggle exists on top of the auto
+`prefers-color-scheme` behavior that shipped silently with G411-17
+(G411-73). A live-state gap analysis (2026-08-24) found and fixed two
+real issues beyond doc-level scope: the deployed Vercel frontend had no
+working backend connection at all (fixed, `client/vercel.json`, part of
+G411-16's correction) and three intake-path bugs (G411-72, Reconciled —
+unauthenticated `/match` route, a duplicate seeded keyword, a missing DB
+uniqueness constraint). Parent 2's one remaining Open child is G411-64
+(intake flow visual redesign). Real-time status/next task always lives
+in `HANDOFF.md`, not here — check that file, not this stale-prone
+summary, for what's actually next.
 
 Folder naming: **`server/`** and **`client/`**, not `backend`/`frontend`.
 
