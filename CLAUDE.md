@@ -51,6 +51,19 @@ write this one myself" (e.g. to hit the course's per-component learning
 requirement), that ticket stays manual for that session — call it out
 when it happens, don't infer it from anything else.
 
+This is a standing default for the current agentic-first period, not a
+per-ticket approval gate. The `[You]`/`[Agentic]` tags were real signals
+back when work was actually being split by owner — they're not fake
+history, they're just not the regime we're in anymore. Finding one on a
+ticket, or a HANDOFF.md/ticket mismatch, is worth one line of mention,
+but it is not grounds to stop and ask which mode to use (via
+AskUserQuestion or otherwise) — that reopens a decision that's already
+made project-wide for now. Note the conflict and proceed agentic.
+(Corrected 2026-08-24 after doing exactly this on G411-67.) If the
+project ever moves back to a split-ownership regime, this default
+reverts and tags become load-bearing again — that would be a new,
+explicit decision in `gavi411-brain.md`, not something to infer.
+
 Two things from the old regime carry forward unchanged:
 - **`[Agentic]`-era comment-stub scaffolds** (decision #52) are still a
   valid tool when Gavi does choose to write a ticket himself — ask for
@@ -99,6 +112,24 @@ gates so they can't be silently compressed into one step):
      make (scope, ownership, architecture, a judgment call the ticket
      itself doesn't answer) — stop and bring it to Gavi before acting on
      it. Don't resolve it and mention it after the fact.
+   - **How to stop, concretely (added 2026-08-24, real failure)**: a
+     question buried mid-paragraph while work keeps moving is not a
+     stop — by the time Gavi reads and answers it, tool calls have
+     already run past it, so his answer lands as an after-the-fact
+     confirmation of something already done instead of a real go/no-go.
+     Caught live on G411-67: the build agent hit "what counts as
+     'closed'?" (a genuine spec ambiguity), picked the broader reading
+     itself, and only documented the choice in the PR/Jira for later
+     review — Gavi answered it correctly once he spotted it, but the
+     code was already written by then. The fix: when a subagent (or the
+     orchestrating session itself) hits this kind of ambiguity, it uses
+     `AskUserQuestion` — a real blocking pause, no further tool calls on
+     that thread of work — not a note-and-continue, and not "pick the
+     defensible option and flag it in the final report." This applies
+     even to unattended background agents: if the dispatched agent
+     itself can't call `AskUserQuestion`, it must stop and hand the
+     question back to the orchestrating session to ask, not resolve it
+     unilaterally and move on.
    - **End-of-ticket rundown**: before/alongside the Sibling review,
      give Gavi an actual explanation of what was built and how it
      works — not just a diff, not just "done." He needs to be able to
