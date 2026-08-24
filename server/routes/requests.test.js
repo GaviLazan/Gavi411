@@ -192,3 +192,26 @@ describe('PATCH /api/requests/:id', () => {
     expect(res.status).toBe(200)
   })
 })
+
+describe('POST /api/requests/match', () => {
+  it('401s when unauthenticated', async () => {
+    const res = await request(app).post('/api/requests/match').send({ freeText: 'help' })
+    expect(res.status).toBe(401)
+  })
+
+  it('400s when freeText is missing (Sibling review finding, G411-63 PR)', async () => {
+    currentUserId = OWNER
+    const res = await request(app).post('/api/requests/match').send({})
+    expect(res.status).toBe(400)
+  })
+
+  it('returns matched types for a signed-in user', async () => {
+    currentUserId = OWNER
+    const { matchKeywords } = await import('../lib/matchKeywords.js')
+    matchKeywords.mockResolvedValue(['TRAVEL'])
+
+    const res = await request(app).post('/api/requests/match').send({ freeText: 'need a flight' })
+    expect(res.status).toBe(200)
+    expect(res.body.matchedTypes).toEqual(['TRAVEL'])
+  })
+})
