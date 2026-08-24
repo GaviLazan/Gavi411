@@ -31,7 +31,9 @@ const ALL_TYPES = Object.keys(TYPE_LABELS).filter((t) => t !== "GENERAL");
 
 // New request intake screen (G411-18/19/21/22/23/65). Matching runs
 // once on Continue (not live-debounced, per Gavi).
-function NewRequest() {
+// onDone (G411-67): called after a successful submit's "back to my
+// requests" action — was previously a dead end.
+function NewRequest({ onDone }) {
   const [freeText, setFreeText] = useState("");
   const [step, setStep] = useState("describe"); // 'describe' | 'chips' | 'followup'
   const [matchedTypes, setMatchedTypes] = useState([]);
@@ -166,7 +168,12 @@ function NewRequest() {
       )}
 
       {step === "followup" && submitted && (
-        <p>Thanks — your request is in! Gavi's been notified.</p>
+        <>
+          <p>Thanks — your request is in! Gavi's been notified.</p>
+          <Button variant="primary" onClick={onDone}>
+            Back to my requests
+          </Button>
+        </>
       )}
 
       {step === "followup" && !submitted && (
