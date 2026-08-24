@@ -14,9 +14,12 @@ accumulated. If something here turns out to matter long-term, promote it to
 
 ## Last updated
 
-2026-08-24, later session — **G411-67 Reconciled**, second unattended
-agentic-first ticket, done end-to-end. Also produced two real process
-corrections to `CLAUDE.md`, both load-bearing going forward:
+2026-08-24, later session — **G411-63 Reconciled** (word-boundary
+keyword matching, third unattended agentic ticket) and **G411-73 filed**
+(new: dark/light mode manual toggle, Parent 2, Open — see below). Also
+**G411-67 Reconciled** earlier this session. Both G411-63 and G411-67
+produced real process corrections to `CLAUDE.md`, both load-bearing
+going forward:
 
 - **The "how to stop" rule** (Required workflow, checkpoint 3): a
   question buried mid-paragraph while tool calls keep running isn't a
@@ -43,10 +46,66 @@ sign-in bypass, and a button-selector gotcha (`/continue/i` matches
 
 ## Next task — none picked yet, ask Gavi
 
-G411-67 is done (see below). No next ticket has been agreed — per
-CLAUDE.md's Required workflow checkpoint 3 ("go/no-go on the next
-ticket"), do not auto-pick G411-68/69 or anything else. Recap Open
-tickets in Parent 2/3/4 and ask which one Gavi wants next.
+G411-67 and G411-63 are both done (see below). No next ticket has been
+agreed — per CLAUDE.md's Required workflow checkpoint 3 ("go/no-go on
+the next ticket"), do not auto-pick anything automatically. **Real
+correction this session**: "next" was initially read as "lowest ticket
+number project-wide," which skipped straight to Parent 3 while Parent 2
+still had Open children (G411-64, G411-73) — Gavi caught this live.
+Actual rule (brain.md): flat, freely-reorderable backlog except along
+the dependency spine, but stay within the current Epic (Parent 2) until
+its Open children are cleared, don't jump Epics just because a lower
+ticket number happens to sit elsewhere. Parent 2's remaining Open
+children: **G411-64** (intake flow visual redesign) and **G411-73**
+(dark/light mode toggle, filed this session).
+
+## G411-73 — new, Open, filed this session
+
+Real gap Gavi caught live, not in any PRD/brain.md doc: the deployed
+app already auto-switches dark/light via `@media (prefers-color-scheme:
+dark)` in `client/src/index.css` (landed silently as part of G411-17's
+design-system foundation, never speced) — but there's no manual toggle,
+it only follows OS/browser preference. Ticket asks for a manual override
+(light/dark/system, or at minimum a two-way override) on top of the
+existing token structure — not a new palette. Parented under G411-2
+(Requests/Intake, currently Implementing) since G411-1/Foundation is
+already Reconciled and shouldn't be reopened for new scope (confirmed
+via [[jira-set-parent-field-at-creation]] memory's standing rule).
+`parent` field verified actually linked via JQL, not just claimed.
+
+## G411-63 — Reconciled, full record
+
+**Scope**: `server/lib/matchKeywords.js` did a raw case-insensitive
+substring check, causing false positives (ticket's example: `"light"`
+inside `"flights"`; real seed-data equivalents found and tested:
+`"get"` inside `"forgot"`/`"budget"`, `"mac"` inside `"machine"`). Fixed
+with Unicode-property lookaround boundaries (`(?<![\p{L}\p{N}])...
+(?![\p{L}\p{N}])`), not `\b`/`\w` — verified `\b` is ASCII-only and
+doesn't treat Hebrew letters as word characters, which would've broken
+bidi text handling. Also correctly handles multi-word keyword phrases
+from real seed data (`"go to"`, `"rental car"`, `"where to buy"`).
+
+**Sibling review found 1 real bug**, fixed before merge (commit
+`1ebc0dc`, same PR #19): removing the old `.toLowerCase()` call as part
+of the fix silently changed `POST /match`'s behavior on missing
+`freeText` — used to throw (500), now would silently 200 with
+`matchedTypes: []`, masking a client bug. Fixed: added the same
+`!freeText` guard its sibling route (`POST /`) already has; added test
+coverage for `POST /match` (had none before, even pre-fix).
+
+**Live-verified post-merge, real seed data, not the ticket's
+hypothetical example**: 4/4 real cases against production
+(`gavi411-ten.vercel.app` → Render, real signed-in Clerk test session)
+— `"forgot"` no longer false-matches PURCHASE, `"machine"` no longer
+false-matches TECH_SUPPORT, two real positive-match controls both
+correct. Unauthenticated `POST /match` re-confirmed 401 on both the
+direct Render URL and via the Vercel rewrite.
+
+**Tests**: 28/28 (25 pre-existing + 3 new).
+
+**Jira**: Open → Implementing → Reviewing → Landed → Reconciled, all
+named transitions, Aegis fields written at pickup + closure comment
+with live evidence before Reconciling.
 
 ## G411-67 — Reconciled, full record
 
