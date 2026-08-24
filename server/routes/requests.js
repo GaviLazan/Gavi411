@@ -1,6 +1,7 @@
 // Request routes (G411-23 etc.) — mounted at /api/requests
 
 import express from 'express'
+import { Status, Urgency } from '@prisma/client'
 import { matchKeywords } from '../lib/matchKeywords.js'
 import { requireAuth } from '../middleware/auth.js'
 import { prisma } from '../lib/prisma.js'
@@ -28,8 +29,89 @@ function stripEmpty(details) {
   return Object.keys(result).length > 0 ? result : undefined
 }
 
-// Not yet built: GET / (list), GET /:id (one + messages), PATCH /:id
-// (status/urgency, G411-30..36).
+// GET / — list requests for the logged-in user, or every request if
+// they're an admin (G411-67). Newest first.
+router.get('/', requireAuth, async (req, res) => {
+  const where = req.user.role === 'ADMIN' ? {} : { userId: req.user.clerkId }
+
+  const requests = await prisma.request.findMany({
+    where,
+    orderBy: { createdAt: 'desc' },
+  })
+
+  res.json(requests)
+})
+
+// GET /:id — one request + its messages (G411-67). Owner or admin only.
+router.get('/:id', requireAuth, async (req, res) => {
+  const id = Number(req.params.id)
+  if (!Number.isInteger(id)) {
+    return res.status(400).json({ error: 'Invalid request id' })
+  }
+
+  const request = await prisma.request.findUnique({
+    where: { id },
+    include: { message: { orderBy: { createdAt: 'asc' } } },
+  })
+
+  if (!request) {
+    return res.status(404).json({ error: 'Request not found' })
+  }
+
+  if (request.userId !== req.user.clerkId && req.user.role !== 'ADMIN') {
+    return res.status(404).json({ error: 'Request not found' })
+  }
+
+  res.json(request)
+})
+
+// Enum values pulled from the generated Prisma client rather than
+// hand-copied, so this route can't silently drift from schema.prisma.
+const STATUS_VALUES = Object.values(Status)
+const URGENCY_VALUES = Object.values(Urgency)
+
+// PATCH /:id — route shell only (G411-67): accepts a status/urgency
+// update, validates it's a legal enum value, and writes it. Does NOT
+// implement lifecycle transition rules (cancel/refund, close, reopen,
+// auto-close) — that's G411-30..36's job, built on top of this shell.
+router.patch('/:id', requireAuth, async (req, res) => {
+  const id = Number(req.params.id)
+  if (!Number.isInteger(id)) {
+    return res.status(400).json({ error: 'Invalid request id' })
+  }
+
+  const { status, urgency } = req.body
+  const data = {}
+
+  if (status !== undefined) {
+    if (!STATUS_VALUES.includes(status)) {
+      return res.status(400).json({ error: 'Invalid status value' })
+    }
+    data.status = status
+  }
+
+  if (urgency !== undefined) {
+    if (!URGENCY_VALUES.includes(urgency)) {
+      return res.status(400).json({ error: 'Invalid urgency value' })
+    }
+    data.urgency = urgency
+  }
+
+  if (Object.keys(data).length === 0) {
+    return res.status(400).json({ error: 'No valid fields to update' })
+  }
+
+  const existing = await prisma.request.findUnique({ where: { id } })
+  if (!existing) {
+    return res.status(404).json({ error: 'Request not found' })
+  }
+  if (existing.userId !== req.user.clerkId && req.user.role !== 'ADMIN') {
+    return res.status(404).json({ error: 'Request not found' })
+  }
+
+  const updated = await prisma.request.update({ where: { id }, data })
+  res.json(updated)
+})
 
 // POST /match — keyword-match free text against the Trigger table
 // (G411-19). Called once from the intake form's Continue action.
@@ -38,6 +120,9 @@ function stripEmpty(details) {
 // behind sign-in (G411-66), this is the backend backstop for the same rule.
 router.post('/match', requireAuth, async (req, res) => {
   const { freeText } = req.body
+  if (!freeText) {
+    return res.status(400).json({ error: 'freeText is required' })
+  }
   const matchedTypes = await matchKeywords(freeText)
   res.json({ matchedTypes })
 })

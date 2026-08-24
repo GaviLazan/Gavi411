@@ -28,6 +28,21 @@
     <title>Gavi411</title>
   </head>
   <body>
+    <!-- G411-73: set data-theme before first paint, matching useTheme.js's
+         storage key/logic — a manual override applied only in a post-mount
+         useEffect would flash the OS-default theme on every reload before
+         React catches up. Kept in sync by hand with useTheme.js (same
+         STORAGE_KEY, same fallback to 'system' on missing/invalid values). -->
+    <script>
+      (function () {
+        try {
+          var theme = localStorage.getItem('gavi411-theme')
+          if (theme === 'light' || theme === 'dark') {
+            document.documentElement.setAttribute('data-theme', theme)
+          }
+        } catch (e) {}
+      })()
+    </script>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
   </body>

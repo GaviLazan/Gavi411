@@ -10,6 +10,23 @@
   font-weight: 600;
 }
 
+.theme-toggle {
+  align-self: flex-end;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  color: var(--text);
+  font: inherit;
+  font-size: 14px;
+  padding: var(--space-1) var(--space-3);
+  cursor: pointer;
+}
+
+.theme-toggle:hover {
+  border-color: var(--accent);
+  color: var(--text-h);
+}
+
 .design-preview .card {
   width: 100%;
   max-width: 420px;
