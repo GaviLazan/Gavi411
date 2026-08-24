@@ -122,4 +122,8 @@ model Trigger {
   id          Int         @id @default(autoincrement())
   keyword     String
   requestType RequestType
+
+  // Added 2026-08-24 (real gap found in a live-state review) — seed.js had
+  // no idempotency guard and could double-insert rows on a rerun.
+  @@unique([keyword, requestType])
 }
