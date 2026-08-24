@@ -284,10 +284,16 @@ Reconciled in Jira. `prisma/schema.prisma` written/validated/formatted;
 `server/` scaffolded (`package.json` ES modules, Express/Prisma 6/dotenv,
 comment-stubbed `server.js`/`routes/requests.js`/`lib/prisma.js`); `client/`
 scaffolded. Parent 2 (Requests/Intake) is well underway — G411-18 through
-22 and G411-65 Reconciled, G411-23's code is merged (Jira transition
-pending). Real-time status/next task always lives in `HANDOFF.md`, not
-here — check that file, not this stale-prone summary, for what's
-actually next.
+23 and G411-65 Reconciled. G411-66 (sign-in UI gate, first agentic-first
+pilot) also Reconciled — friends now actually hit a real Clerk sign-in
+screen before reaching the intake form. A live-state gap analysis
+(2026-08-24) found and fixed two real issues beyond doc-level scope: the
+deployed Vercel frontend had no working backend connection at all (fixed,
+`client/vercel.json`, part of G411-16's correction) and three intake-path
+bugs (G411-72, Reconciled — unauthenticated `/match` route, a duplicate
+seeded keyword, a missing DB uniqueness constraint). Real-time
+status/next task always lives in `HANDOFF.md`, not here — check that
+file, not this stale-prone summary, for what's actually next.
 
 Folder naming: **`server/`** and **`client/`**, not `backend`/`frontend`.
 

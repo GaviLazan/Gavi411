@@ -14,49 +14,101 @@ accumulated. If something here turns out to matter long-term, promote it to
 
 ## Last updated
 
-2026-08-23, later session — G411-66 (first agentic-first pilot) built
-unattended, sibling-reviewed live, PR #8 open awaiting merge (later than
-the entries below, see top item).
+2026-08-24 — G411-66, G411-16 (correction), and G411-72 all Reconciled
+this session; production deploy pipeline was actually broken and is now
+fixed and verified live. Decision #63 changed the PR review mechanism
+mid-session (Sibling review → self-merge, no outside approval needed).
+See items below, newest first.
 
 ## Where things stand
 
-- **G411-66 (sign-in UI gate) — first agentic-first pilot (decision #62),
-  PR #8 open, not yet merged.** `agent-backend` role built it unattended
-  on branch `agent-backend/G411-66-signin-gate`: gated `App.jsx` behind
-  Clerk auth state (signed-in → `NewRequest`, signed-out → Clerk's
-  hosted `<SignIn>`). Ran its own 8-step wrap-it-up checklist and
-  reported honestly that it could only verify at the code/build level —
-  no real Clerk credentials exist in this environment for a live
-  browser sign-in check, flagged explicitly rather than glossed over.
-  **Real gap the agent caught along the way**: the ticket's own
-  assumption was wrong — the installed package is `@clerk/react`
-  (lower-level), not `@clerk/clerk-react`; it has no `SignedIn`/
-  `SignedOut` components, only hooks (`useUser`, `useAuth`) plus
-  `SignIn`/`ClerkLoaded`/`ClerkLoading`. Built the same gating with
-  `useUser().isSignedIn` instead — no new dependency. First attempt
-  (assuming `SignedIn`/`SignedOut` existed) failed a real build, caught
-  and corrected, not just reasoned about.
-  **Live Sibling review** (this session, immediately after): diff
-  matches scope exactly (`App.jsx` only), no new dependency, logic
-  correct (`ClerkLoaded`/`ClerkLoading` avoids a flash of wrong state).
-  Found and fixed one more thing: `main.jsx`'s own comment repeated the
-  same wrong `SignedIn`/`SignedOut` claim — the actual root cause of the
-  ticket's error — corrected it (`f7e4ded`). Confirmed independently
-  that no `.env.local` / real Clerk key exists in this environment
-  either, so the live-browser verification gap is real and structural,
-  not a corner the agent cut.
-  **Aegis fields written to Jira, status moved Implementing → Reviewing**
-  (transition "Move to Review", id 5). PR #8 opened
-  (`https://github.com/GaviLazan/Gavi411/pull/8`) rather than
-  self-merged, since auth/session work is load-bearing per the existing
-  PR-review policy regardless of the agentic-first blanket rule.
-  **Next**: PR #8 needs an actual approval (same branch-protection gate
-  PR #4 hit — check collaborator write access if a review doesn't flip
-  `reviewDecision`), then Reviewing → Landed once merged, then
-  Landed → Reconciled once someone with a real Clerk test key verifies
-  the falsifier live in a browser — that live-credential check is the
-  one open item blocking Reconciled, flag it to whoever picks that up.
-
+- **Production was broken end-to-end, now fixed (G411-16 correction).**
+  Live-state review (prompted by Gavi asking "did we finish writing the
+  damn thing" after a Vercel 404 was found) discovered the deployed
+  frontend's every `/api/*` call 404ing — Vite's dev-only proxy has no
+  production equivalent, and no `vercel.json` rewrite existed pointing
+  at the real Render backend. Render itself was live and correct the
+  whole time (an early `curl` hit a cold-start timeout and got
+  misread as "never connected" — corrected once retried with a longer
+  timeout). Fixed via PR #9 (`client/vercel.json`, one rewrite rule),
+  merged, verified live on `https://gavi411-ten.vercel.app/api/health`
+  and `/api/requests/match`. G411-16 was already Reconciled in Jira
+  without this ever being tested end-to-end — left Reconciled (the
+  underlying claim is now actually true) but a correction comment was
+  added rather than silently re-passing it.
+- **G411-66 (sign-in UI gate) — Reconciled.** First agentic-first pilot
+  (decision #62): `agent-backend` role built it unattended on
+  `agent-backend/G411-66-signin-gate`, caught a real bug along the way
+  (`@clerk/react` has no `SignedIn`/`SignedOut` — the ticket's own
+  assumption was wrong; built with `useUser().isSignedIn` instead, no
+  new dependency). Live Sibling review caught one more instance of the
+  same wrong assumption in a stale `main.jsx` comment, fixed it too. PR
+  #8 merged. Falsifier re-confirmed live on real production via
+  Playwright right before Reconciling — sign-in gate renders correctly,
+  zero console errors.
+- **G411-72 (intake path fixes) — Reconciled.** A deliberate, requested
+  live-state gap analysis (not doc-vs-doc, actual running code/DB
+  against what's claimed) turned up three real bugs: `POST
+  /api/requests/match` was reachable unauthenticated (added
+  `requireAuth` as a backend backstop to `App.jsx`'s client-side gate);
+  `'get'` was seeded as a keyword under both RESEARCH and PURCHASE
+  (accidental duplicate — caused every "get"-containing request to
+  spuriously suggest RESEARCH; removed from RESEARCH, kept under
+  PURCHASE); `Trigger` had no uniqueness constraint and `seed.js` had no
+  idempotency guard (a rerun would've silently doubled every row, which
+  would've broken G411-42's future live trigger-editing UI). Added
+  `@@unique([keyword, requestType])`, migrated live to Neon,
+  `skipDuplicates: true` in `seed.js`. Scope grew mid-PR (Gavi's call)
+  to also fold in two `TravelFields.jsx` UX fixes (G411-65 follow-up):
+  the booking-number consent checkbox now reveals the input instead of
+  just disabling it with no visible reason (unchecking clears any typed
+  value), and the "Add flight" button label now reads "+ Add flight
+  details" when empty vs. "+ Add another flight" once one exists.
+  Wording on the consent checkbox was Gavi's own edit, satisfying the
+  subjective-UX review gate directly. PR #10 merged, re-verified fresh
+  against merged `main` before Reconciling.
+- **Decision #63 (`gavi411-brain.md`), mid-session**: PR review policy
+  corrected — Sibling review (Claude Code, live) was always meant to
+  *be* the review mechanism, not a precursor to an outside human
+  approval. Branch protection's "1 approval" requirement had become a
+  real blocking dependency in practice (only counts write-access
+  collaborators, decision #61) despite Gavi working solo. Now: **Sibling
+  review passes → self-merge**, no outside approval waited on.
+  `enforce_admins: false` already meant Gavi's own merges bypassed it;
+  the discipline lives in the policy, not the GitHub setting. Also
+  flips which side needs its own session — agentic dispatch is now the
+  default, live manual pairing is the occasional case that steps into
+  its own tab.
+- **Gap-analysis process note, worth remembering**: Gavi pushed back
+  hard mid-session on gap analysis only surfacing real problems
+  reactively (via his own follow-up questions) rather than
+  systematically. The fix applied was a genuine live-state sweep —
+  checking actual running/deployed state (Clerk config via its real
+  API, Vercel/Render live endpoints, DB constraints vs. what code
+  actually writes) against what's documented/ticketed as done, not
+  re-reading docs against each other. This found the invite-gating gap
+  (Clerk `sign_up.mode` was `"public"`, not restricted — see G411-41's
+  updated scope) and the deploy-pipeline gap above. Worth running this
+  kind of check periodically, not just once.
+- **G411-41 scope updated**: now owns the real invite-link mechanism
+  (one-time token in the URL, e.g. `?token=...` on the app's own root —
+  no separate `/signup` page, no email required up front since Gavi
+  won't always know it and friends may use a different email or Google
+  OAuth). G411-71 (an earlier, duplicate ticket for the same gap) was
+  closed/Reconciled with a comment pointing here.
+- **G411-69 scope updated**: now covers both phone number AND profile
+  picture in one combined `/complete-profile` first-login flow. Real
+  gap confirmed via Clerk's actual type definitions: OAuth sign-in
+  copies a real photo (`hasImage: true`), email sign-in never does —
+  and nothing in `server/middleware/auth.js` persisted it either way
+  before this ticket. Direction: auto-save OAuth photos, prompt
+  (skippable) for email sign-ups to upload one via Clerk's native
+  `setProfileImage()`, and nudge everyone to confirm their photo looks
+  right. Phone number: country-code selector, accepts Israeli local
+  `05X...` format (not `+972...` or bare digits — Clerk's phone-auth
+  doesn't support Israeli numbers at all, which is *why* this needs
+  manual collection, not a reason to reject them). G411-70 (duplicate)
+  closed/Reconciled with a comment pointing here.
 - **Gap analysis complete.** All 31 findings from `gavi411-gap-analysis.md`
   (6 High, 13 Medium, 12 Low) are resolved or explicitly deferred with
   reasoning — full live status, per-finding resolution, and corrections
