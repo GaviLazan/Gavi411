@@ -42,10 +42,13 @@ function RequestList({ onNewRequest, onShowInstallHelp }) {
   const [error, setError] = useState("");
   const [showClosed, setShowClosed] = useState(false);
 
+  const [retryToken, setRetryToken] = useState(0);
+
   useEffect(() => {
     let cancelled = false;
 
     async function load() {
+      setError("");
       try {
         // Cookie-based Clerk session, same as NewRequest.jsx's fetches —
         // no manual Authorization header needed.
@@ -62,13 +65,13 @@ function RequestList({ onNewRequest, onShowInstallHelp }) {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [retryToken]);
 
   if (error) {
     return (
       <Card>
         <p>{error}</p>
-        <Button onClick={onNewRequest}>New request</Button>
+        <Button onClick={() => setRetryToken((t) => t + 1)}>Try again</Button>
       </Card>
     );
   }
@@ -96,16 +99,16 @@ function RequestList({ onNewRequest, onShowInstallHelp }) {
         </div>
       )}
 
-      {allClosed && (
+      {allClosed && !showClosed && (
         <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-3)" }}>
           <h2>Most recent request</h2>
           <RequestCard request={closedRequests[0]} />
         </div>
       )}
 
-      {!allClosed && requests.length === 0 && <p>No requests yet — start one above.</p>}
+      {requests.length === 0 && <p>No requests yet — start one above.</p>}
 
-      {closedRequests.length > 0 && !allClosed && (
+      {closedRequests.length > 0 && (
         <>
           <Button variant="secondary" onClick={() => setShowClosed((v) => !v)}>
             {showClosed ? "Hide closed requests" : "Show closed requests"}
