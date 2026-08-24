@@ -120,6 +120,9 @@ router.patch('/:id', requireAuth, async (req, res) => {
 // behind sign-in (G411-66), this is the backend backstop for the same rule.
 router.post('/match', requireAuth, async (req, res) => {
   const { freeText } = req.body
+  if (!freeText) {
+    return res.status(400).json({ error: 'freeText is required' })
+  }
   const matchedTypes = await matchKeywords(freeText)
   res.json({ matchedTypes })
 })
