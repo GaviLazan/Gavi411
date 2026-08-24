@@ -14,11 +14,38 @@ accumulated. If something here turns out to matter long-term, promote it to
 
 ## Last updated
 
-2026-08-24 — G411-66, G411-16 (correction), and G411-72 all Reconciled
-this session; production deploy pipeline was actually broken and is now
-fixed and verified live. Decision #63 changed the PR review mechanism
-mid-session (Sibling review → self-merge, no outside approval needed).
+2026-08-24, later session — process/docs work only, no new code. All of
+G411-23/66/72/16 confirmed Reconciled (re-verified live via Jira, not
+assumed). Agentic-first shift got two real corrections: decision #63
+(tags stop gating who writes, self-merge is the real PR mechanism) and
+decision #65 (found and noted: the persistent-worktree/git-identity
+mechanism silently wasn't used for G411-66/72 — Repowise provenance for
+that window is a known gap, not retroactively fixed). `CLAUDE.md` and
+`gavi411-commit-convention.md` both substantially rewritten to match —
+read `CLAUDE.md`'s "Required workflow" section, it's new and load-bearing.
 See items below, newest first.
+
+## Next task — fresh session, unattended pilot #2
+
+**Pick up G411-67** (request list/home screen + `GET`/`PATCH` request
+routes) — highest-leverage of the three Open tickets below, unblocks
+messaging/admin/lifecycle work that's silently waiting on it. Full scope
+is in its Jira description; re-read it fresh at pickup per the staleness
+check in `CLAUDE.md`, don't assume this summary still matches.
+
+This is the **second unattended agentic-first ticket** (first was
+G411-66). Before launching:
+- Follow `gavi411-commit-convention.md`'s launch checklist properly this
+  time — spell out the persistent worktree path and `git-as-agent-*`
+  identity switch explicitly in the launch prompt, verify afterward via
+  `git log -1 --format="%an %ae"` on the resulting commit. This is the
+  step that silently didn't happen for G411-66 (decision #65).
+- The three checkpoints from `CLAUDE.md`'s Required workflow apply in
+  full: stop for a real decision mid-flight, give a real end-of-ticket
+  rundown (not just a diff), and don't auto-advance to G411-68/69 after
+  — report and wait for the go-ahead.
+- Sibling review before merge is mandatory regardless of how clean it
+  looks; self-merge only after it passes, no outside approval needed.
 
 ## Where things stand
 
@@ -116,9 +143,10 @@ See items below, newest first.
   not duplicated here. Two Low findings (E2, E3) are deliberately left
   open pending the planned agentic-first shift (item 6 below) rather than
   acted on now. Nothing left to pick up from this list on its own.
-- **G411-23 (request creation endpoint + credit deduction) — PR #4
-  merged, Jira still shows Reviewing, not yet walked to Landed/
-  Reconciled.** Scope grew mid-session: the backend endpoint Landed
+- **G411-23 (request creation endpoint + credit deduction) — Reconciled**
+  (walked Reviewing → Landed → Reconciled later the same day, with a
+  fresh evidence re-check, per Gavi's explicit go-ahead). Scope grew
+  mid-session: the backend endpoint Landed
   first, then `handleSubmit` (the frontend wiring that actually calls
   it) was folded into this same ticket per Gavi's call, since no other
   ticket owned it either (see brain.md decision #57 for the general
@@ -147,12 +175,11 @@ See items below, newest first.
   `APPROVED` immediately, no new review needed. **PR #4 merged**
   (squash, `adb3d8e`), branch deleted (remote and local), `main`
   fast-forwarded — `handleSubmit` wiring and the review-comment fixes
-  are now genuinely on `main`. Local `main` synced this session; a
-  fresh combined check (not re-running the individual pieces already
-  verified — transaction logic, race-condition fix, stripEmpty
-  scalar+array cases, migration, handleSubmit's Playwright check) is
-  still needed before walking Reviewing → Landed → Reconciled with
-  Gavi's go-ahead for the final step.
+  are now genuinely on `main`. The fresh combined check ran later the
+  same day (transaction logic, race-condition fix, stripEmpty
+  scalar+array cases, migration, handleSubmit's Playwright check, all
+  re-confirmed live) and the ticket walked Reviewing → Landed →
+  Reconciled with Gavi's explicit go-ahead — done, not outstanding.
   - `Request.typeDetails Json?` column (**decision #55**,
     `gavi411-brain.md`) added and migrated to live Neon this session,
     table confirmed empty first.
@@ -567,57 +594,44 @@ See items below, newest first.
 
 ## Open threads / nothing currently blocking
 
-**One open thread:**
-1. **G411-23's Jira status needs walking forward.** PR #4 is merged
-   (`adb3d8e`, `main` synced) — the code side is fully done. What's left
-   is process only: a fresh combined check, then Reviewing → Landed →
-   Reconciled with Gavi's explicit go-ahead for the final transition
-   (see "Where things stand" above for full detail). Not started yet
-   this session — do this first at next pickup.
+**Nothing blocking.** G411-23, G411-66, G411-72, G411-16 all confirmed
+Reconciled live in Jira this session (not assumed from a prior note).
+Gap-analysis followup done (see `gavi411-gap-analysis-followup.md`,
+E2/E3 Low deliberately left open, tied to the agentic-first shift).
 
-**Closed this session, no longer open:**
-- Gap-analysis followup — done, see `gavi411-gap-analysis-followup.md`
-  for the full per-finding record. E2/E3 (Low) deliberately left open,
-  tied to the agentic-first shift below — nothing else to pick up from
-  that list.
+**Known gap, not blocking, recorded**: `gavi411-brain.md` decision #65 —
+Repowise's per-role git-identity provenance wasn't actually fed for
+G411-66/G411-72 (built via GitHub PR, not the persistent worktree +
+`git-as-agent-*` switch this project's convention calls for). Not
+retroactively fixed; the launch checklist that should prevent a repeat
+is in `gavi411-commit-convention.md`, use it properly on the next launch.
 
-Also worth a heads-up at next pickup: Gavi's uncommitted parallel
-`DESIGN.md` edit from earlier this session was discarded by a
-`git reset --hard` used to fix a branching slip — check with him
-whether that needs redoing. Working tree clean otherwise.
+Also still outstanding from an earlier session: Gavi's uncommitted
+parallel `DESIGN.md` edit was discarded by a `git reset --hard` fixing a
+branching slip — check with him whether that still needs redoing, this
+has been carried forward a few sessions now without resolution.
 
 ## Next on the spine
 
-Foundation (G411-10–17), G411-18–22, G411-65 all Reconciled. **G411-23's
-code is done and merged** (PR #4, `adb3d8e`) — Jira just hasn't been
-walked forward to match yet (still shows Reviewing). `handleSubmit` in
-`NewRequest.jsx` **is** wired and live on `main`, including the
-post-review fixes (`res.ok` guard, `preventDefault`) — do not redo this
-or treat it as unstarted.
+Foundation (G411-10–17), G411-18–23, G411-65, G411-66, G411-16, G411-72
+all Reconciled. **G411-67 is next** — see "Next task" at the top of this
+file for full pickup instructions (it's the live agentic-first pilot #2).
 
-**Immediate next actions, in order:**
-1. **Finish G411-23's Jira process**: fresh combined check, then walk
-   Reviewing → Landed → Reconciled (Gavi's go-ahead needed for the
-   final step, per the hard-to-reverse rule). Nothing code-side left —
-   this is the one open thread carried into next session.
-2. **G411-66** (sign-in UI gate) — still flagged urgent once #1 clears;
-   it's the last piece blocking full authenticated E2E testing of
-   everything built so far.
-3. New tickets filed this session, not yet picked up: **G411-67**
-   (request list screen + GET/PATCH routes — high-leverage, unblocks
-   messaging/admin/lifecycle), **G411-68** (request-access homepage
-   form), **G411-69** (post-signup profile completion).
-4. Previously tracked, still deliberately deferred: G411-47 (overdraft
-   — mechanism now folded into its Description, not just a comment,
-   per gap-analysis finding F3), G411-63 (word-boundary matching),
-   G411-64 (visual/animation redesign).
-5. **Now unblocked**: shift back toward an agentic-first workflow
-   (multiple agents working in parallel on more of the backlog), per
-   Gavi's explicit instruction (recorded as **brain.md decision #60**)
-   — with two guardrails he wants kept: major decisions still come to
-   him before being acted on, and each completed chunk gets a clear,
-   documented rundown of what was done and how it works, not just a
-   diff. Was waiting on the gap-analysis followup being fully resolved
-   — that's done, so this can start whenever Gavi gives the word.
-   Mechanics (which agents, which tickets first) not yet decided.
+**After G411-67, in order:**
+1. **G411-68** (request-access homepage form) and **G411-69**
+   (post-signup profile completion, phone + photo) — both Open, both
+   real gaps found via the 2026-08-23 gap analysis, neither picked up
+   yet. Check for overlap with G411-41 at pickup (both tickets' own
+   descriptions flag this).
+2. Previously tracked, still deliberately deferred: G411-47 (overdraft
+   — mechanism folded into its Description per gap-analysis finding
+   F3), G411-63 (word-boundary matching), G411-64 (visual/animation
+   redesign).
+3. Agentic-first workflow itself is now live, not just decided — G411-66
+   was pilot #1 (Reconciled), G411-67 is pilot #2 (see "Next task"
+   above). Two guardrails still apply every ticket (decision #60,
+   restated as concrete checkpoints in `CLAUDE.md`'s Required
+   workflow): major decisions come to Gavi before being acted on, and
+   every completed chunk gets a real rundown — never auto-advance to
+   the next ticket without his go-ahead.
 
