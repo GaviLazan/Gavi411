@@ -33,7 +33,35 @@ just a deliverable.
 | `gavi411-jira-tree.md` | Snapshot of the actual G411 Jira Epic → Task structure with issue keys, generated after backlog population |
 | `gavi411-post-deadline-learning-backlog.md` | Agentic work Gavi wants to rebuild/study later — informational only, doesn't affect how you build now |
 
-## Ownership split — the single most important rule here
+## Ownership split — historical record, no longer gates pickup (changed 2026-08-24)
+
+**Read this box before the section below.** As of 2026-08-24 (decision
+#63, `gavi411-brain.md`), the project moved to an **agentic-first**
+plan: agents write tickets by default, full stop. The `[You]` /
+`[Collab]` / `[Agentic]` tags described below are **historical record**
+of how past work was actually done — they do **not** gate who picks up
+a ticket going forward. Do not check a ticket's tag to decide whether
+you're allowed to write it.
+
+The only exception is per-ticket and explicit: if Gavi says "I want to
+write this one myself" (e.g. to satisfy the course's per-component
+learning requirement), that specific ticket stays manual for that
+session — call it out when it happens, don't infer it from the tag.
+
+**What still applies unchanged**: the two guardrails from decision #60
+— major decisions still come to Gavi before being acted on, and every
+completed chunk gets a real documented rundown, not just a diff — plus
+the enforcement mechanism from decision #62/#63: every agentic child
+self-runs the "wrap it up" checklist below, *and* gets a live Sibling
+review before merge (self-merge once it passes — no outside approval
+required or expected, per decision #63's PR-review correction). The
+session-boundary rule also flips: agentic dispatch is now the normal
+case, so it's live manual pairing that should move to its own tab if it
+needs to coexist with agentic launches, not the reverse.
+
+The rest of this section (below) is kept as-is for historical
+accuracy — it explains what the tags *meant* when they were live rules,
+useful context for why a given ticket was built the way it was.
 
 Every task in `gavi411-task-list-draft.md` is tagged `[You]`, `[Agentic]`,
 or `[Collab]`. Check the tag before starting anything.

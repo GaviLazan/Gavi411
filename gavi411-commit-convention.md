@@ -107,14 +107,25 @@ confirmed by Gavi hitting this directly when 15/16/17 ran backgrounded
 during live G411-14 pairing.
 
 Rule, stated broadly (not just "don't background during pairing"):
-**`[Agentic]` subagent work is always kept in a separate session from
-`[You]`/`[Collab]` work.** Claude does not launch a background `[Agentic]`
-subagent inside a session that has any live `[You]`/`[Collab]` pairing
-happening — not just concurrently, at all, since the two threads'
-transcripts would still mix even if launched sequentially. Gavi opens a
-separate Claude Code tab/session for `[Agentic]` work and hands that
-session the task directly; the main/collab session stays dedicated to
-pairing. This is a session-boundary rule, not a timing rule.
+**agentic dispatch and live manual pairing are always kept in separate
+sessions.** The underlying reason still holds unchanged — a subagent's
+raw tool-call activity interleaved with unrelated live pairing makes a
+transcript unreadable, confirmed directly when 15/16/17 ran backgrounded
+during live G411-14 pairing. This is a session-boundary rule, not a
+timing rule: it's not enough to launch sequentially, since the
+transcripts still mix either way.
+
+**Which side is the default flipped 2026-08-24 (decision #63):**
+originally written as "`[Agentic]` work needs its own session, away from
+the normal `[You]`/`[Collab]` session" — because agentic dispatch was
+the occasional case back then. Now that agentic-first means agentic
+dispatch **is** the normal case, it's live manual pairing that's the
+occasional case needing to step out of the way: if Gavi wants to do
+manual `[You]`-style work in the middle of a session otherwise doing
+agentic dispatch, that pairing moves to its own tab, not the other way
+around. Don't background-launch agentic work inside a session that has
+live manual pairing history, same as before — just don't assume the
+current session defaults to being the pairing one anymore.
 
 **Parallel launches**: only run subagents side by side when their file
 scopes genuinely don't overlap and neither's output feeds the other's
@@ -161,11 +172,24 @@ Closes G411-14
 Falsifier: <copy the child issue's falsifier field>
 ```
 
-## PR review policy (decided 2026-08-18)
+## PR review policy (decided 2026-08-18, corrected 2026-08-24)
 
 Aegis §7.4 disqualifies an author as their own reviewer — but this is a solo
 project, so "who reviews" needs its own rule rather than assuming a teammate
 exists.
+
+**Correction (decision #63, `gavi411-brain.md`):** this section always meant
+Claude Code's own live Sibling review as the review mechanism — never an
+outside human's approval. But GitHub branch protection's "require 1 approving
+review" setting was layered on top, and that setting only counts an approval
+from a collaborator with **write** access (decision #61) — which meant an
+outside collaborator's approval became a real, sometimes-blocking dependency
+in practice, exactly the thing this section was trying to avoid needing.
+Since Gavi works solo, that dependency doesn't hold up. The actual mechanism
+now: **Sibling review passes → self-merge**, full stop, no outside approval
+required or waited on. `enforce_admins: false` on `main`'s branch protection
+already means Gavi's own merges bypass the GitHub-side approval requirement
+regardless — the discipline lives in this policy, not the GitHub setting.
 
 - **Routine children**: self-merge once the child's own Evidence bar is met
   (Falsifier checked against real landed state — Repro/Test/whatever was
@@ -186,10 +210,43 @@ exists.
   Gavi wasn't consulted before it landed, only caught it after seeing the
   live deploy. These children get Gavi's own eyes (screenshots, live
   deploy, whatever's fastest) before merge, not just a clean evidence bar.
-  Applies regardless of `[Agentic]`/`[Collab]`/`[You]` tag — the split is
-  about who *writes* it, not whether a subjective call still needs a human.
+  Applies regardless of who wrote the code — a subjective call always
+  needs Gavi's own eyes, whether the ticket was tagged `[Agentic]`,
+  `[Collab]`, or `[You]` back when that tag meant something (the tag is
+  historical record only as of decision #63 — see `CLAUDE.md`'s Ownership
+  split section).
 - Judgment call on "is this one load-bearing" or "subjective": ask rather
   than assume when a child isn't a clean fit either way.
+- **Every agentic child gets a live Sibling review before merge**
+  (decision #62/#63, `gavi411-brain.md`), not just the load-bearing/
+  subjective categories above — since agentic-first means nearly all
+  children are agentic now, this is effectively the default review path,
+  not a special case. Real-time backstop against a skipped step (tests,
+  docs, Aegis fields, Jira transition) in unattended agent work. The
+  review explicitly checks: tests exist and pass, `HANDOFF.md`/docs are
+  actually updated, Aegis fields are actually written, Jira is actually
+  transitioned — not just "does the diff look reasonable." This is in
+  addition to each agent self-running the 8-step "wrap it up" checklist
+  (`CLAUDE.md`) before reporting done; neither step alone is trusted to
+  catch a silently-dropped one. **Once it passes: self-merge** — no
+  outside human approval required or waited on (decision #63).
+- **Absence claims get independently reproduced, not taken on the
+  claimant's word (added 2026-08-23)**: any "couldn't verify / not
+  possible / blocked" claim — from an unattended agent's self-report or
+  from the sibling reviewer's own reasoning — is itself a claim, not a
+  fact, until someone actually tries to reproduce it. Caught on G411-66:
+  both the pilot agent and the sibling review declared "no real Clerk
+  credentials available" after checking for one exact filename
+  (`client/.env.local`) — a working key had existed in plain
+  `client/.env`/root `.env` since Aug 19, findable with one broad
+  `find . -iname ".env*"`. Applies beyond missing credentials — the same
+  shallow-check trap applies to "that dependency isn't installed," "the
+  API doesn't support X," "this can't be tested without live data," or
+  any other absence claim: before it ships into Jira/HANDOFF.md as
+  settled fact, the reviewer runs one cheap, broad check (not just the
+  one path/name the code comment happens to name) and, where feasible,
+  actually attempts the blocked action itself rather than reasoning
+  about why it's blocked.
 
 ## The one failure mode to know about
  
