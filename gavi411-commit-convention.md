@@ -230,6 +230,19 @@ regardless — the discipline lives in this policy, not the GitHub setting.
   (`CLAUDE.md`) before reporting done; neither step alone is trusted to
   catch a silently-dropped one. **Once it passes: self-merge** — no
   outside human approval required or waited on (decision #63).
+- **Branch cleanup is part of merging, not a separate step (added
+  2026-08-24)**: whenever Claude merges a PR — `gh pr merge` or a manual
+  squash — the now-merged branch gets deleted immediately, both on
+  GitHub and any local ref pointing at it, without being asked. Caught
+  live: PR #9/#10 got `--delete-branch` correctly, but earlier merges in
+  the same session left branches sitting on GitHub after merge; Gavi
+  deleted them himself and had to ask why Claude hadn't. `git branch -a`
+  / `git ls-remote` accumulating merged-but-undeleted branches is a
+  standing signal this step was skipped — check for that drift
+  periodically, don't just rely on remembering each time. Does not apply
+  to the persistent per-role agent worktree branches (`agent-backend@`,
+  etc.) — those are long-lived infrastructure, not per-PR branches, and
+  are never deleted as a side effect of a merge.
 - **Absence claims get independently reproduced, not taken on the
   claimant's word (added 2026-08-23)**: any "couldn't verify / not
   possible / blocked" claim — from an unattended agent's self-report or
