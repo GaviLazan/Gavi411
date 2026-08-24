@@ -114,24 +114,29 @@ function TravelFields({ value, onChange }) {
         </div>
       ))}
       <Button variant="secondary" onClick={addFlight}>
-        + Add another flight
+        {value.flights.length === 0 ? "+ Add flight details" : "+ Add another flight"}
       </Button>
 
-      <Input
-        label="Booking number"
-        placeholder="Optional"
-        value={value.bookingNumber}
-        onChange={(e) => set("bookingNumber", e.target.value)}
-        disabled={!value.bookingNumberConsent}
-      />
       <label className="consent-checkbox">
         <input
           type="checkbox"
           checked={value.bookingNumberConsent}
-          onChange={(e) => set("bookingNumberConsent", e.target.checked)}
+          onChange={(e) => {
+            const checked = e.target.checked;
+            // Unchecking means "don't share it" — clear any typed value so
+            // nothing lingers in state to accidentally submit.
+            onChange({ ...value, bookingNumberConsent: checked, bookingNumber: checked ? value.bookingNumber : "" });
+          }}
         />
-        I understand sharing my booking number gives Gavi access to this booking
+        Click here to share your booking number. You are aware that doing so may give Gavi access to this booking.
       </label>
+      {value.bookingNumberConsent && (
+        <Input
+          label="Booking number"
+          value={value.bookingNumber}
+          onChange={(e) => set("bookingNumber", e.target.value)}
+        />
+      )}
 
       <hr />
 

@@ -31,7 +31,6 @@ const triggers = [
   { keyword: 'research', requestType: 'RESEARCH' },
   { keyword: 'look up', requestType: 'RESEARCH' },
   { keyword: 'find', requestType: 'RESEARCH' },
-  { keyword: 'get', requestType: 'RESEARCH' },
 
   { keyword: 'buy', requestType: 'PURCHASE' },
   { keyword: 'order', requestType: 'PURCHASE' },
@@ -72,8 +71,10 @@ const triggers = [
 // else matches, not something meant to be typed into.
 
 async function main() {
-  await prisma.trigger.createMany({ data: triggers })
-  console.log(`Seeded ${triggers.length} triggers.`)
+  // skipDuplicates relies on the @@unique([keyword, requestType]) constraint
+  // (added 2026-08-24) so reruns don't double-insert rows.
+  const { count } = await prisma.trigger.createMany({ data: triggers, skipDuplicates: true })
+  console.log(`Seeded ${count} new triggers (${triggers.length - count} already existed).`)
 }
 
 main()

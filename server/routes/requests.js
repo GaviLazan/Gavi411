@@ -33,7 +33,10 @@ function stripEmpty(details) {
 
 // POST /match — keyword-match free text against the Trigger table
 // (G411-19). Called once from the intake form's Continue action.
-router.post('/match', async (req, res) => {
+// requireAuth added 2026-08-24 (real gap found in a live-state review) —
+// was reachable unauthenticated; App.jsx already gates the intake form
+// behind sign-in (G411-66), this is the backend backstop for the same rule.
+router.post('/match', requireAuth, async (req, res) => {
   const { freeText } = req.body
   const matchedTypes = await matchKeywords(freeText)
   res.json({ matchedTypes })
