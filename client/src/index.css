@@ -105,6 +105,7 @@
 }
 
 :root[data-theme="dark"] {
+  color-scheme: dark;
   --text: #b3b0aa;
   --text-h: #f5f4f0;
   --bg: #17181a;
@@ -125,6 +126,13 @@
 
 :root[data-theme="dark"] #social .button-icon {
   filter: invert(1) brightness(2);
+}
+
+/* Explicit light override: base :root already carries the light token
+   values (unconditionally), so only color-scheme needs forcing here to
+   stop native form controls/scrollbars from following a dark OS pref. */
+:root[data-theme="light"] {
+  color-scheme: light;
 }
 
 body {
