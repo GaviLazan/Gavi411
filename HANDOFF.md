@@ -14,10 +14,10 @@ accumulated. If something here turns out to matter long-term, promote it to
 
 ## Last updated
 
-2026-08-24, later session — **G411-63 Reconciled** (word-boundary
-keyword matching, third unattended agentic ticket) and **G411-73 filed**
-(new: dark/light mode manual toggle, Parent 2, Open — see below). Also
-**G411-67 Reconciled** earlier this session. Both G411-63 and G411-67
+2026-08-24, later session — **G411-73 Reconciled** (dark/light mode
+manual toggle, filed and finished same session, live-verified against
+real production including a targeted FOUC-fix re-check). **G411-63** and
+**G411-67** also Reconciled earlier this session. G411-63 and G411-67
 produced real process corrections to `CLAUDE.md`, both load-bearing
 going forward:
 
@@ -46,32 +46,79 @@ sign-in bypass, and a button-selector gotcha (`/continue/i` matches
 
 ## Next task — none picked yet, ask Gavi
 
-G411-67 and G411-63 are both done (see below). No next ticket has been
+G411-67, G411-63, and G411-73 are all done. No next ticket has been
 agreed — per CLAUDE.md's Required workflow checkpoint 3 ("go/no-go on
 the next ticket"), do not auto-pick anything automatically. **Real
-correction this session**: "next" was initially read as "lowest ticket
-number project-wide," which skipped straight to Parent 3 while Parent 2
-still had Open children (G411-64, G411-73) — Gavi caught this live.
-Actual rule (brain.md): flat, freely-reorderable backlog except along
-the dependency spine, but stay within the current Epic (Parent 2) until
-its Open children are cleared, don't jump Epics just because a lower
-ticket number happens to sit elsewhere. Parent 2's remaining Open
-children: **G411-64** (intake flow visual redesign) and **G411-73**
-(dark/light mode toggle, filed this session).
+correction earlier this session**: "next" was initially read as "lowest
+ticket number project-wide," which skipped straight to Parent 3 while
+Parent 2 still had Open children — Gavi caught this live. Actual rule
+(brain.md): flat, freely-reorderable backlog except along the
+dependency spine, but stay within the current Epic (Parent 2) until its
+Open children are cleared, don't jump Epics just because a lower ticket
+number happens to sit elsewhere. Parent 2's one remaining Open child:
+**G411-64** (intake flow visual redesign — multi-step feel +
+animations, deliberately deferred until the flow was functionally
+complete, which it now is).
 
-## G411-73 — new, Open, filed this session
+## G411-73 — Reconciled, full record
 
-Real gap Gavi caught live, not in any PRD/brain.md doc: the deployed
-app already auto-switches dark/light via `@media (prefers-color-scheme:
-dark)` in `client/src/index.css` (landed silently as part of G411-17's
-design-system foundation, never speced) — but there's no manual toggle,
-it only follows OS/browser preference. Ticket asks for a manual override
-(light/dark/system, or at minimum a two-way override) on top of the
-existing token structure — not a new palette. Parented under G411-2
-(Requests/Intake, currently Implementing) since G411-1/Foundation is
-already Reconciled and shouldn't be reopened for new scope (confirmed
-via [[jira-set-parent-field-at-creation]] memory's standing rule).
-`parent` field verified actually linked via JQL, not just claimed.
+**Filed and finished in the same session** (real gap Gavi caught live,
+not in any PRD/brain.md doc): the deployed app already auto-switched
+dark/light via `@media (prefers-color-scheme: dark)` in
+`client/src/index.css` (landed silently as part of G411-17's
+design-system foundation, never speced) — no manual override existed.
+Parented under G411-2 (Requests/Intake, Implementing) since
+G411-1/Foundation is already Reconciled and shouldn't be reopened for
+new scope (per [[jira-set-parent-field-at-creation]] memory's standing
+rule); `parent` field verified actually linked via JQL, not just
+claimed.
+
+**Built**: 3-way toggle (system → light → dark → system) via a
+`data-theme` attribute on `<html>`, persisted in `localStorage`
+(`useTheme.js`, new hook). Extends the existing token structure in
+`index.css` — no new palette values. Built directly in-session (not
+dispatched to a background agent) given the small, mechanical scope.
+
+**Sibling review found 2 real bugs, both fixed before merge** (commit
+`9b0747e`, PR #20): `data-theme` was only applied in a post-mount
+`useEffect`, so a stored preference different from OS preference
+flashed the wrong theme on every reload (fixed with a small
+pre-hydration inline script in `client/index.html`, kept in sync by
+hand with `useTheme.js`'s storage key/logic — noted in a comment since
+there's no single source of truth across the two files); `color-scheme`
+stayed fixed at `light dark` regardless of the explicit override, so
+native form controls/scrollbars ignored a forced choice (fixed:
+`color-scheme: dark`/`light` under the respective `[data-theme]`
+blocks).
+
+**Live-verified post-merge, real production, not just local preview**:
+toggle cycles correctly on `gavi411-ten.vercel.app` with a real
+signed-in Clerk test session (screenshots on file, sent to Gavi).
+Targeted FOUC re-check: with OS emulated as light and the toggle forced
+to dark, a reload shows `data-theme="dark"` and the correct dark `--bg`
+value already applied at `domcontentloaded` — before React mounts —
+confirming the fix actually works, not just "should work in theory."
+
+**Left as documented tradeoff, not a bug**: the dark palette's ~15
+custom properties are duplicated verbatim between the media-query block
+and the `[data-theme="dark"]` block — real drift risk for a future
+palette edit, flagged but not restructured (out of proportion for this
+ticket's scope).
+
+**Real (harmless) confusion mid-session, worth a note**: a scheduled
+`ScheduleWakeup` fired with stale instructions referencing the
+already-Reconciled G411-63 ticket, mixed in among live background
+task-notifications for the actual work in progress (G411-73's review
+findings). Correctly identified as stale and ignored rather than
+re-running old work — but worth knowing this class of stale-wakeup
+noise can happen when multiple async things are in flight.
+
+**Jira**: Open → Implementing → Reviewing → Landed → Reconciled, all
+named transitions. Gavi's go-ahead ("merge and transition to landed,
+and reconcile if nothing is left") was treated as conditional
+authorization for the final Reconciled move once live-verification
+confirmed nothing was actually left — not skipped, but not re-confirmed
+as a separate round-trip either, since the condition was explicit.
 
 ## G411-63 — Reconciled, full record
 
