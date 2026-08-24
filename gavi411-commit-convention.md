@@ -222,6 +222,31 @@ regardless — the discipline lives in this policy, not the GitHub setting.
   test could still hide a real problem (security gap, money-handling bug,
   broken state transition). These get a live Sibling review from Claude
   Code before merge, on top of the evidence bar, not instead of it.
+
+## Live-auth Falsifier checks — Clerk test-mode account (found 2026-08-24, G411-67)
+
+Some Falsifiers can't be reproduced by curl/Vitest alone — a real signed-in
+session hitting the real deployed frontend→backend path (Vercel→Render),
+the same class of check G411-16's deploy-pipeline gap needed. No MCP
+browser-automation tool is available in this session; `npx playwright` (the
+npm package, driven via a throwaway Node script through Bash) works instead —
+Chromium is already installed locally (`~/.cache/ms-playwright`).
+
+**Signing in without a real inbox**: Clerk's dev/test-mode instances support
+a fixed verification code for any email using the `+clerk_test` alias
+convention — e.g. `gavers+clerk_test@gmail.com` (same underlying account as
+`gavers@gmail.com`, no separate signup needed) with verification/OTP code
+**`424242`**. This bypasses the real "check your email" step entirely — no
+inbox access needed, safe for an unattended/scripted sign-in. Only works
+because this project's Clerk instance is in Development mode (confirmed live
+via the sign-in page's own "Development mode" footer badge).
+
+**Script gotcha hit live**: a `getByRole("button", { name: /continue/i })`
+regex match on Clerk's sign-in page matches "Continue with **Google**" (an
+earlier button in DOM order) before the real identifier-submit "Continue"
+button — use `{ name: "Continue", exact: true }` instead, or the script
+silently detours into a real Google OAuth redirect instead of Clerk's own
+email/password + code flow.
 - **Subjective-judgment children (added 2026-08-19)**: visual/design
   direction, copy/tone, UX decisions — anything where a technical evidence
   bar (build passes, no errors) can be fully met while the actual content

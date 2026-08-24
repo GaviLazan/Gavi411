@@ -14,38 +14,160 @@ accumulated. If something here turns out to matter long-term, promote it to
 
 ## Last updated
 
-2026-08-24, later session — process/docs work only, no new code. All of
-G411-23/66/72/16 confirmed Reconciled (re-verified live via Jira, not
-assumed). Agentic-first shift got two real corrections: decision #63
-(tags stop gating who writes, self-merge is the real PR mechanism) and
-decision #65 (found and noted: the persistent-worktree/git-identity
-mechanism silently wasn't used for G411-66/72 — Repowise provenance for
-that window is a known gap, not retroactively fixed). `CLAUDE.md` and
-`gavi411-commit-convention.md` both substantially rewritten to match —
-read `CLAUDE.md`'s "Required workflow" section, it's new and load-bearing.
-See items below, newest first.
+2026-08-24, later session — **G411-63 Reconciled** (word-boundary
+keyword matching, third unattended agentic ticket) and **G411-73 filed**
+(new: dark/light mode manual toggle, Parent 2, Open — see below). Also
+**G411-67 Reconciled** earlier this session. Both G411-63 and G411-67
+produced real process corrections to `CLAUDE.md`, both load-bearing
+going forward:
 
-## Next task — fresh session, unattended pilot #2
+- **The "how to stop" rule** (Required workflow, checkpoint 3): a
+  question buried mid-paragraph while tool calls keep running isn't a
+  real stop — by the time it's answered, work has already run past it.
+  Caught live: the build agent hit a genuine spec ambiguity ("what
+  counts as 'closed'?"), picked a reading itself, and only documented
+  it in the PR/Jira for later review; Gavi answered correctly once he
+  spotted it buried in a long turn, but the code was already written.
+  Fix logged in CLAUDE.md: use `AskUserQuestion` (real blocking pause,
+  no further tool calls on that thread) for genuine ambiguity, every
+  time — not a note-and-continue. Applies to unattended subagents too
+  (hand the question back to the orchestrating session, don't resolve
+  it solo).
+- **decision #66** (`[You]`/`[Agentic]` tags are historical/inert,
+  don't re-ask) — already recorded last handoff, unchanged.
 
-**Pick up G411-67** (request list/home screen + `GET`/`PATCH` request
-routes) — highest-leverage of the three Open tickets below, unblocks
-messaging/admin/lifecycle work that's silently waiting on it. Full scope
-is in its Jira description; re-read it fresh at pickup per the staleness
-check in `CLAUDE.md`, don't assume this summary still matches.
+`gavi411-commit-convention.md` also gained a new section: how to run a
+**live authenticated Falsifier check** against the real deployed app
+(Vercel→Render) when curl/Vitest alone can't reproduce it — `npx
+playwright` driven via a throwaway Node script (no MCP browser tool
+available in this session), Clerk's `+clerk_test`/`424242` dev-mode
+sign-in bypass, and a button-selector gotcha (`/continue/i` matches
+"Continue with Google" before the real submit button).
 
-This is the **second unattended agentic-first ticket** (first was
-G411-66). Before launching:
-- Follow `gavi411-commit-convention.md`'s launch checklist properly this
-  time — spell out the persistent worktree path and `git-as-agent-*`
-  identity switch explicitly in the launch prompt, verify afterward via
-  `git log -1 --format="%an %ae"` on the resulting commit. This is the
-  step that silently didn't happen for G411-66 (decision #65).
-- The three checkpoints from `CLAUDE.md`'s Required workflow apply in
-  full: stop for a real decision mid-flight, give a real end-of-ticket
-  rundown (not just a diff), and don't auto-advance to G411-68/69 after
-  — report and wait for the go-ahead.
-- Sibling review before merge is mandatory regardless of how clean it
-  looks; self-merge only after it passes, no outside approval needed.
+## Next task — none picked yet, ask Gavi
+
+G411-67 and G411-63 are both done (see below). No next ticket has been
+agreed — per CLAUDE.md's Required workflow checkpoint 3 ("go/no-go on
+the next ticket"), do not auto-pick anything automatically. **Real
+correction this session**: "next" was initially read as "lowest ticket
+number project-wide," which skipped straight to Parent 3 while Parent 2
+still had Open children (G411-64, G411-73) — Gavi caught this live.
+Actual rule (brain.md): flat, freely-reorderable backlog except along
+the dependency spine, but stay within the current Epic (Parent 2) until
+its Open children are cleared, don't jump Epics just because a lower
+ticket number happens to sit elsewhere. Parent 2's remaining Open
+children: **G411-64** (intake flow visual redesign) and **G411-73**
+(dark/light mode toggle, filed this session).
+
+## G411-73 — new, Open, filed this session
+
+Real gap Gavi caught live, not in any PRD/brain.md doc: the deployed
+app already auto-switches dark/light via `@media (prefers-color-scheme:
+dark)` in `client/src/index.css` (landed silently as part of G411-17's
+design-system foundation, never speced) — but there's no manual toggle,
+it only follows OS/browser preference. Ticket asks for a manual override
+(light/dark/system, or at minimum a two-way override) on top of the
+existing token structure — not a new palette. Parented under G411-2
+(Requests/Intake, currently Implementing) since G411-1/Foundation is
+already Reconciled and shouldn't be reopened for new scope (confirmed
+via [[jira-set-parent-field-at-creation]] memory's standing rule).
+`parent` field verified actually linked via JQL, not just claimed.
+
+## G411-63 — Reconciled, full record
+
+**Scope**: `server/lib/matchKeywords.js` did a raw case-insensitive
+substring check, causing false positives (ticket's example: `"light"`
+inside `"flights"`; real seed-data equivalents found and tested:
+`"get"` inside `"forgot"`/`"budget"`, `"mac"` inside `"machine"`). Fixed
+with Unicode-property lookaround boundaries (`(?<![\p{L}\p{N}])...
+(?![\p{L}\p{N}])`), not `\b`/`\w` — verified `\b` is ASCII-only and
+doesn't treat Hebrew letters as word characters, which would've broken
+bidi text handling. Also correctly handles multi-word keyword phrases
+from real seed data (`"go to"`, `"rental car"`, `"where to buy"`).
+
+**Sibling review found 1 real bug**, fixed before merge (commit
+`1ebc0dc`, same PR #19): removing the old `.toLowerCase()` call as part
+of the fix silently changed `POST /match`'s behavior on missing
+`freeText` — used to throw (500), now would silently 200 with
+`matchedTypes: []`, masking a client bug. Fixed: added the same
+`!freeText` guard its sibling route (`POST /`) already has; added test
+coverage for `POST /match` (had none before, even pre-fix).
+
+**Live-verified post-merge, real seed data, not the ticket's
+hypothetical example**: 4/4 real cases against production
+(`gavi411-ten.vercel.app` → Render, real signed-in Clerk test session)
+— `"forgot"` no longer false-matches PURCHASE, `"machine"` no longer
+false-matches TECH_SUPPORT, two real positive-match controls both
+correct. Unauthenticated `POST /match` re-confirmed 401 on both the
+direct Render URL and via the Vercel rewrite.
+
+**Tests**: 28/28 (25 pre-existing + 3 new).
+
+**Jira**: Open → Implementing → Reviewing → Landed → Reconciled, all
+named transitions, Aegis fields written at pickup + closure comment
+with live evidence before Reconciling.
+
+## G411-67 — Reconciled, full record
+
+**Scope**: request list/home screen (open requests, closed toggle,
+most-recent-closed fallback, "New request" CTA) + `GET /api/requests`
+(list, self/all-if-admin) + `GET /api/requests/:id` (request + real
+`Message` thread — the model already existed in schema, contrary to the
+ticket's own hedge) + `PATCH /api/requests/:id` (status/urgency route
+shell only, no lifecycle rules — that's G411-30..36's job) + wiring the
+orphaned `install-ios.md` page. Built by `agent-backend` role,
+`agent-backend/G411-67-request-list` branch, PR #18.
+
+**"Closed" definition, confirmed final by Gavi**: `CLOSED` + `CANCELLED`
++ `SELF_SOLVED`, all three group as "closed" for the toggle. This should
+be treated as the working definition for future lifecycle work
+(G411-30..36) unless explicitly revisited.
+
+**Sibling review found 2 real bugs, both fixed before merge** (commit
+`0fdb555`, same PR):
+- Closed-requests toggle was gated on `!allClosed`, so a friend whose
+  requests were *all* closed could only ever see `closedRequests[0]`
+  with no way to reach the rest of their closed history. Fixed: toggle
+  now renders whenever any closed requests exist; the "most recent"
+  single-card fallback hides once expanded to avoid showing the same
+  card twice.
+- Error-state "Try again?" button was wired to `onNewRequest` (navigate
+  away) instead of retrying the failed fetch. Fixed: retry button now
+  re-runs the fetch via a `retryToken` state bump.
+
+**Live-verified post-merge, not just code-inspected** (this was flagged
+as a real risk since G411-16 was this same class of gap once before —
+claimed-working cross-origin auth that was never actually hit):
+unauthenticated `GET /api/requests` → 401 (curl); authenticated request
+as a real signed-in user (Clerk `+clerk_test` test account) → 200, zero
+console errors, correct empty-state render, screenshot on file. Real
+production, Vercel→Render, not mocked.
+
+**Left as lower-priority, non-blocking, for later tickets** (real, not
+imaginary — noted for whoever picks up G411-30..36 or does a cleanup
+pass): the owner-or-admin check and id-parsing are duplicated across
+`GET /:id`/`PATCH /:id` instead of a shared helper (`server/middleware/
+auth.js` already exists as a natural home); `CLOSED_STATUSES` in
+`RequestList.jsx` hardcodes a frontend copy of backend lifecycle
+knowledge, self-flagged in its own code comment as provisional;
+`Request.updatedAt` has no `@updatedAt` directive, so `PATCH` silently
+never bumps it (latent bug for future status-sorting UI); the
+`role === 'ADMIN'` branch in `GET /` is currently dead code — nothing
+anywhere sets a user's role to ADMIN yet.
+
+**Jira**: transitioned Open → Implementing → Reviewing → Landed →
+Reconciled, all via named transitions, Aegis Claim/Falsifier/Evidence
+written at pickup and updated with live post-merge re-verification
+before Reconciling. Parent 2 (Requests/Intake) correctly stayed at
+Implementing (has other Open children: G411-63, G411-64) — note: G411-67
+isn't linked as a formal Jira child of G411-2 (referenced textually as
+"Parent 2" in its description only), worth fixing for hygiene sometime,
+not urgent.
+
+**Not yet done / worth knowing**: no admin-role-assignment mechanism
+exists anywhere yet, so `GET /`'s admin branch can't currently be
+exercised by a real user — whoever builds admin tooling (G411-37+)
+needs this.
 
 ## Where things stand
 
