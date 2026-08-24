@@ -128,7 +128,7 @@ function TravelFields({ value, onChange }) {
             onChange({ ...value, bookingNumberConsent: checked, bookingNumber: checked ? value.bookingNumber : "" });
           }}
         />
-        I'd like to share my booking number (this gives Gavi access to this booking)
+        Click here to share your booking number. You are aware that doing so may give Gavi access to this booking.
       </label>
       {value.bookingNumberConsent && (
         <Input
