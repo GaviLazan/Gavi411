@@ -47,6 +47,15 @@
         "value": "13px",
         "createdAt": "2026-08-25T15:14:18.277Z",
         "reason": "user confirmed: Gavi explicitly asked for review-help caption text to be smaller than the type ramp's normal steps"
+      },
+      {
+        "rule": "layout-transition",
+        "value": "max-height",
+        "files": [
+          "client/src/App.css"
+        ],
+        "createdAt": "2026-08-25T16:47:42.493Z",
+        "reason": "deliberate: max-height is the standard CSS-only technique for animating unknown/variable-height content (open-request card count varies per friend); grid-template-rows 0fr/1fr would avoid the layout-thrash cost but wasn't evaluated live here given G411-64's history of cross-browser animation surprises on this project — revisit if perf becomes a real issue"
       }
     ]
   }
