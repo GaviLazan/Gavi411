@@ -4,20 +4,19 @@ import Select from "./Select";
 import Button from "./Button";
 import "./TravelFields.css";
 
-// TRAVEL-specific follow-up fields (G411-65, regrouped G411-74). All
-// optional — these are prompts to jog memory for info the friend might
-// not think to give upfront, not a required intake gate. No group
-// headers, just visual separators (Gavi's call) — grouped internally in
-// this file for readability, not shown to the user as labeled sections.
+// TRAVEL-specific follow-up fields (G411-65, regrouped G411-74, split
+// into per-card components G411-64). All optional — these are prompts
+// to jog memory for info the friend might not think to give upfront,
+// not a required intake gate.
 //
-// G411-74 regroup (Gavi's mockup, session 2026-08-25): urgency moves in
-// front (bundled with the "what happened" group, first thing the friend
-// sees after picking TRAVEL); dates/destination split from
-// airline/layover preferences (a "decision" vs. a "preference", split
-// regardless of screen fit — Gavi's explicit call); rental car and
-// hotel split into two independent objects (used to be one merged
-// group) and, along with flights, each now sits behind its own
-// "+ Add [X] details" toggle instead of always being shown.
+// G411-64: TRAVEL is the one type whose followup spans multiple sliding
+// cards (per Gavi's mockup) instead of one — so this file now exports 4
+// field-group components instead of a single combined one. Each shares
+// the same `value`/`onChange` contract (the full TravelDetails object) —
+// NewRequest.jsx decides which one renders per step, this file doesn't
+// know about steps at all. Dates+destination and preferences were
+// checked live at real phone height (G411-64 pickup) and don't fit one
+// screen combined, so they stay 2 separate cards, matching the mockup.
 
 // Starting shape for `value` below — exported so NewRequest.jsx can
 // seed its useState without duplicating TRAVEL's field list itself.
@@ -42,10 +41,105 @@ export const EMPTY_TRAVEL_DETAILS = {
 const EMPTY_HOTEL = { date: "", location: "", company: "", ref: "" };
 const EMPTY_CAR = { date: "", location: "", company: "", ref: "" };
 
-// Urgency is owned by NewRequest.jsx (shared across every type) — passed
-// in as props here purely so it can render inside TRAVEL's first group
-// rather than only at the very end.
-function TravelFields({ value, onChange, urgency, onUrgencyChange, urgencyOptions }) {
+// Card 1: urgency-first. Urgency is owned by NewRequest.jsx (shared
+// across every type) — passed in as props so it renders inline here.
+export function TravelUrgencyCard({ value, onChange, urgency, onUrgencyChange, urgencyOptions }) {
+  function set(field, fieldValue) {
+    onChange({ ...value, [field]: fieldValue });
+  }
+
+  return (
+    <>
+      <Input
+        label="What happened?"
+        value={value.whatHappened}
+        onChange={(e) => set("whatHappened", e.target.value)}
+      />
+      <Input
+        label="Who have you already contacted about it, if anyone?"
+        value={value.whoContacted}
+        onChange={(e) => set("whoContacted", e.target.value)}
+      />
+      <Input
+        label="Any connecting flights you need to make, and how flexible is your arrival time?"
+        value={value.connectionFlexibility}
+        onChange={(e) => set("connectionFlexibility", e.target.value)}
+      />
+      <Select
+        label="Urgency"
+        options={urgencyOptions}
+        value={urgency}
+        onChange={(e) => onUrgencyChange(e.target.value)}
+      />
+    </>
+  );
+}
+
+// Card 2: dates/destination (a "decision", per Gavi).
+export function TravelDatesCard({ value, onChange }) {
+  function set(field, fieldValue) {
+    onChange({ ...value, [field]: fieldValue });
+  }
+
+  return (
+    <>
+      <Input
+        label="Departure date"
+        type="date"
+        value={value.departureDate}
+        onChange={(e) => set("departureDate", e.target.value)}
+      />
+      <Input
+        label="Return date"
+        type="date"
+        value={value.returnDate}
+        onChange={(e) => set("returnDate", e.target.value)}
+      />
+      <Input
+        label="Origin"
+        value={value.origin}
+        onChange={(e) => set("origin", e.target.value)}
+      />
+      <Input
+        label="Destination"
+        value={value.destination}
+        onChange={(e) => set("destination", e.target.value)}
+      />
+    </>
+  );
+}
+
+// Card 3: airline/layover preferences (a "preference", per Gavi).
+export function TravelPreferencesCard({ value, onChange }) {
+  function set(field, fieldValue) {
+    onChange({ ...value, [field]: fieldValue });
+  }
+
+  return (
+    <>
+      <Input
+        label="Preferred airline(s)"
+        value={value.preferredAirlines}
+        onChange={(e) => set("preferredAirlines", e.target.value)}
+      />
+      <Input
+        label="Layover preference"
+        placeholder="e.g. nonstop only, one layover OK"
+        value={value.layoverPreference}
+        onChange={(e) => set("layoverPreference", e.target.value)}
+      />
+      <Input
+        label="Any other constraints or preferences?"
+        placeholder="e.g. aisle seat, budget cap, specific loyalty program"
+        value={value.otherPreferences}
+        onChange={(e) => set("otherPreferences", e.target.value)}
+      />
+    </>
+  );
+}
+
+// Card 4: flight/hotel/car — three independent optional add-panels.
+export function TravelBookingsCard({ value, onChange }) {
   const [showHotel, setShowHotel] = useState(!!value.hotel);
   const [showCar, setShowCar] = useState(!!value.car);
 
@@ -62,6 +156,10 @@ function TravelFields({ value, onChange, urgency, onUrgencyChange, urgencyOption
       i === index ? { ...f, [field]: fieldValue } : f
     );
     set("flights", flights);
+  }
+
+  function removeFlight(index) {
+    set("flights", value.flights.filter((_, i) => i !== index));
   }
 
   function toggleHotel() {
@@ -93,76 +191,7 @@ function TravelFields({ value, onChange, urgency, onUrgencyChange, urgencyOption
   }
 
   return (
-    <>
-      <Input
-        label="What happened?"
-        value={value.whatHappened}
-        onChange={(e) => set("whatHappened", e.target.value)}
-      />
-      <Input
-        label="Who have you already contacted about it, if anyone?"
-        value={value.whoContacted}
-        onChange={(e) => set("whoContacted", e.target.value)}
-      />
-      <Input
-        label="Any connecting flights you need to make, and how flexible is your arrival time?"
-        value={value.connectionFlexibility}
-        onChange={(e) => set("connectionFlexibility", e.target.value)}
-      />
-      <Select
-        label="Urgency"
-        options={urgencyOptions}
-        value={urgency}
-        onChange={(e) => onUrgencyChange(e.target.value)}
-      />
-
-      <hr />
-
-      <Input
-        label="Departure date"
-        type="date"
-        value={value.departureDate}
-        onChange={(e) => set("departureDate", e.target.value)}
-      />
-      <Input
-        label="Return date"
-        type="date"
-        value={value.returnDate}
-        onChange={(e) => set("returnDate", e.target.value)}
-      />
-      <Input
-        label="Origin"
-        value={value.origin}
-        onChange={(e) => set("origin", e.target.value)}
-      />
-      <Input
-        label="Destination"
-        value={value.destination}
-        onChange={(e) => set("destination", e.target.value)}
-      />
-
-      <hr />
-
-      <Input
-        label="Preferred airline(s)"
-        value={value.preferredAirlines}
-        onChange={(e) => set("preferredAirlines", e.target.value)}
-      />
-      <Input
-        label="Layover preference"
-        placeholder="e.g. nonstop only, one layover OK"
-        value={value.layoverPreference}
-        onChange={(e) => set("layoverPreference", e.target.value)}
-      />
-      <Input
-        label="Any other constraints or preferences?"
-        placeholder="e.g. aisle seat, budget cap, specific loyalty program"
-        value={value.otherPreferences}
-        onChange={(e) => set("otherPreferences", e.target.value)}
-      />
-
-      <hr />
-
+    <div className="bookings-card">
       {value.flights.map((flight, i) => (
         <div key={i} className="flight-entry">
           <Input
@@ -181,6 +210,9 @@ function TravelFields({ value, onChange, urgency, onUrgencyChange, urgencyOption
             value={flight.dateTime}
             onChange={(e) => updateFlight(i, "dateTime", e.target.value)}
           />
+          <Button variant="secondary" onClick={() => removeFlight(i)}>
+            − Remove flight
+          </Button>
         </div>
       ))}
       <Button variant="secondary" onClick={addFlight}>
@@ -198,7 +230,8 @@ function TravelFields({ value, onChange, urgency, onUrgencyChange, urgencyOption
             onChange({ ...value, bookingNumberConsent: checked, bookingNumber: checked ? value.bookingNumber : "" });
           }}
         />
-        Click here to share your booking number. You are aware that doing so may give Gavi access to this booking.
+        Click here to share your booking number.<br />
+        You are aware that doing so may give Gavi access to this booking.
       </label>
       {value.bookingNumberConsent && (
         <Input
@@ -207,9 +240,6 @@ function TravelFields({ value, onChange, urgency, onUrgencyChange, urgencyOption
           onChange={(e) => set("bookingNumber", e.target.value)}
         />
       )}
-
-      <hr />
-
       <Button variant="secondary" onClick={toggleHotel}>
         {showHotel ? "− Remove hotel details" : "+ Add hotel details"}
       </Button>
@@ -265,8 +295,6 @@ function TravelFields({ value, onChange, urgency, onUrgencyChange, urgencyOption
           />
         </div>
       )}
-    </>
+    </div>
   );
 }
-
-export default TravelFields;

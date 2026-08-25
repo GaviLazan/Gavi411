@@ -14,3 +14,15 @@
   font-size: 14px;
   color: var(--text);
 }
+
+/* Card 4 (bookings) has no heading — its first control sits directly
+   under the card's absolutely-positioned "x" (App.css/.exit-flow) with
+   nothing pushing it down, unlike every other field card (which opens
+   with an <Input label> or <h2>). Reserves the same top-right space. */
+.bookings-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding-top: var(--space-6);
+}
+

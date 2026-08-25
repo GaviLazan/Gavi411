@@ -35,3 +35,28 @@
 .btn-secondary:hover:not(:disabled) {
   background: var(--accent-bg);
 }
+
+/* Intake flow only (G411-64): Submit in green, Back in purple — Gavi's
+   call, using the --accent-2/--accent-3 tokens that already existed in
+   the palette but had no real use yet. */
+.btn-success {
+  background: var(--accent-2);
+  color: var(--surface);
+}
+
+.btn-success:hover:not(:disabled) {
+  background: var(--accent-2-strong);
+}
+
+.btn-purple {
+  background: transparent;
+  color: var(--accent-3);
+  border-color: var(--accent-3);
+}
+
+.btn-purple:hover:not(:disabled) {
+  /* No --accent-3-bg token exists yet — color-mix stays correct in both
+     themes without hardcoding a literal that would be wrong in dark
+     mode (accent-3 itself changes between light/dark). */
+  background: color-mix(in srgb, var(--accent-3) 12%, transparent);
+}

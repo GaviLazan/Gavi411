@@ -8,6 +8,7 @@ function DisambiguationChips({
   allTypes,
   typeLabels,
   showFullTypeList,
+  pickedType,
   onSelect,
   onNoneOfThese,
 }) {
@@ -16,7 +17,7 @@ function DisambiguationChips({
   return (
     <div className="chip-row">
       {types.map((type) => (
-        <Chip key={type} onClick={() => onSelect(type)}>
+        <Chip key={type} selected={type === pickedType} onClick={() => onSelect(type)}>
           {typeLabels[type]}
         </Chip>
       ))}

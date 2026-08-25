@@ -26,6 +26,27 @@
         "value": "#b3261e",
         "createdAt": "2026-08-23T10:03:38.765Z",
         "reason": "user confirmed: red is fine for the error state for now, no design-system token needed yet"
+      },
+      {
+        "rule": "design-system-font-size",
+        "value": "22px",
+        "files": [
+          "client/src/pages/NewRequest.css"
+        ],
+        "createdAt": "2026-08-25T13:09:18.406Z",
+        "reason": "close-icon glyph size, not body text on the type ramp"
+      },
+      {
+        "rule": "design-system-font-size",
+        "value": "36px",
+        "createdAt": "2026-08-25T14:45:04.026Z",
+        "reason": "matches index.css h1's existing 1024px-breakpoint size exactly — .wordmark duplicates it because it's no longer always an h1"
+      },
+      {
+        "rule": "design-system-font-size",
+        "value": "13px",
+        "createdAt": "2026-08-25T15:14:18.277Z",
+        "reason": "user confirmed: Gavi explicitly asked for review-help caption text to be smaller than the type ramp's normal steps"
       }
     ]
   }

@@ -5,8 +5,16 @@ import Select from "./Select";
 // prompts to jog memory, not a required intake gate (same rule as
 // every other type's follow-up fields). No group headers, just <hr>
 // separators.
+//
+// G411-64: TECH_SUPPORT is one sliding card (fits one phone screen), so
+// unlike TRAVEL/PURCHASE it didn't need urgency pulled in until now —
+// every type's followup is its own card now, so urgency has to live
+// inside each one rather than falling back to a shared global field.
 
-const HELP_STYLE_OPTIONS = [
+// Exported (Sibling review finding, G411-64) — ReviewSummary.jsx needs
+// the same option list for its click-to-edit Select control; was
+// silently duplicated there before, a real drift risk.
+export const HELP_STYLE_OPTIONS = [
   { value: "", label: "Not sure yet" },
   { value: "CALL", label: "Hop on a call" },
   { value: "WRITTEN", label: "Send me written steps" },
@@ -23,7 +31,7 @@ export const EMPTY_TECH_SUPPORT_DETAILS = {
   helpStyle: "",
 };
 
-function TechSupportFields({ value, onChange }) {
+function TechSupportFields({ value, onChange, urgency, onUrgencyChange, urgencyOptions }) {
   function set(field, fieldValue) {
     onChange({ ...value, [field]: fieldValue });
   }
@@ -68,6 +76,15 @@ function TechSupportFields({ value, onChange }) {
         options={HELP_STYLE_OPTIONS}
         value={value.helpStyle}
         onChange={(e) => set("helpStyle", e.target.value)}
+      />
+
+      <hr />
+
+      <Select
+        label="Urgency"
+        options={urgencyOptions}
+        value={urgency}
+        onChange={(e) => onUrgencyChange(e.target.value)}
       />
     </>
   );

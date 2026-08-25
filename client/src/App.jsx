@@ -4,6 +4,7 @@ import './App.css'
 import NewRequest from './pages/NewRequest'
 import RequestList from './pages/RequestList'
 import InstallHelp from './pages/InstallHelp'
+import ConfirmModal from './components/ConfirmModal'
 import { useTheme } from './useTheme'
 
 const THEME_LABEL = { system: 'Auto', light: 'Light', dark: 'Dark' }
@@ -23,22 +24,55 @@ const THEME_LABEL = { system: 'Auto', light: 'Light', dark: 'Dark' }
 function App() {
   const { isSignedIn } = useUser()
   const [view, setView] = useState('list') // 'list' | 'new' | 'install-help'
+  const [newRequestHasText, setNewRequestHasText] = useState(false)
+  const [showLogoDiscardConfirm, setShowLogoDiscardConfirm] = useState(false)
   const { theme, cycleTheme } = useTheme()
 
   return (
     <div className="design-preview">
-      <h1 className="wordmark">Gavi411</h1>
-      {/* G411-73: cycles system -> light -> dark -> system. Text label
-          (not just an icon) so the current state is unambiguous without
-          needing a tooltip. */}
-      <button type="button" className="theme-toggle" onClick={cycleTheme}>
-        Theme: {THEME_LABEL[theme]}
-      </button>
+      <div className="header-row">
+        {/* Clickable everywhere there's somewhere to go back to (Gavi's
+            ask — logo should always be an exit control, not just from
+            install-help). On the intake flow, still routes through the
+            same confirm-if-typed prompt NewRequest's own "×" uses, so an
+            accidental logo tap can't silently discard a typed request. */}
+        {view === 'new' ? (
+          <button
+            type="button"
+            className="wordmark wordmark-button"
+            onClick={() => {
+              if (newRequestHasText) {
+                setShowLogoDiscardConfirm(true);
+                return;
+              }
+              setView('list');
+            }}
+          >
+            Gavi411
+          </button>
+        ) : view === 'list' ? (
+          <h1 className="wordmark">Gavi411</h1>
+        ) : (
+          <button type="button" className="wordmark wordmark-button" onClick={() => setView('list')}>
+            Gavi411
+          </button>
+        )}
+        {/* G411-73: cycles system -> light -> dark -> system. Text label
+            (not just an icon) so the current state is unambiguous without
+            needing a tooltip. */}
+        <button type="button" className="theme-toggle" onClick={cycleTheme}>
+          Theme: {THEME_LABEL[theme]}
+        </button>
+      </div>
       <ClerkLoading>Loading…</ClerkLoading>
       <ClerkLoaded>
         {isSignedIn ? (
           view === 'new' ? (
-            <NewRequest onDone={() => setView('list')} />
+            <NewRequest
+              onDone={() => { setNewRequestHasText(false); setView('list'); }}
+              onExit={() => { setNewRequestHasText(false); setView('list'); }}
+              onFreeTextChange={(v) => setNewRequestHasText(!!v)}
+            />
           ) : view === 'install-help' ? (
             <InstallHelp onBack={() => setView('list')} />
           ) : (
@@ -51,6 +85,16 @@ function App() {
           <SignIn />
         )}
       </ClerkLoaded>
+      <ConfirmModal
+        open={showLogoDiscardConfirm}
+        message="Discard this request?"
+        onConfirm={() => {
+          setShowLogoDiscardConfirm(false);
+          setNewRequestHasText(false);
+          setView('list');
+        }}
+        onCancel={() => setShowLogoDiscardConfirm(false)}
+      />
     </div>
   )
 }

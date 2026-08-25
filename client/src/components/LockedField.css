@@ -1,0 +1,29 @@
+/* Locked (read-only) review row that unlocks into a real input on click.
+   Light outline is the click affordance Gavi asked for — distinct from
+   a real .field-input's solid border, so it visually reads as "tap to
+   edit" rather than "already an input". */
+.locked-field {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 100%;
+  text-align: start;
+  background: none;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-md);
+  padding: var(--space-2) var(--space-3);
+  cursor: pointer;
+  font: inherit;
+}
+
+.locked-field:hover {
+  border-color: var(--accent-border);
+}
+
+.locked-field-checkbox {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: 16px;
+  color: var(--text-h);
+}

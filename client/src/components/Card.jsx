@@ -7,9 +7,12 @@ import './Card.css'
 // shape a request/message thread item, a stat tile, and a profile row
 // all share, so it's built as a plain wrapper rather than three separate
 // components.
-function Card({ children, ...rest }) {
+// className is merged rather than overwritten (G411-64) — needed once a
+// caller (the intake flow's slide-in animation) started passing its own
+// modifier class alongside the base "card" look.
+function Card({ children, className, ...rest }) {
   return (
-    <div className="card" {...rest}>
+    <div className={className ? `card ${className}` : 'card'} {...rest}>
       {children}
     </div>
   )

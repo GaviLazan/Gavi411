@@ -1,3 +1,14 @@
+/* Reserve the vertical scrollbar's width on every page, scrollable or
+   not (G411-64) — without this, #root's centered column visibly shifts
+   a few px left/right depending on whether the current screen happens
+   to be tall enough to scroll (the home list vs. a short intake card),
+   since a real (non-overlay) scrollbar eats into 100vw only when it's
+   actually showing. Caught live by Gavi: "the entire UI shifts
+   horizontally" between pages. */
+html {
+  scrollbar-gutter: stable;
+}
+
 :root {
   /* --- Design tokens (G411-17, revised after Gavi's direct review) ---
      Corrected direction, Gavi's explicit calls:
@@ -133,6 +144,19 @@
    stop native form controls/scrollbars from following a dark OS pref. */
 :root[data-theme="light"] {
   color-scheme: light;
+}
+
+/* Root cause of the Card/Button width mismatch (G411-64): nothing set
+   border-box globally, so every element mixing width/max-width with its
+   own padding+border (Card, Input, Select, Chip, LockedField, TravelFields
+   panels...) rendered wider than its max-width — clipped by any ancestor
+   with overflow:hidden (.step-viewport), and visibly misaligned next to
+   siblings sized by flex-stretch instead (Button). One global reset,
+   not a per-component patch, since every padded element shared the bug. */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
 }
 
 body {
