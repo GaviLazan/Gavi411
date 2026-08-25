@@ -5,13 +5,65 @@
   align-items: center;
 }
 
+/* .design-preview itself stays full width/centered (reverted — capping
+   the whole page wrapper at 420px squeezed the entire desktop layout
+   into a phone-width column, not just the card content). The actual
+   bug: .theme-toggle's align-self:flex-end had no consistent width to
+   align against, since .design-preview's content box resizes per
+   screen — it visually floated away from the card underneath it
+   (caught live by Gavi). Fix: give the header row (wordmark + toggle)
+   the same 420px column the card already uses, via a wrapper in
+   App.jsx, not by resizing every child indiscriminately. */
+.header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  max-width: 420px;
+  margin-bottom: var(--space-4);
+}
+
 .wordmark {
   font-family: var(--wordmark);
   font-weight: 600;
+  /* Explicit size (G411-64 fix): the wordmark used to always be an <h1>,
+     so it got index.css's h1 sizing for free. Once the intake/install-help
+     views swapped it for a <button> (clickable exit control), buttons
+     don't inherit h1's UA/CSS size — it silently fell back to the ambient
+     body font-size. Match h1's own size/spacing/responsive step here so
+     both render identically regardless of which element it is.
+     line-height is explicit too, not "normal" — <h1> and <button> resolve
+     "normal" to different UA defaults for the same font, which put the
+     button 20px+ taller than the heading and threw off .header-row's
+     vertical alignment between views (Gavi caught it live). */
+  font-size: 56px;
+  line-height: 1.2;
+  letter-spacing: -1.68px;
+  margin: 32px 0;
+}
+
+@media (max-width: 1024px) {
+  .wordmark {
+    font-size: 36px;
+    margin: 20px 0;
+  }
+}
+
+button.wordmark-button {
+  background: none;
+  border: none;
+  /* Reset only the button-specific UA styling (not "font: inherit" —
+     that shorthand also resets font-size/family/weight/line-height,
+     silently overriding .wordmark's own values below it in the cascade
+     since this selector has higher specificity). line-height now comes
+     from .wordmark itself (explicit, not "normal") so it matches the
+     <h1> exactly instead of each resolving "normal" differently. */
+  color: var(--text-h);
+  cursor: pointer;
+  padding: 0;
 }
 
 .theme-toggle {
-  align-self: flex-end;
   background: transparent;
   border: 1px solid var(--border);
   border-radius: var(--radius-pill);

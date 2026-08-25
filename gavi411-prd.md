@@ -38,37 +38,48 @@ The app is also the final project for Gavi's fullstack course and must demonstra
 ## 4. Core Flows
  
 ### 4.1 Request intake (friend-initiated)
-Revised 2026-08-21 (Gavi, live during G411-21 pickup) — adds zero-match
-handling and a full-type-list override on top of the 2026-08-20
-revision below. Superseded steps struck through/labeled are kept for
-history, not current behavior.
+Revised 2026-08-25 (Gavi, live during G411-64 pickup) — zero-match now
+also lands on the chip screen instead of skipping it, on top of the
+2026-08-21 revision below. Superseded steps struck through/labeled are
+kept for history, not current behavior. Also includes G411-64's
+multi-card step-machine feel and the new review/summary screen — see
+that ticket's own scope for the per-step mechanics, not repeated here.
 1. Friend taps "new request."
 2. Free-text box: "how can I help? / what's up?" Friend describes the
    issue, no live matching while typing.
 3. Friend taps **Continue**. Keyword matching (against a DB-backed,
    admin-editable trigger list) runs once, against the full text.
-4. **If one or more types matched**: results render as chips — one per
-   candidate type, plus an always-present **"None of these"** chip
-   (present even on a single match, so a wrong auto-guess is
-   correctable). Friend picks one. Picking "None of these" goes
-   straight to the full 6-type chip list (not the General follow-up
-   first) — the friend already rejected the suggestion, so a partial
-   list would be redundant.
-   **If zero types matched**: skip the chip step entirely, land
-   directly on the General follow-up. A "Not quite?" control there
-   reveals the full 6-type chip list so the friend can still pick a
-   specific category.
+4. Results always render as chips: one per candidate type if any
+   matched, plus an always-present **"None of these"** chip (present
+   even on a single match, so a wrong auto-guess is correctable).
+   **If zero types matched**, the chip screen shows the full 6-type
+   list directly (there's nothing to suggest, so no separate
+   empty-chips state, and no "None of these" chip — there's nothing to
+   reject). Picking "None of these" from a real-match state goes
+   straight to the same full 6-type chip list — the friend already
+   rejected the suggestion, so a partial list would be redundant.
+   Clicking a chip only highlights/selects it; a separate **Continue**
+   confirms and advances (not immediate-advance-on-click).
 5. Follow-up fields appear based on the pick: that type's specific
    fields (except Info/Research, which has none), or — for General —
    a shared additional-info field: "please provide any additional info
    you can." This field is the **same field/state** across every path
    (General and every type-specific follow-up), not separate per-type
-   fields — switching category via "Not quite?" never loses what was
-   typed, since nothing needs to be copied over. Urgency (preset
-   options) is asked here too, same for every path.
-6. Friend submits. Request is created, credit deducted, Gavi is
+   fields. Urgency (preset options) is asked here too, same for every
+   path.
+6. **Review/summary screen** (added G411-64): every entered field,
+   including the original free-text request itself, shown as a
+   click-to-edit row before final submit.
+7. Friend submits. Request is created, credit deducted, Gavi is
    notified via Telegram.
 - No LLM involved anywhere in this flow — fully deterministic, runs on Gavi's own server. (LLM-based triage was considered and explicitly ruled out for v1: privacy concerns, and a principle of not making a non-critical feature depend on a third-party interface.)
+
+~~Superseded (2026-08-21)~~: zero-match skipped the chip step entirely
+and landed directly on the General follow-up, with a "Not quite?"
+control there to reveal the full type list if needed. Gavi's call
+(G411-64 pickup): skipping chips on zero-match removed a real choice
+point with no upside — it now lands on the chip screen too (full list,
+since nothing matched to narrow it down), same as every other path.
 
 ~~Superseded (2026-08-20)~~: chips only handled the case where at least
 one type matched; zero-match behavior and "None of these" both landed

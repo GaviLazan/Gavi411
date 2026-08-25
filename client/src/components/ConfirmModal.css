@@ -1,0 +1,18 @@
+.confirm-modal {
+  border: none;
+  border-radius: var(--radius-lg);
+  padding: var(--space-5);
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: var(--shadow);
+  width: 100%;
+  max-width: 340px;
+}
+
+.confirm-modal::backdrop {
+  background: rgba(0, 0, 0, 0.4);
+}
+
+.confirm-modal p {
+  margin: 0 0 var(--space-4);
+}

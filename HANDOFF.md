@@ -14,7 +14,100 @@ accumulated. If something here turns out to matter long-term, promote it to
 
 ## Last updated
 
-2026-08-25 — **G411-64 split into two tickets** after Gavi shared a real
+2026-08-25, latest session — **G411-64 build round complete and live-verified,
+Gavi said "pass, wrap up."** Still NOT committed/pushed as of this entry —
+commit is the next real step, not yet done. Do not assume anything below is
+uncommitted-forever; check `git status` fresh before acting on this.
+
+**What actually got built and verified this round** (all confirmed via live
+Playwright against the real running dev server with a real signed-in Clerk
+test session — not just code-reading):
+1. **Home-page width mismatch + intake-card clipping — same root cause,
+   one fix.** Neither was actually two bugs: nothing in the codebase set
+   `box-sizing: border-box` globally, so `.card`'s padding + its own
+   `max-width: 420px` rendered ~50px wider than intended everywhere — off
+   by exactly padding+border. Fixed with one global rule in `index.css`
+   (`*, *::before, *::after { box-sizing: border-box }`). Verified via
+   real DOM measurements (button/card widths now identically 420px) and
+   screenshots at 1280px/1920px.
+2. **Whole-UI horizontal shift between pages** — a real (non-headless)
+   browser's scrollbar reserving/releasing width between a tall page
+   (home request list) and a short one (an intake card) was shifting the
+   centered `#root` column. Fixed with `scrollbar-gutter: stable` on
+   `html` in `index.css`.
+3. **Wordmark lost its size/position consistency** when it became a
+   `<button>` for click-to-exit — `button.wordmark-button`'s
+   `font: inherit` shorthand was silently clobbering `.wordmark`'s own
+   font-size/line-height (higher-specificity same-property collision).
+   Fixed with explicit `.wordmark` font-size + line-height (no longer
+   relying on element-type UA defaults), verified pixel-identical
+   position/size between the home `<h1>` and the intake `<button>`.
+4. **Zero-match now lands on the chip screen** (full 5-type list, no
+   "None of these" chip) instead of skipping straight to GENERAL
+   follow-up — reverses the original G411-18/21-era decision. Gavi's
+   direct call. `gavi411-prd.md` §4.1 updated, decision #69 in
+   `gavi411-brain.md`.
+5. **Discard/exit confirmations use a real in-app modal**, not the
+   native browser `confirm()` popup — new `ConfirmModal.jsx`/`.css`
+   (native `<dialog>`, no library), used by both the intake flow's "×"
+   and the header logo's confirm-if-typed guard. Verified via a
+   `page.on('dialog')` listener that never fires.
+6. **Original free-text request now shown/editable in the review
+   screen** — new "What's up" row, first in `ReviewSummary.jsx`, wired
+   via `freeText`/`onFreeTextChange` props threaded from
+   `NewRequest.jsx`.
+7. **Flight entries can now be removed**, matching hotel/car's existing
+   add/remove pattern (`TravelFields.jsx`'s `removeFlight`).
+8. **Step-to-step animation**: a two-card "outgoing slides out, incoming
+   slides in, simultaneously, no fade" version was built, then reverted
+   after repeated real bugs across several fix attempts (see decision
+   #69's item 5 in `gavi411-brain.md` for the full list — a stale-closure
+   timer, a CSS specificity conflict, and a real-browser-only animation
+   timing issue that headless testing never caught). Landed on: the
+   original single-card fade+slide-in, applied uniformly to every step
+   (not just the first card) — this is what Gavi actually approved and
+   is rock solid. `useStepTransition.js` was deleted; `NewRequest.jsx`
+   and `NewRequest.css` are back to their simpler single-`Card` shape.
+9. **Several smaller polish items**, all Gavi-requested and verified:
+   header-row gap above the card (`margin-bottom: var(--space-4)`),
+   review screen's "click on any field to edit" caption sized down and
+   pulled tight under its h2 (`.review-help`, `margin-top: -22px` —
+   tunable, see the CSS comment for what it's netting against), removed
+   an unrequested "No additional details entered…" empty-state line from
+   `ReviewSummary.jsx`, removed a `<hr>` divider Gavi didn't want on the
+   bookings card, bookings-card top padding so its first control doesn't
+   crowd the "×".
+
+**Evidence run fresh this session, not carried over**: `npm run build`
+(client) clean; `npm test` (root) 32/32 passing (unchanged — no backend
+touched); a full live Playwright pass covering home-page alignment, intake
+flow start-to-finish (describe → chips → all 4 TRAVEL field cards → review
+→ submit-path), chip pick-then-confirm (not auto-advance), Back navigation,
+zero-match chip behavior, the discard modal (no native dialog fires),
+flight add/remove — all passed, zero console/page errors. Aegis
+Claim/Falsifier/Evidence posted as Jira comment (id 10567).
+
+**What's next, in order**:
+1. Commit (working tree is large/mixed — several small logical commits or
+   one, Gavi's call) and push to `agent-backend/G411-64-animation-shell`.
+2. Live Sibling review before merge (this is a load-bearing/subjective
+   visual ticket per `gavi411-commit-convention.md` — already got Gavi's
+   own eyes throughout this session's live iteration, which satisfies
+   that gate, but the mandatory-on-every-agentic-child Sibling review
+   itself per decision #62/#63 hasn't been run as a discrete step yet).
+3. Merge via `--merge` (regular merge commit, decision #68 — not squash),
+   delete branch.
+4. Jira: Reviewing → Landed once merged, then Landed → Reconciled after a
+   post-merge live re-verification — confirm with Gavi before that final
+   transition, per the hard-to-reverse-action rule. Currently still at
+   Implementing.
+5. Parent 2 (Requests/Intake) — check whether any other children are
+   still Open once G411-64 Reconciles; if not, this may be Parent 2's
+   last piece.
+
+---
+
+2026-08-25, earlier session — **G411-64 split into two tickets** after Gavi shared a real
 mockup (session, TRAVEL flow as reference case): **G411-64** narrowed to
 animation-shell-only (card-per-step slide transitions, no content
 change); new **G411-74** filed (parented under G411-2, verified via

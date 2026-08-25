@@ -1,0 +1,50 @@
+.review-summary {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.review-row {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-bottom: var(--space-3);
+  border-bottom: 1px solid var(--border);
+}
+
+.review-row:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+/* Reuses Input.jsx's .field-label styling — same "label above value"
+   pattern as every form field, just read-only here. */
+.review-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-h);
+}
+
+.review-value {
+  font-size: 16px;
+  color: var(--text-h);
+  word-break: break-word;
+}
+
+.review-empty {
+  color: var(--text);
+  font-size: 16px;
+}
+
+/* Sits right under "Review your request" (h2) — smaller and pulled up
+   out of the card's own flex gap so it reads as a caption on the
+   heading, not another full paragraph-spaced block (Gavi's ask).
+   Tune this one value to adjust the gap: the actual visual space above
+   this line is h2's own 8px margin-bottom (index.css) + the card's 16px
+   flex gap (App.css "gap: var(--space-4)") + this margin-top. At -22px
+   that nets ~2px. Nothing else needs to change to tune it further. */
+.review-help {
+  margin-top: -22px;
+  font-size: 13px;
+  color: var(--text);
+}

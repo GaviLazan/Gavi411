@@ -12,14 +12,17 @@ import Select from "./Select";
 // across every type) — passed in as props so it renders inline here
 // rather than only at the very end.
 
-const BUY_WHERE_OPTIONS = [
+// Exported (Sibling review finding, G411-64) — ReviewSummary.jsx needs
+// the same option lists for its click-to-edit Select controls; was
+// silently duplicated there before, a real drift risk.
+export const BUY_WHERE_OPTIONS = [
   { value: "", label: "No preference" },
   { value: "ONLINE", label: "Online" },
   { value: "IN_STORE", label: "In store" },
   { value: "BOTH", label: "Either works" },
 ];
 
-const COORDINATION_OPTIONS = [
+export const COORDINATION_OPTIONS = [
   { value: "", label: "Not sure yet" },
   { value: "PICKUP", label: "I'll pick it up" },
   { value: "DELIVERY", label: "Deliver it to me" },

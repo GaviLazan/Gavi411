@@ -1,0 +1,80 @@
+/* Step-card slide transition (G411-64). Each step gets its own .card;
+   the wrapper clips overflow so the incoming card visibly slides/fades
+   in from the right, instead of the flow being one card that
+   grows/shrinks per step.
+   Same width as App.css's ".design-preview .card" rule — without this,
+   the viewport div has no intrinsic width of its own (it's not a .card),
+   so it was collapsing narrower than the .card inside it and clipping
+   real content via overflow:hidden (caught live by Gavi on desktop). */
+.step-viewport {
+  width: 100%;
+  max-width: 420px;
+  overflow: hidden;
+}
+
+/* Scoped to this flow's own card, not every .card in the app — the
+   exit button (below) needs a positioned ancestor. */
+.step-viewport .card {
+  position: relative;
+}
+
+.step-nav {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+/* Back/Continue (or Back/Skip) should read as equal-weight actions, not
+   whichever happens to be the longer word (Gavi caught real mismatched
+   widths from "Back"/"Skip" vs "Back"/"Continue"). */
+.step-nav .btn {
+  flex: 1;
+}
+
+/* Exit-the-whole-flow control (G411-64, Gavi's ask) — top-right of the
+   card, present on every step except the final confirmation. */
+.exit-flow {
+  position: absolute;
+  top: var(--space-3);
+  right: var(--space-3);
+  background: none;
+  border: none;
+  font-size: 22px;
+  line-height: 1;
+  color: var(--text);
+  cursor: pointer;
+  padding: var(--space-1);
+}
+
+.exit-flow:hover {
+  color: var(--text-h);
+}
+
+/* One card in normal flow, keyed per step — a simultaneous "old card
+   slides out while new one slides in" version was tried and reverted
+   (G411-64): it produced repeated real timing/positioning bugs (a
+   vertical "pop," and in real Chrome/Firefox the animation sometimes
+   never visibly played at all on a freshly-mounted element) that kept
+   resurfacing after each fix. This single-card version is what Gavi
+   originally approved and is rock solid — every step swap gets the
+   same fade+slide-in feel, uniformly. */
+.step-slide-enter {
+  animation: step-slide-in 0.25s ease-out;
+}
+
+@keyframes step-slide-in {
+  from {
+    transform: translateX(24px);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .step-slide-enter {
+    animation: none;
+  }
+}

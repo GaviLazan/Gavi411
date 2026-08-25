@@ -85,7 +85,7 @@ function RequestList({ onNewRequest, onShowInstallHelp }) {
   const allClosed = requests.length > 0 && openRequests.length === 0;
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-4)", width: "100%" }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-4)", width: "100%", maxWidth: 420 }}>
       <Button variant="primary" onClick={onNewRequest}>
         + New request
       </Button>
