@@ -291,10 +291,27 @@ question that costs one turn.**
   6. **Commit** — self-merge if routine, flag for a live Sibling review
      first if load-bearing (see `gavi411-commit-convention.md`).
   7. **HANDOFF.md** — update with current state.
-  8. **Report back** — one line per step above, ✓ or ✗, so a skipped step
+  8. **Full sync check, every worktree** (added 2026-08-25, real gap
+     found live — "sync git" was reported done while the primary
+     worktree still had two uncommitted files sitting in it, and
+     separately a role worktree had silently diverged from `main`).
+     `git status --short` in **every** worktree (primary + every
+     `Gavi411-agent-<role>`) — every single one must come back
+     completely empty, not "just the ticket's own files are clean." Any
+     leftover (untracked, modified, staged) gets resolved — committed if
+     it's real work, discarded if it's genuinely nothing — not silently
+     left and reported as synced anyway. Then confirm every worktree's
+     `git log --oneline -1` shows the identical commit hash as `origin/
+     main`. If a role worktree can't fast-forward (diverged, not just
+     behind), don't reset blind — diff it against `origin/main` first
+     (`git diff origin/main HEAD --stat`) to confirm the branch has
+     nothing unique `main` lacks, per `gavi411-commit-convention.md`'s
+     "Resync the role worktree right after its own PR merges" section.
+  9. **Report back** — one line per step above, ✓ or ✗, so a skipped step
      is visible immediately. Example: "Scope ✓ · Falsifier ✓ · Aegis
      fields ✓ · Evidence ✓ · Jira → Reconciled ✓ · Committed ✓ ·
-     HANDOFF.md ✓." Then say what's next on the spine.
+     HANDOFF.md ✓ · Worktrees synced ✓." Then say what's next on the
+     spine.
 - **Context-window handoff** (decided 2026-08-18): there's no verified way
   for Claude Code to read its own exact context-usage % — don't trust
   claims of a `CLAUDE_CONTEXT_TOKEN_COUNT`-style env var or similar; none
