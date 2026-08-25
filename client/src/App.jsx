@@ -3,6 +3,7 @@ import { useUser, SignIn, ClerkLoaded, ClerkLoading } from '@clerk/react'
 import './App.css'
 import NewRequest from './pages/NewRequest'
 import RequestList from './pages/RequestList'
+import RequestDetail from './pages/RequestDetail'
 import InstallHelp from './pages/InstallHelp'
 import ConfirmModal from './components/ConfirmModal'
 import { useTheme } from './useTheme'
@@ -23,7 +24,8 @@ const THEME_LABEL = { system: 'Auto', light: 'Light', dark: 'Dark' }
 // need real URLs/back-button support.
 function App() {
   const { isSignedIn } = useUser()
-  const [view, setView] = useState('list') // 'list' | 'new' | 'install-help'
+  const [view, setView] = useState('list') // 'list' | 'new' | 'install-help' | 'detail'
+  const [selectedRequestId, setSelectedRequestId] = useState(null)
   const [newRequestHasText, setNewRequestHasText] = useState(false)
   const [showLogoDiscardConfirm, setShowLogoDiscardConfirm] = useState(false)
   const { theme, cycleTheme } = useTheme()
@@ -75,10 +77,13 @@ function App() {
             />
           ) : view === 'install-help' ? (
             <InstallHelp onBack={() => setView('list')} />
+          ) : view === 'detail' ? (
+            <RequestDetail requestId={selectedRequestId} onBack={() => setView('list')} />
           ) : (
             <RequestList
               onNewRequest={() => setView('new')}
               onShowInstallHelp={() => setView('install-help')}
+              onOpenRequest={(id) => { setSelectedRequestId(id); setView('detail'); }}
             />
           )
         ) : (

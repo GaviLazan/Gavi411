@@ -99,3 +99,83 @@ button.wordmark-button {
   flex-wrap: wrap;
   gap: var(--space-2);
 }
+
+/* Clickable request card (G411-75) — a real <button> wrapping .card so
+   it's keyboard/AT-accessible, chrome reset to look identical to the
+   plain (non-clickable) card it wraps. */
+.request-card-button {
+  display: block;
+  width: 100%;
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+
+/* "Open requests" collapsible section (G411-75). Starts collapsed;
+   header click toggles both halves. Plain CSS transitions on real
+   layout properties (max-height/opacity/transform), no keyframes and
+   no JS-driven sequencing — G411-64 hit real cross-browser timing bugs
+   coordinating a *simultaneous two-element* animation via one shared
+   trigger; here each element transitions its own property independently
+   off the same class toggle, which is the simpler case that pattern
+   warned against, not a repeat of it. */
+.collapsible-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0 0 var(--space-3);
+  font: inherit;
+  cursor: pointer;
+  text-align: start;
+}
+
+.collapsible-header h2 {
+  margin: 0;
+}
+
+.collapsible-arrow {
+  display: inline-block;
+  transition: transform 0.2s ease-out;
+  color: var(--text);
+  font-size: 18px;
+}
+
+.collapsible-arrow.expanded {
+  transform: rotate(-180deg);
+}
+
+/* max-height (not height) is the actual animatable value here — real
+   content height is unknown/variable (card count varies per friend), so
+   a fixed-but-generous cap is transitioned instead. 2000px comfortably
+   covers realistic open-request counts without visibly clipping. */
+.collapsible-body {
+  max-height: 0;
+  opacity: 0;
+  overflow: hidden;
+  transition: max-height 0.25s ease-out, opacity 0.2s ease-out;
+}
+
+.collapsible-body.expanded {
+  max-height: 2000px;
+  opacity: 1;
+}
+
+.collapsible-body-inner {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .collapsible-arrow,
+  .collapsible-body {
+    transition: none;
+  }
+}

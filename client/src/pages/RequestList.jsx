@@ -10,7 +10,9 @@ import Button from "../components/Button";
 // confirm; easy to narrow to CLOSED-only later if that's not the intent.
 const CLOSED_STATUSES = ["CLOSED", "CANCELLED", "SELF_SOLVED"];
 
-function statusLabel(status) {
+// Exported — RequestDetail.jsx reuses this for the same enum-label
+// formatting instead of duplicating it (Sibling review finding).
+export function statusLabel(status) {
   return status
     .toLowerCase()
     .split("_")
@@ -18,17 +20,24 @@ function statusLabel(status) {
     .join(" ");
 }
 
-function RequestCard({ request }) {
+// G411-75: clicking a card opens its detail page. A real <button>
+// wrapping the Card (not a div onClick) so it's keyboard/AT-accessible
+// for free — same "reset UA chrome, keep the visual" pattern App.jsx's
+// wordmark-button already uses. Card itself stays a plain div (no new
+// "as" prop) since this is the only caller that needs it clickable.
+function RequestCard({ request, onClick }) {
   return (
-    <Card style={{ width: "100%", textAlign: "start" }}>
-      <p dir="auto" style={{ fontWeight: 600 }}>
-        {request.freeText}
-      </p>
-      <p style={{ color: "var(--text)", fontSize: 14 }}>
-        {statusLabel(request.status)}
-        {request.type ? ` · ${statusLabel(request.type)}` : ""}
-      </p>
-    </Card>
+    <button type="button" className="request-card-button" onClick={onClick}>
+      <Card style={{ width: "100%", textAlign: "start" }}>
+        <p dir="auto" style={{ fontWeight: 600 }}>
+          {request.freeText}
+        </p>
+        <p style={{ color: "var(--text)", fontSize: 14 }}>
+          {statusLabel(request.status)}
+          {request.type ? ` · ${statusLabel(request.type)}` : ""}
+        </p>
+      </Card>
+    </button>
   );
 }
 
@@ -37,10 +46,14 @@ function RequestCard({ request }) {
 // component just renders whatever GET /api/requests returns), a toggle
 // to reveal closed ones, and a fallback to the most recent closed
 // request when there are no open ones at all.
-function RequestList({ onNewRequest, onShowInstallHelp }) {
+function RequestList({ onNewRequest, onShowInstallHelp, onOpenRequest }) {
   const [requests, setRequests] = useState(null);
   const [error, setError] = useState("");
   const [showClosed, setShowClosed] = useState(false);
+  // G411-75: starts collapsed, no persistence across visits (ticket
+  // left this as a pickup-time call — always-collapsed is the simplest
+  // reading of "starts collapsed by default" and needs no storage).
+  const [openExpanded, setOpenExpanded] = useState(false);
 
   const [retryToken, setRetryToken] = useState(0);
 
@@ -91,18 +104,39 @@ function RequestList({ onNewRequest, onShowInstallHelp }) {
       </Button>
 
       {openRequests.length > 0 && (
-        <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-3)" }}>
-          <h2>Open requests</h2>
-          {openRequests.map((r) => (
-            <RequestCard key={r.id} request={r} />
-          ))}
+        <div>
+          <button
+            type="button"
+            className="collapsible-header"
+            aria-expanded={openExpanded}
+            aria-controls="open-requests-body"
+            onClick={() => setOpenExpanded((v) => !v)}
+          >
+            <h2>Open requests</h2>
+            <span className={`collapsible-arrow${openExpanded ? " expanded" : ""}`}>▾</span>
+          </button>
+          {/* inert (native, no JS focus-trap needed) pulls the collapsed
+              cards out of both tab order and the AT tree — Sibling review
+              finding: max-height:0/overflow:hidden alone still leaves
+              them focusable and screen-reader-visible. */}
+          <div
+            id="open-requests-body"
+            className={`collapsible-body${openExpanded ? " expanded" : ""}`}
+            inert={openExpanded ? undefined : true}
+          >
+            <div className="collapsible-body-inner">
+              {openRequests.map((r) => (
+                <RequestCard key={r.id} request={r} onClick={() => onOpenRequest(r.id)} />
+              ))}
+            </div>
+          </div>
         </div>
       )}
 
       {allClosed && !showClosed && (
         <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-3)" }}>
           <h2>Most recent request</h2>
-          <RequestCard request={closedRequests[0]} />
+          <RequestCard request={closedRequests[0]} onClick={() => onOpenRequest(closedRequests[0].id)} />
         </div>
       )}
 
@@ -116,7 +150,7 @@ function RequestList({ onNewRequest, onShowInstallHelp }) {
           {showClosed && (
             <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-3)" }}>
               {closedRequests.map((r) => (
-                <RequestCard key={r.id} request={r} />
+                <RequestCard key={r.id} request={r} onClick={() => onOpenRequest(r.id)} />
               ))}
             </div>
           )}
