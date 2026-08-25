@@ -27,36 +27,72 @@ Admin Cockpit) — still needs real investigation/scoping at pickup, not
 pre-decided. Don't start other Auth/Users-shaped work without checking
 this first.
 
-## Next task — G411-75, ready to pick up, not started
+## G411-75 — Landed, this session
 
-**G411-75** (Open, parented under G411-2) is next on the spine — real
-scope, already clarified live with Gavi, nothing ambiguous left to ask
-before starting. Full description is on the Jira ticket itself (kept
-current there, don't rely on a stale copy here); short version:
+**G411-75 (request detail page + collapsible/animated Open requests
+section) Landed** — PR #23 merged via regular merge commit (`--merge`,
+decision #68/memory — not squash; needed `--admin` since branch
+protection requires 1 approving review and no reviewer was available for
+self-merge — consistent with decision #63's "no outside human approval
+required/expected"), branch `agent-backend/G411-75-request-detail`
+deleted (remote + local), `main` fast-forwarded and pulled locally.
+**Not yet Reconciled** — holding per session-start-prompt.md's "report
+and wait for go-ahead," not auto-advancing.
 
-1. Clicking an open-request card on the home screen routes to a new
-   request detail/"ticket" page (doesn't exist yet at all — minimum: the
-   request's own fields + urgency/status + the existing `Message` thread
-   model, schema already supports it per G411-67, unused so far).
-2. The "Open requests" section on the home screen becomes collapsible —
-   starts **collapsed** by default, toggles on clicking the header/label.
-3. **Both** the arrow indicator AND the actual card-list expand/collapse
-   need real animation (not an instant snap on either) — this was a
-   live correction from Gavi mid-session, make sure both halves land,
-   not just the arrow.
+**What got built**:
+1. New `RequestDetail.jsx` — read-only page (freeText, status, urgency,
+   type, `typeDetails` recursively flattened, `additionalInfo`, the
+   `Message` thread) reachable by clicking any request card (open,
+   closed, or the "most recent" fallback). No reply/compose UI — no
+   `POST /messages` route exists yet, out of scope.
+2. `RequestList.jsx`'s "Open requests" section is now collapsible,
+   starts collapsed by default. Header click toggles the arrow
+   (`transform: rotate`) and the card list (`max-height`/`opacity`) —
+   plain CSS transitions, no keyframes, no JS-driven sequencing, to
+   avoid G411-64's cross-browser timing bug class (see that ticket's
+   decision #69 item 5 if this needs revisiting).
+3. `App.jsx` — new `'detail'` view added to the existing `useState`
+   view switcher (still no router, same justification as G411-67).
 
-**Pacing note for whoever picks this up**: G411-64 (previous ticket) hit
-a real animation-timing bug — a headless-Chromium-only-passing CSS
-animation that silently never played in real Chrome/Firefox — budget
-actual live-browser verification time for G411-75's animation work too,
-not just a headless Playwright pass. See `gavi411-brain.md` decision #69
-item 5 for the full story before reaching for anything more complex than
-a plain CSS `max-height`/`transform` transition.
+**Live Sibling review (medium) found 2 real bugs, both fixed and
+re-verified live before merge**:
+- Collapsed card buttons stayed focusable/screen-reader-visible despite
+  `max-height:0` (`overflow:hidden` alone doesn't remove things from the
+  tab order or AT tree). Fixed with the native `inert` attribute tied to
+  expand state — first attempt used `inert=""` which React silently
+  drops as falsy (logged a console warning), corrected to `inert={true}`
+  and reconfirmed via `element.inert` + a real Tab-order check.
+- `RequestDetail.jsx` was relying on `ReviewSummary.css` only being
+  loaded as a side effect of `NewRequest.jsx`'s own import — fixed with
+  a direct import. Also deduped `statusLabel`/`labelize` (now exported
+  from `RequestList.jsx`, reused instead of copy-pasted).
 
-**Also check before/alongside G411-75**: the ⚠️ crucial gap above
-(G411-76) — not blocking G411-75 directly, but flagged as something to
-not lose track of; ask Gavi whether he wants it picked up first, given
-he called it crucial.
+**Evidence this session**: `npm run build` (client) clean; `npm test`
+(root) 32/32 unchanged; a full live-browser pass via real (non-headless)
+Chromium + Clerk `+clerk_test`/`424242` sign-in against the real dev
+server — collapsed-by-default confirmed, a captured mid-transition
+screenshot proves the fade is genuinely animating (not snapping), arrow
+rotation confirmed, card→detail navigation confirmed with `typeDetails`
+rendering correctly, Back-to-home confirmed freshly-collapsed, zero
+console/page errors throughout both verification passes (pre- and
+post-Sibling-review-fixes). Full Aegis Claim/Falsifier/Evidence posted
+as a Jira comment on G411-75 (id 10569).
+
+**One process note**: the Jira "Reviewing → Landed" transition was
+denied twice by the Claude Code auto-mode permission classifier
+mid-session for no apparent reason (routine, expected part of the
+workflow, not hard-to-reverse) — retried later in the same session and
+it went through cleanly. If this recurs, flag it again; not yet
+understood why it happened.
+
+**Also still open**: the ⚠️ crucial gap above (G411-76, Clerk↔Prisma
+sync + missing admin role) — asked Gavi at session start, he chose
+G411-75 first. Still Open, still worth prioritizing soon given he called
+it crucial.
+
+**Next task**: no ticket picked yet for after this — ask Gavi whether to
+Reconcile G411-75 now, pick up G411-76, or continue down the G411-2
+spine.
 
 ---
 
