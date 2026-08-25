@@ -277,9 +277,16 @@ email/password + code flow.
   (`CLAUDE.md`) before reporting done; neither step alone is trusted to
   catch a silently-dropped one. **Once it passes: self-merge** — no
   outside human approval required or waited on (decision #63).
+- **Merge strategy: regular merge commit, never squash (decision #68,
+  `gavi411-brain.md`, 2026-08-25)**: `gh pr merge --merge` (or
+  `git merge --no-ff`), not `--squash`. Standing rule, not per-PR — Gavi
+  says this was decided 2026-08-24, but no doc or commit message from
+  that session actually recorded it, so PRs #4/#8/#9/#10/#21 were all
+  squash-merged before this was caught; not retroactively rewritten
+  (same reasoning as decision #64), corrected starting with the next PR.
 - **Branch cleanup is part of merging, not a separate step (added
   2026-08-24)**: whenever Claude merges a PR — `gh pr merge` or a manual
-  squash — the now-merged branch gets deleted immediately, both on
+  merge — the now-merged branch gets deleted immediately, both on
   GitHub and any local ref pointing at it, without being asked. Caught
   live: PR #9/#10 got `--delete-branch` correctly, but earlier merges in
   the same session left branches sitting on GitHub after merge; Gavi

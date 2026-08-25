@@ -26,14 +26,22 @@ boundaries twice.
 
 **G411-74 — Landed.** Gavi reviewed the TRAVEL/PURCHASE screenshots and
 confirmed the design (subjective-judgment gate satisfied); PR #21 merged
-(squash, `cafbb4e`, `--admin` since branch protection's 1-approval rule
-doesn't auto-clear for Gavi's own admin exemption — expected per decision
-#63, no outside approval needed). Post-merge live-verified against real
+(`cafbb4e`, `--admin` since branch protection's 1-approval rule doesn't
+auto-clear for Gavi's own admin exemption — expected per decision #63,
+no outside approval needed). Post-merge live-verified against real
 production (`gavi411-ten.vercel.app`): deployed SHA matches the merge
 commit exactly, fresh Playwright run confirms the actual deployed shape
 (urgency-first, independent flight/hotel/car toggles). Awaiting Gavi's
 explicit go-ahead for the final Landed → Reconciled move, per the
 hard-to-reverse-action rule — not done automatically.
+
+**Correction, same session**: this PR was merged with `--squash`. Gavi
+flagged this as wrong — standing rule is a regular merge commit, never
+squash (decision #68, `gavi411-brain.md`) — he says it was discussed
+2026-08-24, but no doc/commit from that session actually recorded it, so
+it wasn't followed here or on PRs #4/#8/#9/#10 before it. Not
+retroactively rewritten; `gavi411-commit-convention.md` updated so the
+next PR uses `--merge` instead.
 
 Also resolved mid-session, unrelated to scope: a "Enter doesn't advance"
 report on prod turned out to be a slow match-API response (Render
