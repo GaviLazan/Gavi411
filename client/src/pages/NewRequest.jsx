@@ -194,9 +194,21 @@ function NewRequest({ onDone }) {
           </Button>
 
           {selectedType === "TRAVEL" ? (
-            <TravelFields value={travelDetails} onChange={setTravelDetails} />
+            <TravelFields
+              value={travelDetails}
+              onChange={setTravelDetails}
+              urgency={urgency}
+              onUrgencyChange={setUrgency}
+              urgencyOptions={URGENCY_OPTIONS}
+            />
           ) : selectedType === "PURCHASE" ? (
-            <PurchaseFields value={purchaseDetails} onChange={setPurchaseDetails} />
+            <PurchaseFields
+              value={purchaseDetails}
+              onChange={setPurchaseDetails}
+              urgency={urgency}
+              onUrgencyChange={setUrgency}
+              urgencyOptions={URGENCY_OPTIONS}
+            />
           ) : selectedType === "TECH_SUPPORT" ? (
             <TechSupportFields value={techSupportDetails} onChange={setTechSupportDetails} />
           ) : (
@@ -208,12 +220,14 @@ function NewRequest({ onDone }) {
             />
           )}
 
-          <Select
-            label="Urgency"
-            options={URGENCY_OPTIONS}
-            value={urgency}
-            onChange={(e) => setUrgency(e.target.value)}
-          />
+          {selectedType !== "TRAVEL" && selectedType !== "PURCHASE" && (
+            <Select
+              label="Urgency"
+              options={URGENCY_OPTIONS}
+              value={urgency}
+              onChange={(e) => setUrgency(e.target.value)}
+            />
+          )}
 
           {submitError && <p style={{ color: "#b3261e" }}>{submitError}</p>}
 

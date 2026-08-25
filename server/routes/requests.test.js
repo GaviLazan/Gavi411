@@ -215,3 +215,19 @@ describe('POST /api/requests/match', () => {
     expect(res.body.matchedTypes).toEqual(['TRAVEL'])
   })
 })
+
+describe('stripEmpty (G411-74 Sibling review finding)', () => {
+  it('drops a nested object whose fields are all empty, not just top-level empties', async () => {
+    // TravelFields' new hotel/car objects (G411-74) — an all-blank toggled-on
+    // panel used to survive as junk since stripEmpty only recursed into arrays.
+    const { stripEmpty } = await import('./requests.js')
+    expect(stripEmpty({ hotel: { date: '', location: '', company: '', ref: '' }, car: null, destination: 'Paris' }))
+      .toEqual({ destination: 'Paris' })
+  })
+
+  it('keeps a nested object but strips only its empty fields', async () => {
+    const { stripEmpty } = await import('./requests.js')
+    expect(stripEmpty({ hotel: { date: 'Sep 1', location: '', company: '', ref: '' } }))
+      .toEqual({ hotel: { date: 'Sep 1' } })
+  })
+})
