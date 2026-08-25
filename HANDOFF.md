@@ -121,13 +121,16 @@ now done, not pending):
    once the backend warmed up, didn't just note it away.
 5. **Jira: Reviewing → Landed**, done. Aegis fields + closure comment
    posted (comment ids 10567, 10568).
-6. **Landed → Reconciled: NOT done yet** — needs Gavi's explicit
-   go-ahead first, per the hard-to-reverse-action rule. Ask him
-   directly rather than assuming "pass, wrap up" already covers this
-   specific transition.
-7. Parent 2 (Requests/Intake) — once G411-64 Reconciles, check whether
-   any other children are still Open; if not, this may be Parent 2's
-   last piece.
+6. **G411-64 Reconciled** — Gavi's explicit go-ahead given ("reconcile").
+7. **Real out-of-scope gap filed as its own ticket**: **G411-75** (Open,
+   parented under G411-2, verified via JQL) — "Open requests cards on
+   home screen aren't clickable (no detail view)." Flagged live by Gavi
+   during this session's start (marked-up screenshot), deliberately
+   deferred out of G411-64's scope via AskUserQuestion rather than
+   folded in. Not started.
+8. Parent 2 (Requests/Intake) — G411-64 is Reconciled; G411-75 is now
+   its one remaining Open child. Check for any other Open children at
+   next pickup before assuming Parent 2 is fully done.
 
 ---
 
