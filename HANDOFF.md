@@ -12,7 +12,7 @@ accumulated. If something here turns out to matter long-term, promote it to
 
 ---
 
-## ⚠️ Crucial unresolved gap — read before touching auth/users
+## Known severe gap — G411-76, waits its turn under G411-5
 
 **Flagged by Gavi 2026-08-25, not yet investigated or fixed.** Clerk↔Prisma
 user sync and the admin role are likely broken: two separate user stores
@@ -24,20 +24,29 @@ every new user gets empty-string names in the DB), and no admin-role
 mechanism/visibility exists at all. Full writeup and evidence in
 `gavi411-brain.md` §3a. **Filed as G411-76** (Open, parented under G411-5
 Admin Cockpit) — still needs real investigation/scoping at pickup, not
-pre-decided. Don't start other Auth/Users-shaped work without checking
-this first.
+pre-decided.
 
-## G411-75 — Landed, this session
+**"Crucial" describes severity, not queue position** (Gavi's explicit
+correction, 2026-08-25 — see the Epic-2-closeout entry below for the
+full context): this project works Epics in strict order regardless of
+how severe an individual gap is. Don't treat this as something to jump
+to ahead of whatever Epic is actually in progress; don't ask whether to
+prioritize it either — the ordering rule already answers that. It's
+listed here so it isn't lost track of, not as a signal to reorder work.
 
-**G411-75 (request detail page + collapsible/animated Open requests
-section) Landed** — PR #23 merged via regular merge commit (`--merge`,
-decision #68/memory — not squash; needed `--admin` since branch
-protection requires 1 approving review and no reviewer was available for
+## Epic 2 (Requests/Intake) — Reconciled, closed out this session
+
+**G411-75 Reconciled** (Gavi's explicit go-ahead given), and with it
+**every child of Epic 2 is now Reconciled** — Gavi confirmed closing the
+Epic itself, so G411-2 was walked through Reviewing → Landed →
+Reconciled too. Epic 2 is done.
+
+**G411-75**: PR #23 merged via regular merge commit (`--merge`, decision
+#68/memory — not squash; needed `--admin` since branch protection
+requires 1 approving review and no reviewer was available for
 self-merge — consistent with decision #63's "no outside human approval
 required/expected"), branch `agent-backend/G411-75-request-detail`
 deleted (remote + local), `main` fast-forwarded and pulled locally.
-**Not yet Reconciled** — holding per session-start-prompt.md's "report
-and wait for go-ahead," not auto-advancing.
 
 **What got built**:
 1. New `RequestDetail.jsx` — read-only page (freeText, status, urgency,
@@ -85,10 +94,16 @@ workflow, not hard-to-reverse) — retried later in the same session and
 it went through cleanly. If this recurs, flag it again; not yet
 understood why it happened.
 
-**Also still open**: the ⚠️ crucial gap above (G411-76, Clerk↔Prisma
-sync + missing admin role) — asked Gavi at session start, he chose
-G411-75 first. Still Open, still worth prioritizing soon given he called
-it crucial.
+**Ordering correction (Gavi, this session)**: G411-76 (Clerk↔Prisma sync
++ missing admin role, parented under G411-5 Admin Cockpit) is **not**
+next up just because it was called "crucial" — crucial describes the
+gap's severity, not its place in the queue. This project works Epics in
+order; G411-76 waits its turn under G411-5 like any other ticket. Don't
+suggest jumping to it again without Gavi initiating that Epic switch.
+
+**Next task**: Epic 2 is closed. Ask Gavi which Epic to pick up next —
+don't assume; the "current Epic" the session-start-prompt's auto-pick
+rule points to no longer exists once Epic 2 is done.
 
 **Next task**: no ticket picked yet for after this — ask Gavi whether to
 Reconcile G411-75 now, pick up G411-76, or continue down the G411-2
