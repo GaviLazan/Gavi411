@@ -17,8 +17,15 @@ function ConfirmModal({ open, message, onConfirm, onCancel }) {
     if (!open && el.open) el.close();
   }, [open]);
 
+  // onCancel only, not onClose: native <dialog> doesn't close on backdrop
+  // click by default (that needs manual JS this modal doesn't add), so
+  // Escape's "cancel" event is the only close path that isn't already a
+  // button click. onClose also fires after the effect above calls
+  // el.close() following a real onConfirm click, which made onConfirm
+  // and onCancel both run on every confirmed "Yes" (Sibling review
+  // finding) — dropped.
   return (
-    <dialog ref={ref} className="confirm-modal" onCancel={onCancel} onClose={onCancel}>
+    <dialog ref={ref} className="confirm-modal" onCancel={onCancel}>
       <p>{message}</p>
       <div className="step-nav">
         <Button variant="purple" onClick={onCancel}>

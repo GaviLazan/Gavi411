@@ -69,8 +69,8 @@ function App() {
         {isSignedIn ? (
           view === 'new' ? (
             <NewRequest
-              onDone={() => setView('list')}
-              onExit={() => setView('list')}
+              onDone={() => { setNewRequestHasText(false); setView('list'); }}
+              onExit={() => { setNewRequestHasText(false); setView('list'); }}
               onFreeTextChange={(v) => setNewRequestHasText(!!v)}
             />
           ) : view === 'install-help' ? (
@@ -90,6 +90,7 @@ function App() {
         message="Discard this request?"
         onConfirm={() => {
           setShowLogoDiscardConfirm(false);
+          setNewRequestHasText(false);
           setView('list');
         }}
         onCancel={() => setShowLogoDiscardConfirm(false)}
