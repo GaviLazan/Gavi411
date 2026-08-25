@@ -24,8 +24,23 @@ reorder. Build order: G411-74 first (content), G411-64 after (shell
 wraps final content) — Gavi's explicit call, avoids redoing card
 boundaries twice.
 
-**G411-74 — Reviewing, PR #21 open, awaiting Gavi's visual/UX review**
-(subjective-judgment child, not a clean-build self-merge case). Built:
+**G411-74 — Landed.** Gavi reviewed the TRAVEL/PURCHASE screenshots and
+confirmed the design (subjective-judgment gate satisfied); PR #21 merged
+(squash, `cafbb4e`, `--admin` since branch protection's 1-approval rule
+doesn't auto-clear for Gavi's own admin exemption — expected per decision
+#63, no outside approval needed). Post-merge live-verified against real
+production (`gavi411-ten.vercel.app`): deployed SHA matches the merge
+commit exactly, fresh Playwright run confirms the actual deployed shape
+(urgency-first, independent flight/hotel/car toggles). Awaiting Gavi's
+explicit go-ahead for the final Landed → Reconciled move, per the
+hard-to-reverse-action rule — not done automatically.
+
+Also resolved mid-session, unrelated to scope: a "Enter doesn't advance"
+report on prod turned out to be a slow match-API response (Render
+cold-start), not a bug — reproduced fine on Chromium and Firefox against
+real prod once retried.
+
+Built:
 `TravelFields.jsx` regrouped (urgency inline first, dates/destination
 split from preferences, hotel/car split into two independent optional
 "+ Add details" toggle panels matching flight's existing pattern —
