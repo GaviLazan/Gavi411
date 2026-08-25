@@ -27,15 +27,46 @@ Admin Cockpit) — still needs real investigation/scoping at pickup, not
 pre-decided. Don't start other Auth/Users-shaped work without checking
 this first.
 
-## Last updated
+## Next task — G411-75, ready to pick up, not started
 
-2026-08-25, latest session — **G411-64 merged and live, Jira at Landed.**
-PR #22 merged via regular merge commit (`32f7ffd`, decision #68 — not
-squash), branch deleted (remote + local), `main` fast-forwarded. Live-
-verified against real production (`gavi411-ten.vercel.app`), not just
-local dev. **Still needs**: Gavi's explicit go-ahead for the final
-Landed → Reconciled Jira transition (hard-to-reverse-action rule) —
-not done automatically even though evidence is in hand.
+**G411-75** (Open, parented under G411-2) is next on the spine — real
+scope, already clarified live with Gavi, nothing ambiguous left to ask
+before starting. Full description is on the Jira ticket itself (kept
+current there, don't rely on a stale copy here); short version:
+
+1. Clicking an open-request card on the home screen routes to a new
+   request detail/"ticket" page (doesn't exist yet at all — minimum: the
+   request's own fields + urgency/status + the existing `Message` thread
+   model, schema already supports it per G411-67, unused so far).
+2. The "Open requests" section on the home screen becomes collapsible —
+   starts **collapsed** by default, toggles on clicking the header/label.
+3. **Both** the arrow indicator AND the actual card-list expand/collapse
+   need real animation (not an instant snap on either) — this was a
+   live correction from Gavi mid-session, make sure both halves land,
+   not just the arrow.
+
+**Pacing note for whoever picks this up**: G411-64 (previous ticket) hit
+a real animation-timing bug — a headless-Chromium-only-passing CSS
+animation that silently never played in real Chrome/Firefox — budget
+actual live-browser verification time for G411-75's animation work too,
+not just a headless Playwright pass. See `gavi411-brain.md` decision #69
+item 5 for the full story before reaching for anything more complex than
+a plain CSS `max-height`/`transform` transition.
+
+**Also check before/alongside G411-75**: the ⚠️ crucial gap above
+(G411-76) — not blocking G411-75 directly, but flagged as something to
+not lose track of; ask Gavi whether he wants it picked up first, given
+he called it crucial.
+
+---
+
+## Previous session summary (G411-64)
+
+2026-08-25 — **G411-64 Reconciled** (Landed → Reconciled done, Gavi's
+explicit go-ahead given). PR #22 merged via regular merge commit
+(`32f7ffd`, decision #68 — not squash), branch deleted (remote + local),
+`main` fast-forwarded. Live-verified against real production
+(`gavi411-ten.vercel.app`), not just local dev.
 
 **What actually got built and verified this round** (all confirmed via live
 Playwright against the real running dev server with a real signed-in Clerk
