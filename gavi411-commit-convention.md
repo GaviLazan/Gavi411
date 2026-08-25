@@ -101,6 +101,24 @@ there). Re-run `npm install` (root and `client/`, as applicable) after any
 merge, in the worktree you're about to verify evidence from, before
 trusting a build/run check.
 
+**Resync the role worktree right after its own PR merges, not weeks
+later (added 2026-08-25, real drift found)**: once a ticket built in
+`Gavi411-agent-<role>` merges, that worktree's branch still sits on its
+own pre-merge commits (the direct G411-XX commits) rather than `main`'s
+merge-commit version of the same content — same content, different
+commit path. `git merge main --no-edit` there stays a clean fast-forward
+*only* if this resync happens before the next ticket adds more commits
+on top of the old ones; skip it across several merges and the branch
+genuinely diverges from `main` (git can no longer prove the two histories
+overlap), and the pre-launch sync step above stops being a plain
+fast-forward — it needs a real diff-check-then-`reset --hard` instead
+(confirm via `git diff origin/main HEAD --stat` that nothing on the
+branch is missing from `main`, only then reset; never reset blind). Fix:
+immediately after a role's PR merges, `git -C ../Gavi411-agent-<role>
+merge main --no-edit` (or reset, once genuinely diverged) as part of that
+ticket's own wrap-up — don't defer it to the next session's pre-launch
+check.
+
 **Secrets across worktrees**: `.env` files are gitignored, so they're
 untracked — worktrees only share tracked history, meaning a `.env` in one
 worktree is invisible to the others (this bit G411-13: the subagent had
