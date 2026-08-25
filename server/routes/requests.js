@@ -9,7 +9,8 @@ import { prisma } from '../lib/prisma.js'
 const router = express.Router()
 
 // Drop "", null, undefined before saving (decision #55); keeps `false`/`0`.
-function stripEmpty(details) {
+// Exported for a direct unit test — internal helper otherwise.
+export function stripEmpty(details) {
   if (!details || typeof details !== 'object') return details
 
   const result = {}
@@ -21,6 +22,14 @@ function stripEmpty(details) {
         .map((entry) => stripEmpty(entry))
         .filter((entry) => entry && Object.keys(entry).length > 0)
       if (cleaned.length > 0) result[key] = cleaned
+      continue
+    }
+
+    if (typeof value === 'object') {
+      // Recurse into plain nested objects too (e.g. TravelFields' hotel/car,
+      // G411-74) — same emptiness rule as the top level, not just arrays.
+      const cleaned = stripEmpty(value)
+      if (cleaned !== undefined) result[key] = cleaned
       continue
     }
 

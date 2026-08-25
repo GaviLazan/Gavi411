@@ -1,9 +1,16 @@
 import Input from "./Input";
 import Select from "./Select";
 
-// PURCHASE-specific follow-up fields (G411-65). All optional — prompts
-// to jog memory, not a required intake gate (same rule as every other
-// type's follow-up fields). No group headers, just <hr> separators.
+// PURCHASE-specific follow-up fields (G411-65, regrouped G411-74). All
+// optional — prompts to jog memory, not a required intake gate (same
+// rule as every other type's follow-up fields). No group headers, just
+// <hr> separators.
+//
+// G411-74 regroup (Gavi's mockup, session 2026-08-25): description,
+// urgency, budget, preferred style first; buy-where, pickup/delivery,
+// needed-by, link second. Urgency is owned by NewRequest.jsx (shared
+// across every type) — passed in as props so it renders inline here
+// rather than only at the very end.
 
 const BUY_WHERE_OPTIONS = [
   { value: "", label: "No preference" },
@@ -22,15 +29,15 @@ const COORDINATION_OPTIONS = [
 // seed its useState without duplicating PURCHASE's field list itself.
 export const EMPTY_PURCHASE_DETAILS = {
   description: "",
-  buyWhere: "",
   budget: "",
   preferences: "",
+  buyWhere: "",
   coordination: "",
   neededBy: "",
   link: "",
 };
 
-function PurchaseFields({ value, onChange }) {
+function PurchaseFields({ value, onChange, urgency, onUrgencyChange, urgencyOptions }) {
   function set(field, fieldValue) {
     onChange({ ...value, [field]: fieldValue });
   }
@@ -44,10 +51,10 @@ function PurchaseFields({ value, onChange }) {
         onChange={(e) => set("description", e.target.value)}
       />
       <Select
-        label="Buy online, in store, or both?"
-        options={BUY_WHERE_OPTIONS}
-        value={value.buyWhere}
-        onChange={(e) => set("buyWhere", e.target.value)}
+        label="Urgency"
+        options={urgencyOptions}
+        value={urgency}
+        onChange={(e) => onUrgencyChange(e.target.value)}
       />
       <Input
         label="Budget / price range"
@@ -63,6 +70,12 @@ function PurchaseFields({ value, onChange }) {
       <hr />
 
       <Select
+        label="Buy online, in store, or both?"
+        options={BUY_WHERE_OPTIONS}
+        value={value.buyWhere}
+        onChange={(e) => set("buyWhere", e.target.value)}
+      />
+      <Select
         label="Do you need to coordinate pickup or delivery?"
         options={COORDINATION_OPTIONS}
         value={value.coordination}
@@ -74,9 +87,6 @@ function PurchaseFields({ value, onChange }) {
         value={value.neededBy}
         onChange={(e) => set("neededBy", e.target.value)}
       />
-
-      <hr />
-
       <Input
         label="Link to the item, if you have one"
         type="url"

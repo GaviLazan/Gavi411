@@ -14,6 +14,61 @@ accumulated. If something here turns out to matter long-term, promote it to
 
 ## Last updated
 
+2026-08-25 — **G411-64 split into two tickets** after Gavi shared a real
+mockup (session, TRAVEL flow as reference case): **G411-64** narrowed to
+animation-shell-only (card-per-step slide transitions, no content
+change); new **G411-74** filed (parented under G411-2, verified via
+JQL) to own the actual content regroup — urgency-first TRAVEL, hotel/car
+split from one merged group into two independent objects, PURCHASE
+reorder. Build order: G411-74 first (content), G411-64 after (shell
+wraps final content) — Gavi's explicit call, avoids redoing card
+boundaries twice.
+
+**G411-74 — Reviewing, PR #21 open, awaiting Gavi's visual/UX review**
+(subjective-judgment child, not a clean-build self-merge case). Built:
+`TravelFields.jsx` regrouped (urgency inline first, dates/destination
+split from preferences, hotel/car split into two independent optional
+"+ Add details" toggle panels matching flight's existing pattern —
+`typeDetails` needed no Prisma migration, already a loose `Json?`
+column); `PurchaseFields.jsx` reordered (description/urgency/budget/
+preferred-style | buy-where/pickup-delivery/needed-by/link) — **live-fit
+checked at real iPhone width (390px): all 8 fields fit one card, no
+split needed**, matching Gavi's own "only split if it doesn't fit" rule.
+
+**Sibling review found 1 real bug, fixed and re-verified live**:
+`stripEmpty()` (`server/routes/requests.js`) only recursed into arrays,
+not plain nested objects — an all-blank `hotel`/`car` toggled-on panel
+would've persisted junk into the DB instead of being dropped like every
+other empty field. Fixed in the shared helper (root cause, not
+per-caller); 2 new unit tests added. Live-verified against the real Neon
+DB post-fix: a hotel panel toggled on and left blank now stores no
+`hotel` key at all.
+
+**Real process gap found and fixed along the way**: `npm test` failed
+on unmodified `main` too (confirmed via `git stash`) — `vitest`/
+`supertest` were listed in root `package.json` but `node_modules` was
+stale, never actually installed. `npm install` fixed it; same
+staleness class flagged before elsewhere in this file. 32/32 tests pass
+post-fix (30 pre-existing + 2 new). Also found and cleaned up: a
+leftover `falsifier-flights-...` test-artifact User row in the live
+Neon DB from a prior session's Falsifier check — noted, not deleted
+(not this ticket's scope, flagging for whoever does a DB hygiene pass).
+
+**Live evidence, real deployed dev environment** (not prod yet — this
+PR hasn't merged): real Clerk test sign-in (`+clerk_test`/`424242`)
+against local dev server + local Neon, TRAVEL and PURCHASE submits both
+confirmed via direct Prisma query to persist the new `typeDetails` shape
+correctly in the actual stored DB row, not just the outgoing request
+body.
+
+**Next**: Gavi to review PR #21 (visual/UX pass, since this is
+subjective-judgment). Once approved: merge, Jira Reviewing → Landed →
+Reconciled (confirm the final Reconciled move with Gavi first, per the
+hard-to-reverse rule). Then G411-64 (animation shell) picks up against
+the new final card boundaries.
+
+---
+
 2026-08-24, later session — **G411-73 Reconciled** (dark/light mode
 manual toggle, filed and finished same session, live-verified against
 real production including a targeted FOUC-fix re-check). **G411-63** and
