@@ -12,6 +12,21 @@ accumulated. If something here turns out to matter long-term, promote it to
 
 ---
 
+## ⚠️ Crucial unresolved gap — read before touching auth/users
+
+**Flagged by Gavi 2026-08-25, not yet investigated or fixed.** Clerk↔Prisma
+user sync and the admin role are likely broken: two separate user stores
+syncing one-way only on first request (no webhook — `server/middleware/
+auth.js`'s own comment admits this), `requireAuth` reads `claims.firstName`/
+`claims.lastName` off Clerk's session claims but the default Clerk JWT
+doesn't include those fields without a custom template (probably means
+every new user gets empty-string names in the DB), and no admin-role
+mechanism/visibility exists at all. Full writeup and evidence in
+`gavi411-brain.md` §3a. **Filed as G411-76** (Open, parented under G411-5
+Admin Cockpit) — still needs real investigation/scoping at pickup, not
+pre-decided. Don't start other Auth/Users-shaped work without checking
+this first.
+
 ## Last updated
 
 2026-08-25, latest session — **G411-64 merged and live, Jira at Landed.**

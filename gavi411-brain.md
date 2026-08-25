@@ -167,6 +167,51 @@ Purely wording/phrasing items, decoupled from logic — batched into one pass la
 | 68 | 2026-08-25 (per Gavi, originally discussed 2026-08-24) | **Merge policy: always a regular merge commit, never squash — standing rule.** Gavi says this was discussed in the 2026-08-24 session, but a full repo search (`gavi411-brain.md`, `gavi411-commit-convention.md`, `CLAUDE.md`, every other doc, and every commit message from that date) turns up no record of it — PRs #4, #8, #9, #10 were all squash-merged without objection, and the commit-convention file's own merge-cleanup section (added 2026-08-24, same session) talks about "a manual squash" as the expected case, not something to avoid. **Recorded as a real gap**: either the instruction was given verbally/elsewhere and never made it into a doc (the actual failure — an undocumented standing rule is indistinguishable from no rule at all, the next session has no way to know it exists), or it's being set as a new rule now under the belief it was already settled. Either way, **effective now: every PR merge uses a regular merge commit** (`gh pr merge --merge` / `git merge --no-ff`), not `--squash`. Branch-cleanup-on-merge (decision recorded in `gavi411-commit-convention.md`, 2026-08-24) still applies regardless of merge strategy — delete the branch immediately after, both remote and local. Caught live: G411-74/PR #21 was squash-merged before this was raised; not retroactively rewritten (same reasoning as decision #64 — no real upside to rewriting merged history on a solo course project), corrected going forward starting with the next PR. |
 | 69 | 2026-08-25 | **G411-64 build round: several real, reusable decisions surfaced through live visual review, not just ticket-scoped fixes.** (1) **Zero-match on the intake flow now lands on the chip screen** (full 5-type list, no "None of these" chip since there's nothing to reject) **instead of skipping straight to the GENERAL follow-up** — reverses the original G411-18/21-era call ("zero match → skip chips, land directly on GENERAL"). Gavi's direct correction: skipping chips removed a real choice point with no upside. (2) **Discard/exit confirmations use a real in-app modal, not the native browser `confirm()` popup** — new shared `ConfirmModal.jsx` component (native `<dialog>`, no library), used by both the intake flow's "×" and the header logo's confirm-if-typed guard. Standing pattern going forward: any future are-you-sure prompt in this app should use this component, not `confirm()`/`alert()`. (3) **`box-sizing: border-box` is now set globally** (`*, *::before, *::after` in `index.css`) — root-caused two separate-looking layout bugs (home-page width mismatch, intake-card clipping) back to one shared cause: nothing in the codebase set border-box before, so any element mixing padding + a `max-width` silently rendered wider than intended. Worth knowing for any future component: padding + explicit width is now safe by default, doesn't need a manual box-sizing override per component. (4) **`scrollbar-gutter: stable` added to `html`** — a real (non-headless-browser) scrollbar reserving/releasing its width between a tall page (the home request list) and a short one (an intake card) was shifting the whole centered `#root` column horizontally between screens; this reserves the gutter unconditionally so page height never changes available width. (5) **A two-card "outgoing slides out, incoming slides in, simultaneously" step-transition was built, then reverted** after repeated real bugs across several fix attempts (a stale-closure cleanup timer that never fired, a CSS specificity conflict producing a vertical "pop," and a real-browser-only case where an animation class present on an element's very first painted frame sometimes never visibly played) — Gavi's call to fall back to the original single-card fade+slide-in once the added complexity kept producing new bugs faster than it was fixing old ones. **Recorded so this isn't re-attempted blindly**: if a genuine simultaneous slide-out/slide-in is wanted later, budget real time for cross-browser animation-timing edge cases, not just headless-Chromium verification — headless testing did not reproduce any of these bugs on its own. |
  
+## 3a. Known critical gaps — not yet fixed, must be
+
+**Clerk↔Prisma user sync + admin role, flagged crucial by Gavi (2026-08-25).**
+Not investigated or fixed yet — this is a flag, not a decision. Gavi's own
+words: "I don't think clerk and the db is the right implementation, or if
+it is, we didn't do it right. I feel like we have two user lists we are
+trying to sync and the data we need from clerk isn't passing into prisma.
+We also need to define an admin account which we haven't defined (fixable,
+but since we aren't seeing which user we're promoting that's a major
+problem)."
+
+Real code-level evidence backing this up, found while filing the flag
+(`server/middleware/auth.js`, `requireAuth`):
+- **Two separate user stores, one-way sync only, on first touch**: Clerk's
+  own user directory and Prisma's `User` table are distinct. The Prisma row
+  is lazily created on a user's *first* authenticated request and never
+  updated again — the code's own comment admits this (`ponytail: no Clerk
+  webhook sync (profile edits in Clerk won't propagate here after
+  creation)`). A user who changes their name/email in Clerk after their
+  first request has permanently stale data in the app's own DB.
+- **Clerk claims likely aren't populated the way the code assumes**:
+  `requireAuth` reads `claims.firstName`/`claims.lastName` off
+  `req.auth?.sessionClaims`, but Clerk's default session JWT does not
+  include `firstName`/`lastName` unless a custom JWT template explicitly
+  adds them — nothing in this repo currently configures one. If that's
+  right, every new user row is silently created with empty-string names,
+  which would explain "the data we need from clerk isn't passing into
+  prisma."
+- **No admin-role mechanism exists**: `role === 'ADMIN'` is referenced in
+  `GET /api/requests` (G411-67, per its own HANDOFF notes) but nothing
+  anywhere sets a `User.role` to `ADMIN` — no promotion endpoint, no
+  seed/manual-set path, and (Gavi's specific point) no visibility into
+  which Clerk/Prisma user *is* Gavi's own account to even promote
+  correctly by hand.
+- Likely other issues in this area not yet enumerated (Gavi's own words:
+  "there are other issues there too").
+
+**Filed as G411-76** (Open, parented under G411-5 Admin Cockpit, verified
+via JQL) — description carries this same writeup. Real
+investigation/scoping (confirm the JWT-claims theory, decide the actual
+fix: webhook sync? different claims strategy? a one-time admin-promotion
+script vs. a real UI?) still needs to happen at pickup, not pre-decided
+here. Flagged here and in `HANDOFF.md` so it isn't lost — Gavi called this
+crucial, not a someday-nice-to-have.
+
 ## 4. Open Questions
  
 - User-facing term to replace "ticket"/"request" — brainstorm later.
