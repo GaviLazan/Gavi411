@@ -14,10 +14,13 @@ accumulated. If something here turns out to matter long-term, promote it to
 
 ## Last updated
 
-2026-08-25, latest session — **G411-64 build round complete and live-verified,
-Gavi said "pass, wrap up."** Still NOT committed/pushed as of this entry —
-commit is the next real step, not yet done. Do not assume anything below is
-uncommitted-forever; check `git status` fresh before acting on this.
+2026-08-25, latest session — **G411-64 merged and live, Jira at Landed.**
+PR #22 merged via regular merge commit (`32f7ffd`, decision #68 — not
+squash), branch deleted (remote + local), `main` fast-forwarded. Live-
+verified against real production (`gavi411-ten.vercel.app`), not just
+local dev. **Still needs**: Gavi's explicit go-ahead for the final
+Landed → Reconciled Jira transition (hard-to-reverse-action rule) —
+not done automatically even though evidence is in hand.
 
 **What actually got built and verified this round** (all confirmed via live
 Playwright against the real running dev server with a real signed-in Clerk
@@ -87,22 +90,43 @@ zero-match chip behavior, the discard modal (no native dialog fires),
 flight add/remove — all passed, zero console/page errors. Aegis
 Claim/Falsifier/Evidence posted as Jira comment (id 10567).
 
-**What's next, in order**:
-1. Commit (working tree is large/mixed — several small logical commits or
-   one, Gavi's call) and push to `agent-backend/G411-64-animation-shell`.
-2. Live Sibling review before merge (this is a load-bearing/subjective
-   visual ticket per `gavi411-commit-convention.md` — already got Gavi's
-   own eyes throughout this session's live iteration, which satisfies
-   that gate, but the mandatory-on-every-agentic-child Sibling review
-   itself per decision #62/#63 hasn't been run as a discrete step yet).
-3. Merge via `--merge` (regular merge commit, decision #68 — not squash),
-   delete branch.
-4. Jira: Reviewing → Landed once merged, then Landed → Reconciled after a
-   post-merge live re-verification — confirm with Gavi before that final
-   transition, per the hard-to-reverse-action rule. Currently still at
-   Implementing.
-5. Parent 2 (Requests/Intake) — check whether any other children are
-   still Open once G411-64 Reconciles; if not, this may be Parent 2's
+**What actually happened after evidence was gathered** (this entry
+supersedes the "what's next" list that used to be here — all of it is
+now done, not pending):
+1. **Committed** — `c1066e8` (the full build round) then `6bd993c` (the
+   Sibling review fixes below), pushed to
+   `agent-backend/G411-64-animation-shell`.
+2. **Live Sibling review run as its own discrete step** (`/code-review`,
+   medium effort) — found 2 real bugs, both fixed and re-verified live
+   before merging: (a) `App.jsx`'s `newRequestHasText` was never reset
+   on any exit path, so a stale flag from a prior intake visit could
+   wrongly pop the discard confirm on a fresh, empty request — fixed by
+   resetting it alongside every `setView('list')` call that leaves
+   `'new'`; (b) `ConfirmModal`'s `<dialog onClose={onCancel}>` fired on
+   every native close, including the one triggered by `onConfirm`
+   itself flipping `open` false — `onConfirm`/`onCancel` both ran on
+   every "Yes" click. Fixed by dropping `onClose` entirely (native
+   `<dialog>` doesn't close on backdrop click without extra JS this
+   component doesn't add, so `onCancel`'s `cancel` event — Escape — is
+   the only close path that isn't already a button click).
+3. **Merged** — PR #22, `gh pr merge --merge --admin` (regular merge
+   commit, decision #68 — not squash), commit `32f7ffd`. Branch deleted
+   both remote and local, `main` fast-forwarded.
+4. **Live-verified against real production** (`gavi411-ten.vercel.app`,
+   not just local dev): real signed-in Clerk test session, home-page
+   width alignment, intake flow through chips, correct pick-then-confirm
+   chip behavior, zero console errors. Hit a real Render cold-start
+   delay mid-check (~15-20s first-request lag, a known/documented
+   project-wide gap, not a regression) — waited it out and re-confirmed
+   once the backend warmed up, didn't just note it away.
+5. **Jira: Reviewing → Landed**, done. Aegis fields + closure comment
+   posted (comment ids 10567, 10568).
+6. **Landed → Reconciled: NOT done yet** — needs Gavi's explicit
+   go-ahead first, per the hard-to-reverse-action rule. Ask him
+   directly rather than assuming "pass, wrap up" already covers this
+   specific transition.
+7. Parent 2 (Requests/Intake) — once G411-64 Reconciles, check whether
+   any other children are still Open; if not, this may be Parent 2's
    last piece.
 
 ---
