@@ -101,13 +101,17 @@ gap's severity, not its place in the queue. This project works Epics in
 order; G411-76 waits its turn under G411-5 like any other ticket. Don't
 suggest jumping to it again without Gavi initiating that Epic switch.
 
-**Next task**: Epic 2 is closed. Ask Gavi which Epic to pick up next —
-don't assume; the "current Epic" the session-start-prompt's auto-pick
-rule points to no longer exists once Epic 2 is done.
+## Next task — G411-24, decided but not started
 
-**Next task**: no ticket picked yet for after this — ask Gavi whether to
-Reconcile G411-75 now, pick up G411-76, or continue down the G411-2
-spine.
+**Epic 3 (Messaging, G411-3) is next** — Gavi's explicit call, end of the
+2026-08-25 session. First task in it, and the first one we're picking
+up, is **G411-24** (message thread schema + endpoints — fetch on load,
+POST to send, no WebSockets per the project's stack decision). Nothing
+has been touched yet — Gavi is stopping for the night, this is queued
+for next session's pickup. Standard session-start ritual still applies:
+re-check G411-24's Description against the PRD before starting (it may
+be stale, same caution as every other ticket), and write its
+Claim/Falsifier/Evidence-required fields at actual pickup time, not now.
 
 ---
 
