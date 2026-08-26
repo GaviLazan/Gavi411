@@ -252,19 +252,35 @@ Chromium is already installed locally (`~/.cache/ms-playwright`).
 
 **Signing in without a real inbox**: Clerk's dev/test-mode instances support
 a fixed verification code for any email using the `+clerk_test` alias
-convention — e.g. `gavers+clerk_test@gmail.com` (same underlying account as
-`gavers@gmail.com`, no separate signup needed) with verification/OTP code
-**`424242`**. This bypasses the real "check your email" step entirely — no
-inbox access needed, safe for an unattended/scripted sign-in. Only works
-because this project's Clerk instance is in Development mode (confirmed live
-via the sign-in page's own "Development mode" footer badge).
+convention (same underlying account, no separate signup needed) — this
+bypasses the real "check your email" step entirely, safe for an
+unattended/scripted sign-in. Only works because this project's Clerk
+instance is in Development mode (confirmed live via the sign-in page's own
+"Development mode" footer badge). **Credentials** (real email, real
+password, and Clerk's fixed dev-mode OTP) live in root `.env` as
+`CLERK_TEST_EMAIL` / `CLERK_TEST_PASSWORD` / `CLERK_TEST_OTP` — gitignored,
+never in a doc. Read them via `process.env` in any throwaway sign-in
+script (`dotenv/config` or manual `.env` parse); placeholder var names only
+are in `.env.example`.
 
-**Script gotcha hit live**: a `getByRole("button", { name: /continue/i })`
-regex match on Clerk's sign-in page matches "Continue with **Google**" (an
-earlier button in DOM order) before the real identifier-submit "Continue"
-button — use `{ name: "Continue", exact: true }` instead, or the script
-silently detours into a real Google OAuth redirect instead of Clerk's own
+**Script gotcha, real and still relevant**: the account has both a
+password and OTP set up — Clerk's sign-in form defaults to the *password*
+step, not the code step, for an account that has one. A script assuming
+the code step immediately will hang/fail; check which field actually
+renders (`input[type="password"]` vs the OTP input) and branch, or just
+fill the password field directly since it's faster than switching methods.
+Also: a `getByRole("button", { name: /continue/i })` regex match on
+Clerk's sign-in page matches "Continue with **Google**" (an earlier button
+in DOM order) before the real identifier-submit "Continue" button — use
+`{ name: "Continue", exact: true }` instead, or the script silently
+detours into a real Google OAuth redirect instead of Clerk's own
 email/password + code flow.
+
+**Playwright itself is now a real root devDependency** (added G411-24
+session, browsers already cached at `~/.cache/ms-playwright` from prior
+`npx playwright` runs) — `import { chromium } from 'playwright'` works
+directly in any script under the repo root, no more `npx playwright`
+one-off download/resolve per session.
 - **Subjective-judgment children (added 2026-08-19)**: visual/design
   direction, copy/tone, UX decisions — anything where a technical evidence
   bar (build passes, no errors) can be fully met while the actual content

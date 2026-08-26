@@ -11,8 +11,10 @@ import "../components/ReviewSummary.css";
 // Request detail / "ticket" page (G411-75). Minimum scope per the ticket:
 // the request's own fields + urgency/status + the existing Message thread
 // (schema's supported it since G411-67, never rendered anywhere until now).
-// Read-only — no reply/compose UI, since no POST /messages route exists
-// yet (out of scope here, would need its own ticket).
+//
+// TODO(G411-25): the compose box below is a throwaway smoke-test control
+// for G411-24's live Falsifier check only — not the real designed thread
+// UI. Remove/replace once G411-25 (thread UI component) lands.
 
 // typeDetails' keys are freeform per-type (TravelFields/PurchaseFields/
 // TechSupportFields), no shared spec list like ReviewSummary.jsx's — that
@@ -48,6 +50,8 @@ function typeDetailRows(details, keyPrefix = "") {
 function RequestDetail({ requestId, onBack }) {
   const [request, setRequest] = useState(null);
   const [error, setError] = useState("");
+  const [draft, setDraft] = useState("");
+  const [sending, setSending] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -70,6 +74,29 @@ function RequestDetail({ requestId, onBack }) {
       cancelled = true;
     };
   }, [requestId]);
+
+  function refetch() {
+    fetch(`/api/requests/${requestId}`)
+      .then((res) => res.json())
+      .then(setRequest);
+  }
+
+  function sendMessage() {
+    if (!draft.trim()) return;
+    setSending(true);
+    fetch(`/api/requests/${requestId}/messages`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ content: draft }),
+    })
+      .then((res) => {
+        if (!res.ok) throw new Error("failed");
+        setDraft("");
+        refetch();
+      })
+      .catch(() => setError("Couldn't send that message."))
+      .finally(() => setSending(false));
+  }
 
   if (error) {
     return (
@@ -136,6 +163,19 @@ function RequestDetail({ requestId, onBack }) {
             ))}
           </div>
         )}
+        {/* TODO(G411-25): throwaway smoke-test control, see file header */}
+        <div style={{ display: "flex", gap: "var(--space-2)", marginTop: "var(--space-4)" }}>
+          <input
+            dir="auto"
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            placeholder="Message…"
+            style={{ flex: 1 }}
+          />
+          <Button onClick={sendMessage} disabled={sending || !draft.trim()}>
+            Send
+          </Button>
+        </div>
       </Card>
     </div>
   );

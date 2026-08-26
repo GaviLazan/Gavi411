@@ -43,6 +43,9 @@ const prismaMock = {
     findUnique: vi.fn(),
     update: vi.fn(),
   },
+  message: {
+    create: vi.fn(),
+  },
 }
 
 vi.mock('../lib/prisma.js', () => ({ prisma: prismaMock }))
@@ -213,6 +216,57 @@ describe('POST /api/requests/match', () => {
     const res = await request(app).post('/api/requests/match').send({ freeText: 'need a flight' })
     expect(res.status).toBe(200)
     expect(res.body.matchedTypes).toEqual(['TRAVEL'])
+  })
+})
+
+describe('POST /api/requests/:id/messages (G411-24)', () => {
+  it('401s when unauthenticated', async () => {
+    const res = await request(app).post('/api/requests/1/messages').send({ content: 'hi' })
+    expect(res.status).toBe(401)
+  })
+
+  it('404s for a signed-in user who is not the owner or an admin', async () => {
+    currentUserId = OTHER
+    prismaMock.request.findUnique.mockResolvedValue(sampleRequest)
+
+    const res = await request(app).post('/api/requests/1/messages').send({ content: 'hi' })
+    expect(res.status).toBe(404)
+    expect(prismaMock.message.create).not.toHaveBeenCalled()
+  })
+
+  it('400s when content is missing', async () => {
+    currentUserId = OWNER
+    const res = await request(app).post('/api/requests/1/messages').send({})
+    expect(res.status).toBe(400)
+  })
+
+  it('400s when content is whitespace-only (Sibling review finding)', async () => {
+    currentUserId = OWNER
+    const res = await request(app).post('/api/requests/1/messages').send({ content: '   ' })
+    expect(res.status).toBe(400)
+    expect(prismaMock.message.create).not.toHaveBeenCalled()
+  })
+
+  it('creates a message for the owner and returns 201', async () => {
+    currentUserId = OWNER
+    prismaMock.request.findUnique.mockResolvedValue(sampleRequest)
+    const created = { id: 5, content: 'hi', imageUrl: null, requestId: 1, userId: OWNER, createdAt: new Date() }
+    prismaMock.message.create.mockResolvedValue(created)
+
+    const res = await request(app).post('/api/requests/1/messages').send({ content: 'hi' })
+    expect(res.status).toBe(201)
+    expect(prismaMock.message.create).toHaveBeenCalledWith({
+      data: { content: 'hi', imageUrl: null, requestId: 1, userId: OWNER },
+    })
+  })
+
+  it('allows an admin to message a request they do not own', async () => {
+    currentUserId = ADMIN
+    prismaMock.request.findUnique.mockResolvedValue(sampleRequest)
+    prismaMock.message.create.mockResolvedValue({ id: 6, content: 'hi', requestId: 1, userId: ADMIN })
+
+    const res = await request(app).post('/api/requests/1/messages').send({ content: 'hi' })
+    expect(res.status).toBe(201)
   })
 })
 
