@@ -51,6 +51,12 @@ const prismaMock = {
 vi.mock('../lib/prisma.js', () => ({ prisma: prismaMock }))
 vi.mock('../lib/matchKeywords.js', () => ({ matchKeywords: vi.fn() }))
 
+const uploadImageMock = vi.fn()
+vi.mock('../lib/cloudinary.js', async () => {
+  const actual = await vi.importActual('../lib/cloudinary.js')
+  return { ...actual, uploadImage: (...args) => uploadImageMock(...args) }
+})
+
 const { default: requestsRouter } = await import('./requests.js')
 
 const app = express()
@@ -267,6 +273,75 @@ describe('POST /api/requests/:id/messages (G411-24)', () => {
 
     const res = await request(app).post('/api/requests/1/messages').send({ content: 'hi' })
     expect(res.status).toBe(201)
+  })
+})
+
+describe('POST /api/requests/:id/messages — image upload (G411-26)', () => {
+  it('accepts an image with no caption (photo alone is a valid message)', async () => {
+    currentUserId = OWNER
+    prismaMock.request.findUnique.mockResolvedValue(sampleRequest)
+    uploadImageMock.mockResolvedValue({ secure_url: 'https://res.cloudinary.com/x/image/upload/v1/y.jpg' })
+    prismaMock.message.create.mockResolvedValue({ id: 7, content: '', imageUrl: 'https://res.cloudinary.com/x/image/upload/v1/y.jpg' })
+
+    const res = await request(app)
+      .post('/api/requests/1/messages')
+      .attach('image', Buffer.from('fake-image-bytes'), { filename: 'photo.jpg', contentType: 'image/jpeg' })
+
+    expect(res.status).toBe(201)
+    expect(uploadImageMock).toHaveBeenCalled()
+    expect(prismaMock.message.create).toHaveBeenCalledWith({
+      data: { content: '', imageUrl: 'https://res.cloudinary.com/x/image/upload/v1/y.jpg', requestId: 1, userId: OWNER },
+    })
+  })
+
+  it('accepts an image with a caption together (one message, both fields)', async () => {
+    currentUserId = OWNER
+    prismaMock.request.findUnique.mockResolvedValue(sampleRequest)
+    uploadImageMock.mockResolvedValue({ secure_url: 'https://res.cloudinary.com/x/image/upload/v1/z.jpg' })
+    prismaMock.message.create.mockResolvedValue({ id: 8 })
+
+    const res = await request(app)
+      .post('/api/requests/1/messages')
+      .field('content', 'here is a photo')
+      .attach('image', Buffer.from('fake-image-bytes'), { filename: 'photo.jpg', contentType: 'image/jpeg' })
+
+    expect(res.status).toBe(201)
+    expect(prismaMock.message.create).toHaveBeenCalledWith({
+      data: { content: 'here is a photo', imageUrl: 'https://res.cloudinary.com/x/image/upload/v1/z.jpg', requestId: 1, userId: OWNER },
+    })
+  })
+
+  it('400s on a disallowed file type, never calls Cloudinary', async () => {
+    currentUserId = OWNER
+    prismaMock.request.findUnique.mockResolvedValue(sampleRequest)
+
+    const res = await request(app)
+      .post('/api/requests/1/messages')
+      .attach('image', Buffer.from('not an image'), { filename: 'file.txt', contentType: 'text/plain' })
+
+    expect(res.status).toBe(400)
+    expect(uploadImageMock).not.toHaveBeenCalled()
+    expect(prismaMock.message.create).not.toHaveBeenCalled()
+  })
+
+  it('400s on an oversized image, never calls Cloudinary', async () => {
+    currentUserId = OWNER
+    prismaMock.request.findUnique.mockResolvedValue(sampleRequest)
+    const oversized = Buffer.alloc(10 * 1024 * 1024 + 1)
+
+    const res = await request(app)
+      .post('/api/requests/1/messages')
+      .attach('image', oversized, { filename: 'big.jpg', contentType: 'image/jpeg' })
+
+    expect(res.status).toBe(400)
+    expect(uploadImageMock).not.toHaveBeenCalled()
+  })
+
+  it('400s when neither content nor an image is sent', async () => {
+    currentUserId = OWNER
+    const res = await request(app).post('/api/requests/1/messages').send({})
+    expect(res.status).toBe(400)
+    expect(uploadImageMock).not.toHaveBeenCalled()
   })
 })
 
