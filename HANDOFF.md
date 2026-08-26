@@ -69,8 +69,12 @@ informed manual styling + live visual review. Ran a real
 `/impeccable audit`, found 3 real WCAG gaps: textarea had no label (only
 placeholder), message images used `alt=""` (should be real alt text for
 non-decorative images) — both fixed, PR #26 merged (`b253f3f`). Third
-finding (no `aria-live` region for new messages) deliberately deferred,
-Gavi's call — ties into future real-time/notification design.
+finding (no `aria-live` region for new messages) deliberately deferred —
+**filed as its own real ticket, G411-78** (parented under G411-7
+Notifications), not left as a comment. Gavi caught this live as a
+recurring pattern (a "logged for later" comment on a closing ticket is
+functionally lost) — now a standing memory
+(`defer-to-real-ticket-not-a-comment`), not just fixed this once.
 
 **Not Reconciled yet** — waiting on Gavi's explicit go-ahead for the
 final Landed → Reconciled move.
