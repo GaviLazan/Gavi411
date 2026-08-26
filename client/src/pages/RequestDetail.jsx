@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Card from "../components/Card";
 import Button from "../components/Button";
 import MessageThread from "../components/MessageThread";
@@ -50,11 +50,16 @@ function typeDetailRows(details, keyPrefix = "") {
   });
 }
 
+const IMAGE_ACCEPT = "image/gif,image/jpeg,image/png,image/heic,image/webp";
+
 function RequestDetail({ requestId, onBack }) {
   const [request, setRequest] = useState(null);
-  const [error, setError] = useState("");
+  const [error, setError] = useState(""); // load failure — replaces the whole page
+  const [sendError, setSendError] = useState(""); // send failure — inline, thread stays visible
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
+  const [image, setImage] = useState(null); // File | null (G411-26)
+  const fileInputRef = useRef(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -85,19 +90,35 @@ function RequestDetail({ requestId, onBack }) {
   }
 
   function sendMessage() {
-    if (!draft.trim()) return;
+    if (!draft.trim() && !image) return;
     setSending(true);
-    fetch(`/api/requests/${requestId}/messages`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ content: draft }),
-    })
-      .then((res) => {
-        if (!res.ok) throw new Error("failed");
+    setSendError("");
+
+    // Multipart only when an image is actually attached — a plain JSON
+    // body still works for text-only sends (server accepts both).
+    const body = new FormData();
+    if (draft.trim()) body.append("content", draft);
+    if (image) body.append("image", image);
+
+    fetch(`/api/requests/${requestId}/messages`, { method: "POST", body })
+      .then(async (res) => {
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          throw new Error(data.error || "Couldn't send that message.");
+        }
         setDraft("");
+        setImage(null);
         refetch();
       })
-      .catch(() => setError("Couldn't send that message."))
+      .catch((err) => {
+        setSendError(err.message);
+        // Clear a rejected image rather than leave a broken/invalid
+        // preview sitting on screen — most send failures with an image
+        // attached are about that image (size/type); retrying means
+        // deliberately re-attaching, not silently resending the same
+        // bad file.
+        if (image) setImage(null);
+      })
       .finally(() => setSending(false));
   }
 
@@ -150,7 +171,25 @@ function RequestDetail({ requestId, onBack }) {
       <Card>
         <h2>Messages</h2>
         <MessageThread messages={request.message} />
+        {image && (
+          <div className="message-image-preview">
+            <img src={URL.createObjectURL(image)} alt="Selected attachment preview" />
+            <button type="button" onClick={() => setImage(null)} aria-label="Remove image">✕</button>
+          </div>
+        )}
+        {sendError && <p className="message-send-error" role="alert">{sendError}</p>}
         <div className="message-compose">
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept={IMAGE_ACCEPT}
+            className="message-file-input"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) setImage(file);
+              e.target.value = ""; // allow re-picking the same file later
+            }}
+          />
           <textarea
             className="field-input message-textarea"
             dir="auto"
@@ -164,13 +203,12 @@ function RequestDetail({ requestId, onBack }) {
             }}
             placeholder="Message…"
           />
-          {/* One button slot: camera (image upload, G411-26 wires the real
-              picker — no-op stub for now) when the box is empty, send-arrow
-              once there's text. Picking an image is expected to open the
-              same box for an optional caption before sending, not send
-              immediately — one Message row can hold content + imageUrl
-              together (already true today, G411-24). */}
-          {draft.trim() ? (
+          {/* One button slot: camera (opens the file picker) when the box
+              is empty and no image is attached, send-arrow once there's
+              text or an image. Picking an image keeps the box open for an
+              optional caption before sending, not an immediate send — one
+              Message row holds content + imageUrl together (G411-24). */}
+          {draft.trim() || image ? (
             <button
               type="button"
               className="message-send-btn"
@@ -184,9 +222,7 @@ function RequestDetail({ requestId, onBack }) {
             <button
               type="button"
               className="message-send-btn"
-              disabled
-              aria-disabled="true"
-              title="Image attachments coming soon"
+              onClick={() => fileInputRef.current?.click()}
               aria-label="Attach image"
             >
               📷

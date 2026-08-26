@@ -56,6 +56,14 @@
   padding: 0 var(--space-1);
 }
 
+/* No error color exists in DESIGN.md yet (its own Inputs section says
+   so explicitly) — matches RequestList.jsx's existing unstyled <p>
+   error-text convention rather than inventing one here. */
+.message-send-error {
+  margin: var(--space-2) 0 0;
+  font-size: 14px;
+}
+
 .message-compose {
   display: flex;
   gap: var(--space-2);
@@ -73,10 +81,13 @@
      with content up to max-height, then scrolls internally. */
 }
 
-/* One button slot, morphs by content (RequestDetail.jsx): camera
-   (disabled stub — G411-26 wires the real picker) when the box is
-   empty, send-arrow once there's text to send. Fixed size/position
-   either way so nothing shifts on swap besides the icon itself. */
+/* One button slot, morphs by content (RequestDetail.jsx): camera (opens
+   the file picker) when the box is empty and no image is attached,
+   send-arrow once there's text or an image ready to send. Fixed
+   size/position either way so nothing shifts on swap besides the icon
+   itself. :disabled below now only fires mid-send (Send briefly
+   disabled while the request is in flight), not the old always-off
+   camera stub — that stub is gone as of G411-26. */
 .message-send-btn {
   background: var(--accent);
   color: var(--surface);
@@ -101,4 +112,45 @@
   color: var(--text);
   cursor: not-allowed;
   opacity: 0.5;
+}
+
+/* Native file input stays functionally present (so the camera button's
+   click can trigger it) but visually hidden — the styled camera button
+   is the real control. */
+.message-file-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.message-image-preview {
+  position: relative;
+  margin-top: var(--space-3);
+  display: inline-block;
+}
+
+.message-image-preview img {
+  max-width: 160px;
+  max-height: 160px;
+  border-radius: var(--radius-sm);
+  display: block;
+}
+
+.message-image-preview button {
+  position: absolute;
+  top: var(--space-1);
+  right: var(--space-1);
+  width: 24px;
+  height: 24px;
+  border-radius: var(--radius-pill);
+  border: none;
+  background: var(--text-h);
+  color: var(--surface);
+  opacity: 0.8;
+  cursor: pointer;
+  font-size: 12px;
+  line-height: 1;
 }

@@ -65,6 +65,15 @@
         ],
         "createdAt": "2026-08-26T07:37:27.584Z",
         "reason": "icon glyph size inside a fixed 44x44 circular button (send-arrow/camera morph), not running text — DESIGN.md's type ramp covers text, matches the pre-existing 18px camera-icon precedent in the same file"
+      },
+      {
+        "rule": "design-system-font-size",
+        "value": "12px",
+        "files": [
+          "client/src/components/MessageThread.css"
+        ],
+        "createdAt": "2026-08-26T10:32:34.571Z",
+        "reason": "icon glyph (remove-image ✕) inside a fixed 24x24 button, not running text — same sanctioned exception class as the 20px send-arrow/camera glyph already ignored in this file"
       }
     ]
   }
