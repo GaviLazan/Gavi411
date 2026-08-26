@@ -3,17 +3,21 @@
 // server.js) — no manual config() call needed as long as that ran first.
 import { v2 as cloudinary } from 'cloudinary'
 
-const MAX_IMAGE_BYTES = 10 * 1024 * 1024 // 10MB, Gavi's call (G411-26)
-const ALLOWED_MIME_TYPES = new Set([
+export const MAX_IMAGE_BYTES = 10 * 1024 * 1024 // 10MB, Gavi's call (G411-26)
+// Exported (not just an internal Set) so the client can build its file-input
+// accept list from the same source instead of a hand-maintained duplicate
+// (Sibling review finding) — one array, two consumers.
+export const ALLOWED_IMAGE_TYPES = [
   'image/gif',
   'image/jpeg',
   'image/png',
   'image/heic',
   'image/webp',
-])
+]
+const ALLOWED_MIME_SET = new Set(ALLOWED_IMAGE_TYPES)
 
 export function validateImage(file) {
-  if (!ALLOWED_MIME_TYPES.has(file.mimetype)) {
+  if (!ALLOWED_MIME_SET.has(file.mimetype)) {
     return 'Unsupported image type'
   }
   if (file.size > MAX_IMAGE_BYTES) {

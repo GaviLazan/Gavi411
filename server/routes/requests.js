@@ -6,7 +6,7 @@ import { Status, Urgency } from '@prisma/client'
 import { matchKeywords } from '../lib/matchKeywords.js'
 import { requireAuth } from '../middleware/auth.js'
 import { prisma } from '../lib/prisma.js'
-import { validateImage, uploadImage } from '../lib/cloudinary.js'
+import { validateImage, uploadImage, MAX_IMAGE_BYTES } from '../lib/cloudinary.js'
 
 const router = express.Router()
 
@@ -14,7 +14,32 @@ const router = express.Router()
 // forward to Cloudinary, never written to disk. Fine at a 10MB cap on a
 // free-tier backend; would need rethinking for anything larger (see
 // G411-79's video-upload scoping note on this exact risk).
-const upload = multer({ storage: multer.memoryStorage() })
+//
+// limits.fileSize (Sibling review finding): without this, multer buffers
+// the WHOLE upload into memory before validateImage's own size check
+// ever runs — a large-enough request could exhaust the free-tier
+// backend's memory before the app-level check gets a chance to reject
+// it. This makes multer itself abort the stream once the cap is hit,
+// so validateImage's check is now a redundant-but-harmless belt-and-
+// suspenders (also covers a future non-multer caller of validateImage).
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: MAX_IMAGE_BYTES } })
+
+// Wraps upload.single('image') so a multer-level error (oversized file
+// hitting the new limits.fileSize above, malformed multipart, wrong
+// field name) returns this router's normal JSON error shape instead of
+// falling through to Express's default HTML error page — no global
+// error-handling middleware exists in server.js, so this route owns its
+// own multer error handling (Sibling review finding).
+function uploadImageField(req, res, next) {
+  upload.single('image')(req, res, (err) => {
+    if (!err) return next()
+    if (err.code === 'LIMIT_FILE_SIZE') {
+      return res.status(400).json({ error: 'Image too large (10MB max)' })
+    }
+    console.error('Image upload middleware error:', err)
+    res.status(400).json({ error: 'Invalid image upload' })
+  })
+}
 
 // Drop "", null, undefined before saving (decision #55); keeps `false`/`0`.
 // Exported for a direct unit test — internal helper otherwise.
@@ -222,7 +247,7 @@ router.post('/', requireAuth, async (req, res) => {
 // multer parses multipart/form-data for the optional image; a plain
 // JSON POST (no image, text only) still works — multer only kicks in
 // when the client actually sends multipart.
-router.post('/:id/messages', requireAuth, upload.single('image'), async (req, res) => {
+router.post('/:id/messages', requireAuth, uploadImageField, async (req, res) => {
   const id = Number(req.params.id)
   if (!Number.isInteger(id)) {
     return res.status(400).json({ error: 'Invalid request id' })

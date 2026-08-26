@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Card from "../components/Card";
 import Button from "../components/Button";
 import MessageThread from "../components/MessageThread";
@@ -50,6 +50,11 @@ function typeDetailRows(details, keyPrefix = "") {
   });
 }
 
+// Kept in sync by hand with server/lib/cloudinary.js's ALLOWED_IMAGE_TYPES
+// (Sibling review finding) — client and server are separate deploy
+// targets (Vercel/Render) with no shared package, so a real import isn't
+// available; this is only a UI hint anyway (accept doesn't enforce
+// anything), the server's own check stays authoritative either way.
 const IMAGE_ACCEPT = "image/gif,image/jpeg,image/png,image/heic,image/webp";
 
 function RequestDetail({ requestId, onBack }) {
@@ -60,6 +65,16 @@ function RequestDetail({ requestId, onBack }) {
   const [sending, setSending] = useState(false);
   const [image, setImage] = useState(null); // File | null (G411-26)
   const fileInputRef = useRef(null);
+
+  // One object URL per `image`, not recreated on every render (Sibling
+  // review finding: was called inline in JSX, leaking a new blob URL on
+  // every keystroke in the draft textarea). Revoked on change/unmount.
+  const imagePreviewUrl = useMemo(() => (image ? URL.createObjectURL(image) : null), [image]);
+  useEffect(() => {
+    return () => {
+      if (imagePreviewUrl) URL.revokeObjectURL(imagePreviewUrl);
+    };
+  }, [imagePreviewUrl]);
 
   useEffect(() => {
     let cancelled = false;
@@ -173,7 +188,7 @@ function RequestDetail({ requestId, onBack }) {
         <MessageThread messages={request.message} />
         {image && (
           <div className="message-image-preview">
-            <img src={URL.createObjectURL(image)} alt="Selected attachment preview" />
+            <img src={imagePreviewUrl} alt="Selected attachment preview" />
             <button type="button" onClick={() => setImage(null)} aria-label="Remove image">✕</button>
           </div>
         )}
