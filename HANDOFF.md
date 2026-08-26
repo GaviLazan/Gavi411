@@ -63,6 +63,15 @@ correctly parent-linked (verified via JQL). Deliberately left unscoped —
 Gavi has notes he's accumulating as he uses the running app, to be folded
 in once he's ready; description explicitly says not to pre-fill scope.
 
+**Real Impeccable audit follow-up, same session**: Gavi asked whether a
+real Impeccable pass had actually happened — it hadn't, only DESIGN.md-
+informed manual styling + live visual review. Ran a real
+`/impeccable audit`, found 3 real WCAG gaps: textarea had no label (only
+placeholder), message images used `alt=""` (should be real alt text for
+non-decorative images) — both fixed, PR #26 merged (`b253f3f`). Third
+finding (no `aria-live` region for new messages) deliberately deferred,
+Gavi's call — ties into future real-time/notification design.
+
 **Not Reconciled yet** — waiting on Gavi's explicit go-ahead for the
 final Landed → Reconciled move.
 
