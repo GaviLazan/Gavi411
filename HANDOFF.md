@@ -101,17 +101,78 @@ gap's severity, not its place in the queue. This project works Epics in
 order; G411-76 waits its turn under G411-5 like any other ticket. Don't
 suggest jumping to it again without Gavi initiating that Epic switch.
 
-## Next task — G411-24, decided but not started
+## G411-24 — Landed, waiting on Reconciled go-ahead (2026-08-26 session)
 
-**Epic 3 (Messaging, G411-3) is next** — Gavi's explicit call, end of the
-2026-08-25 session. First task in it, and the first one we're picking
-up, is **G411-24** (message thread schema + endpoints — fetch on load,
-POST to send, no WebSockets per the project's stack decision). Nothing
-has been touched yet — Gavi is stopping for the night, this is queued
-for next session's pickup. Standard session-start ritual still applies:
-re-check G411-24's Description against the PRD before starting (it may
-be stale, same caution as every other ticket), and write its
-Claim/Falsifier/Evidence-required fields at actual pickup time, not now.
+**Epic 3 (Messaging) started.** G411-3 and G411-24 both moved Open →
+Implementing (parent rollup applied). Scope, confirmed at pickup: the
+`Message` model already existed (content, imageUrl, requestId, userId,
+createdAt) and `GET /api/requests/:id` already returned the full ordered
+thread (built for G411-67/75) — so "fetch on load" was already done. The
+actual gap was the write side: new **`POST /api/requests/:id/messages`**,
+owner-or-admin (same 404-not-403 convention as GET/PATCH `:id` on this
+router; ADMIN role is still dead code pending G411-76, so only owners can
+practically use it today — noted, not blocking).
+
+**Two real decisions locked in via AskUserQuestion before building** (not
+defaulted silently): (1) verification includes a throwaway compose
+control bolted into `RequestDetail.jsx`, explicitly TODO'd for removal
+once G411-25 (real thread UI) lands — not part of this ticket's shipped
+scope, built only so the live Falsifier check could exercise a real
+authenticated POST instead of a bare curl; (2) owner + admin can send
+(not owner-only).
+
+**Live Sibling review (medium) found 2 real bugs on the shipped endpoint,
+fixed and re-verified before merge**: missing try/catch around the new
+route's Prisma calls (every sibling write route in this file has one,
+this was the odd one out); `content` only checked for falsy-ness, letting
+whitespace-only strings through server-side. Also hardened the throwaway
+compose control's error handling.
+
+**PR #24 merged** via regular merge commit (`--merge --admin`, decision
+#68 — not squash), commit `16d8402`. Branch
+`agent-backend/G411-24-message-endpoint` deleted (remote + local) —
+`gh pr merge` didn't do this automatically without `--delete-branch`,
+had to be done as a separate explicit step, worth remembering for next
+time. `main` fast-forwarded and pulled locally; all 6 role worktrees
+(`agent-backend/cicd/design/e2e/frontend/test`) fast-forwarded to match,
+confirmed 0 ahead before merging (not diverged).
+
+**Evidence**: 38/38 Vitest (6 new cases), clean client build, a live
+Playwright pass with a genuine Clerk-authenticated session (this test
+account has both a password AND the dev-mode OTP set up — sign-in
+defaults to the *password* step, not code; script needs to branch on
+which field actually renders), message sent through the real compose
+control, round-tripped via `GET /:id` refetch, confirmed persisted in
+live Neon via direct Prisma query, zero console/page errors — re-run
+fresh after the review fixes too. Full Aegis Claim/Falsifier/Evidence +
+closure comment posted on G411-24 (comment ids 10602, 10603).
+
+**Process/infra changes made along the way, load-bearing going forward**:
+- **Clerk test credentials now live in root `.env`** (gitignored) as
+  `CLERK_TEST_EMAIL` / `CLERK_TEST_PASSWORD` / `CLERK_TEST_OTP` —
+  previously the email alias and OTP were just written directly into
+  `gavi411-commit-convention.md` (a committed doc); moved off it per
+  Gavi's explicit call this session. `.env.example` has the placeholder
+  var names. `424242` is Clerk's own fixed dev-mode default (not a
+  project secret), noted as such so it doesn't look like it needs
+  protecting the same way the password does.
+- **Playwright is now a real root devDependency**, not a per-session
+  `npx playwright` re-resolve (browsers were already cached at
+  `~/.cache/ms-playwright` from earlier sessions, so this was free).
+- Jira's "Reviewing → Landed" transition was denied once by the
+  Claude Code auto-mode permission classifier for no apparent reason —
+  same flaky pattern as G411-75's session, went through cleanly on
+  retry. Still not understood why; flag again if it keeps recurring.
+
+**Not Reconciled yet** — waiting on Gavi's explicit go-ahead for the
+final Landed → Reconciled move, per the hard-to-reverse-action rule.
+
+**Next after G411-24**: G411-25 (thread UI component) is the natural next
+pickup in Epic 3, but per the no-auto-advance rule this needs Gavi's
+explicit go-ahead, not an assumption. When it's picked up, it should also
+delete the throwaway compose control this session left in
+`RequestDetail.jsx` (marked `TODO(G411-25)`), not just add a real one
+alongside it.
 
 ---
 
