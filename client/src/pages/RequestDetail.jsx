@@ -1,20 +1,23 @@
 import { useEffect, useState } from "react";
 import Card from "../components/Card";
 import Button from "../components/Button";
+import MessageThread from "../components/MessageThread";
 import { statusLabel as labelize } from "./RequestList";
 // This page reuses ReviewSummary's .review-row/.review-label/.review-value
 // classes for its own read-only rows — imported directly (Sibling review
 // finding: it used to only work by relying on NewRequest.jsx importing
 // this CSS first into the same eagerly-bundled app).
 import "../components/ReviewSummary.css";
+// Same reasoning for the compose textarea's .field-input class (G411-25
+// Sibling review finding — same bug class as above, caught again):
+// Input.css was only ever loaded as a side effect of NewRequest.jsx
+// importing Input.jsx first.
+import "../components/Input.css";
 
 // Request detail / "ticket" page (G411-75). Minimum scope per the ticket:
 // the request's own fields + urgency/status + the existing Message thread
 // (schema's supported it since G411-67, never rendered anywhere until now).
-//
-// TODO(G411-25): the compose box below is a throwaway smoke-test control
-// for G411-24's live Falsifier check only — not the real designed thread
-// UI. Remove/replace once G411-25 (thread UI component) lands.
+// Real thread UI + compose box landed in G411-25 (MessageThread.jsx).
 
 // typeDetails' keys are freeform per-type (TravelFields/PurchaseFields/
 // TechSupportFields), no shared spec list like ReviewSummary.jsx's — that
@@ -146,35 +149,48 @@ function RequestDetail({ requestId, onBack }) {
 
       <Card>
         <h2>Messages</h2>
-        {request.message.length === 0 ? (
-          <p className="review-empty">No messages yet.</p>
-        ) : (
-          <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-3)" }}>
-            {request.message.map((m) => (
-              <div className="review-row" key={m.id}>
-                <span className="review-label">
-                  {new Date(m.createdAt).toLocaleString()}
-                </span>
-                <span className="review-value" dir="auto">{m.content}</span>
-                {m.imageUrl && (
-                  <img src={m.imageUrl} alt="" style={{ maxWidth: "100%", borderRadius: "var(--radius-sm)" }} />
-                )}
-              </div>
-            ))}
-          </div>
-        )}
-        {/* TODO(G411-25): throwaway smoke-test control, see file header */}
-        <div style={{ display: "flex", gap: "var(--space-2)", marginTop: "var(--space-4)" }}>
-          <input
+        <MessageThread messages={request.message} />
+        <div className="message-compose">
+          <textarea
+            className="field-input message-textarea"
             dir="auto"
+            rows={1}
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
+            onInput={(e) => {
+              e.target.style.height = "auto";
+              e.target.style.height = `${e.target.scrollHeight}px`;
+            }}
             placeholder="Message…"
-            style={{ flex: 1 }}
           />
-          <Button onClick={sendMessage} disabled={sending || !draft.trim()}>
-            Send
-          </Button>
+          {/* One button slot: camera (image upload, G411-26 wires the real
+              picker — no-op stub for now) when the box is empty, send-arrow
+              once there's text. Picking an image is expected to open the
+              same box for an optional caption before sending, not send
+              immediately — one Message row can hold content + imageUrl
+              together (already true today, G411-24). */}
+          {draft.trim() ? (
+            <button
+              type="button"
+              className="message-send-btn"
+              onClick={sendMessage}
+              disabled={sending}
+              aria-label="Send"
+            >
+              →
+            </button>
+          ) : (
+            <button
+              type="button"
+              className="message-send-btn"
+              disabled
+              aria-disabled="true"
+              title="Image attachments coming soon"
+              aria-label="Attach image"
+            >
+              📷
+            </button>
+          )}
         </div>
       </Card>
     </div>
