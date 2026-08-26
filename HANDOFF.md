@@ -12,7 +12,7 @@ accumulated. If something here turns out to matter long-term, promote it to
 
 ---
 
-## G411-26 — Landed, waiting on Reconciled go-ahead (2026-08-26 session)
+## G411-26 — Reconciled (2026-08-26 session)
 
 **Real Cloudinary image upload shipped.** Cloudinary credentials
 (`CLOUDINARY_URL`, real account) added to root `.env` (gitignored),
@@ -68,7 +68,24 @@ actual `secure_url` persisted to Neon, confirmed reachable via curl
 Both rejection paths (oversized, wrong type) confirmed live post-fix
 against a fresh server process.
 
-**Not Reconciled yet** — waiting on Gavi's explicit go-ahead.
+**Reconciled** — Gavi's explicit go-ahead given. Parent G411-3 stayed
+at Implementing (Open children remain: G411-27, 28, 29, 79).
+
+**Post-Reconcile follow-ups, same session, both real and resolved**:
+(1) Gavi asked to see a real visible inline image (earlier live checks
+all used a 1x1 test pixel) — generated a real gradient PNG, uploaded it
+through the actual app, confirmed inline rendering correctly in the
+bubble alongside its caption, screenshot sent. Hit the same stale
+`node --watch` reload artifact a third time this session doing this —
+a clean `pkill` + fresh `node server.js` (not relying on `--watch`)
+resolved it again; this is now a known, recurring dev-workflow gotcha,
+not a code bug, worth remembering going forward. (2) Gavi questioned
+the message alignment convention (own-message-right vs. fixed-role
+left/right) — confirmed the built viewer-relative convention (WhatsApp-
+style, mirrors per signed-in viewer) is what he actually wants, no code
+change needed. Real caveat still standing: this has only been verified
+by simulating a second sender via direct DB write, never from an actual
+admin-signed-in session (no admin role mechanism exists yet — G411-76).
 
 **Next after G411-26**: G411-27 (encryption-at-rest fallback) and
 G411-79 (video/doc attachments, filed this session) are both real
