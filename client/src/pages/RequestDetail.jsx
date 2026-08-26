@@ -155,6 +155,7 @@ function RequestDetail({ requestId, onBack }) {
             className="field-input message-textarea"
             dir="auto"
             rows={1}
+            aria-label="Message"
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
             onInput={(e) => {
