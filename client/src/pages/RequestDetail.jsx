@@ -94,6 +94,7 @@ function RequestDetail({ requestId, onBack }) {
         setDraft("");
         refetch();
       })
+      .catch(() => setError("Couldn't send that message."))
       .finally(() => setSending(false));
   }
 

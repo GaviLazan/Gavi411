@@ -240,6 +240,13 @@ describe('POST /api/requests/:id/messages (G411-24)', () => {
     expect(res.status).toBe(400)
   })
 
+  it('400s when content is whitespace-only (Sibling review finding)', async () => {
+    currentUserId = OWNER
+    const res = await request(app).post('/api/requests/1/messages').send({ content: '   ' })
+    expect(res.status).toBe(400)
+    expect(prismaMock.message.create).not.toHaveBeenCalled()
+  })
+
   it('creates a message for the owner and returns 201', async () => {
     currentUserId = OWNER
     prismaMock.request.findUnique.mockResolvedValue(sampleRequest)

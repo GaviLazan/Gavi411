@@ -216,28 +216,33 @@ router.post('/:id/messages', requireAuth, async (req, res) => {
   }
 
   const { content, imageUrl } = req.body
-  if (!content) {
+  if (!content || !content.trim()) {
     return res.status(400).json({ error: 'content is required' })
   }
 
-  const existing = await prisma.request.findUnique({ where: { id } })
-  if (!existing) {
-    return res.status(404).json({ error: 'Request not found' })
-  }
-  if (existing.userId !== req.user.clerkId && req.user.role !== 'ADMIN') {
-    return res.status(404).json({ error: 'Request not found' })
-  }
+  try {
+    const existing = await prisma.request.findUnique({ where: { id } })
+    if (!existing) {
+      return res.status(404).json({ error: 'Request not found' })
+    }
+    if (existing.userId !== req.user.clerkId && req.user.role !== 'ADMIN') {
+      return res.status(404).json({ error: 'Request not found' })
+    }
 
-  const message = await prisma.message.create({
-    data: {
-      content,
-      imageUrl: imageUrl || null,
-      requestId: id,
-      userId: req.user.clerkId,
-    },
-  })
+    const message = await prisma.message.create({
+      data: {
+        content,
+        imageUrl: imageUrl || null,
+        requestId: id,
+        userId: req.user.clerkId,
+      },
+    })
 
-  res.status(201).json(message)
+    res.status(201).json(message)
+  } catch (err) {
+    console.error('Failed to create message:', err)
+    res.status(500).json({ error: 'Failed to create message' })
+  }
 })
 
 export default router
