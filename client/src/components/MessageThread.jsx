@@ -23,7 +23,7 @@ function MessageThread({ messages }) {
           <div className={`message-row ${isOwn ? "message-own" : "message-other"}`} key={m.id}>
             <div className="message-bubble" dir="auto">
               {m.content}
-              {m.imageUrl && <img className="message-image" src={m.imageUrl} alt="" />}
+              {m.imageUrl && <img className="message-image" src={m.imageUrl} alt="Attached image" />}
             </div>
             <span className="message-time">
               {new Date(m.createdAt).toLocaleString()}
