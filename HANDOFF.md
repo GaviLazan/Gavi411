@@ -12,7 +12,7 @@ accumulated. If something here turns out to matter long-term, promote it to
 
 ---
 
-## G411-25 — Landed, waiting on Reconciled go-ahead (2026-08-26 session)
+## G411-25 — Reconciled (2026-08-26 session)
 
 **Real thread UI shipped**, replacing G411-24's throwaway compose box.
 Sender-aware bubble alignment (own vs. other, keyed by the *viewer's*
@@ -76,8 +76,8 @@ recurring pattern (a "logged for later" comment on a closing ticket is
 functionally lost) — now a standing memory
 (`defer-to-real-ticket-not-a-comment`), not just fixed this once.
 
-**Not Reconciled yet** — waiting on Gavi's explicit go-ahead for the
-final Landed → Reconciled move.
+**Reconciled** — Gavi's explicit go-ahead given. Parent G411-3 stayed at
+Implementing (4 Open children remain: G411-26, 27, 28, 29).
 
 **Next after G411-25**: G411-26 (Cloudinary image upload wiring) is the
 natural next Epic 3 pickup — it now has a real stub slot to wire into
