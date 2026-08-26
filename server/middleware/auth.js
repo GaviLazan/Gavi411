@@ -54,21 +54,47 @@ export async function requireAuth(req, res, next) {
   let user = await prisma.user.findUnique({ where: { clerkId: userId } })
 
   if (!user) {
-    const clerkUser = await clerkClient.users.getUser(userId)
-    user = await prisma.user.create({
-      data: {
-        clerkId: userId,
-        firstName: clerkUser.firstName ?? '',
-        lastName: clerkUser.lastName ?? '',
-        email: clerkUser.emailAddresses[0]?.emailAddress ?? null,
-        // Clerk manages phone verification and doesn't support Israeli
-        // numbers, so phone is collected in our own app instead
-        // (G411-69) — phoneNumber is required + unique on our side, so
-        // this is a placeholder until that flow fills it in.
-        phoneNumber: `pending-${userId}`,
-        creditBalance: 0,
-      },
-    })
+    let clerkUser
+    try {
+      clerkUser = await clerkClient.users.getUser(userId)
+    } catch (err) {
+      console.error('Failed to fetch user from Clerk:', err)
+      return res.status(503).json({ error: 'Unable to verify session, try again' })
+    }
+
+    // emailAddresses[0] isn't guaranteed to be the primary — look it up by
+    // primaryEmailAddressId. Fall back defensively if the shape is ever
+    // missing (empty array, or an unexpected partial response).
+    const emails = clerkUser.emailAddresses ?? []
+    const primaryEmail = emails.find((e) => e.id === clerkUser.primaryEmailAddressId)
+    const email = primaryEmail?.emailAddress ?? emails[0]?.emailAddress ?? null
+
+    try {
+      user = await prisma.user.create({
+        data: {
+          clerkId: userId,
+          firstName: clerkUser.firstName ?? '',
+          lastName: clerkUser.lastName ?? '',
+          email,
+          // Clerk manages phone verification and doesn't support Israeli
+          // numbers, so phone is collected in our own app instead
+          // (G411-69) — phoneNumber is required + unique on our side, so
+          // this is a placeholder until that flow fills it in.
+          phoneNumber: `pending-${userId}`,
+          creditBalance: 0,
+        },
+      })
+    } catch (err) {
+      // Race: two near-simultaneous first requests from the same new user
+      // both saw findUnique return null, then both tried to create — the
+      // second create hits the unique constraint (phoneNumber). Just use
+      // the row the first request created instead of erroring.
+      if (err.code === 'P2002') {
+        user = await prisma.user.findUnique({ where: { clerkId: userId } })
+      } else {
+        throw err
+      }
+    }
   }
 
   req.user = user
