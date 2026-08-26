@@ -1,0 +1,104 @@
+.message-thread {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.message-row {
+  display: flex;
+  flex-direction: column;
+  max-width: 80%;
+}
+
+/* Own messages: right-aligned bubble (accent fill), matches the
+   Design Inspo chat-interface reference. */
+.message-own {
+  align-self: flex-end;
+  align-items: flex-end;
+}
+
+.message-own .message-bubble {
+  background: var(--accent);
+  color: var(--surface);
+  border-radius: var(--radius-lg) var(--radius-lg) var(--space-1) var(--radius-lg);
+}
+
+/* Other party: left-aligned, plain surface bubble — no bounce-back
+   symmetry needed, this side is visually quieter per the reference. */
+.message-other {
+  align-self: flex-start;
+  align-items: flex-start;
+}
+
+.message-other .message-bubble {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text-h);
+  border-radius: var(--radius-lg) var(--radius-lg) var(--radius-lg) var(--space-1);
+}
+
+.message-bubble {
+  padding: var(--space-2) var(--space-3);
+  word-break: break-word;
+}
+
+.message-image {
+  display: block;
+  max-width: 100%;
+  border-radius: var(--radius-sm);
+  margin-top: var(--space-2);
+}
+
+.message-time {
+  font-size: 14px;
+  color: var(--text);
+  margin-top: var(--space-1);
+  padding: 0 var(--space-1);
+}
+
+.message-compose {
+  display: flex;
+  gap: var(--space-2);
+  align-items: flex-end;
+  margin-top: var(--space-4);
+}
+
+.message-textarea {
+  flex: 1;
+  min-width: 0;
+  resize: none;
+  max-height: 160px;
+  overflow-y: auto;
+  /* rows=1 + JS auto-grow (scrollHeight) in RequestDetail.jsx — grows
+     with content up to max-height, then scrolls internally. */
+}
+
+/* One button slot, morphs by content (RequestDetail.jsx): camera
+   (disabled stub — G411-26 wires the real picker) when the box is
+   empty, send-arrow once there's text to send. Fixed size/position
+   either way so nothing shifts on swap besides the icon itself. */
+.message-send-btn {
+  background: var(--accent);
+  color: var(--surface);
+  border: none;
+  border-radius: var(--radius-pill);
+  width: 44px;
+  height: 44px;
+  font-size: 20px;
+  line-height: 1;
+  flex-shrink: 0;
+  cursor: pointer;
+  transition: opacity 0.15s ease, background-color 0.15s ease;
+}
+
+.message-send-btn:hover:not(:disabled) {
+  background: var(--accent-strong);
+}
+
+.message-send-btn:disabled {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text);
+  cursor: not-allowed;
+  opacity: 0.5;
+}

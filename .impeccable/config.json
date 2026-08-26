@@ -56,6 +56,15 @@
         ],
         "createdAt": "2026-08-25T16:47:42.493Z",
         "reason": "deliberate: max-height is the standard CSS-only technique for animating unknown/variable-height content (open-request card count varies per friend); grid-template-rows 0fr/1fr would avoid the layout-thrash cost but wasn't evaluated live here given G411-64's history of cross-browser animation surprises on this project — revisit if perf becomes a real issue"
+      },
+      {
+        "rule": "design-system-font-size",
+        "value": "20px",
+        "files": [
+          "client/src/components/MessageThread.css"
+        ],
+        "createdAt": "2026-08-26T07:37:27.584Z",
+        "reason": "icon glyph size inside a fixed 44x44 circular button (send-arrow/camera morph), not running text — DESIGN.md's type ramp covers text, matches the pre-existing 18px camera-icon precedent in the same file"
       }
     ]
   }
