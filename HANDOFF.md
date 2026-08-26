@@ -167,12 +167,21 @@ closure comment posted on G411-24 (comment ids 10602, 10603).
 **Not Reconciled yet** — waiting on Gavi's explicit go-ahead for the
 final Landed → Reconciled move, per the hard-to-reverse-action rule.
 
+**Post-Landed follow-up, same session**: Gavi asked live whether send
+access is actually restricted (yes — confirmed, owner-or-admin 404
+check, covered by tests) and flagged a real UX gap: the thread view has
+no sender-aware alignment (no left/right split like WhatsApp for
+Gavi/admin vs. the requesting friend). Both answered/logged as a comment
+on G411-24 (id 10604). **G411-25's own Jira description now leads with
+this** — real WhatsApp-style bubble alignment is now explicit scope for
+that ticket, not something to rediscover at pickup.
+
 **Next after G411-24**: G411-25 (thread UI component) is the natural next
 pickup in Epic 3, but per the no-auto-advance rule this needs Gavi's
 explicit go-ahead, not an assumption. When it's picked up, it should also
 delete the throwaway compose control this session left in
 `RequestDetail.jsx` (marked `TODO(G411-25)`), not just add a real one
-alongside it.
+alongside it, and build real sender-aware alignment (see above).
 
 ---
 
