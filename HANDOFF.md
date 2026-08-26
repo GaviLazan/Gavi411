@@ -12,6 +12,71 @@ accumulated. If something here turns out to matter long-term, promote it to
 
 ---
 
+## G411-26 — Landed, waiting on Reconciled go-ahead (2026-08-26 session)
+
+**Real Cloudinary image upload shipped.** Cloudinary credentials
+(`CLOUDINARY_URL`, real account) added to root `.env` (gitignored),
+same pattern as the Clerk test credentials — never in a doc.
+Backend-proxied upload (client → our server → Cloudinary, secret key
+never touches the browser), confirmed via AskUserQuestion as the right
+architecture over client-direct-to-Cloudinary.
+
+**Real scope fork, handled correctly**: Gavi asked about video/PDF/DOC
+support (mp4/mov/pdf/doc, 100MB video cap). Confirmed real — Cloudinary
+supports all of it — but deliberately **not** folded into G411-26.
+Filed as its own ticket, **G411-79** (parented under G411-3), since it's
+materially bigger scope: different schema shape (`Message.imageUrl` is
+a single string field, images-only), and a real unresolved technical
+risk (100MB through a free-tier Render backend proxy — G411-26's own
+architecture may not even be right for that case, needs its own
+investigation). G411-26 stayed images-only: gif/jpg/png/heic/webp, 10MB
+cap, both Gavi's explicit numbers.
+
+**Sibling review (medium), 6 parallel angles, found 4 real issues
+(after dedup — several angles independently converged on the same
+findings), all fixed**: `multer` had no `limits.fileSize` (real memory-
+pressure risk — whole upload buffered into RAM before the app-level
+10MB check ran); that fix made multer's own error path reachable with
+no global Express error handler (wrapped the upload middleware for
+clean JSON errors); `URL.createObjectURL` leaked a blob URL on every
+render while an image was staged (memoized + revoked properly);
+client/server MIME-list duplication (server's list exported, comment
+left explaining no real shared import exists between the two deploy
+targets).
+
+**Also caught during my own live Falsifier pass, before the Sibling
+review**: a rejected upload was unmounting the whole thread view via
+the page-level load-error state — split into `error` (load) vs.
+`sendError` (send, inline, thread stays visible).
+
+**Process note, real and worth remembering**: hit the same stale
+`node --watch` reload artifact twice this session (also hit once on
+G411-24) — a live-verification 500 that looked like a real regression
+turned out to be stale module state from a `--watch` server that had
+been edited-under while mid-request. A full manual kill + restart (not
+just relying on `--watch`'s own reload) resolved it both times; worth
+doing a clean restart before trusting a "it broke" result during active
+file-editing.
+
+**PR #27 merged** via regular merge commit (`--merge --admin`), commit
+`e1a3fe0`. Branch deleted (remote + local) as part of the merge flow.
+
+**Evidence**: 43/43 Vitest (5 new cases); clean build; live-verified
+against the **real Cloudinary account** (`adxfuhf3`) — actual upload,
+actual `secure_url` persisted to Neon, confirmed reachable via curl
+(200, correct byte count) and via the browser (`naturalWidth` check).
+Both rejection paths (oversized, wrong type) confirmed live post-fix
+against a fresh server process.
+
+**Not Reconciled yet** — waiting on Gavi's explicit go-ahead.
+
+**Next after G411-26**: G411-27 (encryption-at-rest fallback) and
+G411-79 (video/doc attachments, filed this session) are both real
+Open work in Epic 3, alongside G411-28/29. Not started, needs Gavi's
+explicit go-ahead per the no-auto-advance rule.
+
+---
+
 ## G411-25 — Reconciled (2026-08-26 session)
 
 **Real thread UI shipped**, replacing G411-24's throwaway compose box.
