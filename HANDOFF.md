@@ -12,6 +12,68 @@ accumulated. If something here turns out to matter long-term, promote it to
 
 ---
 
+## G411-25 — Landed, waiting on Reconciled go-ahead (2026-08-26 session)
+
+**Real thread UI shipped**, replacing G411-24's throwaway compose box.
+Sender-aware bubble alignment (own vs. other, keyed by the *viewer's*
+clerkId, not role — symmetric for both the friend and Gavi/admin),
+matching the Design Inspo chat-interface reference. Iterated live with
+Gavi across two screenshot rounds: (1) initial build reviewed, Gavi
+caught the Send button overflowing the card edge (missing
+`flex-shrink:0`/`min-width:0` in the compose row's flex layout — fixed);
+(2) Gavi asked for three real changes — send-arrow instead of a "Send"
+label, a growing multi-line textarea (confirmed working, caps at 160px
+then scrolls), and a single button slot that morphs between a disabled
+camera stub (empty box) and the send-arrow (has text) rather than two
+separate buttons. Confirmed along the way: an image + caption is already
+one `Message` row today (G411-24's schema), so "pick image, then caption,
+then one Send" is the right interaction model — G411-26 (Cloudinary
+upload) just needs to wire the picker into the existing stub slot, no
+compose-layout change needed then.
+
+**Sibling review (medium) found 1 real bug, fixed before merge**: the
+new compose textarea used `.field-input` without `RequestDetail.jsx`
+importing `Input.css` directly — recurrence of the exact bug class
+G411-75 already fixed once on this same file (a class only working
+because another page loaded its CSS first as a side effect), in new code
+this ticket added rather than a regression of the earlier fix. Fixed the
+same way; **also saved as a durable memory** (`check-css-imports-before-
+adding-classes`) since this is the second time, per Gavi's explicit ask
+to actually internalize it this time rather than just note it in the
+moment.
+
+**PR #25 merged** via regular merge commit (`--merge --admin`), commit
+`5ad7a61`. Branch `agent-design/G411-25-thread-ui` deleted (remote +
+local) — done as part of the merge flow this time, not a separate
+afterthought like G411-24's session.
+
+**Evidence**: 38/38 Vitest (unaffected, no backend change); clean client
+build; live Playwright covering sender-alignment flip by viewer, Hebrew
+bidi text rendering (mixed Hebrew/English/numbers in one bubble), the
+Send-button overflow fix, textarea grow/cap/scroll, the camera↔arrow
+morph in both directions, and a full send round-trip via the new arrow
+button — zero console errors throughout, re-verified fresh after the
+review fix too.
+
+**Side quest, same session**: Gavi asked to add an end-of-project "full
+UI/UX pass" ticket. Rather than a new standalone Epic, folded it into the
+existing **G411-9** (renamed "Copywriting & UI/UX Pass" — was just
+"Copywriting Pass") as a new child, **G411-77** ("Full UI/UX pass"),
+correctly parent-linked (verified via JQL). Deliberately left unscoped —
+Gavi has notes he's accumulating as he uses the running app, to be folded
+in once he's ready; description explicitly says not to pre-fill scope.
+
+**Not Reconciled yet** — waiting on Gavi's explicit go-ahead for the
+final Landed → Reconciled move.
+
+**Next after G411-25**: G411-26 (Cloudinary image upload wiring) is the
+natural next Epic 3 pickup — it now has a real stub slot to wire into
+(the disabled camera button in `MessageThread`'s compose row) instead of
+starting from scratch. Not started, needs Gavi's explicit go-ahead per
+the no-auto-advance rule.
+
+---
+
 ## Known severe gap — G411-76, waits its turn under G411-5
 
 **Flagged by Gavi 2026-08-25, not yet investigated or fixed.** Clerk↔Prisma
