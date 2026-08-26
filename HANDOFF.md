@@ -101,7 +101,7 @@ gap's severity, not its place in the queue. This project works Epics in
 order; G411-76 waits its turn under G411-5 like any other ticket. Don't
 suggest jumping to it again without Gavi initiating that Epic switch.
 
-## G411-24 — Landed, waiting on Reconciled go-ahead (2026-08-26 session)
+## G411-24 — Reconciled (2026-08-26 session)
 
 **Epic 3 (Messaging) started.** G411-3 and G411-24 both moved Open →
 Implementing (parent rollup applied). Scope, confirmed at pickup: the
@@ -164,8 +164,8 @@ closure comment posted on G411-24 (comment ids 10602, 10603).
   same flaky pattern as G411-75's session, went through cleanly on
   retry. Still not understood why; flag again if it keeps recurring.
 
-**Not Reconciled yet** — waiting on Gavi's explicit go-ahead for the
-final Landed → Reconciled move, per the hard-to-reverse-action rule.
+**Reconciled** — Gavi's explicit go-ahead given. Parent G411-3 correctly
+stayed at Implementing (5 Open children remain: G411-25 through 29).
 
 **Post-Landed follow-up, same session**: Gavi asked live whether send
 access is actually restricted (yes — confirmed, owner-or-admin 404
