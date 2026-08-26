@@ -15,7 +15,7 @@
 //      (via clerkMiddleware() in server.js) — no manual key-passing needed
 //      as long as dotenv/config has already loaded it.
 
-import { clerkMiddleware, getAuth } from '@clerk/express'
+import { clerkMiddleware, clerkClient, getAuth } from '@clerk/express'
 import { prisma } from '../lib/prisma.js'
 
 // clerkClient — call once per server, mounted globally in server.js.
@@ -39,24 +39,33 @@ export async function requireAuth(req, res, next) {
   }
 
   // First authenticated request from a given Clerk user: create the local
-  // User row if it doesn't exist yet. Keeps this decoupled from Neon at
-  // wiring time — no separate webhook/sync step required for this task.
-  // ponytail: no Clerk webhook sync (profile edits in Clerk won't
-  // propagate here after creation) — add a user.updated webhook handler
-  // if profile fields drift becomes a real problem.
+  // User row if it doesn't exist yet.
+  //
+  // G411-76: session-JWT claims (req.auth.sessionClaims) do NOT include
+  // firstName/lastName/email without a custom Clerk JWT template — none is
+  // configured, so every row created via the old claims-based code had
+  // permanently blank names. Fetching the real user record from Clerk's
+  // Backend API on creation gets the actual data instead.
+  // ponytail: only synced at creation, not on every later request — a
+  // user who edits their name/email in Clerk afterward won't see it
+  // reflected here. Add a `user.updated` webhook (or push-back sync,
+  // G411-80) if that drift becomes a real problem; not worth the extra
+  // API call on every request at this app's scale.
   let user = await prisma.user.findUnique({ where: { clerkId: userId } })
 
   if (!user) {
-    const claims = req.auth?.sessionClaims ?? {}
+    const clerkUser = await clerkClient.users.getUser(userId)
     user = await prisma.user.create({
       data: {
         clerkId: userId,
-        firstName: claims.firstName ?? '',
-        lastName: claims.lastName ?? '',
-        // Clerk manages email/phone verification; phoneNumber is required
-        // + unique on our side, so this is a placeholder until the real
-        // profile-completion flow (separate [You] task) fills it in.
-        phoneNumber: claims.phoneNumber ?? `pending-${userId}`,
+        firstName: clerkUser.firstName ?? '',
+        lastName: clerkUser.lastName ?? '',
+        email: clerkUser.emailAddresses[0]?.emailAddress ?? null,
+        // Clerk manages phone verification and doesn't support Israeli
+        // numbers, so phone is collected in our own app instead
+        // (G411-69) — phoneNumber is required + unique on our side, so
+        // this is a placeholder until that flow fills it in.
+        phoneNumber: `pending-${userId}`,
         creditBalance: 0,
       },
     })

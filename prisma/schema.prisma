@@ -51,6 +51,7 @@ model User {
   role          Role     @default(USER)
   firstName     String
   lastName      String
+  email         String?  @unique
   phoneNumber   String   @unique
   profilePic    String?
   groupTag      GroupTag @default(REGULAR)
