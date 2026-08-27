@@ -57,7 +57,7 @@ model User {
   groupTag      GroupTag @default(REGULAR)
   creditBalance Int
   createdAt     DateTime @default(now())
-  updatedAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
   request            Request[]
   messages           Message[]
@@ -80,7 +80,7 @@ model Request {
   // key order when reading this back.
   typeDetails    Json?
   createdAt      DateTime     @default(now())
-  updatedAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
 
   userId String
   user   User   @relation(fields: [userId], references: [clerkId])
