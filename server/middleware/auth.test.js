@@ -9,6 +9,7 @@ const mockGetAuth = vi.fn()
 const mockGetUser = vi.fn()
 const mockFindUnique = vi.fn()
 const mockCreate = vi.fn()
+const mockUpdateManyInvite = vi.fn()
 
 vi.mock('@clerk/express', () => ({
   clerkMiddleware: () => (req, res, next) => next(),
@@ -21,6 +22,9 @@ vi.mock('../lib/prisma.js', () => ({
     user: {
       findUnique: (...args) => mockFindUnique(...args),
       create: (...args) => mockCreate(...args),
+    },
+    pendingInvite: {
+      updateMany: (...args) => mockUpdateManyInvite(...args),
     },
   },
 }))
@@ -157,5 +161,42 @@ describe('requireAuth', () => {
     expect(mockCreate).toHaveBeenCalledWith({
       data: expect.objectContaining({ email: null, firstName: '', lastName: '' }),
     })
+  })
+
+  // G411-41
+  it('marks an invite token used when x-invite-token header is present on a new user', async () => {
+    mockGetAuth.mockReturnValue({ userId: 'user_new' })
+    mockFindUnique.mockResolvedValue(null)
+    mockGetUser.mockResolvedValue({ firstName: 'A', lastName: 'B', emailAddresses: [] })
+    mockCreate.mockResolvedValue({ clerkId: 'user_new' })
+    const req = { headers: { 'x-invite-token': 'tok123' } }
+
+    await requireAuth(req, mockRes(), vi.fn())
+
+    expect(mockUpdateManyInvite).toHaveBeenCalledWith({
+      where: { token: 'tok123', usedAt: null },
+      data: expect.objectContaining({ usedByUserId: 'user_new' }),
+    })
+  })
+
+  it('does not touch invites when no x-invite-token header is sent', async () => {
+    mockGetAuth.mockReturnValue({ userId: 'user_new' })
+    mockFindUnique.mockResolvedValue(null)
+    mockGetUser.mockResolvedValue({ firstName: 'A', lastName: 'B', emailAddresses: [] })
+    mockCreate.mockResolvedValue({ clerkId: 'user_new' })
+
+    await requireAuth({}, mockRes(), vi.fn())
+
+    expect(mockUpdateManyInvite).not.toHaveBeenCalled()
+  })
+
+  it('does not mark an invite for an existing (already-synced) user, even with the header', async () => {
+    mockGetAuth.mockReturnValue({ userId: 'user_existing' })
+    mockFindUnique.mockResolvedValue({ clerkId: 'user_existing' })
+    const req = { headers: { 'x-invite-token': 'tok123' } }
+
+    await requireAuth(req, mockRes(), vi.fn())
+
+    expect(mockUpdateManyInvite).not.toHaveBeenCalled()
   })
 })

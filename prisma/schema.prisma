@@ -46,6 +46,23 @@ enum Status {
   SELF_SOLVED
 }
 
+// Invite tokens (G411-41). Admin creates one (no email needed up front —
+// Gavi may not know it, or the friend signs up via Google OAuth with a
+// different address than expected). The token itself is the gate: the
+// app checks `?token=` before letting a visitor reach Clerk's sign-in at
+// all. `usedAt`/`usedByUserId` are set together, once, on first
+// successful sign-in (see requireAuth in server/middleware/auth.js) —
+// one-time by construction, not by a separate "used" boolean that could
+// drift from usedByUserId.
+model PendingInvite {
+  token        String    @id
+  label        String? // Gavi's own reference note, not shown to the invitee
+  createdAt    DateTime  @default(now())
+  usedAt       DateTime?
+  usedByUserId String?   @unique
+  usedByUser   User?     @relation(fields: [usedByUserId], references: [clerkId])
+}
+
 model User {
   clerkId       String   @id
   role          Role     @default(USER)
@@ -62,6 +79,7 @@ model User {
   request            Request[]
   messages           Message[]
   creditTransactions CreditTransaction[]
+  usedInvite         PendingInvite?
 }
 
 model Request {

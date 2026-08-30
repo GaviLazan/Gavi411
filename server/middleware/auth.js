@@ -95,6 +95,22 @@ export async function requireAuth(req, res, next) {
         throw err
       }
     }
+
+    // G411-41: mark the invite token used, linked to the new user, on the
+    // very first authenticated request after signup. Best-effort only —
+    // an invalid/missing token here does NOT block account creation, since
+    // this middleware isn't the gate (that's G411-81's job, still open).
+    // The client stashes the token client-side before OAuth redirect and
+    // sends it back via this header once signed in (see client/src/lib/
+    // inviteToken.js) — a plain `?token=` URL param can't be relied on to
+    // survive Clerk's own OAuth redirect round trip.
+    const inviteToken = req.headers?.['x-invite-token']
+    if (inviteToken) {
+      await prisma.pendingInvite.updateMany({
+        where: { token: inviteToken, usedAt: null },
+        data: { usedAt: new Date(), usedByUserId: user.clerkId },
+      })
+    }
   }
 
   req.user = user
