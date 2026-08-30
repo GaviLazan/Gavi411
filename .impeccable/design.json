@@ -1,30 +1,27 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-08-19T00:00:00Z",
+  "generatedAt": "2026-08-30T00:00:00.000Z",
   "title": "Design System: Gavi411",
   "extensions": {
     "colorMeta": {
-      "forest-green": { "role": "primary", "displayName": "Forest Green", "canonical": "#2f4a3c", "tonalRamp": ["#0f1712", "#1a2820", "#243a2f", "#2f4a3c", "#4a6e5b", "#6fae8f", "#a4d3bc", "#d5eee1"] },
-      "ink": { "role": "neutral", "displayName": "Ink", "canonical": "#221f19", "tonalRamp": ["#000000", "#12100c", "#221f19", "#3a352c", "#544d40", "#726a58", "#a39c8a", "#d6d1c2"] },
-      "body-text": { "role": "neutral", "displayName": "Warm Taupe", "canonical": "#6b6355", "tonalRamp": ["#1a1712", "#312c24", "#4a4337", "#6b6355", "#8a8272", "#a9a290", "#c8c2b1", "#e6e1d3"] },
-      "cream-bg": { "role": "neutral", "displayName": "Cream", "canonical": "#f6f3ea", "tonalRamp": ["#2a271e", "#4d483a", "#736c59", "#9a927a", "#c2baa2", "#e0dbc9", "#f6f3ea", "#fdfcf8"] },
-      "surface": { "role": "neutral", "displayName": "Surface White", "canonical": "#ffffff", "tonalRamp": ["#d9d9d9", "#e6e6e6", "#f0f0f0", "#f7f7f7", "#fafafa", "#fcfcfc", "#fefefe", "#ffffff"] },
-      "border": { "role": "neutral", "displayName": "Hairline", "canonical": "#e6e1d3", "tonalRamp": ["#3a362a", "#59543f", "#7a7458", "#9c9575", "#bdb695", "#d3cdb4", "#e6e1d3", "#f4f1e8"] }
+      "gold": { "role": "primary", "displayName": "Gold", "canonical": "#f2a900", "tonalRamp": ["#3d2c00", "#5c4200", "#7a5900", "#996f00", "#d99400", "#f2a900", "#f7c34d", "#fbdfa0"] },
+      "sage-green": { "role": "secondary", "displayName": "Sage Green", "canonical": "#6fae8f", "tonalRamp": ["#122019", "#1f3729", "#2e5039", "#4f8a6c", "#6fae8f", "#8fc7ab", "#b6dcc9", "#dcf0e6"] },
+      "lavender": { "role": "tertiary", "displayName": "Lavender", "canonical": "#9b8cce", "tonalRamp": ["#1f1a30", "#332a4e", "#493c6e", "#6a5a99", "#9b8cce", "#b3a5e0", "#cdc3ec", "#e6e1f6"] },
+      "ink": { "role": "neutral", "displayName": "Ink", "canonical": "#221f19", "tonalRamp": ["#0c0b09", "#221f19", "#3a362d", "#524c40", "#6b6355", "#b3b0aa", "#d8d6d1", "#f5f4f0"] },
+      "cream-bg": { "role": "neutral", "displayName": "Cream", "canonical": "#fbfaf6", "tonalRamp": ["#17181a", "#212327", "#34363b", "#5c5e63", "#8c8e92", "#c9c8c3", "#ece8dc", "#fbfaf6"] }
     },
     "typographyMeta": {
-      "display": { "displayName": "Display", "purpose": "Page-level h1 only (app name, section-defining headline)." },
-      "title": { "displayName": "Title", "purpose": "Card/section h2 headings, e.g. 'New request'." },
-      "body": { "displayName": "Body", "purpose": "All running text, request/message content, form values." },
-      "label": { "displayName": "Label", "purpose": "Form field labels, sitting above the input." }
+      "h1": { "displayName": "H1", "purpose": "Page-level heading." },
+      "h2": { "displayName": "H2", "purpose": "Card and section headings." },
+      "body": { "displayName": "Body", "purpose": "Running text, request/message content." },
+      "label": { "displayName": "Label", "purpose": "Form field labels, above the input." },
+      "wordmark": { "displayName": "Wordmark", "purpose": "The literal \"Gavi411\" logo text only, in Google Sans — never used for page headings." }
     },
     "shadows": [
-      { "name": "card-ambient", "value": "rgba(0,0,0,0.1) 0 10px 15px -3px, rgba(0,0,0,0.05) 0 4px 6px -2px", "purpose": "The only shadow in the system; soft lift under cards, never a hard drop shadow." }
-    ],
-    "motion": [
-      { "name": "state-transition", "value": "opacity 0.15s ease, background-color 0.15s ease", "purpose": "Button hover/disabled transitions — the only motion currently in the codebase." }
+      { "name": "ambient", "value": "rgba(0,0,0,0.1) 0 10px 15px -3px, rgba(0,0,0,0.05) 0 4px 6px -2px", "purpose": "The only shadow in the system — cards and the confirm modal. Darkens in dark mode." }
     ],
     "breakpoints": [
-      { "name": "compact", "value": "1024px", "purpose": "Below this, base font drops 18px->16px and display/title sizes step down." }
+      { "name": "mobile", "value": "1024px" }
     ]
   },
   "components": [
@@ -32,59 +29,97 @@
       "name": "Primary Button",
       "kind": "button",
       "refersTo": "button-primary",
-      "description": "Solid forest-green pill CTA — the app's one high-emphasis action style.",
-      "html": "<button class=\"ds-btn-primary\">Send request</button>",
-      "css": ".ds-btn-primary { font-size: 16px; font-weight: 600; border-radius: 999px; padding: 14px 28px; border: 1px solid transparent; cursor: pointer; background: #2f4a3c; color: #ffffff; transition: opacity 0.15s ease, background-color 0.15s ease; } .ds-btn-primary:hover { background: #1f3329; } .ds-btn-primary:focus-visible { outline: 2px solid #2f4a3c; outline-offset: 2px; } .ds-btn-primary:disabled { cursor: not-allowed; opacity: 0.5; }"
+      "description": "Full-pill gold CTA, the general-purpose primary action.",
+      "html": "<button class=\"ds-btn ds-btn-primary\">Get Started</button>",
+      "css": ".ds-btn { font-size: 16px; font-weight: 600; border-radius: 999px; padding: 14px 28px; border: 1px solid transparent; cursor: pointer; transition: opacity 0.15s ease, background-color 0.15s ease; } .ds-btn:disabled { cursor: not-allowed; opacity: 0.5; } .ds-btn-primary { background: #f2a900; color: #ffffff; } .ds-btn-primary:hover:not(:disabled) { background: #d99400; } .ds-btn-primary:focus-visible { outline: 3px solid rgba(242,169,0,0.4); outline-offset: 2px; }"
     },
     {
       "name": "Secondary Button",
       "kind": "button",
       "refersTo": "button-secondary",
-      "description": "Outline pill for lower-emphasis actions alongside a primary button.",
-      "html": "<button class=\"ds-btn-secondary\">Save for later</button>",
-      "css": ".ds-btn-secondary { font-size: 16px; font-weight: 600; border-radius: 999px; padding: 14px 28px; cursor: pointer; background: transparent; color: #2f4a3c; border: 1px solid rgba(47,74,60,0.35); transition: opacity 0.15s ease, background-color 0.15s ease; } .ds-btn-secondary:hover { background: rgba(47,74,60,0.08); } .ds-btn-secondary:focus-visible { outline: 2px solid #2f4a3c; outline-offset: 2px; }"
+      "description": "Ghost/outline gold button.",
+      "html": "<button class=\"ds-btn ds-btn-secondary\">Cancel</button>",
+      "css": ".ds-btn-secondary { background: transparent; color: #f2a900; border: 1px solid rgba(242,169,0,0.4); font-size: 16px; font-weight: 600; border-radius: 999px; padding: 14px 28px; cursor: pointer; transition: background-color 0.15s ease; } .ds-btn-secondary:hover { background: rgba(242,169,0,0.12); }"
+    },
+    {
+      "name": "Success Button",
+      "kind": "button",
+      "refersTo": "button-success",
+      "description": "Sage-green fill, reserved for the intake flow's Submit action only.",
+      "html": "<button class=\"ds-btn ds-btn-success\">Submit</button>",
+      "css": ".ds-btn-success { background: #6fae8f; color: #ffffff; border: 1px solid transparent; font-size: 16px; font-weight: 600; border-radius: 999px; padding: 14px 28px; cursor: pointer; transition: background-color 0.15s ease; } .ds-btn-success:hover { background: #4f8a6c; }"
+    },
+    {
+      "name": "Purple Ghost Button",
+      "kind": "button",
+      "refersTo": "button-purple",
+      "description": "Lavender outline button, reserved for the intake flow's Back action only.",
+      "html": "<button class=\"ds-btn ds-btn-purple\">Back</button>",
+      "css": ".ds-btn-purple { background: transparent; color: #9b8cce; border: 1px solid #9b8cce; font-size: 16px; font-weight: 600; border-radius: 999px; padding: 14px 28px; cursor: pointer; transition: background-color 0.15s ease; } .ds-btn-purple:hover { background: color-mix(in srgb, #9b8cce 12%, transparent); }"
     },
     {
       "name": "Card",
       "kind": "card",
       "refersTo": "card",
-      "description": "White bordered container on the cream page background — holds a request, a message group, or a stat tile.",
-      "html": "<div class=\"ds-card\"><h2 class=\"ds-card-title\">New request</h2><p class=\"ds-card-body\">Find me a flight home tonight.</p></div>",
-      "css": ".ds-card { background: #ffffff; border: 1px solid #e6e1d3; border-radius: 20px; padding: 24px; text-align: left; box-shadow: rgba(0,0,0,0.1) 0 10px 15px -3px, rgba(0,0,0,0.05) 0 4px 6px -2px; } .ds-card-title { font-family: Georgia, 'Times New Roman', serif; font-weight: 500; font-size: 24px; line-height: 118%; letter-spacing: -0.24px; color: #221f19; margin: 0 0 8px; } .ds-card-body { font-family: system-ui, 'Segoe UI', Roboto, sans-serif; font-size: 18px; line-height: 145%; color: #6b6355; margin: 0; }"
+      "description": "White surface container, 20px radius, hairline border, ambient shadow.",
+      "html": "<div class=\"ds-card\">Card content</div>",
+      "css": ".ds-card { background: #ffffff; border: 1px solid #ece8dc; border-radius: 20px; padding: 24px; text-align: start; box-shadow: rgba(0,0,0,0.1) 0 10px 15px -3px, rgba(0,0,0,0.05) 0 4px 6px -2px; }"
     },
     {
-      "name": "Text Input",
+      "name": "Input Field",
       "kind": "input",
       "refersTo": "input",
-      "description": "Pill-shaped text field with a label above it, matching the Edit Profile inspo pattern.",
-      "html": "<div class=\"ds-field\"><label class=\"ds-field-label\" for=\"ds-demo-input\">What do you need?</label><input id=\"ds-demo-input\" class=\"ds-field-input\" placeholder=\"Find me a flight home tonight\" /></div>",
-      "css": ".ds-field { display: flex; flex-direction: column; gap: 8px; text-align: left; } .ds-field-label { font-family: system-ui, 'Segoe UI', Roboto, sans-serif; font-size: 14px; font-weight: 600; color: #221f19; } .ds-field-input { font-family: system-ui, 'Segoe UI', Roboto, sans-serif; font-size: 16px; color: #221f19; background: #ffffff; border: 1px solid #e6e1d3; border-radius: 999px; padding: 12px 20px; } .ds-field-input::placeholder { color: #6b6355; } .ds-field-input:focus { outline: none; border-color: rgba(47,74,60,0.35); box-shadow: 0 0 0 3px rgba(47,74,60,0.08); }"
+      "description": "Labeled text input, 20px radius (not a pill), gold focus ring.",
+      "html": "<div class=\"ds-field\"><label class=\"ds-field-label\">Destination</label><input class=\"ds-field-input\" type=\"text\" placeholder=\"Where to?\" /></div>",
+      "css": ".ds-field { display: flex; flex-direction: column; gap: 8px; text-align: start; } .ds-field-label { font-size: 14px; font-weight: 600; color: #221f19; } .ds-field-input { font-size: 16px; color: #221f19; background: #ffffff; border: 1px solid #ece8dc; border-radius: 20px; padding: 12px 20px; } .ds-field-input:focus { outline: none; border-color: rgba(242,169,0,0.4); box-shadow: 0 0 0 3px rgba(242,169,0,0.12); }"
+    },
+    {
+      "name": "Chip",
+      "kind": "chip",
+      "refersTo": "chip",
+      "description": "Pill-shaped selectable chip, solid gold fill when selected.",
+      "html": "<button class=\"ds-chip ds-chip-selected\">Travel</button>",
+      "css": ".ds-chip { font-size: 16px; font-weight: 600; color: #221f19; background: #ffffff; border: 1px solid #ece8dc; border-radius: 999px; padding: 10px 20px; cursor: pointer; transition: background-color 0.15s ease, border-color 0.15s ease; } .ds-chip:hover { border-color: rgba(242,169,0,0.4); } .ds-chip-selected { background: #f2a900; color: #ffffff; border-color: #f2a900; }"
+    },
+    {
+      "name": "Message Bubble (own)",
+      "kind": "custom",
+      "refersTo": "message-thread",
+      "description": "Right-aligned gold chat bubble with an asymmetric pinched corner pointing toward the sender.",
+      "html": "<div class=\"ds-msg-row ds-msg-own\"><div class=\"ds-msg-bubble\">On my way, ETA 20 min</div></div>",
+      "css": ".ds-msg-row { display: flex; flex-direction: column; max-width: 80%; } .ds-msg-own { align-self: flex-end; align-items: flex-end; } .ds-msg-own .ds-msg-bubble { background: #f2a900; color: #ffffff; border-radius: 20px 20px 4px 20px; padding: 8px 12px; word-break: break-word; }"
     }
   ],
   "narrative": {
-    "northStar": "The Concierge's Notebook",
-    "overview": "Gavi411 reads like a trusted assistant's warm, paper-toned notebook rather than a slick SaaS dashboard: a cream page, ink-dark text, white index cards for every request and message, and a single deep forest-green accent used sparingly for action. The pairing of a serif display headline with a plain sans body signals 'a person is handling this, not a bot farm' — capable and a little literary, never cold or corporate.\n\nThis direction was extracted from the project's Design Inspo board, not invented. It is the pattern that recurred independently across three separate folders: the 'Nexus AI' screens in General layout (appearing in 5 of that folder's images), the Hebrew-language concierge chat screenshot in chat interface, and the budget-tracker screen in layout color and elemnts. The elements style folder's Serviqo AI-support kit confirmed the card/stat-tile shape and pill-input pattern specifically for a support-request product. The purple/lavender gradient screens seen elsewhere on the board were treated as anti-reference: a different product category (social/dating), inconsistent with the majority pattern.",
+    "northStar": "The Concierge's Ledger",
+    "overview": "Gavi411 reads like a trusted assistant's warm, well-kept ledger rather than a slick SaaS dashboard: a cream page, ink-dark text, white index cards for every request and message, and a confident gold accent for the actions that matter. Sage green and a soft lavender sit alongside gold as secondary/data accents — a chat bubble, a \"Submit\" vs. \"Back\" distinction in the intake flow — but gold leads. Plain sans throughout (no serif) keeps every screen feeling like a functional, well-organized tool a person actually runs, not a decorative brochure. This direction was revised directly by Gavi from an earlier forest-green/serif draft, after live review against the Design Inspo board.",
     "keyCharacteristics": [
-      "Warm cream page background, never stark white behind the whole viewport — only cards are pure white.",
-      "One accent color only: deep forest green. No secondary or tertiary accent.",
-      "Serif display type for headlines, plain sans for everything functional.",
-      "Everything interactive (buttons, inputs) is a full pill — no rounded-rectangles for actionable elements.",
-      "Cards carry a soft ambient shadow and a hairline border, not a hard drop shadow."
+      "Warm cream page background (#fbfaf6), never stark white behind the whole viewport — only cards and inputs are pure white.",
+      "Gold (#f2a900) is the primary accent. Sage green and lavender are secondary/tertiary accents with specific, narrow jobs.",
+      "No serif anywhere. Rubik for all headings and body text; Google Sans reserved solely for the literal Gavi411 wordmark.",
+      "Everything interactive (buttons, chips) is a full pill; inputs/selects use the large-rounded (20px) card radius, not a pill.",
+      "Cards carry a soft ambient shadow and a hairline border, not a hard drop shadow.",
+      "A full dark palette exists (manual toggle over prefers-color-scheme), not just a light-only system."
     ],
     "rules": [
-      { "name": "The One Accent Rule", "body": "Forest green is the only saturated color in the system. If a new UI need shows up wanting a second brand color, reach for a neutral or an opacity variant of green before introducing a new hue.", "section": "colors" },
-      { "name": "The Pill-or-Card Rule", "body": "If it's clickable/typeable, it's a pill. If it's a container, it's a large-radius card. Nothing in between.", "section": "shapes" }
+      { "name": "The One Lead Accent Rule", "body": "Gold is the only accent used for general-purpose primary actions. Sage green and lavender are reserved for their two specific, already-assigned jobs (intake Submit / Back) — don't reach for them as a second brand color option elsewhere.", "section": "colors" },
+      { "name": "The Dark-Mode-Is-Real Rule", "body": "Every color token has a confirmed dark-mode value. New colors need a dark counterpart before shipping, not just a light one.", "section": "colors" },
+      { "name": "The Pill-Is-For-Actions Rule", "body": "A pill radius means click this to do something (button, chip, icon button). Inputs, selects, and containers are never pills — they use the 20px card radius instead.", "section": "shapes" }
     ],
     "dos": [
-      "Do keep the page background cream (#f6f3ea) and reserve pure white (#ffffff) for cards and inputs only.",
-      "Do use the serif (Georgia) only for headings; body copy, labels, and buttons stay sans.",
-      "Do make every clickable/typeable element a full pill; every container a 20px-radius card.",
-      "Do keep forest green as the only accent."
+      "Do keep the page background cream (#fbfaf6 / dark #17181a) and reserve the surface-white token for cards, inputs, and modals only.",
+      "Do use Rubik for everything except the literal wordmark, which uses Google Sans.",
+      "Do make every actionable trigger (button, chip, icon button) a full pill; every input, select, card, and modal a 20px-radius surface — never a pill input.",
+      "Do keep gold as the one general-purpose accent — reach for sage green or lavender only for their specific, already-assigned jobs.",
+      "Do give every new color token both a light and a dark value before shipping it."
     ],
     "donts": [
-      "Don't introduce the purple/lavender gradient look seen in some inspo images — it was explicitly identified as off-brand noise.",
-      "Don't add a UI component library or CSS-in-JS dependency — plain CSS + custom properties by project convention.",
-      "Don't apply logical/bidi CSS properties system-wide — UI chrome is English/LTR only."
+      "Don't reintroduce a serif headline font — tried once, explicitly reverted by Gavi after live review.",
+      "Don't make deep forest green the primary accent — an earlier, since-corrected direction; gold leads now.",
+      "Don't give an input, select, or any container a pill radius — pills are for actionable triggers only.",
+      "Don't introduce the purple/lavender gradient look seen in some inspo images — off-brand, dating/social-app category noise.",
+      "Don't add a UI component library or CSS-in-JS dependency — plain CSS + custom properties by project convention (Ponytail/YAGNI).",
+      "Don't apply logical/bidi CSS properties system-wide — UI chrome is English/LTR only; bidi handling is scoped to specific freeform text fields."
     ]
   }
 }
