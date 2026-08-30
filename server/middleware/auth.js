@@ -97,6 +97,27 @@ export async function requireAuth(req, res, next) {
     }
   }
 
+  // G411-41: mark the invite token used, linked to this user. Deliberately
+  // OUTSIDE the `if (!user)` block above (Sibling review finding) — the
+  // client fires several first-sign-in requests concurrently (App.jsx's
+  // own /api/me role check, RequestList's /api/requests), and only one of
+  // them wins the user-creation race; the others would see `user` already
+  // set and skip past the header entirely if this stayed nested inside
+  // that block, silently losing the token forever (sessionStorage clears
+  // it either way, so there's no client-side retry). Running it here for
+  // any request carrying the header — win-the-race or not — fixes that.
+  // The `usedByUserId: null` guard makes it idempotent: once any request
+  // successfully claims the invite for this user, later requests with a
+  // stale header (there shouldn't be any once the client clears its
+  // stash, but belt-and-suspenders) are no-ops instead of double-writes.
+  const inviteToken = req.headers?.['x-invite-token']
+  if (inviteToken) {
+    await prisma.pendingInvite.updateMany({
+      where: { token: inviteToken, usedAt: null, usedByUserId: null },
+      data: { usedAt: new Date(), usedByUserId: user.clerkId },
+    })
+  }
+
   req.user = user
   next()
 }

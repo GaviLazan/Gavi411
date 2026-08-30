@@ -3,6 +3,7 @@
 import express from 'express'
 import 'dotenv/config'
 import requestsRouter from './routes/requests.js'
+import invitesRouter from './routes/invites.js'
 import cors from 'cors'
 import { clerkMiddleware, requireAuth } from './middleware/auth.js'
 
@@ -17,6 +18,7 @@ app.use(cors())
 app.use(clerkMiddleware())
 
 app.use('/api/requests', requestsRouter)
+app.use('/api/invites', invitesRouter)
 
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok' })
