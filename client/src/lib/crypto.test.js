@@ -65,6 +65,24 @@ describe('crypto core (keypair, ECDH, AES-GCM)', () => {
     await expect(decrypt(wrongShared, envelope)).rejects.toThrow()
   })
 
+  it('round-trips a large binary payload (real image size, Sibling review regression)', async () => {
+    const alice = await generateKeypair()
+    const bob = await generateKeypair()
+    const shared = await deriveSharedKey(alice.privateKey, bob.publicKey)
+
+    // ~200KB — past the ~128KB spread-call-argument limit that broke
+    // bufToBase64 before the fix; a real phone photo is this size or
+    // larger. getRandomValues itself caps at 65536 bytes/call, so fill
+    // in chunks just to build the test fixture.
+    const original = new Uint8Array(200_000)
+    for (let i = 0; i < original.length; i += 65_536) {
+      crypto.getRandomValues(original.subarray(i, i + 65_536))
+    }
+    const envelope = await encrypt(shared, original)
+    const decrypted = new Uint8Array(await decrypt(shared, envelope))
+    expect(decrypted).toEqual(original)
+  })
+
   it('ciphertext differs from plaintext and from itself on repeat calls (random IV)', async () => {
     const alice = await generateKeypair()
     const bob = await generateKeypair()

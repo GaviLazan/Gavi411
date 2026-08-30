@@ -76,8 +76,19 @@ export async function decryptText(sharedKey, envelope) {
   return new TextDecoder().decode(buf)
 }
 
+// Chunked to avoid spreading the whole buffer as call arguments — a
+// single String.fromCharCode(...bytes) call throws "Maximum call stack
+// size exceeded" past ~128KB, which real image payloads (this module's
+// whole point) routinely exceed (Sibling review finding).
+const CHUNK_SIZE = 8192
+
 function bufToBase64(buf) {
-  return btoa(String.fromCharCode(...new Uint8Array(buf)))
+  const bytes = new Uint8Array(buf)
+  let binary = ''
+  for (let i = 0; i < bytes.length; i += CHUNK_SIZE) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + CHUNK_SIZE))
+  }
+  return btoa(binary)
 }
 
 function base64ToBuf(base64) {
