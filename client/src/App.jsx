@@ -42,7 +42,27 @@ function App() {
   const [showLogoDiscardConfirm, setShowLogoDiscardConfirm] = useState(false)
   const { theme, cycleTheme } = useTheme()
 
-  const [hasInviteToken] = useState(() => Boolean(getStashedInviteToken()))
+  // Sibling review finding: a stashed token's mere PRESENCE isn't the
+  // same as it being valid — a stale/already-used invite link used to
+  // route straight into a real Clerk SignUp flow (only 403ing on the
+  // first backend call afterward), creating an orphaned Clerk identity
+  // for a link that was never going to work. Actually check validity
+  // (the existing /:token/valid route, no auth required — same one this
+  // signed-out visitor's browser can already reach) before deciding.
+  // 'checking' | 'valid' | 'invalid'
+  const [inviteTokenState, setInviteTokenState] = useState('checking')
+  useEffect(() => {
+    if (isSignedIn) return
+    const token = getStashedInviteToken()
+    if (!token) {
+      setInviteTokenState('invalid')
+      return
+    }
+    fetch(`/api/invites/${encodeURIComponent(token)}/valid`)
+      .then((res) => res.json())
+      .then((data) => setInviteTokenState(data.valid ? 'valid' : 'invalid'))
+      .catch(() => setInviteTokenState('invalid'))
+  }, [isSignedIn])
 
   // Sibling review finding: /api/me's role check and RequestList's own
   // /api/requests fetch used to fire in the same render pass as this
@@ -52,7 +72,7 @@ function App() {
   // needs auth renders/fires until this handoff has settled (or there
   // was nothing to send). Starts true when there's no stashed token —
   // only signups need to wait.
-  const [tokenHandoffDone, setTokenHandoffDone] = useState(() => !hasInviteToken)
+  const [tokenHandoffDone, setTokenHandoffDone] = useState(() => !getStashedInviteToken())
 
   useEffect(() => {
     if (!isSignedIn) return
@@ -146,7 +166,10 @@ function App() {
             Invites
           </button>
         )}
-        {/* Temp testing aid, remove before merge — no real account menu yet. */}
+        {/* Minimal account indicator + sign-out, until a real account
+            menu exists — Gavi's call: keep this, don't strip it, once a
+            nicer version is built it replaces this rather than removing
+            it outright. */}
         {isSignedIn && (
           <span className="account-indicator">
             {user?.primaryEmailAddress?.emailAddress || user?.id}{' '}
@@ -180,8 +203,10 @@ function App() {
               onOpenRequest={(id) => { setSelectedRequestId(id); setView('detail'); }}
             />
           )
+        ) : inviteTokenState === 'checking' ? (
+          <p>Loading…</p>
         ) : (
-          hasInviteToken ? <SignUp /> : <SignIn />
+          inviteTokenState === 'valid' ? <SignUp /> : <SignIn />
         )}
       </ClerkLoaded>
       <ConfirmModal

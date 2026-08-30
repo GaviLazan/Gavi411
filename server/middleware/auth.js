@@ -95,7 +95,19 @@ export async function requireAuth(req, res, next) {
     const claimed = await claimInvite(inviteToken)
 
     if (!claimed) {
-      user = await prisma.user.findUnique({ where: { clerkId: userId } })
+      // Sibling review finding: a failed claim here doesn't necessarily
+      // mean an invalid token — it could be a genuine concurrent
+      // duplicate request (a browser-level retry; App.jsx's
+      // AbortController already prevents React StrictMode's own
+      // duplicate from reaching this far) that lost the claim to its
+      // sibling, which may still be mid-flight (blocked on the Clerk API
+      // call below) rather than finished creating the User row yet. A
+      // short bounded retry — not unbounded — covers that realistic
+      // window without turning a genuinely invalid token into a hang.
+      for (let attempt = 0; attempt < 3 && !user; attempt++) {
+        if (attempt > 0) await new Promise((resolve) => setTimeout(resolve, 150))
+        user = await prisma.user.findUnique({ where: { clerkId: userId } })
+      }
     }
 
     if (!user) {

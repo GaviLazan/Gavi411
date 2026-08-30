@@ -266,6 +266,40 @@ describe('requireAuth', () => {
       expect(next).toHaveBeenCalled()
     })
 
+    // Real edge case a genuine (non-StrictMode) concurrent duplicate can
+    // hit: the sibling request that WON the claim is still mid-flight
+    // (blocked on the Clerk API call) when this one re-checks — not
+    // finished creating the User row yet. The bounded retry covers this
+    // by trying again a couple more times before giving up.
+    it('retries the User-row check a few times before 403ing, for a claim lost to a still-in-flight sibling', async () => {
+      mockGetAuth.mockReturnValue({ userId: 'user_sibling_in_flight' })
+      mockFindUnique
+        .mockResolvedValueOnce(null) // outer check
+        .mockResolvedValueOnce(null) // retry 1: sibling still mid-flight
+        .mockResolvedValueOnce({ clerkId: 'user_sibling_in_flight', firstName: 'Finished Now' }) // retry 2: sibling done
+      mockClaimInvite.mockResolvedValue(false)
+      const next = vi.fn()
+
+      await requireAuth({ headers: { 'x-invite-token': 'tok123' } }, mockRes(), next)
+
+      expect(mockFindUnique).toHaveBeenCalledTimes(3)
+      expect(mockCreate).not.toHaveBeenCalled()
+      expect(next).toHaveBeenCalled()
+    })
+
+    it('403s once retries are exhausted (genuinely invalid token, not just a slow sibling)', async () => {
+      mockGetAuth.mockReturnValue({ userId: 'user_genuinely_no_invite' })
+      mockFindUnique.mockResolvedValue(null) // never found, every attempt
+      mockClaimInvite.mockResolvedValue(false)
+      const res = mockRes()
+      const next = vi.fn()
+
+      await requireAuth({ headers: { 'x-invite-token': 'bad' } }, res, next)
+
+      expect(res.status).toHaveBeenCalledWith(403)
+      expect(next).not.toHaveBeenCalled()
+    })
+
     it('calls claimInvite before any Clerk API call or user creation, for a new user', async () => {
       mockGetAuth.mockReturnValue({ userId: 'user_order_check' })
       mockFindUnique.mockResolvedValue(null)
