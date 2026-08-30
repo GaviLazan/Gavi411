@@ -54,6 +54,25 @@ export async function requireAuth(req, res, next) {
   let user = await prisma.user.findUnique({ where: { clerkId: userId } })
 
   if (!user) {
+    // G411-81: the real gate. App.jsx's SignIn-blocking (G411-41) only
+    // stops our own UI from offering sign-up — Clerk hosts its own
+    // account portal at a fixed, guessable URL (independent of our
+    // React app) that anyone can reach directly, bypassing that UI
+    // entirely. This is the actual enforcement point: no NEW User row
+    // gets created without a valid, unused invite token in the same
+    // request, no matter how the visitor reached Clerk sign-up. An
+    // account created by going around our UI ends up with a real Clerk
+    // identity but no linked app data — permanently stuck at this 403,
+    // never a usable signed-in state (this ticket's Falsifier).
+    const inviteToken = req.headers?.['x-invite-token']
+    const invite = inviteToken
+      ? await prisma.pendingInvite.findUnique({ where: { token: inviteToken } })
+      : null
+
+    if (!invite || invite.usedAt) {
+      return res.status(403).json({ error: 'A valid invite is required to sign up' })
+    }
+
     let clerkUser
     try {
       clerkUser = await clerkClient.users.getUser(userId)

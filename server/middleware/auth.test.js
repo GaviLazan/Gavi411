@@ -10,6 +10,7 @@ const mockGetUser = vi.fn()
 const mockFindUnique = vi.fn()
 const mockCreate = vi.fn()
 const mockUpdateManyInvite = vi.fn()
+const mockFindUniqueInvite = vi.fn()
 
 vi.mock('@clerk/express', () => ({
   clerkMiddleware: () => (req, res, next) => next(),
@@ -25,6 +26,7 @@ vi.mock('../lib/prisma.js', () => ({
     },
     pendingInvite: {
       updateMany: (...args) => mockUpdateManyInvite(...args),
+      findUnique: (...args) => mockFindUniqueInvite(...args),
     },
   },
 }))
@@ -57,6 +59,7 @@ describe('requireAuth', () => {
   it('creates a new user with real Clerk name/email, not blank claims', async () => {
     mockGetAuth.mockReturnValue({ userId: 'user_new' })
     mockFindUnique.mockResolvedValue(null)
+    mockFindUniqueInvite.mockResolvedValue({ token: 'tok123', usedAt: null })
     mockGetUser.mockResolvedValue({
       firstName: 'Gavi',
       lastName: 'Lazan',
@@ -64,7 +67,7 @@ describe('requireAuth', () => {
       emailAddresses: [{ id: 'idn_1', emailAddress: 'gavriel.lazan@gmail.com' }],
     })
     mockCreate.mockResolvedValue({ clerkId: 'user_new', firstName: 'Gavi' })
-    const req = {}
+    const req = { headers: { 'x-invite-token': 'tok123' } }
     const res = mockRes()
     const next = vi.fn()
 
@@ -86,6 +89,7 @@ describe('requireAuth', () => {
   it('picks the primary email, not just array index 0', async () => {
     mockGetAuth.mockReturnValue({ userId: 'user_multi_email' })
     mockFindUnique.mockResolvedValue(null)
+    mockFindUniqueInvite.mockResolvedValue({ token: 'tok123', usedAt: null })
     mockGetUser.mockResolvedValue({
       firstName: 'A',
       lastName: 'B',
@@ -97,7 +101,7 @@ describe('requireAuth', () => {
     })
     mockCreate.mockResolvedValue({})
 
-    await requireAuth({}, mockRes(), vi.fn())
+    await requireAuth({ headers: { 'x-invite-token': 'tok123' } }, mockRes(), vi.fn())
 
     expect(mockCreate).toHaveBeenCalledWith({
       data: expect.objectContaining({ email: 'primary@example.com' }),
@@ -107,11 +111,12 @@ describe('requireAuth', () => {
   it('503s cleanly if Clerk\'s API fails, instead of throwing unhandled', async () => {
     mockGetAuth.mockReturnValue({ userId: 'user_new' })
     mockFindUnique.mockResolvedValue(null)
+    mockFindUniqueInvite.mockResolvedValue({ token: 'tok123', usedAt: null })
     mockGetUser.mockRejectedValue(new Error('Clerk API down'))
     const res = mockRes()
     const next = vi.fn()
 
-    await requireAuth({}, res, next)
+    await requireAuth({ headers: { 'x-invite-token': 'tok123' } }, res, next)
 
     expect(res.status).toHaveBeenCalledWith(503)
     expect(mockCreate).not.toHaveBeenCalled()
@@ -123,11 +128,12 @@ describe('requireAuth', () => {
     mockFindUnique
       .mockResolvedValueOnce(null) // first findUnique: not found yet
       .mockResolvedValueOnce({ clerkId: 'user_racing', firstName: 'Winner' }) // re-fetch after race
+    mockFindUniqueInvite.mockResolvedValue({ token: 'tok123', usedAt: null })
     mockGetUser.mockResolvedValue({ firstName: 'Racer', lastName: '', emailAddresses: [] })
     const raceError = new Error('Unique constraint failed')
     raceError.code = 'P2002'
     mockCreate.mockRejectedValue(raceError)
-    const req = {}
+    const req = { headers: { 'x-invite-token': 'tok123' } }
     const next = vi.fn()
 
     await requireAuth(req, mockRes(), next)
@@ -153,10 +159,11 @@ describe('requireAuth', () => {
   it('falls back to null email when Clerk user has none', async () => {
     mockGetAuth.mockReturnValue({ userId: 'user_no_email' })
     mockFindUnique.mockResolvedValue(null)
+    mockFindUniqueInvite.mockResolvedValue({ token: 'tok123', usedAt: null })
     mockGetUser.mockResolvedValue({ firstName: '', lastName: '', emailAddresses: [] })
     mockCreate.mockResolvedValue({})
 
-    await requireAuth({}, mockRes(), vi.fn())
+    await requireAuth({ headers: { 'x-invite-token': 'tok123' } }, mockRes(), vi.fn())
 
     expect(mockCreate).toHaveBeenCalledWith({
       data: expect.objectContaining({ email: null, firstName: '', lastName: '' }),
@@ -167,6 +174,7 @@ describe('requireAuth', () => {
   it('marks an invite token used when x-invite-token header is present on a new user', async () => {
     mockGetAuth.mockReturnValue({ userId: 'user_new' })
     mockFindUnique.mockResolvedValue(null)
+    mockFindUniqueInvite.mockResolvedValue({ token: 'tok123', usedAt: null })
     mockGetUser.mockResolvedValue({ firstName: 'A', lastName: 'B', emailAddresses: [] })
     mockCreate.mockResolvedValue({ clerkId: 'user_new' })
     const req = { headers: { 'x-invite-token': 'tok123' } }
@@ -198,11 +206,9 @@ describe('requireAuth', () => {
     })
   })
 
-  it('does not touch invites when no x-invite-token header is sent', async () => {
-    mockGetAuth.mockReturnValue({ userId: 'user_new' })
-    mockFindUnique.mockResolvedValue(null)
-    mockGetUser.mockResolvedValue({ firstName: 'A', lastName: 'B', emailAddresses: [] })
-    mockCreate.mockResolvedValue({ clerkId: 'user_new' })
+  it('does not touch invites for an existing user with no header (nothing to mark)', async () => {
+    mockGetAuth.mockReturnValue({ userId: 'user_existing_no_header' })
+    mockFindUnique.mockResolvedValue({ clerkId: 'user_existing_no_header' })
 
     await requireAuth({}, mockRes(), vi.fn())
 
@@ -229,6 +235,68 @@ describe('requireAuth', () => {
     expect(mockUpdateManyInvite).toHaveBeenCalledWith({
       where: { token: 'tok123', usedAt: null, usedByUserId: null },
       data: expect.objectContaining({ usedByUserId: 'user_existing' }),
+    })
+  })
+
+  // G411-81 — the real gate. App.jsx's SignIn-blocking (G411-41) only
+  // stops our own UI; Clerk hosts sign-up at its own fixed URL, reachable
+  // directly. These prove the actual enforcement point: no new User row
+  // without a valid, unused invite, no matter how Clerk sign-up was reached.
+  describe('G411-81 invite gate on new-user creation', () => {
+    it('403s a brand-new user with no x-invite-token header at all', async () => {
+      mockGetAuth.mockReturnValue({ userId: 'user_no_invite' })
+      mockFindUnique.mockResolvedValue(null)
+      const res = mockRes()
+      const next = vi.fn()
+
+      await requireAuth({}, res, next)
+
+      expect(res.status).toHaveBeenCalledWith(403)
+      expect(mockGetUser).not.toHaveBeenCalled()
+      expect(mockCreate).not.toHaveBeenCalled()
+      expect(next).not.toHaveBeenCalled()
+    })
+
+    it('403s a brand-new user whose token does not exist', async () => {
+      mockGetAuth.mockReturnValue({ userId: 'user_bad_token' })
+      mockFindUnique.mockResolvedValue(null)
+      mockFindUniqueInvite.mockResolvedValue(null)
+      const res = mockRes()
+      const next = vi.fn()
+
+      await requireAuth({ headers: { 'x-invite-token': 'nonexistent' } }, res, next)
+
+      expect(res.status).toHaveBeenCalledWith(403)
+      expect(mockCreate).not.toHaveBeenCalled()
+      expect(next).not.toHaveBeenCalled()
+    })
+
+    it('403s a brand-new user whose token was already used', async () => {
+      mockGetAuth.mockReturnValue({ userId: 'user_reused_token' })
+      mockFindUnique.mockResolvedValue(null)
+      mockFindUniqueInvite.mockResolvedValue({ token: 'tok123', usedAt: new Date() })
+      const res = mockRes()
+      const next = vi.fn()
+
+      await requireAuth({ headers: { 'x-invite-token': 'tok123' } }, res, next)
+
+      expect(res.status).toHaveBeenCalledWith(403)
+      expect(mockCreate).not.toHaveBeenCalled()
+      expect(next).not.toHaveBeenCalled()
+    })
+
+    it('lets a brand-new user through with a valid, unused token (Falsifier: valid invite reaches a usable state)', async () => {
+      mockGetAuth.mockReturnValue({ userId: 'user_good_token' })
+      mockFindUnique.mockResolvedValue(null)
+      mockFindUniqueInvite.mockResolvedValue({ token: 'tok123', usedAt: null })
+      mockGetUser.mockResolvedValue({ firstName: 'A', lastName: 'B', emailAddresses: [] })
+      mockCreate.mockResolvedValue({ clerkId: 'user_good_token' })
+      const next = vi.fn()
+
+      await requireAuth({ headers: { 'x-invite-token': 'tok123' } }, mockRes(), next)
+
+      expect(mockCreate).toHaveBeenCalled()
+      expect(next).toHaveBeenCalled()
     })
   })
 })
