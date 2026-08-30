@@ -80,17 +80,35 @@ function RequestList({ onNewRequest, onShowInstallHelp, onOpenRequest }) {
     };
   }, [retryToken]);
 
+  // "+ New request" doesn't depend on the list loading successfully —
+  // creating a request has nothing to do with whether the existing list
+  // could be fetched (Gavi's live catch, 2026-08-30: a transient list-load
+  // failure used to block the New request button entirely, which made no
+  // sense — the two are unrelated). Error/loading states now only replace
+  // the list section below, not the whole screen.
   if (error) {
     return (
-      <Card>
-        <p>{error}</p>
-        <Button onClick={() => setRetryToken((t) => t + 1)}>Try again</Button>
-      </Card>
+      <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-4)", width: "100%", maxWidth: 420 }}>
+        <Button variant="primary" onClick={onNewRequest}>
+          + New request
+        </Button>
+        <Card>
+          <p>{error}</p>
+          <Button onClick={() => setRetryToken((t) => t + 1)}>Try again</Button>
+        </Card>
+      </div>
     );
   }
 
   if (requests === null) {
-    return <Card>Loading…</Card>;
+    return (
+      <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-4)", width: "100%", maxWidth: 420 }}>
+        <Button variant="primary" onClick={onNewRequest}>
+          + New request
+        </Button>
+        <Card>Loading…</Card>
+      </div>
+    );
   }
 
   const openRequests = requests.filter((r) => !CLOSED_STATUSES.includes(r.status));

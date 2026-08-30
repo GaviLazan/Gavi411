@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useUser, SignIn, ClerkLoaded, ClerkLoading } from '@clerk/react'
+import { useUser, useClerk, SignIn, SignUp, ClerkLoaded, ClerkLoading } from '@clerk/react'
 import './App.css'
 import NewRequest from './pages/NewRequest'
 import RequestList from './pages/RequestList'
@@ -34,56 +34,94 @@ const THEME_LABEL = { system: 'Auto', light: 'Light', dark: 'Dark' }
 // justified at this size. Add one if the screen count grows enough to
 // need real URLs/back-button support.
 function App() {
-  const { isSignedIn } = useUser()
+  const { isSignedIn, user } = useUser()
+  const { signOut } = useClerk()
   const [view, setView] = useState('list') // 'list' | 'new' | 'install-help' | 'detail' | 'invite-admin'
   const [selectedRequestId, setSelectedRequestId] = useState(null)
   const [newRequestHasText, setNewRequestHasText] = useState(false)
   const [showLogoDiscardConfirm, setShowLogoDiscardConfirm] = useState(false)
   const { theme, cycleTheme } = useTheme()
 
-  // G411-41: role isn't on the Clerk user object (it's our own Prisma
-  // field) — fetch it once via the existing /api/me smoke-test route
-  // (G411-13) rather than adding a new endpoint just for this.
-  const [role, setRole] = useState(null)
-  useEffect(() => {
-    if (!isSignedIn) return
-    fetch('/api/me')
-      .then((res) => res.json())
-      .then((data) => setRole(data.user?.role ?? null))
-      .catch(() => {})
-  }, [isSignedIn])
-
-  // G411-41: signed-out visitors need a valid stashed invite token before
-  // Clerk sign-in is reachable at all — a returning signed-in user skips
-  // this check entirely (their Clerk session alone proves prior legitimate
-  // access; they may have no stashed token left, having used it once).
+  // Sibling review finding: a stashed token's mere PRESENCE isn't the
+  // same as it being valid — a stale/already-used invite link used to
+  // route straight into a real Clerk SignUp flow (only 403ing on the
+  // first backend call afterward), creating an orphaned Clerk identity
+  // for a link that was never going to work. Actually check validity
+  // (the existing /:token/valid route, no auth required — same one this
+  // signed-out visitor's browser can already reach) before deciding.
   // 'checking' | 'valid' | 'invalid'
-  const [inviteState, setInviteState] = useState('checking')
-
+  const [inviteTokenState, setInviteTokenState] = useState('checking')
   useEffect(() => {
     if (isSignedIn) return
     const token = getStashedInviteToken()
     if (!token) {
-      setInviteState('invalid')
+      setInviteTokenState('invalid')
       return
     }
     fetch(`/api/invites/${encodeURIComponent(token)}/valid`)
       .then((res) => res.json())
-      .then((data) => setInviteState(data.valid ? 'valid' : 'invalid'))
-      .catch(() => setInviteState('invalid'))
+      .then((data) => setInviteTokenState(data.valid ? 'valid' : 'invalid'))
+      .catch(() => setInviteTokenState('invalid'))
   }, [isSignedIn])
 
-  // Once actually signed in, send the stashed token (if any) once so the
-  // server can mark it used and link it to the new User row (server/
-  // middleware/auth.js). No-op for a returning user with nothing stashed.
+  // Sibling review finding: /api/me's role check and RequestList's own
+  // /api/requests fetch used to fire in the same render pass as this
+  // token handoff, racing it — whichever reached requireAuth first for a
+  // brand-new user decided the outcome, so a legitimate signup could get
+  // wrongly 403'd if a header-less request won. Fix: nothing else that
+  // needs auth renders/fires until this handoff has settled (or there
+  // was nothing to send). Starts true when there's no stashed token —
+  // only signups need to wait.
+  const [tokenHandoffDone, setTokenHandoffDone] = useState(() => !getStashedInviteToken())
+
   useEffect(() => {
     if (!isSignedIn) return
     const token = getStashedInviteToken()
-    if (!token) return
-    fetch('/api/requests', { headers: { 'x-invite-token': token } }).finally(() => {
-      clearStashedInviteToken()
-    })
+    if (!token) {
+      setTokenHandoffDone(true)
+      return
+    }
+    // AbortController (Sibling review finding): React StrictMode (dev)
+    // double-invokes this effect on mount, which would otherwise fire
+    // TWO real network requests carrying the same one-time-use token —
+    // the server's atomic claim correctly lets only one through, but the
+    // other genuinely races it rather than being cancelled. Aborting the
+    // first request on cleanup (StrictMode's mount->cleanup->mount) means
+    // only the second, real invocation's request actually reaches the
+    // server — no duplicate claim to reconcile at all, standard fix for
+    // this exact StrictMode double-effect pattern.
+    const controller = new AbortController()
+    fetch('/api/requests', { headers: { 'x-invite-token': token }, signal: controller.signal })
+      .catch(() => {}) // AbortError on cleanup is expected, not a real failure
+      .finally(() => {
+        if (!controller.signal.aborted) {
+          clearStashedInviteToken()
+          setTokenHandoffDone(true)
+        }
+      })
+    return () => controller.abort()
   }, [isSignedIn])
+
+  // G411-41: role isn't on the Clerk user object (it's our own Prisma
+  // field) — fetch it once via the existing /api/me smoke-test route
+  // (G411-13) rather than adding a new endpoint just for this. A 403
+  // here means Clerk auth succeeded but our own backend never created a
+  // User row (see server/middleware/auth.js) — no valid invite.
+  const [role, setRole] = useState(null)
+  const [unauthorized, setUnauthorized] = useState(false)
+  useEffect(() => {
+    if (!isSignedIn || !tokenHandoffDone) return
+    fetch('/api/me')
+      .then((res) => {
+        if (res.status === 403) {
+          setUnauthorized(true)
+          return null
+        }
+        return res.json()
+      })
+      .then((data) => data && setRole(data.user?.role ?? null))
+      .catch(() => {})
+  }, [isSignedIn, tokenHandoffDone])
 
   return (
     <div className="design-preview">
@@ -128,10 +166,24 @@ function App() {
             Invites
           </button>
         )}
+        {/* Minimal account indicator + sign-out, until a real account
+            menu exists — Gavi's call: keep this, don't strip it, once a
+            nicer version is built it replaces this rather than removing
+            it outright. */}
+        {isSignedIn && (
+          <span className="account-indicator">
+            {user?.primaryEmailAddress?.emailAddress || user?.id}{' '}
+            <button type="button" onClick={() => signOut()}>Sign out</button>
+          </span>
+        )}
       </div>
       <ClerkLoading>Loading…</ClerkLoading>
       <ClerkLoaded>
-        {isSignedIn ? (
+        {isSignedIn && !tokenHandoffDone ? (
+          <p>Loading…</p>
+        ) : isSignedIn && unauthorized ? (
+          <p>You do not have permission to use Gavi411.</p>
+        ) : isSignedIn ? (
           view === 'new' ? (
             <NewRequest
               onDone={() => { setNewRequestHasText(false); setView('list'); }}
@@ -151,14 +203,10 @@ function App() {
               onOpenRequest={(id) => { setSelectedRequestId(id); setView('detail'); }}
             />
           )
-        ) : inviteState === 'checking' ? (
+        ) : inviteTokenState === 'checking' ? (
           <p>Loading…</p>
-        ) : inviteState === 'valid' ? (
-          <SignIn />
         ) : (
-          // No public signup (PRD §2 non-goals) — a visitor without a
-          // valid invite link never reaches Clerk sign-in at all.
-          <p>This app is invite-only. Ask Gavi for an invite link.</p>
+          inviteTokenState === 'valid' ? <SignUp /> : <SignIn />
         )}
       </ClerkLoaded>
       <ConfirmModal

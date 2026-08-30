@@ -179,3 +179,7 @@ button.wordmark-button {
     transition: none;
   }
 }
+
+.cl-footerAction {
+  display: none;
+}

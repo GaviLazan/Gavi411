@@ -17,6 +17,7 @@
 
 import { clerkMiddleware, clerkClient, getAuth } from '@clerk/express'
 import { prisma } from '../lib/prisma.js'
+import { claimInvite, linkClaimedInvite, unclaimInvite } from '../lib/invites.js'
 
 // clerkClient — call once per server, mounted globally in server.js.
 // Reads the session cookie / Authorization: Bearer <token> header on every
@@ -54,68 +55,118 @@ export async function requireAuth(req, res, next) {
   let user = await prisma.user.findUnique({ where: { clerkId: userId } })
 
   if (!user) {
-    let clerkUser
-    try {
-      clerkUser = await clerkClient.users.getUser(userId)
-    } catch (err) {
-      console.error('Failed to fetch user from Clerk:', err)
-      return res.status(503).json({ error: 'Unable to verify session, try again' })
-    }
+    // G411-81: the real gate. App.jsx's SignIn-blocking (G411-41) only
+    // stops our own UI from offering sign-up — Clerk hosts its own
+    // account portal at a fixed, guessable URL (independent of our
+    // React app) that anyone can reach directly, bypassing that UI
+    // entirely. This is the actual enforcement point: no NEW User row
+    // gets created without a valid, unused invite token in the same
+    // request, no matter how the visitor reached Clerk sign-up. An
+    // account created by going around our UI ends up with a real Clerk
+    // identity but no linked app data — permanently stuck at this 403,
+    // never a usable signed-in state (this ticket's Falsifier).
+    //
+    // Sibling review finding: this used to be a read-only check
+    // (findUnique + !invite.usedAt) with the actual claim happening
+    // separately, much later — a real window (spanning a Clerk API call
+    // and a DB write) where two concurrent signups sharing one token
+    // could both pass the read-check before either claimed it, letting
+    // one single-use invite seed two accounts. claimInvite() is a single
+    // atomic conditional UPDATE — its own WHERE clause IS the validity
+    // check, so "claimed" and "valid" can no longer disagree between two
+    // racing requests. Runs BEFORE any Clerk API call or DB write, so an
+    // invalid/already-claimed token is rejected as cheaply as possible.
+    //
+    // Two-phase (see lib/invites.js): claimInvite() only sets `usedAt`
+    // here — usedByUserId is a foreign key to User.clerkId, which
+    // doesn't exist yet at this point, so it can't be set in this same
+    // write (hit live: FK violation on an earlier single-write version).
+    // linkClaimedInvite() fills usedByUserId in once the User row exists.
+    //
+    // React StrictMode (dev) double-fires the request carrying this
+    // header, so the SAME legitimate signup genuinely sends it twice,
+    // nearly simultaneously. If claimInvite() fails here, it's either a
+    // genuinely invalid/already-used token (403), or this request's own
+    // duplicate lost the race to its sibling — distinguished by
+    // re-checking for a User row: if one now exists (the sibling
+    // finished creating it), fall through and use it instead of 403ing
+    // a real signup.
+    const inviteToken = req.headers?.['x-invite-token']
+    const claimed = await claimInvite(inviteToken)
 
-    // emailAddresses[0] isn't guaranteed to be the primary — look it up by
-    // primaryEmailAddressId. Fall back defensively if the shape is ever
-    // missing (empty array, or an unexpected partial response).
-    const emails = clerkUser.emailAddresses ?? []
-    const primaryEmail = emails.find((e) => e.id === clerkUser.primaryEmailAddressId)
-    const email = primaryEmail?.emailAddress ?? emails[0]?.emailAddress ?? null
-
-    try {
-      user = await prisma.user.create({
-        data: {
-          clerkId: userId,
-          firstName: clerkUser.firstName ?? '',
-          lastName: clerkUser.lastName ?? '',
-          email,
-          // Clerk manages phone verification and doesn't support Israeli
-          // numbers, so phone is collected in our own app instead
-          // (G411-69) — phoneNumber is required + unique on our side, so
-          // this is a placeholder until that flow fills it in.
-          phoneNumber: `pending-${userId}`,
-          creditBalance: 0,
-        },
-      })
-    } catch (err) {
-      // Race: two near-simultaneous first requests from the same new user
-      // both saw findUnique return null, then both tried to create — the
-      // second create hits the unique constraint (phoneNumber). Just use
-      // the row the first request created instead of erroring.
-      if (err.code === 'P2002') {
+    if (!claimed) {
+      // Sibling review finding: a failed claim here doesn't necessarily
+      // mean an invalid token — it could be a genuine concurrent
+      // duplicate request (a browser-level retry; App.jsx's
+      // AbortController already prevents React StrictMode's own
+      // duplicate from reaching this far) that lost the claim to its
+      // sibling, which may still be mid-flight (blocked on the Clerk API
+      // call below) rather than finished creating the User row yet. A
+      // short bounded retry — not unbounded — covers that realistic
+      // window without turning a genuinely invalid token into a hang.
+      for (let attempt = 0; attempt < 3 && !user; attempt++) {
+        if (attempt > 0) await new Promise((resolve) => setTimeout(resolve, 150))
         user = await prisma.user.findUnique({ where: { clerkId: userId } })
-      } else {
-        throw err
       }
     }
-  }
 
-  // G411-41: mark the invite token used, linked to this user. Deliberately
-  // OUTSIDE the `if (!user)` block above (Sibling review finding) — the
-  // client fires several first-sign-in requests concurrently (App.jsx's
-  // own /api/me role check, RequestList's /api/requests), and only one of
-  // them wins the user-creation race; the others would see `user` already
-  // set and skip past the header entirely if this stayed nested inside
-  // that block, silently losing the token forever (sessionStorage clears
-  // it either way, so there's no client-side retry). Running it here for
-  // any request carrying the header — win-the-race or not — fixes that.
-  // The `usedByUserId: null` guard makes it idempotent: once any request
-  // successfully claims the invite for this user, later requests with a
-  // stale header (there shouldn't be any once the client clears its
-  // stash, but belt-and-suspenders) are no-ops instead of double-writes.
-  const inviteToken = req.headers?.['x-invite-token']
-  if (inviteToken) {
-    await prisma.pendingInvite.updateMany({
-      where: { token: inviteToken, usedAt: null, usedByUserId: null },
-      data: { usedAt: new Date(), usedByUserId: user.clerkId },
-    })
+    if (!user) {
+      if (!claimed) {
+        return res.status(403).json({ error: 'A valid invite is required to sign up' })
+      }
+
+      let clerkUser
+      try {
+        clerkUser = await clerkClient.users.getUser(userId)
+      } catch (err) {
+        console.error('Failed to fetch user from Clerk:', err)
+        // The invite was already atomically claimed above (needed to run
+        // before this call to close the TOCTOU race) — if account
+        // creation fails from here on, un-claim it so the same invite
+        // link still works on retry, instead of permanently burning a
+        // valid invite on an unrelated Clerk-API hiccup.
+        await unclaimInvite(inviteToken)
+        return res.status(503).json({ error: 'Unable to verify session, try again' })
+      }
+
+      // emailAddresses[0] isn't guaranteed to be the primary — look it up
+      // by primaryEmailAddressId. Fall back defensively if the shape is
+      // ever missing (empty array, or an unexpected partial response).
+      const emails = clerkUser.emailAddresses ?? []
+      const primaryEmail = emails.find((e) => e.id === clerkUser.primaryEmailAddressId)
+      const email = primaryEmail?.emailAddress ?? emails[0]?.emailAddress ?? null
+
+      try {
+        user = await prisma.user.create({
+          data: {
+            clerkId: userId,
+            firstName: clerkUser.firstName ?? '',
+            lastName: clerkUser.lastName ?? '',
+            email,
+            // Clerk manages phone verification and doesn't support
+            // Israeli numbers, so phone is collected in our own app
+            // instead (G411-69) — phoneNumber is required + unique on
+            // our side, so this is a placeholder until that flow fills
+            // it in.
+            phoneNumber: `pending-${userId}`,
+            creditBalance: 0,
+          },
+        })
+      } catch (err) {
+        // Race: two near-simultaneous first requests from the same new
+        // user both saw findUnique return null, then both tried to
+        // create — the second create hits the unique constraint
+        // (phoneNumber). Just use the row the first request created
+        // instead of erroring.
+        if (err.code === 'P2002') {
+          user = await prisma.user.findUnique({ where: { clerkId: userId } })
+        } else {
+          throw err
+        }
+      }
+
+      await linkClaimedInvite(inviteToken, user.clerkId)
+    }
   }
 
   req.user = user

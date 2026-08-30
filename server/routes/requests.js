@@ -73,15 +73,29 @@ export function stripEmpty(details) {
 
 // GET / — list requests for the logged-in user, or every request if
 // they're an admin (G411-67). Newest first.
+//
+// try/catch added 2026-08-30 (Gavi hit a real, once-off "Couldn't load
+// your requests" failure while live-testing G411-81's invite flow, cause
+// unconfirmed — likely a Neon/Prisma cold-start hiccup right after a
+// fresh signup, never reproduced again). The old code had no error
+// handling at all, so a failure here silently 500'd with no logged
+// reason — kept as real error-path logging going forward (Gavi's call:
+// he expects to be asked whether errors are logged, this earns its keep
+// beyond just this one bug hunt), not just a debug leftover.
 router.get('/', requireAuth, async (req, res) => {
-  const where = req.user.role === 'ADMIN' ? {} : { userId: req.user.clerkId }
+  try {
+    const where = req.user.role === 'ADMIN' ? {} : { userId: req.user.clerkId }
 
-  const requests = await prisma.request.findMany({
-    where,
-    orderBy: { createdAt: 'desc' },
-  })
+    const requests = await prisma.request.findMany({
+      where,
+      orderBy: { createdAt: 'desc' },
+    })
 
-  res.json(requests)
+    res.json(requests)
+  } catch (err) {
+    console.error('Failed to load requests:', err)
+    res.status(500).json({ error: 'Failed to load requests' })
+  }
 })
 
 // GET /:id — one request + its messages (G411-67). Owner or admin only.
@@ -165,8 +179,13 @@ router.post('/match', requireAuth, async (req, res) => {
   if (!freeText) {
     return res.status(400).json({ error: 'freeText is required' })
   }
-  const matchedTypes = await matchKeywords(freeText)
-  res.json({ matchedTypes })
+  try {
+    const matchedTypes = await matchKeywords(freeText)
+    res.json({ matchedTypes })
+  } catch (err) {
+    console.error('Failed to match keywords:', err)
+    res.status(500).json({ error: 'Failed to match request type' })
+  }
 })
 
 // POST / — create a request + deduct credit (G411-23). Not covered here:

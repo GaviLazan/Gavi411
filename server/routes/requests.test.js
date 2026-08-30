@@ -97,6 +97,19 @@ describe('GET /api/requests', () => {
       expect.objectContaining({ where: {} })
     )
   })
+
+  // G411-81: real, once-off DB failure hit live while testing the invite
+  // flow (cause unconfirmed) surfaced this route had no error handling
+  // at all — a thrown error crashed with no logged reason.
+  it('500s cleanly with a logged reason if the DB call fails', async () => {
+    currentUserId = OWNER
+    prismaMock.request.findMany.mockRejectedValue(new Error('connection lost'))
+
+    const res = await request(app).get('/api/requests')
+
+    expect(res.status).toBe(500)
+    expect(res.body).toEqual({ error: 'Failed to load requests' })
+  })
 })
 
 describe('GET /api/requests/:id', () => {
@@ -222,6 +235,20 @@ describe('POST /api/requests/match', () => {
     const res = await request(app).post('/api/requests/match').send({ freeText: 'need a flight' })
     expect(res.status).toBe(200)
     expect(res.body.matchedTypes).toEqual(['TRAVEL'])
+  })
+
+  // G411-81: same real, once-off DB failure caught live also hit this
+  // route (no error handling existed here either — any thrown error
+  // crashed with no logged reason).
+  it('500s cleanly with a logged reason if matching fails', async () => {
+    currentUserId = OWNER
+    const { matchKeywords } = await import('../lib/matchKeywords.js')
+    matchKeywords.mockRejectedValue(new Error('connection lost'))
+
+    const res = await request(app).post('/api/requests/match').send({ freeText: 'need a flight' })
+
+    expect(res.status).toBe(500)
+    expect(res.body).toEqual({ error: 'Failed to match request type' })
   })
 })
 

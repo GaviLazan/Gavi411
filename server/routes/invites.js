@@ -12,6 +12,7 @@ import express from 'express'
 import crypto from 'node:crypto'
 import { requireAuth } from '../middleware/auth.js'
 import { prisma } from '../lib/prisma.js'
+import { isInviteValid } from '../lib/invites.js'
 
 const router = express.Router()
 
@@ -51,13 +52,11 @@ router.get('/', requireAuth, async (req, res) => {
 
 // GET /:token/valid — no auth required by design: this is the gate a
 // signed-out visitor's browser checks before Clerk sign-in is even
-// shown. Valid means: exists AND not yet used.
+// shown. Uses the same validity notion as requireAuth's real gate
+// (lib/invites.js) — previously each re-implemented its own check,
+// which could drift out of sync (Sibling review finding, G411-81).
 router.get('/:token/valid', async (req, res) => {
-  const invite = await prisma.pendingInvite.findUnique({
-    where: { token: req.params.token },
-  })
-
-  res.json({ valid: Boolean(invite && !invite.usedAt) })
+  res.json({ valid: await isInviteValid(req.params.token) })
 })
 
 export default router
