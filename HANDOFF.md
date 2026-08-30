@@ -37,8 +37,34 @@ a go-ahead between stages unless something real comes up:
    G411-41 existing), admin-side client search index + admin-approved
    device-linking flow (unblocked by G411-76, already Reconciled).
 
-**Not started yet** — this session ended before stage 1 began. A fresh
-session should start here: pick up G411-28's crypto core (stage 1).
+**Stage 1 done (2026-08-30), moving to stage 2.** G411-28 crypto core
+landed: `client/src/lib/crypto.js` (keypair gen, ECDH, AES-GCM, Web Crypto
+API only, no deps) + `client/src/lib/keyStore.js` (IndexedDB wrapper,
+browser-only, untested by design) + `client/src/lib/crypto.test.js`.
+Sibling review found and fixed a real bug (`bufToBase64` stack-overflowed
+on real image-sized payloads via spread — chunked the encode instead,
+added a 200KB regression test). 56/56 Vitest passing. PR #29 merged
+(regular merge commit), G411-28 Landed in Jira (Reconciled deferred —
+this is one child issue covering the whole target-E2E scope, stages 2-4
+still open under it, so Reconciled waits for the full pass to finish, not
+per-stage). Standalone subsystem per decision #28 — not yet wired into
+the live message send/receive flow, that's still ahead.
+
+**Next up**: G411-41 (invite token gen + admin UI), `agent-backend`
+worktree — see stage 2 below. Not started yet this session.
+
+**Deliverable owed once the whole E2E pass is done**: a 2-page PDF/slide
+deck explaining how the E2E encryption works in practice, including which
+files are involved — Gavi asked for this on 2026-08-30, to hand over once
+all 4 stages land, not per-stage.
+
+### Note: DESIGN.md has an unrelated in-progress diff, not mine
+Primary worktree currently carries an uncommitted `DESIGN.md` change (new
+gold/sage/lavender palette + dark-mode tokens, replacing the stale
+"Nexus AI" cream/forest-green tokens from G411-17). **This is Gavi's own
+work-in-progress, done in parallel with this session — confirmed
+2026-08-30, not a stray artifact.** Leave it alone; don't commit, stash,
+or discard it. He'll finish and commit it himself.
 
 ### Prerequisites already resolved, don't re-derive
 - **G411-76** (Clerk↔Prisma sync + admin role) — Reconciled. Real admin
