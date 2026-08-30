@@ -50,21 +50,43 @@ still open under it, so Reconciled waits for the full pass to finish, not
 per-stage). Standalone subsystem per decision #28 — not yet wired into
 the live message send/receive flow, that's still ahead.
 
-**Next up**: G411-41 (invite token gen + admin UI), `agent-backend`
-worktree — see stage 2 below. Not started yet this session.
+**Stage 2 done (2026-08-30), moving to stage 3.** G411-41 landed:
+`PendingInvite` Prisma model (token PK, label, usedAt/usedByUserId set
+together), `server/routes/invites.js` (admin create/list, no-auth
+`GET /:token/valid` — the pre-signin check), `server/middleware/auth.js`
+now marks a token used via `x-invite-token` header (best-effort, doesn't
+block signup — G411-81's job), `client/src/lib/inviteToken.js`
+(sessionStorage stash, survives Clerk's OAuth redirect unlike a bare URL
+param), `client/src/App.jsx` (signed-out visitors blocked from Clerk
+SignIn without a valid stashed token; returning signed-in users skip the
+check), `client/src/pages/InviteAdmin.jsx` (minimal admin screen — create
++ copy link + list, admin-only "Invites" header button). Sibling review
+found and fixed a real race (App.jsx fires several first-sign-in requests
+concurrently; only the one that wins `requireAuth`'s user-creation race
+used to mark the invite, so the token-bearing request could lose the race
+and silently discard the token forever) — mark-used logic moved outside
+the `if (!user)` block, guarded idempotent via `usedByUserId: null` in
+the where clause. 70/70 Vitest passing. PR #31 merged, G411-41 Landed in
+Jira (Reconciled deferred to a later confirm, same reasoning as G411-28).
+Migration applied live against the real Neon DB.
+
+Note logged on the ticket: G411-41's Jira description still carries the
+historical `Owner: [You]` tag (pre-2026-08-24). Per CLAUDE.md decision
+#63 this doesn't gate who builds it — flagged, not treated as a stop.
+
+**Next up**: G411-81 (decide + implement the actual Clerk-gating
+mechanism), same `agent-backend` worktree. Not started yet this session.
 
 **Deliverable owed once the whole E2E pass is done**: a 2-page PDF/slide
 deck explaining how the E2E encryption works in practice, including which
 files are involved — Gavi asked for this on 2026-08-30, to hand over once
 all 4 stages land, not per-stage.
 
-### Note: DESIGN.md has an unrelated in-progress diff, not mine
-Primary worktree currently carries an uncommitted `DESIGN.md` change (new
-gold/sage/lavender palette + dark-mode tokens, replacing the stale
-"Nexus AI" cream/forest-green tokens from G411-17). **This is Gavi's own
-work-in-progress, done in parallel with this session — confirmed
-2026-08-30, not a stray artifact.** Leave it alone; don't commit, stash,
-or discard it. He'll finish and commit it himself.
+### DESIGN.md — resolved, no action needed
+The uncommitted DESIGN.md diff flagged earlier this session turned out to
+be Gavi's own WIP, since committed — findable on `docs/design-product-md-
+refresh` (commits `9a93ee4`, `5b7ea6a`), not yet merged into `main`. Not
+touched by this pass; his branch to merge when ready.
 
 ### Prerequisites already resolved, don't re-derive
 - **G411-76** (Clerk↔Prisma sync + admin role) — Reconciled. Real admin
