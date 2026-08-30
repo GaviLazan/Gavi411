@@ -42,6 +42,46 @@ function App() {
   const [showLogoDiscardConfirm, setShowLogoDiscardConfirm] = useState(false)
   const { theme, cycleTheme } = useTheme()
 
+  const [hasInviteToken] = useState(() => Boolean(getStashedInviteToken()))
+
+  // Sibling review finding: /api/me's role check and RequestList's own
+  // /api/requests fetch used to fire in the same render pass as this
+  // token handoff, racing it — whichever reached requireAuth first for a
+  // brand-new user decided the outcome, so a legitimate signup could get
+  // wrongly 403'd if a header-less request won. Fix: nothing else that
+  // needs auth renders/fires until this handoff has settled (or there
+  // was nothing to send). Starts true when there's no stashed token —
+  // only signups need to wait.
+  const [tokenHandoffDone, setTokenHandoffDone] = useState(() => !hasInviteToken)
+
+  useEffect(() => {
+    if (!isSignedIn) return
+    const token = getStashedInviteToken()
+    if (!token) {
+      setTokenHandoffDone(true)
+      return
+    }
+    // AbortController (Sibling review finding): React StrictMode (dev)
+    // double-invokes this effect on mount, which would otherwise fire
+    // TWO real network requests carrying the same one-time-use token —
+    // the server's atomic claim correctly lets only one through, but the
+    // other genuinely races it rather than being cancelled. Aborting the
+    // first request on cleanup (StrictMode's mount->cleanup->mount) means
+    // only the second, real invocation's request actually reaches the
+    // server — no duplicate claim to reconcile at all, standard fix for
+    // this exact StrictMode double-effect pattern.
+    const controller = new AbortController()
+    fetch('/api/requests', { headers: { 'x-invite-token': token }, signal: controller.signal })
+      .catch(() => {}) // AbortError on cleanup is expected, not a real failure
+      .finally(() => {
+        if (!controller.signal.aborted) {
+          clearStashedInviteToken()
+          setTokenHandoffDone(true)
+        }
+      })
+    return () => controller.abort()
+  }, [isSignedIn])
+
   // G411-41: role isn't on the Clerk user object (it's our own Prisma
   // field) — fetch it once via the existing /api/me smoke-test route
   // (G411-13) rather than adding a new endpoint just for this. A 403
@@ -50,7 +90,7 @@ function App() {
   const [role, setRole] = useState(null)
   const [unauthorized, setUnauthorized] = useState(false)
   useEffect(() => {
-    if (!isSignedIn) return
+    if (!isSignedIn || !tokenHandoffDone) return
     fetch('/api/me')
       .then((res) => {
         if (res.status === 403) {
@@ -61,21 +101,7 @@ function App() {
       })
       .then((data) => data && setRole(data.user?.role ?? null))
       .catch(() => {})
-  }, [isSignedIn])
-
-  const [hasInviteToken] = useState(() => Boolean(getStashedInviteToken()))
-
-  // Once actually signed in, send the stashed token (if any) once so the
-  // server can mark it used and link it to the new User row (server/
-  // middleware/auth.js). No-op for a returning user with nothing stashed.
-  useEffect(() => {
-    if (!isSignedIn) return
-    const token = getStashedInviteToken()
-    if (!token) return
-    fetch('/api/requests', { headers: { 'x-invite-token': token } }).finally(() => {
-      clearStashedInviteToken()
-    })
-  }, [isSignedIn])
+  }, [isSignedIn, tokenHandoffDone])
 
   return (
     <div className="design-preview">
@@ -130,7 +156,9 @@ function App() {
       </div>
       <ClerkLoading>Loading…</ClerkLoading>
       <ClerkLoaded>
-        {isSignedIn && unauthorized ? (
+        {isSignedIn && !tokenHandoffDone ? (
+          <p>Loading…</p>
+        ) : isSignedIn && unauthorized ? (
           <p>You do not have permission to use Gavi411.</p>
         ) : isSignedIn ? (
           view === 'new' ? (
