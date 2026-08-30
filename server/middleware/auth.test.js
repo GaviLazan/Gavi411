@@ -174,8 +174,27 @@ describe('requireAuth', () => {
     await requireAuth(req, mockRes(), vi.fn())
 
     expect(mockUpdateManyInvite).toHaveBeenCalledWith({
-      where: { token: 'tok123', usedAt: null },
+      where: { token: 'tok123', usedAt: null, usedByUserId: null },
       data: expect.objectContaining({ usedByUserId: 'user_new' }),
+    })
+  })
+
+  // Sibling review finding: the mark-used call must NOT be nested inside
+  // the `if (!user)` block, since concurrent first-sign-in requests race
+  // to create the user — only the winner would ever see that block, and
+  // it isn't necessarily the request carrying the invite header.
+  it('marks the invite even when this request lost the user-creation race (user already existed)', async () => {
+    mockGetAuth.mockReturnValue({ userId: 'user_racer_loser' })
+    mockFindUnique.mockResolvedValue({ clerkId: 'user_racer_loser' }) // another request already created it
+    const req = { headers: { 'x-invite-token': 'tok456' } }
+
+    await requireAuth(req, mockRes(), vi.fn())
+
+    expect(mockGetUser).not.toHaveBeenCalled()
+    expect(mockCreate).not.toHaveBeenCalled()
+    expect(mockUpdateManyInvite).toHaveBeenCalledWith({
+      where: { token: 'tok456', usedAt: null, usedByUserId: null },
+      data: expect.objectContaining({ usedByUserId: 'user_racer_loser' }),
     })
   })
 
@@ -190,13 +209,26 @@ describe('requireAuth', () => {
     expect(mockUpdateManyInvite).not.toHaveBeenCalled()
   })
 
-  it('does not mark an invite for an existing (already-synced) user, even with the header', async () => {
+  // Superseded by the two race-covering tests above (Sibling review
+  // finding) — an existing user CAN still legitimately claim an invite
+  // via this path (the "lost the race" case is exactly this shape from
+  // requireAuth's point of view). The where-clause's usedByUserId: null
+  // guard is what makes a genuinely stale/reused header a no-op, not
+  // this middleware special-casing "user already existed".
+  it('the where-clause guard (not user-existed) is what prevents a stale header from re-claiming an already-used invite', async () => {
     mockGetAuth.mockReturnValue({ userId: 'user_existing' })
     mockFindUnique.mockResolvedValue({ clerkId: 'user_existing' })
     const req = { headers: { 'x-invite-token': 'tok123' } }
 
     await requireAuth(req, mockRes(), vi.fn())
 
-    expect(mockUpdateManyInvite).not.toHaveBeenCalled()
+    // updateMany IS called — but its where clause (usedAt: null,
+    // usedByUserId: null) is what the real DB enforces as a no-op if
+    // the token was already claimed. This mock can't prove the DB-level
+    // guard; invites.test.js / a real integration pass covers that.
+    expect(mockUpdateManyInvite).toHaveBeenCalledWith({
+      where: { token: 'tok123', usedAt: null, usedByUserId: null },
+      data: expect.objectContaining({ usedByUserId: 'user_existing' }),
+    })
   })
 })
