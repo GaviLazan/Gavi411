@@ -74,8 +74,77 @@ Note logged on the ticket: G411-41's Jira description still carries the
 historical `Owner: [You]` tag (pre-2026-08-24). Per CLAUDE.md decision
 #63 this doesn't gate who builds it — flagged, not treated as a stop.
 
-**Next up**: G411-81 (decide + implement the actual Clerk-gating
-mechanism), same `agent-backend` worktree. Not started yet this session.
+**Stage 3 done (2026-08-30), moving to stage 4 (back to G411-28).** G411-81
+landed after real live-testing found and fixed genuine bugs across 3 rounds
+— this was the most churn any stage in this pass has had, worth reading in
+full if picking this back up:
+
+- **Decision**: app-side token validation, not Clerk allowlist (Gavi's
+  call) — allowlist needs a known email at invite-creation time, which
+  G411-41 deliberately doesn't require.
+- **Round 1 (initial build)**: `requireAuth` gated new-User-row creation
+  on a valid, unused invite token — the real enforcement point, since
+  G411-41's App.jsx-level SignIn-blocking only stopped the UI, not
+  Clerk's own directly-reachable hosted sign-up URL.
+- **Live testing immediately found real bugs round 1 missed**: App.jsx's
+  SignIn-blocking (from G411-41) also blocked an *existing* user from
+  ever signing back in (isSignedIn is false for both cases) — removed;
+  invite links landed on SignIn instead of SignUp — fixed by picking the
+  component based on stashed-token presence; a transient one-off DB
+  error and a "+ New request" button wrongly coupled to list-load
+  success were also fixed live.
+- **Sibling review #1** (after those live fixes) found a confirmed TOCTOU
+  race: the gate's read-only validity check and the actual claim were
+  two separate operations, letting two concurrent signups both pass
+  before either claimed — one invite could seed two accounts. Also
+  flagged a client-side request race and code duplication.
+- **Fixing that surfaced a NEW live bug** (`server/lib/invites.js` didn't
+  exist yet at this point): the atomic-claim fix moved the claim before
+  `user.create`, but `PendingInvite.usedByUserId` is a foreign key to
+  `User.clerkId` — writing it before the User row exists violated the
+  FK. Real crash, caught by Gavi's own live retest (not by any
+  automated check). Fixed with a two-phase claim: `claimInvite()` sets
+  only `usedAt` (no FK) as the atomic exclusivity gate;
+  `linkClaimedInvite()` fills `usedByUserId` in once the User row
+  exists; `unclaimInvite()` releases the claim if account creation
+  fails afterward. `server/lib/invites.js` is now the shared
+  validity/claim helper for both `auth.js` and `routes/invites.js`.
+  Client-side: `AbortController` cancels React StrictMode's duplicate
+  effect invocation so only one real request per legitimate signup ever
+  reaches the server.
+- **Sibling review #2** found 3 more real issues on the rewrite: a stale/
+  already-used invite link was routing into a live Clerk SignUp flow
+  instead of showing "invite-only" (creating an orphaned Clerk identity
+  for a dead link) — fixed by re-adding a validity check via the
+  existing no-auth `/:token/valid` route; a narrow race where a
+  legitimate concurrent duplicate could 403 if its sibling was still
+  mid-flight — fixed with a short bounded retry (3× 150ms); the temp
+  account-indicator/sign-out UI was flagged as scaffolding to remove,
+  but Gavi's call is it stays as an accepted interim feature.
+- **Sibling review #3** returned findings that were confirmed (via
+  `gh pr view --json headRefOid` matching the actual pushed commit) to
+  be reviewing stale/cached code, not the real current state — treated
+  as a false positive, not actioned. Worth knowing this can happen; verify
+  against the actual commit hash before trusting a review's findings if
+  something looks like it should already be fixed.
+- **Also resolved**: confirmed the `.cl-footerAction` CSS-hide (Clerk's
+  own "Sign up"/"Sign in" footer link) is non-exploitable — every
+  data-mutating route independently goes through `requireAuth`'s same
+  gate regardless of which URL/link reaches Clerk sign-up, so a visible
+  `href` in devtools grants no additional access. Gavi's call to leave
+  the CSS-hide as-is, no further change.
+
+90/90 Vitest passing. PR #32 merged (regular merge commit), G411-81
+Landed in Jira (Reconciled deferred, same reasoning as the other 2
+stages — full pass isn't done yet). Both Falsifier halves live-verified
+by Gavi directly: valid invite → signup → real access (twice back-to-
+back, no recurrence of the earlier transient failure); no invite → real
+Clerk identity created but never a usable account, clear "no permission"
+message shown.
+
+**Next up**: back to G411-28 (stage 4) — escrow generation + CSV export,
+admin-side client search index, admin-approved device-linking flow.
+`agent-e2e` worktree. Not started yet this session.
 
 **Deliverable owed once the whole E2E pass is done**: a 2-page PDF/slide
 deck explaining how the E2E encryption works in practice, including which
