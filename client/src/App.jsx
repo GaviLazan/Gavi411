@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useUser, SignIn, ClerkLoaded, ClerkLoading } from '@clerk/react'
+import { useUser, useClerk, SignIn, SignUp, ClerkLoaded, ClerkLoading } from '@clerk/react'
 import './App.css'
 import NewRequest from './pages/NewRequest'
 import RequestList from './pages/RequestList'
@@ -34,7 +34,8 @@ const THEME_LABEL = { system: 'Auto', light: 'Light', dark: 'Dark' }
 // justified at this size. Add one if the screen count grows enough to
 // need real URLs/back-button support.
 function App() {
-  const { isSignedIn } = useUser()
+  const { isSignedIn, user } = useUser()
+  const { signOut } = useClerk()
   const [view, setView] = useState('list') // 'list' | 'new' | 'install-help' | 'detail' | 'invite-admin'
   const [selectedRequestId, setSelectedRequestId] = useState(null)
   const [newRequestHasText, setNewRequestHasText] = useState(false)
@@ -43,15 +44,26 @@ function App() {
 
   // G411-41: role isn't on the Clerk user object (it's our own Prisma
   // field) — fetch it once via the existing /api/me smoke-test route
-  // (G411-13) rather than adding a new endpoint just for this.
+  // (G411-13) rather than adding a new endpoint just for this. A 403
+  // here means Clerk auth succeeded but our own backend never created a
+  // User row (see server/middleware/auth.js) — no valid invite.
   const [role, setRole] = useState(null)
+  const [unauthorized, setUnauthorized] = useState(false)
   useEffect(() => {
     if (!isSignedIn) return
     fetch('/api/me')
-      .then((res) => res.json())
-      .then((data) => setRole(data.user?.role ?? null))
+      .then((res) => {
+        if (res.status === 403) {
+          setUnauthorized(true)
+          return null
+        }
+        return res.json()
+      })
+      .then((data) => data && setRole(data.user?.role ?? null))
       .catch(() => {})
   }, [isSignedIn])
+
+  const [hasInviteToken] = useState(() => Boolean(getStashedInviteToken()))
 
   // Once actually signed in, send the stashed token (if any) once so the
   // server can mark it used and link it to the new User row (server/
@@ -108,10 +120,19 @@ function App() {
             Invites
           </button>
         )}
+        {/* Temp testing aid, remove before merge — no real account menu yet. */}
+        {isSignedIn && (
+          <span className="account-indicator">
+            {user?.primaryEmailAddress?.emailAddress || user?.id}{' '}
+            <button type="button" onClick={() => signOut()}>Sign out</button>
+          </span>
+        )}
       </div>
       <ClerkLoading>Loading…</ClerkLoading>
       <ClerkLoaded>
-        {isSignedIn ? (
+        {isSignedIn && unauthorized ? (
+          <p>You do not have permission to use Gavi411.</p>
+        ) : isSignedIn ? (
           view === 'new' ? (
             <NewRequest
               onDone={() => { setNewRequestHasText(false); setView('list'); }}
@@ -132,20 +153,7 @@ function App() {
             />
           )
         ) : (
-          // G411-81 correction: SignIn must always render for a signed-out
-          // visitor — Clerk's sign-in and sign-up are the same shared
-          // component/flow, and gating THIS on invite state blocks
-          // existing users from ever logging back in (isSignedIn is false
-          // for them too, until they authenticate). The real gate is
-          // backend-only: requireAuth (server/middleware/auth.js) refuses
-          // to create a NEW User row without a valid, unused invite
-          // token, which only affects a brand-new Clerk account — an
-          // existing user's sign-in never touches that check. The
-          // previous version of this file blocked SignIn itself here,
-          // which was wrong (caught live: an existing admin, signed out
-          // in a fresh browser, got permanently stuck at the invite-only
-          // message with no way to sign back in at all).
-          <SignIn />
+          hasInviteToken ? <SignUp /> : <SignIn />
         )}
       </ClerkLoaded>
       <ConfirmModal
