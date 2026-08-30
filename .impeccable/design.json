@@ -20,6 +20,11 @@
     "shadows": [
       { "name": "ambient", "value": "rgba(0,0,0,0.1) 0 10px 15px -3px, rgba(0,0,0,0.05) 0 4px 6px -2px", "purpose": "The only shadow in the system — cards and the confirm modal. Darkens in dark mode." }
     ],
+    "motion": [
+      { "name": "state-transition", "value": "opacity 0.15s ease, background-color 0.15s ease", "purpose": "Button hover/disabled transitions." },
+      { "name": "step-slide-in", "value": "@keyframes translateX(24px)→0, opacity 0→1, 0.25s ease-out", "purpose": "Intake flow step-card enter animation (NewRequest.css). Respects prefers-reduced-motion (animation: none)." },
+      { "name": "collapsible-transition", "value": "max-height 0.25s ease-out, opacity 0.2s ease-out", "purpose": "Open-requests collapsible section expand/collapse (App.css), paired with a 0.2s arrow rotation. Respects prefers-reduced-motion (transition: none)." }
+    ],
     "breakpoints": [
       { "name": "mobile", "value": "1024px" }
     ]

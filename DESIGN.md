@@ -230,6 +230,7 @@ Two form languages: **pill** (full border-radius, 999px) for anything you click 
 - **Do** make every actionable trigger (button, chip, icon button) a full pill; every input, select, card, and modal a 20px-radius surface — never a pill input.
 - **Do** keep gold as the one general-purpose accent — reach for sage green or lavender only for their specific, already-assigned jobs (intake Submit / Back), not as an alternate "brand color."
 - **Do** give every new color token both a light and a dark value before shipping it.
+- **Do** pair every transition/animation with a `prefers-reduced-motion: reduce` fallback that disables it — every current motion pattern (step-card slide-in, collapsible expand/collapse) already does this; new motion should match.
 
 ### Don't:
 - **Don't** reintroduce a serif headline font — tried once, explicitly reverted by Gavi after live review.
