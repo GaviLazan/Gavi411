@@ -347,10 +347,14 @@ real issues beyond doc-level scope: the deployed Vercel frontend had no
 working backend connection at all (fixed, `client/vercel.json`, part of
 G411-16's correction) and three intake-path bugs (G411-72, Reconciled —
 unauthenticated `/match` route, a duplicate seeded keyword, a missing DB
-uniqueness constraint). Parent 2's one remaining Open child is G411-64
-(intake flow visual redesign). Real-time status/next task always lives
-in `HANDOFF.md`, not here — check that file, not this stale-prone
-summary, for what's actually next.
+uniqueness constraint). Parent 2 (Requests/Intake) is now fully
+Reconciled, including G411-64/74 (intake flow visual redesign/content
+regroup). Work has moved into Parent 3 (Messaging/E2E) and Parent 5
+(Admin Cockpit) — G411-76 (Clerk sync + admin role) is Reconciled;
+G411-28 (target E2E), G411-41 (invite mechanism + admin UI), and
+G411-81 (invite-gating decision) are active as of 2026-08-30. Real-time
+status/next task always lives in `HANDOFF.md`, not here — check that
+file, not this stale-prone summary, for what's actually next.
 
 Folder naming: **`server/`** and **`client/`**, not `backend`/`frontend`.
 

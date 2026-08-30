@@ -12,162 +12,151 @@ accumulated. If something here turns out to matter long-term, promote it to
 
 ---
 
-## Active: user-journey walkthrough running in a separate chat (2026-08-26)
+## Active plan: G411-28 (target E2E), one pass across 4 stages (2026-08-30)
 
-**Real trigger**: while investigating G411-28 (E2E encryption) readiness,
-found a materially serious gap — **no ticket anywhere owns the actual
-admin-facing "create an invite" UI** (a button/screen Gavi clicks to
-generate an invite). G411-41 only covers the backend token mechanism;
-G411-68 is the unrelated stranger-request-access queue; G411-28 itself
-just assumes "Gavi creates an invite (existing case-by-case flow)" was
-already built somewhere — it wasn't. Two prior gap analyses this project
-(document/code-consistency scans) didn't catch it, because it's not an
-inconsistency — it's a step described only in PRD prose that was never
-translated into an actual ticket. Gavi's reaction, correctly: this is a
-basic PM/UX/architect-level miss that a real walkthrough should have
-caught, not an acceptable "emerged from conversation" outcome.
+**Gavi's explicit sequencing, pre-approved as one pass** — report back after
+each stage, flag genuine ambiguity via `AskUserQuestion`, but don't stop for
+a go-ahead between stages unless something real comes up:
 
-**Fix in progress**: a structured user-journey walkthrough prompt was
-written to `user-journey-walkthrough-prompt.md` (repo root) — walks 9
-concrete journeys (friend cold-start, friend existing-user, Gavi
-inviting someone, Gavi's request-access queue, Gavi's day-to-day triage,
-admin promotion, credit lifecycle, messaging security, PRD §6 feature
-table sweep) step by step, forcing an explicit "what screen/route/button
-does this, which ticket owns it, is that ticket's status consistent with
-it actually working today" answer at every step — designed specifically
-to not accept "existing flow" as an answer without verification, unlike
-the prior two attempts.
+1. **G411-28, pieces #1–2 first**: keypair generation (Web Crypto API,
+   client-side, private key in IndexedDB, public key on server) + per-
+   conversation ECDH shared secret + AES-GCM message/image encryption. No
+   dependency on anything below — genuinely startable now.
+2. **G411-41**: invite token generation (admin creates a one-time token,
+   stored server-side) + a real admin-facing invite-creation UI (this was
+   just added to G411-41's scope 2026-08-27 — previously the ticket only
+   described the backend mechanism, no UI existed anywhere to trigger it).
+3. **G411-81** (new ticket, filed 2026-08-27): decide + implement the
+   actual mechanism that makes an invite token block Clerk sign-up — app-
+   side token validation vs. Clerk allowlist (two real options, not
+   equivalent, ticket lays out both). Test one real invite end-to-end in a
+   real browser. **G411-81 is not a duplicate of G411-41** — G411-41
+   produces the token, G411-81 is what makes possessing it matter (right
+   now Clerk sign-up is still fully public, nothing enforces anything).
+4. **Back to G411-28**: escrow generation + CSV export (unblocked by
+   G411-41 existing), admin-side client search index + admin-approved
+   device-linking flow (unblocked by G411-76, already Reconciled).
 
-**Currently running in a separate chat** (Gavi's explicit call, matches
-the session-boundary rule). **Do not start G411-41 or any invite-adjacent
-work in this thread until that comes back** — its findings may reshape
-what "ready to build" means for the whole invite/G411-28 chain. Check
-back with Gavi on its results before picking up anything in this area.
+**Not started yet** — this session ended before stage 1 began. A fresh
+session should start here: pick up G411-28's crypto core (stage 1).
 
----
+### Prerequisites already resolved, don't re-derive
+- **G411-76** (Clerk↔Prisma sync + admin role) — Reconciled. Real admin
+  identity exists (`user_3I3duQkdEIz1mzbOC0iumup3AzM` = Gavi, promoted via
+  `scripts/promote-admin.js`), name/email sync from Clerk works correctly.
+- **G411-79** (video/doc attachment architecture) — investigation resolved
+  (separate chat), written into the ticket. Not part of this pass, unrelated.
 
-## G411-76 — Reconciled (2026-08-26 session)
+### Worktree/role assignment for this pass
+- **Stage 1 (G411-28 crypto core)**: use the **`agent-e2e`** role —
+  dedicated worktree already exists at `../Gavi411-agent-e2e` (currently on
+  branch `agent-e2e/base`, 2 commits behind `main` at `c32c95e` vs. main's
+  `5a50a4b` — resync it before starting, per the commit-convention's
+  "resync the role worktree right after its own PR merges" section, since
+  it missed G411-76's merge). Git identity: `git-as-agent-e2e` /
+  `agent-e2e@gavi411.local`.
+- **Stages 2-3 (G411-41, G411-81)**: use **`agent-backend`** — same role
+  that built G411-76, dedicated worktree at `../Gavi411-agent-backend`
+  (currently on stale branch `agent-backend/G411-73-theme-toggle`, also 2
+  commits behind — resync before use). Git identity: `git-as-agent-backend`
+  / `agent-backend@gavi411.local`.
+- **Stage 4 (G411-28 completion)**: back to `agent-e2e`.
+- Every stage: one branch per child issue (`agent-<role>/G411-XX-slug`),
+  Sibling review before merge (all of this is load-bearing — auth, crypto,
+  identity), regular merge commit (`--merge`, never squash), branch deleted
+  after merge, HANDOFF.md updated, Jira transitioned through the real named
+  states (Open→Implementing→Reviewing→Landed→Reconciled — Landed→Reconciled
+  needs Gavi's explicit confirm per the hard-to-reverse-action rule).
 
-**Real bug fixed, not just filed**: `requireAuth` was reading
-`firstName`/`lastName`/`email` off Clerk's session-JWT claims, which
-Clerk never populates without a custom JWT template (none configured)
-— every user row in live Neon had permanently blank names. No `email`
-column existed at all. No admin-role mechanism existed either — `role
-=== 'ADMIN'` was referenced in code but nothing could ever set it, and
-there was no way to tell which Prisma row was which real person.
-
-**Fix**: `requireAuth` now calls Clerk's Backend API
-(`clerkClient.users.getUser`) on first-request user creation instead of
-reading unpopulated claims. Added `User.email` (nullable, unique),
-migrated live. Identified real users by cross-referencing Clerk's API
-directly (not guessed) — `user_3I3duQkdEIz1mzbOC0iumup3AzM` = Gavi
-Lazan, `user_3I8QiBXmDf70DMvdRHv6N70gS2T` = a real Clerk test account
-(`gavers+clerk_test@gmail.com`). Backfilled both with real data.
-Promoted Gavi's row to `role: ADMIN` via a new, reproducible
-`scripts/promote-admin.js` (not a one-off manual DB mutation — that gap
-was itself caught and fixed during Sibling review, see below).
-
-**Deliberately NOT covered here** (separate tickets, correctly split
-out this session): phone number / profile picture sync — **G411-69**
-(first-login-gated, our-owned fields, untouched). Push-back sync (Prisma
-→ Clerk) + an ongoing user-editable profile screen — **G411-80** (filed
-this session, then widened same session from "just push-back" to the
-general profile screen after Gavi's call — no profile-edit UI existed
-at all before this). Continuous drift protection for a user editing
-Clerk *after* their row is created — `ponytail:`-flagged as
-sync-on-create only; add a `user.updated` webhook if that becomes real.
-
-**Sibling review (medium), 8 parallel angles, found 4 real issues, all
-fixed** (note: the review skill's background plumbing re-notified
-several already-finished subagents 2-3 times each mid-review — noisy
-transcript, no duplicate work done, nothing acted on twice, worth
-flagging as a rough edge but not a real problem): (1) "promote admin"
-was claimed in the PR but only done as an unreproducible manual Neon
-mutation — fixed with the promote-admin.js script; (2) email was read
-via `emailAddresses[0]` instead of resolving the primary address via
-`primaryEmailAddressId` (Clerk's array isn't ordered) — fixed; (3)
-`clerkClient.users.getUser()` had no try/catch, unlike this codebase's
-established external-call convention (Cloudinary upload) — now wrapped,
-503s cleanly instead of an unhandled 500; (4) unguarded race on
-`prisma.user.create` for concurrent first-requests from the same new
-user — now recovers via a P2002 catch.
-
-**PR #28 merged** via regular merge commit (`--merge --admin`), commit
-`24ba87f`. Branch deleted (remote + local).
-
-**Evidence**: 50/50 Vitest (7 new cases across both commits). Clean
-client build. Live Neon query re-verified post-fix.
-
-**Process note**: the Jira "Reviewing → Landed" transition got blocked
-once by Claude Code's own permission classifier (unrelated to Jira
-itself) — retried a couple turns later with the identical call and it
-succeeded, no code/state change needed. Treat a classifier block as a
-soft "retry," not a hard stop, going forward.
-
-**Reconciled** — Gavi's explicit go-ahead given. Parent **G411-5**
-(Admin Cockpit) correctly stays **Open** — 11 of its 14 children are
-still Open (G411-37, 38, 39, 40, 41, 42, 43, 44, 68, 69, 80); only
-G411-70/71/76 are Reconciled.
+### Known rough edges to remember mid-pass
+- **Jira transition calls can get blocked once by Claude Code's own
+  permission classifier** (unrelated to Jira) — retry once or twice before
+  treating it as a real failure; this happened on G411-76 and resolved on
+  retry with zero state change needed.
+- **`/code-review` skill's background plumbing can re-notify already-
+  finished subagents 2-3 times** mid-review — noisy transcript, not
+  duplicate work, nothing to act on twice. Also happened on G411-76.
+- **Full worktree sync check** (git status + git log hash match against
+  `origin/main`, every worktree) is a required step before calling any
+  stage's wrap-up complete — don't skip it because "the ticket's own files
+  are clean."
 
 ---
 
-## G411-79 — investigation resolved, still Open (2026-08-26, separate chat)
+## G411-81 — Open, not started (filed 2026-08-27)
 
-**The real open architecture risk flagged when this ticket was filed
-(G411-26 session) is now resolved with real evidence**, written into
-the ticket itself, not just chat: a 100MB video upload through
-G411-26's backend-proxy pattern (`multer.memoryStorage()` → Cloudinary)
-does **not** survive on Render's free tier (512MB RAM) — local
-empirical testing showed a single 100MB upload peaks at ~265MB RSS
-(~2.65× the file size), over half the free tier's entire budget before
-Prisma/Clerk are even in the picture. **Verdict: G411-79 needs
-client-direct-to-Cloudinary (signed upload, server only issues a
-signature) for the video case specifically** — images can stay on
-G411-26's existing proxy pattern. The signed-upload mechanism (server
-generates an HMAC signature via `cloudinary`'s already-installed SDK,
-client uploads bytes directly to Cloudinary, API secret never leaves
-the server) was confirmed viable and is written into the ticket in
-full. No code was written — this was investigation only, ticket stays
-Open, ready for real pickup whenever its turn comes.
+Invite-link gating mechanism for Clerk sign-up. Carries forward G411-71's
+real remaining scope (G411-71 stayed Reconciled per Gavi's explicit call —
+not reopened; a comment on G411-71 points here). Full scope: two candidate
+mechanisms (app-side token validation vs. Clerk allowlist), pick one,
+implement it, test one real invite end-to-end. Depends on G411-41 existing
+first (or being built in parallel) for its own test step.
 
 ---
 
-## G411-41 — Open, not yet picked up
+## G411-41 — Open, scope updated 2026-08-27, not started
 
-Real dependency of G411-28's escrow-generation step (per G411-41's own
-"Not covered" text: "The escrow-passphrase generation tied to invite
-creation (G411-28) is a separate, later-layered concern on top of this
-basic token gate"). **Blocked from pickup right now** — see the active
-walkthrough note at the top of this file; its scope may need to expand
-to include an actual invite-creation UI (currently missing from every
-ticket that touches invites) before it's picked up for real.
+Now explicitly includes the admin-facing invite-creation UI (previously
+missing — this was the real gap found while checking G411-28's readiness,
+via a full user-journey walkthrough). Needs: token generation + storage,
+a real (can be minimal) admin screen to trigger it and get the resulting
+link, token validation on signin, mark-used. Does NOT include deciding the
+actual Clerk-gating mechanism — that's G411-81.
 
 ---
 
-## G411-28 (target E2E) — not started, real prerequisites identified this session
+## G411-76 — Reconciled (2026-08-26 session, unchanged, for reference)
 
-Two real dependencies found and addressed/in-progress this session:
-**G411-76** (Reconciled — admin role + identity sync) and **G411-41**
-(Open, currently blocked pending the walkthrough's findings — invite-
-creation mechanism the escrow flow hooks into). The pure crypto core
-(keypair gen / ECDH / AES-GCM) has no dependency on either and could
-start independently, but hasn't yet — no explicit go-ahead given this
-session. G411-28 also needs G411-69's admin-role gap resolved for its
-own admin-search and device-linking pieces specifically (already true
-via G411-76).
+Clerk↔Prisma sync fixed (real name/email now populate on user creation via
+Clerk's Backend API, not blank JWT claims), `User.email` column added,
+admin role mechanism built (`scripts/promote-admin.js`, reproducible, not a
+manual DB mutation). Sibling review found and fixed 4 real issues (primary-
+email resolution via `primaryEmailAddressId` not array index, try/catch
+around the Clerk API call, a P2002 race-recovery on concurrent user
+creation, the promotion script itself). PR #28 merged, 50/50 Vitest passing
+as of the last schema change (see below).
+
+---
+
+## Gap-triage session — closed out 2026-08-27, decisions #70/#71 logged
+
+A user-journey walkthrough (`gavi411-user-journey-walkthrough.md`, full
+output preserved in repo root) found 17 candidate gaps; Gavi's review
+rejected 12 of them as a category error — **"ticket is Open, feature isn't
+built yet" is not a gap on a project that isn't half-built**, it's just the
+backlog. See `gavi411-brain.md` decision #71 for the corrected definition
+of what counts as a real finding going forward (must cite either a current
+blocker on in-progress work, or a genuine status/reality mismatch). Decision
+#70 covers the specific mechanism that caused one real mismatch: "Reconciled"
+has no Cancelled/Won't-Fix sibling, so a ticket whose *original premise* gets
+corrected mid-life can end up Reconciled without its *actual* (pivoted)
+remaining scope ever being checked — this is what happened to G411-71.
+
+**4 real items actioned this session** (all committed, `5a50a4b`):
+- `prisma/schema.prisma`: `Request.updatedAt` and `User.updatedAt` were
+  both missing `@updatedAt` — fixed, migrated live (`20260827_add_updated_at_directive`).
+- G411-71: comment added pointing to G411-81 (its real remaining scope),
+  not reopened.
+- G411-69 (profile completion): bumped to Priority: High — every signed-in
+  friend today carries a permanent fake `phoneNumber: "pending-<clerkId>"`.
+- G411-45 (credit schema+display): description updated to explicitly
+  require granting the correct initial tiered balance on user creation —
+  currently every new user gets `creditBalance: 0` with no grant mechanism,
+  blocking a real new user's very first request.
+
+**Nothing else from that walkthrough needs action** — the other 13 items
+were withdrawn as non-gaps or already correctly tracked as Open.
 
 ---
 
 ## Next steps, in order
 
-1. **Wait for the user-journey walkthrough** (running in a separate
-   chat) to come back — it may surface more gaps like the missing
-   invite-creation UI, and will likely reshape G411-41's actual scope.
-2. Once that's back and reviewed with Gavi: pick up G411-41 (possibly
-   expanded scope) — invite-token mechanism + whatever UI gap the
-   walkthrough confirms.
-3. Then G411-28 (E2E) becomes properly unblocked for its escrow piece;
-   crypto core could theoretically start earlier if Gavi wants to
-   parallelize.
-4. G411-79 (video/doc attachments) is fully unblocked and ready
-   whenever it's next in Epic order — no remaining unknowns.
+1. **Start here on a fresh session**: G411-28 stage 1 — keypair gen + ECDH
+   + AES-GCM message/image encryption, in the `agent-e2e` worktree
+   (resync it against `main` first).
+2. Report back to Gavi, then move to G411-41 (`agent-backend` worktree).
+3. Report back, then G411-81 (same worktree/role).
+4. Report back, then return to G411-28 for escrow/CSV export + admin
+   search index + device-linking.
+5. Each stage gets its own Sibling review, Jira transitions, and a
+   HANDOFF.md update — don't batch these to the end of the whole pass.
