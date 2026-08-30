@@ -53,26 +53,6 @@ function App() {
       .catch(() => {})
   }, [isSignedIn])
 
-  // G411-41: signed-out visitors need a valid stashed invite token before
-  // Clerk sign-in is reachable at all — a returning signed-in user skips
-  // this check entirely (their Clerk session alone proves prior legitimate
-  // access; they may have no stashed token left, having used it once).
-  // 'checking' | 'valid' | 'invalid'
-  const [inviteState, setInviteState] = useState('checking')
-
-  useEffect(() => {
-    if (isSignedIn) return
-    const token = getStashedInviteToken()
-    if (!token) {
-      setInviteState('invalid')
-      return
-    }
-    fetch(`/api/invites/${encodeURIComponent(token)}/valid`)
-      .then((res) => res.json())
-      .then((data) => setInviteState(data.valid ? 'valid' : 'invalid'))
-      .catch(() => setInviteState('invalid'))
-  }, [isSignedIn])
-
   // Once actually signed in, send the stashed token (if any) once so the
   // server can mark it used and link it to the new User row (server/
   // middleware/auth.js). No-op for a returning user with nothing stashed.
@@ -151,14 +131,21 @@ function App() {
               onOpenRequest={(id) => { setSelectedRequestId(id); setView('detail'); }}
             />
           )
-        ) : inviteState === 'checking' ? (
-          <p>Loading…</p>
-        ) : inviteState === 'valid' ? (
-          <SignIn />
         ) : (
-          // No public signup (PRD §2 non-goals) — a visitor without a
-          // valid invite link never reaches Clerk sign-in at all.
-          <p>This app is invite-only. Ask Gavi for an invite link.</p>
+          // G411-81 correction: SignIn must always render for a signed-out
+          // visitor — Clerk's sign-in and sign-up are the same shared
+          // component/flow, and gating THIS on invite state blocks
+          // existing users from ever logging back in (isSignedIn is false
+          // for them too, until they authenticate). The real gate is
+          // backend-only: requireAuth (server/middleware/auth.js) refuses
+          // to create a NEW User row without a valid, unused invite
+          // token, which only affects a brand-new Clerk account — an
+          // existing user's sign-in never touches that check. The
+          // previous version of this file blocked SignIn itself here,
+          // which was wrong (caught live: an existing admin, signed out
+          // in a fresh browser, got permanently stuck at the invite-only
+          // message with no way to sign back in at all).
+          <SignIn />
         )}
       </ClerkLoaded>
       <ConfirmModal
