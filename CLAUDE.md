@@ -146,6 +146,17 @@ Jira is actually transitioned. No outside human approval is required or
 expected (decision #63) — but skipping the review itself, or treating a
 green build as sufficient evidence the review happened, is not allowed.
 
+**Post the review conversation as real PR comments, not just chat**
+(added 2026-08-31) — every Sibling review pass gets posted as a PR
+comment (findings, real or via `/code-review ... --comment`) as soon as
+it finishes, and every fix pass that follows gets its own PR comment
+right after (what got fixed, what got deferred and why, real test
+counts). The PR should read as an actual back-and-forth conversation
+between the review and the fix — a full record anyone can read later —
+not something that only exists in a chat transcript. Applies to every
+review/fix cycle on every PR, not just the first one; a PR with 3 rounds
+of review gets 3 rounds of comments.
+
 **5. When in doubt about scope, ownership, or whether something needs
 Gavi's sign-off — ask. A wrong guess that quietly ships is worse than a
 question that costs one turn.**
