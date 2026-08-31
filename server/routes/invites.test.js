@@ -28,6 +28,7 @@ const prismaMock = {
     create: vi.fn(),
     findMany: vi.fn(),
     findUnique: vi.fn(),
+    updateMany: vi.fn(),
   },
 }
 
@@ -77,6 +78,27 @@ describe('POST /api/invites', () => {
     expect(res.status).toBe(201)
     expect(res.body.label).toBeNull()
   })
+
+  it('returns a random escrow passphrase, distinct from the token', async () => {
+    currentUserId = ADMIN
+    prismaMock.pendingInvite.create.mockImplementation(({ data }) => ({ ...data, createdAt: new Date() }))
+
+    const res = await request(app).post('/api/invites').send({})
+
+    expect(res.body.passphrase).toBeTypeOf('string')
+    expect(res.body.passphrase.length).toBeGreaterThan(10)
+    expect(res.body.passphrase).not.toBe(res.body.token)
+  })
+
+  it('does not persist the passphrase (create() call has no passphrase field)', async () => {
+    currentUserId = ADMIN
+    prismaMock.pendingInvite.create.mockImplementation(({ data }) => ({ ...data, createdAt: new Date() }))
+
+    await request(app).post('/api/invites').send({})
+
+    const createArgs = prismaMock.pendingInvite.create.mock.calls[0][0]
+    expect(createArgs.data).not.toHaveProperty('passphrase')
+  })
 })
 
 describe('GET /api/invites', () => {
@@ -120,5 +142,61 @@ describe('GET /api/invites/:token/valid', () => {
     prismaMock.pendingInvite.findUnique.mockResolvedValue(null)
     const res = await request(app).get('/api/invites/nonexistent/valid')
     expect(res.body).toEqual({ valid: false })
+  })
+})
+
+describe('PATCH /api/invites/:token/backup', () => {
+  const validBody = { salt: 'c2FsdA==', iv: 'aXY=', ciphertext: 'Y2lwaGVy' }
+
+  it('no auth required', async () => {
+    prismaMock.pendingInvite.updateMany.mockResolvedValue({ count: 1 })
+    const res = await request(app).patch('/api/invites/tok/backup').send(validBody)
+    expect(res.status).toBe(204)
+  })
+
+  it('400s if salt, iv, or ciphertext is missing', async () => {
+    const res = await request(app).patch('/api/invites/tok/backup').send({ salt: 'x' })
+    expect(res.status).toBe(400)
+    expect(prismaMock.pendingInvite.updateMany).not.toHaveBeenCalled()
+  })
+
+  it('only claims a token with no existing backup (WHERE backupCiphertext: null)', async () => {
+    prismaMock.pendingInvite.updateMany.mockResolvedValue({ count: 1 })
+    await request(app).patch('/api/invites/tok/backup').send(validBody)
+
+    const call = prismaMock.pendingInvite.updateMany.mock.calls[0][0]
+    expect(call.where).toEqual({ token: 'tok', backupCiphertext: null })
+    expect(call.data).toEqual({ backupSalt: 'c2FsdA==', backupIv: 'aXY=', backupCiphertext: 'Y2lwaGVy' })
+  })
+
+  it('404s when the token does not exist or already has a backup', async () => {
+    prismaMock.pendingInvite.updateMany.mockResolvedValue({ count: 0 })
+    const res = await request(app).patch('/api/invites/tok/backup').send(validBody)
+    expect(res.status).toBe(404)
+  })
+})
+
+describe('GET /api/invites/:token/backup', () => {
+  it('no auth required', async () => {
+    prismaMock.pendingInvite.findUnique.mockResolvedValue({
+      backupSalt: 's', backupIv: 'i', backupCiphertext: 'c',
+    })
+    const res = await request(app).get('/api/invites/tok/backup')
+    expect(res.status).toBe(200)
+    expect(res.body).toEqual({ salt: 's', iv: 'i', ciphertext: 'c' })
+  })
+
+  it('404s when the token does not exist', async () => {
+    prismaMock.pendingInvite.findUnique.mockResolvedValue(null)
+    const res = await request(app).get('/api/invites/nonexistent/backup')
+    expect(res.status).toBe(404)
+  })
+
+  it('404s when the token exists but has no backup uploaded yet', async () => {
+    prismaMock.pendingInvite.findUnique.mockResolvedValue({
+      backupSalt: null, backupIv: null, backupCiphertext: null,
+    })
+    const res = await request(app).get('/api/invites/tok/backup')
+    expect(res.status).toBe(404)
   })
 })

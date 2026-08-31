@@ -61,6 +61,18 @@ model PendingInvite {
   usedAt       DateTime?
   usedByUserId String?   @unique
   usedByUser   User?     @relation(fields: [usedByUserId], references: [clerkId])
+
+  // Escrow (G411-28 stage 4). The passphrase itself is generated at
+  // invite-creation time (server/routes/invites.js) and returned ONCE in
+  // that response — never stored here or anywhere else in plaintext. What
+  // IS stored is the encrypted backup of the friend's escrow private key,
+  // uploaded by their browser at signup once it's wrapped client-side
+  // (client/src/lib/crypto.js's escrowPrivateKey) — the server never sees
+  // an unwrapped key or the passphrase that would unwrap it. All three
+  // fields are set together, once, by the same request, or not at all.
+  backupSalt       String?
+  backupIv         String?
+  backupCiphertext String?
 }
 
 model User {

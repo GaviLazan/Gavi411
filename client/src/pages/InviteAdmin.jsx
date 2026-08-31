@@ -1,14 +1,21 @@
 import { useEffect, useState } from 'react'
+import { downloadInviteCsv } from '../lib/inviteCsv'
 
-// Minimal admin invite-creation screen (G411-41). Not the full admin
-// cockpit (G411-37/38) — just a working trigger for the invite-token
-// mechanism: a form to create one, a copy-able resulting link, and a
-// list of what's been generated so far.
+// Minimal admin invite-creation screen (G411-41; escrow passphrase + CSV
+// export added G411-28 stage 4). Not the full admin cockpit (G411-37/38)
+// — just a working trigger for the invite-token mechanism: a form to
+// create one, a copy-able resulting link, and a list of what's been
+// generated so far.
 function InviteAdmin({ onBack }) {
   const [label, setLabel] = useState('')
   const [creating, setCreating] = useState(false)
   const [error, setError] = useState(null)
-  const [lastLink, setLastLink] = useState(null)
+  // The passphrase only ever exists in this one POST response — captured
+  // here alongside the link so the CSV export button (right below) can
+  // still source it, then gone once this component unmounts/re-creates.
+  // See prisma/schema.prisma's PendingInvite comment for why it's never
+  // persisted anywhere to be fetched again later.
+  const [lastInvite, setLastInvite] = useState(null) // { token, label, passphrase }
   const [invites, setInvites] = useState([])
 
   function loadInvites() {
@@ -32,7 +39,7 @@ function InviteAdmin({ onBack }) {
       })
       if (!res.ok) throw new Error('Failed to create invite')
       const invite = await res.json()
-      setLastLink(`${window.location.origin}/?token=${invite.token}`)
+      setLastInvite(invite)
       setLabel('')
       loadInvites()
     } catch {
@@ -41,6 +48,13 @@ function InviteAdmin({ onBack }) {
       setCreating(false)
     }
   }
+
+  // The passphrase goes in the URL fragment (#), never the query string —
+  // fragments are never sent to the server (see lib/inviteToken.js), so
+  // this is the one place it's safe for the link to carry it in plain text.
+  const lastLink = lastInvite
+    ? `${window.location.origin}/?token=${lastInvite.token}#${lastInvite.passphrase}`
+    : null
 
   return (
     <div className="invite-admin">
@@ -60,11 +74,18 @@ function InviteAdmin({ onBack }) {
         </button>
       </form>
       {error && <p role="alert">{error}</p>}
-      {lastLink && (
+      {lastInvite && (
         <p>
           Link: <code>{lastLink}</code>{' '}
           <button type="button" onClick={() => navigator.clipboard.writeText(lastLink)}>
             Copy
+          </button>
+          <br />
+          Passphrase (for CSV/backup use — this is the only time it's shown):{' '}
+          <code>{lastInvite.passphrase}</code>
+          <br />
+          <button type="button" onClick={() => downloadInviteCsv(lastInvite)}>
+            Export CSV
           </button>
         </p>
       )}

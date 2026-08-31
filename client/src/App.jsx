@@ -8,11 +8,16 @@ import InstallHelp from './pages/InstallHelp'
 import InviteAdmin from './pages/InviteAdmin'
 import ConfirmModal from './components/ConfirmModal'
 import { useTheme } from './useTheme'
+import Recover from './pages/Recover'
 import {
   captureInviteTokenFromUrl,
   getStashedInviteToken,
   clearStashedInviteToken,
+  getStashedInvitePassphrase,
+  clearStashedInvitePassphrase,
+  getRecoveryParamsFromUrl,
 } from './lib/inviteToken'
+import { createAndUploadEscrowBackup } from './lib/escrow'
 
 // G411-41: stash any ?token= before Clerk's own redirect flow can touch
 // the URL — see client/src/lib/inviteToken.js for why sessionStorage,
@@ -93,11 +98,20 @@ function App() {
     const controller = new AbortController()
     fetch('/api/requests', { headers: { 'x-invite-token': token }, signal: controller.signal })
       .catch(() => {}) // AbortError on cleanup is expected, not a real failure
-      .finally(() => {
-        if (!controller.signal.aborted) {
-          clearStashedInviteToken()
-          setTokenHandoffDone(true)
+      .finally(async () => {
+        if (controller.signal.aborted) return
+        clearStashedInviteToken()
+        // Escrow (G411-28 stage 4): if this invite link carried a
+        // passphrase fragment, upload the wrapped backup now — right
+        // after the same token that gates signup has been consumed, so
+        // this only ever fires once per real signup (StrictMode's
+        // aborted duplicate never reaches here either, same as above).
+        const passphrase = getStashedInvitePassphrase()
+        if (passphrase) {
+          await createAndUploadEscrowBackup(token, passphrase)
+          clearStashedInvitePassphrase()
         }
+        setTokenHandoffDone(true)
       })
     return () => controller.abort()
   }, [isSignedIn])
@@ -109,6 +123,11 @@ function App() {
   // User row (see server/middleware/auth.js) — no valid invite.
   const [role, setRole] = useState(null)
   const [unauthorized, setUnauthorized] = useState(false)
+  // G411-28 stage 4: a ?recover=<token>#<passphrase> link. Read once at
+  // module init time (same as captureInviteTokenFromUrl) — recovery is a
+  // one-shot action per page load, doesn't need to react to later URL
+  // changes.
+  const [recovery, setRecovery] = useState(getRecoveryParamsFromUrl)
   useEffect(() => {
     if (!isSignedIn || !tokenHandoffDone) return
     fetch('/api/me')
@@ -183,6 +202,15 @@ function App() {
           <p>Loading…</p>
         ) : isSignedIn && unauthorized ? (
           <p>You do not have permission to use Gavi411.</p>
+        ) : isSignedIn && recovery.token ? (
+          <Recover
+            token={recovery.token}
+            passphrase={recovery.passphrase}
+            onDone={() => {
+              window.history.replaceState({}, '', window.location.pathname)
+              setRecovery({ token: null, passphrase: null })
+            }}
+          />
         ) : isSignedIn ? (
           view === 'new' ? (
             <NewRequest
