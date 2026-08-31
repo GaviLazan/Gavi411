@@ -202,11 +202,18 @@ function RequestDetail({ requestId, onBack }) {
     setSendError("");
     setNeedsKeypair(false);
 
+    // Local flag, not just the needsKeypair state var — the catch block
+    // below runs synchronously off this function's own execution, and
+    // relying on the just-set React state here would read a stale
+    // closed-over value if React hasn't committed the update yet.
+    let missingKeypair = false;
+
     try {
       const body = new FormData();
       if (draft.trim()) {
         const sharedKey = await getConversationKey(requestId);
         if (!sharedKey) {
+          missingKeypair = true;
           setNeedsKeypair(true);
           throw new Error(
             "Your device isn't set up for encrypted messaging yet (or the other side isn't)."
@@ -233,8 +240,12 @@ function RequestDetail({ requestId, onBack }) {
       // preview sitting on screen — most send failures with an image
       // attached are about that image (size/type); retrying means
       // deliberately re-attaching, not silently resending the same
-      // bad file.
-      if (image) setImage(null);
+      // bad file. Exception: a missing-keypair failure has nothing to
+      // do with the image (Sibling review finding, second round) — the
+      // image the user already selected/captioned shouldn't be silently
+      // discarded for an unrelated reason, forcing them to re-attach it
+      // after fixing their key via the recovery button above.
+      if (image && !missingKeypair) setImage(null);
     } finally {
       setSending(false);
     }

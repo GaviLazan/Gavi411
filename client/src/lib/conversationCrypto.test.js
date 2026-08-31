@@ -65,6 +65,45 @@ describe('getConversationKey', () => {
       'round trip check'
     )
   })
+
+  // Sibling review finding (second round) — a resolved null was cached
+  // forever, only rejections were evicted. That silently broke the
+  // self-service "Generate my encryption key" recovery flow: a user who
+  // fixed their missing keypair kept getting the stale cached null on
+  // their next send attempt for the same requestId, with no way out
+  // short of a full page reload.
+  it('retries instead of returning a stale cached null once the key becomes available', async () => {
+    const me = await generateKeypair()
+    mockLoadPrivateKey.mockResolvedValue(me.privateKey)
+    fetch.mockResolvedValue({ ok: true, json: async () => ({ me: null, other: null }) })
+
+    expect(await getConversationKey(1)).toBeNull()
+
+    // The device "fixes" its keypair situation — the other party now has
+    // a public key on file (e.g. the self-service recovery button ran).
+    const other = await generateKeypair()
+    const otherPublicB64 = await exportPublicKey(other.publicKey)
+    fetch.mockResolvedValue({ ok: true, json: async () => ({ me: null, other: otherPublicB64 }) })
+
+    const sharedKey = await getConversationKey(1)
+    expect(sharedKey).not.toBeNull()
+    // A real fetch happened again — proves the null wasn't served from a
+    // stale cache entry.
+    expect(fetch).toHaveBeenCalledTimes(2)
+  })
+
+  it('caches a successfully-derived key so a second call does not re-fetch', async () => {
+    const me = await generateKeypair()
+    const other = await generateKeypair()
+    mockLoadPrivateKey.mockResolvedValue(me.privateKey)
+    const otherPublicB64 = await exportPublicKey(other.publicKey)
+    fetch.mockResolvedValue({ ok: true, json: async () => ({ me: null, other: otherPublicB64 }) })
+
+    const first = await getConversationKey(1)
+    const second = await getConversationKey(1)
+    expect(second).toBe(first)
+    expect(fetch).toHaveBeenCalledTimes(1)
+  })
 })
 
 describe('encryptMessageContent / decryptMessageContent', () => {

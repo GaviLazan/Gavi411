@@ -55,10 +55,21 @@ export async function getConversationKey(requestId) {
   })()
 
   conversationKeyCache.set(requestId, promise)
-  // A failed derivation shouldn't poison the cache forever — clear the
-  // entry so the next call retries instead of permanently returning a
-  // rejected promise (e.g. after a transient network failure resolves).
-  promise.catch(() => conversationKeyCache.delete(requestId))
+  // Neither a rejected promise NOR a resolved null should poison the
+  // cache forever — both mean "couldn't derive a key right now," which
+  // can genuinely change on the next call (e.g. the user just used the
+  // self-service "Generate my encryption key" recovery button, or the
+  // other party just uploaded theirs). Real bug caught by Sibling review
+  // (second round): only rejections were evicted here originally, so a
+  // cached null from before the recovery button was clicked kept being
+  // returned after the fix succeeded, silently defeating that whole
+  // recovery flow until a full page reload.
+  promise.then(
+    (key) => {
+      if (key === null) conversationKeyCache.delete(requestId)
+    },
+    () => conversationKeyCache.delete(requestId)
+  )
   return promise
 }
 

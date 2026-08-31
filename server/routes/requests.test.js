@@ -351,6 +351,30 @@ describe('POST /api/requests/:id/messages — encrypted flag (G411-82)', () => {
     expect(prismaMock.message.create).not.toHaveBeenCalled()
     usersByClerkId[OTHER] = { clerkId: OTHER, role: 'USER', publicKey: 'other-pubkey' } // restore
   })
+
+  // Sibling review finding (second round): the encrypted/publicKey check
+  // used to run BEFORE the ownership check, so a non-owner sending
+  // encrypted:true got a 400 about their own key status instead of this
+  // router's deliberate 404 "Request not found" — leaking that the
+  // encrypted-flag path exists (and their own key status) to someone who
+  // shouldn't even be able to confirm the request exists.
+  it('404s (not 400) for a non-owner, non-admin sender with no public key trying to send encrypted content', async () => {
+    currentUserId = OTHER
+    const noKeyUser = { ...usersByClerkId[OTHER], publicKey: null }
+    usersByClerkId[OTHER] = noKeyUser
+    // OWNER (not OTHER) owns this request — OTHER is a real signed-in
+    // user, just not the owner and not an admin.
+    prismaMock.request.findUnique.mockResolvedValue({ ...sampleRequest, userId: OWNER })
+
+    const res = await request(app)
+      .post('/api/requests/1/messages')
+      .send({ content: JSON.stringify({ iv: 'a', ciphertext: 'b' }), encrypted: 'true' })
+
+    expect(res.status).toBe(404)
+    expect(res.body).toEqual({ error: 'Request not found' })
+    expect(prismaMock.message.create).not.toHaveBeenCalled()
+    usersByClerkId[OTHER] = { clerkId: OTHER, role: 'USER', publicKey: 'other-pubkey' } // restore
+  })
 })
 
 describe('GET /api/requests/:id/public-keys (G411-82)', () => {
