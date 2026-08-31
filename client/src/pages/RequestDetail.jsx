@@ -13,6 +13,8 @@ import "../components/ReviewSummary.css";
 // Input.css was only ever loaded as a side effect of NewRequest.jsx
 // importing Input.jsx first.
 import "../components/Input.css";
+import { getConversationKey, encryptMessageContent, decryptMessageContent } from "../lib/conversationCrypto";
+import { createAndUploadKeypair } from "../lib/escrow";
 
 // Request detail / "ticket" page (G411-75). Minimum scope per the ticket:
 // the request's own fields + urgency/status + the existing Message thread
@@ -61,10 +63,33 @@ function RequestDetail({ requestId, onBack }) {
   const [request, setRequest] = useState(null);
   const [error, setError] = useState(""); // load failure — replaces the whole page
   const [sendError, setSendError] = useState(""); // send failure — inline, thread stays visible
+  // True specifically when the send failed because THIS device has no
+  // keypair (not any other send failure) — drives whether the recovery
+  // button below renders. A dedicated flag rather than string-matching
+  // sendError's text, which is fragile against future copy changes.
+  const [needsKeypair, setNeedsKeypair] = useState(false);
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
   const [image, setImage] = useState(null); // File | null (G411-26)
   const fileInputRef = useRef(null);
+  // G411-82: `request.message` rows can be a mix of legacy plaintext and
+  // new encrypted ones — decryptedMessages is the render-ready version
+  // MessageThread actually gets, decrypted client-side. Kept as separate
+  // state (not computed inline in JSX) because decryption is async.
+  const [decryptedMessages, setDecryptedMessages] = useState([]);
+  // Distinguishes "genuinely no messages" from "haven't decrypted the
+  // first batch yet" — without this, MessageThread briefly renders "No
+  // messages yet." on every load before the async decrypt effect below
+  // resolves, even when the thread has real messages (Sibling review
+  // finding, second round).
+  const [decrypting, setDecrypting] = useState(true);
+  // Self-service recovery for a regular (non-admin) user whose keypair
+  // never got generated/uploaded — sendMessage()'s blocking error below
+  // is where this is actually hit, so the fix lives right next to it,
+  // not tucked away on the admin-only InviteAdmin.jsx screen (Sibling
+  // review finding, second round — createAndUploadKeypair() itself was
+  // already generic, just never offered to a regular user anywhere).
+  const [keypairStatus, setKeypairStatus] = useState("idle"); // 'idle' | 'working' | 'error'
 
   // One object URL per `image`, not recreated on every render (Sibling
   // review finding: was called inline in JSX, leaking a new blob URL on
@@ -98,43 +123,132 @@ function RequestDetail({ requestId, onBack }) {
     };
   }, [requestId]);
 
+  // G411-82: derive the conversation's shared key once per requestId/
+  // message-set change, decrypt every row. A message that fails to
+  // decrypt (wrong/missing key, corrupt envelope) renders a visible
+  // placeholder instead of crashing the whole thread — one bad row
+  // shouldn't hide the rest of the conversation.
+  useEffect(() => {
+    let cancelled = false;
+    if (!request?.message) {
+      setDecryptedMessages([]);
+      setDecrypting(false);
+      return;
+    }
+
+    setDecrypting(true);
+    getConversationKey(requestId)
+      .then(async (sharedKey) => {
+        const resolved = await Promise.all(
+          request.message.map(async (m) => {
+            try {
+              const content = await decryptMessageContent(sharedKey, m);
+              return { ...m, content: content ?? "[Unable to decrypt — device not set up yet]" };
+            } catch {
+              return { ...m, content: "[Unable to decrypt this message]" };
+            }
+          })
+        );
+        if (!cancelled) setDecryptedMessages(resolved);
+      })
+      // getConversationKey can reject (IndexedDB error, network failure
+      // fetching /public-keys, a malformed key throwing in crypto.subtle)
+      // rather than just resolving null — previously unhandled, which
+      // left decryptedMessages stuck at [] forever with no error shown,
+      // silently rendering "No messages yet." over a real thread
+      // (Sibling review finding, second round).
+      .catch(() => {
+        if (!cancelled) setDecryptedMessages([]);
+      })
+      .finally(() => {
+        if (!cancelled) setDecrypting(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [requestId, request?.message]);
+
+  async function handleGenerateKeypair() {
+    setKeypairStatus("working");
+    const ok = await createAndUploadKeypair();
+    setKeypairStatus(ok ? "idle" : "error");
+    if (ok) {
+      setSendError(""); // clear the stale "device isn't set up" message
+      setNeedsKeypair(false);
+    }
+  }
+
   function refetch() {
     fetch(`/api/requests/${requestId}`)
       .then((res) => res.json())
       .then(setRequest);
   }
 
-  function sendMessage() {
+  // G411-82: text is encrypted client-side before it ever reaches the
+  // server, via the shared key derived from the other party's public
+  // key. A sender with no keypair yet (see prisma/schema.prisma's
+  // User.publicKey doc comment — a test/dev account created directly,
+  // never through a real invite-signup) or whose conversation partner
+  // has no public key yet gets a clear, blocking error instead of a
+  // silent plaintext fallback — this app has no "device recovery" path
+  // that makes plaintext an acceptable substitute, so it's not offered
+  // as an option. Image bytes stay unencrypted (see conversationCrypto.js
+  // module doc / HANDOFF.md for why — Cloudinary needs to read the file
+  // to host it, and this ticket's priority is text).
+  async function sendMessage() {
     if (!draft.trim() && !image) return;
     setSending(true);
     setSendError("");
+    setNeedsKeypair(false);
 
-    // Multipart only when an image is actually attached — a plain JSON
-    // body still works for text-only sends (server accepts both).
-    const body = new FormData();
-    if (draft.trim()) body.append("content", draft);
-    if (image) body.append("image", image);
+    // Local flag, not just the needsKeypair state var — the catch block
+    // below runs synchronously off this function's own execution, and
+    // relying on the just-set React state here would read a stale
+    // closed-over value if React hasn't committed the update yet.
+    let missingKeypair = false;
 
-    fetch(`/api/requests/${requestId}/messages`, { method: "POST", body })
-      .then(async (res) => {
-        if (!res.ok) {
-          const data = await res.json().catch(() => ({}));
-          throw new Error(data.error || "Couldn't send that message.");
+    try {
+      const body = new FormData();
+      if (draft.trim()) {
+        const sharedKey = await getConversationKey(requestId);
+        if (!sharedKey) {
+          missingKeypair = true;
+          setNeedsKeypair(true);
+          throw new Error(
+            "Your device isn't set up for encrypted messaging yet (or the other side isn't)."
+          );
         }
-        setDraft("");
-        setImage(null);
-        refetch();
-      })
-      .catch((err) => {
-        setSendError(err.message);
-        // Clear a rejected image rather than leave a broken/invalid
-        // preview sitting on screen — most send failures with an image
-        // attached are about that image (size/type); retrying means
-        // deliberately re-attaching, not silently resending the same
-        // bad file.
-        if (image) setImage(null);
-      })
-      .finally(() => setSending(false));
+        body.append("content", await encryptMessageContent(sharedKey, draft));
+        body.append("encrypted", "true");
+      }
+      // Multipart only when an image is actually attached — a plain JSON
+      // body still works for text-only sends (server accepts both).
+      if (image) body.append("image", image);
+
+      const res = await fetch(`/api/requests/${requestId}/messages`, { method: "POST", body });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || "Couldn't send that message.");
+      }
+      setDraft("");
+      setImage(null);
+      refetch();
+    } catch (err) {
+      setSendError(err.message);
+      // Clear a rejected image rather than leave a broken/invalid
+      // preview sitting on screen — most send failures with an image
+      // attached are about that image (size/type); retrying means
+      // deliberately re-attaching, not silently resending the same
+      // bad file. Exception: a missing-keypair failure has nothing to
+      // do with the image (Sibling review finding, second round) — the
+      // image the user already selected/captioned shouldn't be silently
+      // discarded for an unrelated reason, forcing them to re-attach it
+      // after fixing their key via the recovery button above.
+      if (image && !missingKeypair) setImage(null);
+    } finally {
+      setSending(false);
+    }
   }
 
   if (error) {
@@ -185,7 +299,19 @@ function RequestDetail({ requestId, onBack }) {
 
       <Card>
         <h2>Messages</h2>
-        <MessageThread messages={request.message} />
+        {decrypting ? (
+          <p className="review-empty">Loading messages…</p>
+        ) : (
+          <MessageThread messages={decryptedMessages} />
+        )}
+        {needsKeypair && (
+          <p role="alert">
+            <button type="button" onClick={handleGenerateKeypair} disabled={keypairStatus === "working"}>
+              {keypairStatus === "working" ? "Generating…" : "Generate my encryption key"}
+            </button>
+            {keypairStatus === "error" && " Failed — try again."}
+          </p>
+        )}
         {image && (
           <div className="message-image-preview">
             <img src={imagePreviewUrl} alt="Selected attachment preview" />

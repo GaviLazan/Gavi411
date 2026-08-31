@@ -19,7 +19,7 @@ import {
   getStashedRecoveryParams,
   clearStashedRecoveryParams,
 } from './lib/inviteToken'
-import { createAndUploadEscrowBackup } from './lib/escrow'
+import { createAndUploadEscrowBackup, createAndUploadKeypair } from './lib/escrow'
 
 // G411-41: stash any ?token= before Clerk's own redirect flow can touch
 // the URL — see client/src/lib/inviteToken.js for why sessionStorage,
@@ -121,19 +121,23 @@ function App() {
       .finally(async () => {
         if (controller.signal.aborted) return
         clearStashedInviteToken()
-        // Escrow (G411-28 stage 4): if this invite link carried a
-        // passphrase fragment AND the claim request that gates signup
-        // actually succeeded, upload the wrapped backup now (Sibling
-        // review finding — previously fired regardless of whether the
-        // claim itself succeeded, uploading a backup keyed to a token
-        // that was never actually claimed). The server's own PATCH also
-        // requires requireAuth + usedByUserId ownership (see
-        // server/routes/invites.js) as the real, structural guard — this
-        // check just avoids the wasted/nonsensical call on a known-failed
-        // claim.
+        // Keypair generation (G411-82): every successful signup gets a
+        // real E2E-messaging keypair, whether or not this invite link
+        // carried an escrow passphrase — previously ONLY the escrow
+        // branch (below) ever called a keygen function, so a
+        // no-passphrase link (stale/stripped fragment) left that user
+        // with zero keypair, permanently, until this fix. Escrow (if a
+        // passphrase IS present) generates its own keypair internally
+        // and uploads both the backup and the public key; the plain path
+        // here does the same minus the backup. Same claim-succeeded gate
+        // as before — no point generating a device identity for a signup
+        // that never actually went through.
         const passphrase = getStashedInvitePassphrase()
         if (claimSucceeded && passphrase) {
           const ok = await createAndUploadEscrowBackup(token, passphrase)
+          if (!ok) setEscrowBackupFailed(true)
+        } else if (claimSucceeded) {
+          const ok = await createAndUploadKeypair()
           if (!ok) setEscrowBackupFailed(true)
         }
         clearStashedInvitePassphrase()
@@ -227,9 +231,9 @@ function App() {
       </div>
       {escrowBackupFailed && (
         <p role="alert" className="escrow-backup-warning">
-          Your account was created, but we couldn't save your recovery backup — if you lose this
-          device you may not be able to recover your encrypted messages. Contact Gavi if this
-          keeps happening.{' '}
+          Your account was created, but we couldn't set up message encryption for this device —
+          your messages may not be end-to-end encrypted, and if you lose this device you may not
+          be able to recover them. Contact Gavi if this keeps happening.{' '}
           <button type="button" onClick={() => setEscrowBackupFailed(false)}>Dismiss</button>
         </p>
       )}

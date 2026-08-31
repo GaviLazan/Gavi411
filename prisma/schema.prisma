@@ -88,6 +88,16 @@ model User {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
+  // E2E messaging (G411-82). Raw ECDH public key, base64 (see
+  // client/src/lib/crypto.js's exportPublicKey) — uploaded once at
+  // signup, right after the device generates its (non-extractable)
+  // keypair. Null means this user has no keypair yet (a test/dev account
+  // created directly, never through a real invite-signup, or the admin
+  // before the one-off bootstrap below) — /api/requests/:id/messages
+  // refuses to accept a message from a sender with no public key rather
+  // than silently falling back to plaintext.
+  publicKey     String?
+
   request            Request[]
   messages           Message[]
   creditTransactions CreditTransaction[]
@@ -121,7 +131,14 @@ model Request {
 
 model Message {
   id        Int      @id @default(autoincrement())
+  // Plaintext for pre-G411-82 rows (`encrypted: false`). For a new
+  // encrypted row, this holds JSON.stringify({ iv, ciphertext }) (both
+  // base64 — see client/src/lib/crypto.js's encrypt()) — no shape change
+  // to the column itself, just what gets stored in it (Gavi's call,
+  // ponytail: avoids a second content-shaped column). `encrypted` is the
+  // real, explicit signal for which one a row is — not content-sniffing.
   content   String
+  encrypted Boolean  @default(false)
   imageUrl  String?
   createdAt DateTime @default(now())
 

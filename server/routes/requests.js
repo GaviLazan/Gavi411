@@ -7,6 +7,7 @@ import { matchKeywords } from '../lib/matchKeywords.js'
 import { requireAuth } from '../middleware/auth.js'
 import { prisma } from '../lib/prisma.js'
 import { validateImage, uploadImage, MAX_IMAGE_BYTES } from '../lib/cloudinary.js'
+import { canAccessRequest } from '../lib/requestAccess.js'
 
 const router = express.Router()
 
@@ -114,11 +115,69 @@ router.get('/:id', requireAuth, async (req, res) => {
     return res.status(404).json({ error: 'Request not found' })
   }
 
-  if (request.userId !== req.user.clerkId && req.user.role !== 'ADMIN') {
+  if (!canAccessRequest(request, req.user)) {
     return res.status(404).json({ error: 'Request not found' })
   }
 
   res.json(request)
+})
+
+// GET /:id/public-keys — the "other party's" and "my" public key for
+// this request's conversation (G411-82). A Request is always between
+// exactly request.user and (any) one ADMIN — the two parties never
+// change for a given request — so the caller doesn't need to know Clerk
+// IDs or roles itself: if I'm the owner, the other party is an admin; if
+// I'm an admin, the other party is the owner. Returns `other: null` when
+// that party has no public key yet (no keypair generated — see
+// prisma/schema.prisma's User.publicKey doc comment) so the client can
+// treat "can't encrypt yet" as a normal, handled case.
+router.get('/:id/public-keys', requireAuth, async (req, res) => {
+  const id = Number(req.params.id)
+  if (!Number.isInteger(id)) {
+    return res.status(400).json({ error: 'Invalid request id' })
+  }
+
+  const existing = await prisma.request.findUnique({
+    where: { id },
+    select: { userId: true },
+  })
+  if (!existing) {
+    return res.status(404).json({ error: 'Request not found' })
+  }
+  if (!canAccessRequest(existing, req.user)) {
+    return res.status(404).json({ error: 'Request not found' })
+  }
+  const isOwner = existing.userId === req.user.clerkId
+
+  const other = isOwner
+    // Any admin's key — a Request has exactly one friend, and today
+    // there's exactly one admin (Gavi), so `role: 'ADMIN'` alone always
+    // resolves unambiguously. `orderBy: createdAt: 'asc'` makes the
+    // choice deterministic if a second admin account is ever added
+    // (Sibling review finding — an unordered findFirst was previously
+    // ambiguous: which admin's key a friend's message got encrypted
+    // against could differ from which admin actually opens the thread
+    // to reply, silently making that message undecryptable to them).
+    //
+    // Known, deliberately-unfixed gap for that same future case (Sibling
+    // review, second round): this doesn't filter for a non-null
+    // publicKey, so if the oldest admin never generates a key but a
+    // newer one does, messaging stays blocked even though a working key
+    // exists elsewhere. Not fixed now because doing so would reintroduce
+    // the ambiguity the ordering above exists to prevent (which admin's
+    // key gets picked would vary based on who has a key yet, not on a
+    // stable rule) — a real fix needs a considered multi-admin design
+    // (e.g. per-conversation admin assignment), not a quick filter here.
+    // Multi-admin doesn't exist yet (G411-76 is single-admin), so this
+    // is unreachable today.
+    ? await prisma.user.findFirst({
+        where: { role: 'ADMIN' },
+        orderBy: { createdAt: 'asc' },
+        select: { publicKey: true },
+      })
+    : await prisma.user.findUnique({ where: { clerkId: existing.userId }, select: { publicKey: true } })
+
+  res.json({ me: req.user.publicKey ?? null, other: other?.publicKey ?? null })
 })
 
 // Enum values pulled from the generated Prisma client rather than
@@ -161,7 +220,7 @@ router.patch('/:id', requireAuth, async (req, res) => {
   if (!existing) {
     return res.status(404).json({ error: 'Request not found' })
   }
-  if (existing.userId !== req.user.clerkId && req.user.role !== 'ADMIN') {
+  if (!canAccessRequest(existing, req.user)) {
     return res.status(404).json({ error: 'Request not found' })
   }
 
@@ -272,7 +331,7 @@ router.post('/:id/messages', requireAuth, uploadImageField, async (req, res) => 
     return res.status(400).json({ error: 'Invalid request id' })
   }
 
-  const { content } = req.body
+  const { content, encrypted } = req.body
   const hasText = content && content.trim()
   const hasImage = Boolean(req.file)
   // A photo alone (no caption) is a valid message — only reject if
@@ -293,8 +352,31 @@ router.post('/:id/messages', requireAuth, uploadImageField, async (req, res) => 
     if (!existing) {
       return res.status(404).json({ error: 'Request not found' })
     }
-    if (existing.userId !== req.user.clerkId && req.user.role !== 'ADMIN') {
+    // Ownership/existence check runs BEFORE the encryption precondition
+    // below (Sibling review finding, second round) — this route's own
+    // convention (see GET /:id, PATCH /:id above) is that a non-owner,
+    // non-admin caller always gets 404 "Request not found" so they can't
+    // even confirm the request exists. Checking the encrypted/publicKey
+    // precondition first broke that: a non-owner sending encrypted:true
+    // got a 400 about their own key status instead of the deliberate 404,
+    // leaking that the encrypted-flag path exists before ownership was
+    // ever confirmed.
+    if (!canAccessRequest(existing, req.user)) {
       return res.status(404).json({ error: 'Request not found' })
+    }
+
+    // G411-82: `encrypted` is a string over multipart/form-data ("true"),
+    // a real boolean over a plain JSON body — normalize once. A sender
+    // with no keypair yet (see prisma/schema.prisma's User.publicKey doc
+    // comment) can't have produced a real encrypted envelope, so this is
+    // rejected rather than silently accepted as unmarked plaintext — the
+    // client is expected to have already blocked this case with a clear
+    // error before ever reaching here (see RequestDetail.jsx); this is
+    // the structural backstop, same convention as this router's other
+    // checks.
+    const isEncrypted = encrypted === true || encrypted === 'true'
+    if (isEncrypted && !req.user.publicKey) {
+      return res.status(400).json({ error: 'Your device has no encryption key on file yet' })
     }
 
     let imageUrl = null
@@ -306,6 +388,7 @@ router.post('/:id/messages', requireAuth, uploadImageField, async (req, res) => 
     const message = await prisma.message.create({
       data: {
         content: hasText ? content : '',
+        encrypted: isEncrypted,
         imageUrl,
         requestId: id,
         userId: req.user.clerkId,
