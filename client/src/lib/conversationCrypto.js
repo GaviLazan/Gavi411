@@ -7,22 +7,59 @@
 import { deriveSharedKey, encrypt, decryptText, importPublicKey } from './crypto.js'
 import { loadPrivateKey } from './keyStore.js'
 
+// requestId -> Promise<CryptoKey|null>, cached for the life of this page
+// load (Sibling review finding — RequestDetail.jsx's decrypt effect
+// re-fires on every refetch since `request.message` is a fresh array
+// reference each time, and sendMessage() derives the key independently
+// too; without this cache, one send could redo the IndexedDB load +
+// /public-keys fetch + ECDH derive 2-3 times for a key that never
+// changed). Caching the in-flight Promise (not just the resolved key)
+// also collapses concurrent calls for the same requestId into one
+// derivation instead of racing separate ones. No cross-page persistence
+// or invalidation beyond a full reload — if either party's public key
+// ever changes mid-session, a reload picks that up, which is an
+// acceptable tradeoff for how rarely that happens (ponytail: simplest
+// cache that actually fixes the redundancy, upgrade to explicit
+// invalidation if key rotation becomes a real feature).
+const conversationKeyCache = new Map()
+
+// Test-only escape hatch — the module-level cache above persists across
+// test cases that reuse the same requestId, which would otherwise make
+// later tests silently see an earlier test's cached (possibly null)
+// result instead of exercising a fresh fetch.
+export function _clearConversationKeyCacheForTests() {
+  conversationKeyCache.clear()
+}
+
 // Fetches both parties' public keys for a request from the server (see
 // server/routes/requests.js GET /:id/public-keys) and derives the shared
 // AES-GCM key for this conversation. Returns null if either party has no
 // public key yet (see the route's own doc comment for why that's a real,
 // expected case, not just an error).
 export async function getConversationKey(requestId) {
-  const privateKey = await loadPrivateKey()
-  if (!privateKey) return null
+  if (conversationKeyCache.has(requestId)) {
+    return conversationKeyCache.get(requestId)
+  }
 
-  const res = await fetch(`/api/requests/${requestId}/public-keys`)
-  if (!res.ok) return null
-  const { other } = await res.json()
-  if (!other) return null
+  const promise = (async () => {
+    const privateKey = await loadPrivateKey()
+    if (!privateKey) return null
 
-  const otherPublicKey = await importPublicKey(other)
-  return deriveSharedKey(privateKey, otherPublicKey)
+    const res = await fetch(`/api/requests/${requestId}/public-keys`)
+    if (!res.ok) return null
+    const { other } = await res.json()
+    if (!other) return null
+
+    const otherPublicKey = await importPublicKey(other)
+    return deriveSharedKey(privateKey, otherPublicKey)
+  })()
+
+  conversationKeyCache.set(requestId, promise)
+  // A failed derivation shouldn't poison the cache forever — clear the
+  // entry so the next call retries instead of permanently returning a
+  // rejected promise (e.g. after a transient network failure resolves).
+  promise.catch(() => conversationKeyCache.delete(requestId))
+  return promise
 }
 
 // Encrypts message text into the { iv, ciphertext } envelope, JSON-

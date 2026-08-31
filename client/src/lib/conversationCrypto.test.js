@@ -9,13 +9,18 @@ import { generateKeypair, exportPublicKey, deriveSharedKey, encrypt } from './cr
 const mockLoadPrivateKey = vi.fn()
 vi.mock('./keyStore.js', () => ({ loadPrivateKey: (...args) => mockLoadPrivateKey(...args) }))
 
-const { getConversationKey, encryptMessageContent, decryptMessageContent } = await import(
-  './conversationCrypto.js'
-)
+const { getConversationKey, encryptMessageContent, decryptMessageContent, _clearConversationKeyCacheForTests } =
+  await import('./conversationCrypto.js')
 
 beforeEach(() => {
   vi.restoreAllMocks()
   vi.stubGlobal('fetch', vi.fn())
+  // getConversationKey caches per-requestId (see its own doc comment) —
+  // several tests below call it with the same requestId (1), so the
+  // cache has to be cleared between tests or a later test would silently
+  // reuse an earlier test's cached result instead of exercising a fresh
+  // fetch.
+  _clearConversationKeyCacheForTests()
 })
 
 describe('getConversationKey', () => {

@@ -37,6 +37,16 @@ export async function uploadPublicKey(publicKey) {
 // Best-effort, same reasoning as the escrow path below — messaging
 // crypto is a standalone feature (decision #28), not on the critical
 // path for using the app at all.
+//
+// ponytail: this and createAndUploadEscrowBackup() below share the same
+// generate->save->export->upload skeleton, differing only in which
+// generate function runs and the extra wrap+upload step escrow
+// interleaves in the middle. Not composed into one shared core — the two
+// diverge right in the middle of the sequence (savePrivateKey happens
+// before vs. after the backup upload), so a shared helper would need an
+// awkward callback/options param for a 4-line save. Revisit if a third
+// keypair-orchestration path shows up and the duplication actually
+// starts drifting (Sibling review finding, noted not fixed).
 export async function createAndUploadKeypair() {
   try {
     const keypair = await generateKeypair()

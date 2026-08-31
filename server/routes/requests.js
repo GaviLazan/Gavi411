@@ -7,6 +7,7 @@ import { matchKeywords } from '../lib/matchKeywords.js'
 import { requireAuth } from '../middleware/auth.js'
 import { prisma } from '../lib/prisma.js'
 import { validateImage, uploadImage, MAX_IMAGE_BYTES } from '../lib/cloudinary.js'
+import { canAccessRequest } from '../lib/requestAccess.js'
 
 const router = express.Router()
 
@@ -114,7 +115,7 @@ router.get('/:id', requireAuth, async (req, res) => {
     return res.status(404).json({ error: 'Request not found' })
   }
 
-  if (request.userId !== req.user.clerkId && req.user.role !== 'ADMIN') {
+  if (!canAccessRequest(request, req.user)) {
     return res.status(404).json({ error: 'Request not found' })
   }
 
@@ -143,16 +144,25 @@ router.get('/:id/public-keys', requireAuth, async (req, res) => {
   if (!existing) {
     return res.status(404).json({ error: 'Request not found' })
   }
-  const isOwner = existing.userId === req.user.clerkId
-  if (!isOwner && req.user.role !== 'ADMIN') {
+  if (!canAccessRequest(existing, req.user)) {
     return res.status(404).json({ error: 'Request not found' })
   }
+  const isOwner = existing.userId === req.user.clerkId
 
   const other = isOwner
-    // Any admin's key — a Request has exactly one friend and Gavi is
-    // (today) the only admin; findFirst is correct even if that changes,
-    // since every admin is an equally valid "the other party" here.
-    ? await prisma.user.findFirst({ where: { role: 'ADMIN' }, select: { publicKey: true } })
+    // Any admin's key — a Request has exactly one friend, and today
+    // there's exactly one admin (Gavi). If a second admin account is
+    // ever added, `orderBy: createdAt: 'asc'` picks the same, original
+    // admin deterministically every time (Sibling review finding —
+    // findFirst with no ordering was previously ambiguous: which admin's
+    // key a friend's message got encrypted against could differ from
+    // which admin actually opens the thread to reply, silently making
+    // that message undecryptable to them).
+    ? await prisma.user.findFirst({
+        where: { role: 'ADMIN' },
+        orderBy: { createdAt: 'asc' },
+        select: { publicKey: true },
+      })
     : await prisma.user.findUnique({ where: { clerkId: existing.userId }, select: { publicKey: true } })
 
   res.json({ me: req.user.publicKey ?? null, other: other?.publicKey ?? null })
@@ -198,7 +208,7 @@ router.patch('/:id', requireAuth, async (req, res) => {
   if (!existing) {
     return res.status(404).json({ error: 'Request not found' })
   }
-  if (existing.userId !== req.user.clerkId && req.user.role !== 'ADMIN') {
+  if (!canAccessRequest(existing, req.user)) {
     return res.status(404).json({ error: 'Request not found' })
   }
 
@@ -343,7 +353,7 @@ router.post('/:id/messages', requireAuth, uploadImageField, async (req, res) => 
     if (!existing) {
       return res.status(404).json({ error: 'Request not found' })
     }
-    if (existing.userId !== req.user.clerkId && req.user.role !== 'ADMIN') {
+    if (!canAccessRequest(existing, req.user)) {
       return res.status(404).json({ error: 'Request not found' })
     }
 

@@ -389,6 +389,7 @@ describe('GET /api/requests/:id/public-keys (G411-82)', () => {
     expect(res.body).toEqual({ me: 'owner-pubkey', other: 'admin-pubkey' })
     expect(prismaMock.user.findFirst).toHaveBeenCalledWith({
       where: { role: 'ADMIN' },
+      orderBy: { createdAt: 'asc' },
       select: { publicKey: true },
     })
   })
