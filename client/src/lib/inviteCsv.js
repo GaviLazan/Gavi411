@@ -10,12 +10,19 @@
 // can be unit-tested without touching the DOM (Blob/URL.createObjectURL
 // aren't available in the Node test env — see crypto.test.js's doc
 // comment on the same DOM-avoidance convention).
+//
+// No header row — 1Password's CSV import treats every row as a real
+// item, so a header row was being imported as a second, bogus item
+// (username "username") alongside the real one (confirmed live
+// 2026-08-31). Gavi assigns each column's type by hand on import, so
+// there's nothing for a header to label anyway. Single data row:
+// username/website/password/notes, matching what Gavi confirmed lands
+// in the right fields — the invite's label goes in `username`,
+// `website` is a fixed "Gavi411" literal (no real URL, but 1Password
+// requires something there), `password` carries the real passphrase.
 export function inviteCsvRow(invite) {
-  const rows = [
-    ['title', 'passphrase', 'notes'],
-    [invite.label || '', invite.passphrase, ''],
-  ]
-  return rows.map((row) => row.map(csvEscape).join(',')).join('\r\n')
+  const row = [invite.label || '', 'Gavi411', invite.passphrase, '']
+  return row.map(csvEscape).join(',')
 }
 
 // Quotes a field if it contains a comma, quote, or newline; doubles any
