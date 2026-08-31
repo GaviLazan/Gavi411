@@ -12,7 +12,43 @@ accumulated. If something here turns out to matter long-term, promote it to
 
 ---
 
-## Where this session left off (2026-09-01)
+## Where this session left off (2026-09-01, updated)
+
+**Corrections made after the first pass of this handoff:**
+- **G411-28 was wrongly left at Landed** — corrected to **Implementing**
+  (Jira comment posted explaining why: Landed means merged/live with
+  acceptance criteria not yet re-checked, which doesn't fit a ticket with
+  real, known-unbuilt scope — search index + device-linking are still not
+  started). Don't re-flip this back to Landed without actually building
+  that scope first.
+- **Clerk cleanup, done live using `CLERK_SECRET_KEY` from `.env`** (no
+  Clerk MCP/tool exists — used the REST API directly via curl/fetch,
+  confirmed with Gavi before deleting anything since it's outward-facing
+  and hard to reverse). Clerk had **12** accounts total — more than what
+  was in Postgres, since Clerk is the independent source of truth and
+  some accounts (`unauth+clerk_test`, `test2+clerk_test`, `test+clerk_test`)
+  were never in our DB at all (or were already cleaned from Postgres
+  earlier without a matching Clerk cleanup). Deleted 9 total across two
+  passes (missed `gavers+clerk_test@gmail.com` on the first pass, caught
+  and fixed after Gavi noticed). **Final Clerk state: 4 accounts** —
+  `gavriel.lazan@gmail.com` (real admin), `ajeret@gmail.com` (Allysa),
+  `g411_second_party+clerk_test@gmail.com` (the E2E check account), and
+  `gavi.lazan@gmail.com` ("Invite Test" — a **different**, deliberately
+  kept test account, not Gavi's real address plus an alias — Gavi
+  confirmed keeping this one explicitly). Postgres was already cleaned to
+  match a very similar set in the same session (see below) — worth
+  double-checking the two lists still agree if picking this up cold,
+  since the Postgres cleanup happened *before* the Clerk cleanup was
+  audited and one Clerk account (`gavers+clerk_test`) slipped through on
+  the first attempt.
+- **The E2E encryption explainer deck is still owed** — not delivered
+  yet, still pending G411-28's full scope landing (see below). Flagging
+  again since it's easy to lose track of a deliverable that isn't a Jira
+  ticket.
+
+---
+
+## Original session notes (before the corrections above)
 
 **Sync status**: primary + all 6 role worktrees clean, all at `5c9dc51`,
 matching `origin/main`. No code changes this session — pure verification +
@@ -100,10 +136,12 @@ This was the one open thread carried over from last session's handoff:
   nothing new happened with them this session.
 
 ### Next steps, in order
-1. **G411-83** — pick a real design for the admin self-escrow mechanism
+1. **G411-28's remaining scope** (search index, device-linking) — now
+   unblocked by G411-82's Reconciled, not started. Ticket correctly back
+   at Implementing to reflect this.
+2. **G411-83** — pick a real design for the admin self-escrow mechanism
    (no existing invite/passphrase to hook into, since the admin account
    predates invites) and build the keyless-user nudge UI. Not started.
-2. **G411-28's remaining scope** (search index, device-linking) — now
-   unblocked by G411-82's Reconciled, not started.
 3. **The E2E encryption explainer deck** — owed once G411-28's full scope
-   lands, not before.
+   lands, not before. Still not delivered — don't forget this one, it's
+   easy to lose track of since it isn't a Jira ticket.
