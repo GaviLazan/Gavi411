@@ -13,6 +13,7 @@ import "../components/ReviewSummary.css";
 // Input.css was only ever loaded as a side effect of NewRequest.jsx
 // importing Input.jsx first.
 import "../components/Input.css";
+import { getConversationKey, encryptMessageContent, decryptMessageContent } from "../lib/conversationCrypto";
 
 // Request detail / "ticket" page (G411-75). Minimum scope per the ticket:
 // the request's own fields + urgency/status + the existing Message thread
@@ -65,6 +66,11 @@ function RequestDetail({ requestId, onBack }) {
   const [sending, setSending] = useState(false);
   const [image, setImage] = useState(null); // File | null (G411-26)
   const fileInputRef = useRef(null);
+  // G411-82: `request.message` rows can be a mix of legacy plaintext and
+  // new encrypted ones — decryptedMessages is the render-ready version
+  // MessageThread actually gets, decrypted client-side. Kept as separate
+  // state (not computed inline in JSX) because decryption is async.
+  const [decryptedMessages, setDecryptedMessages] = useState([]);
 
   // One object URL per `image`, not recreated on every render (Sibling
   // review finding: was called inline in JSX, leaking a new blob URL on
@@ -98,43 +104,94 @@ function RequestDetail({ requestId, onBack }) {
     };
   }, [requestId]);
 
+  // G411-82: derive the conversation's shared key once per requestId/
+  // message-set change, decrypt every row. A message that fails to
+  // decrypt (wrong/missing key, corrupt envelope) renders a visible
+  // placeholder instead of crashing the whole thread — one bad row
+  // shouldn't hide the rest of the conversation.
+  useEffect(() => {
+    let cancelled = false;
+    if (!request?.message) {
+      setDecryptedMessages([]);
+      return;
+    }
+
+    getConversationKey(requestId).then(async (sharedKey) => {
+      const resolved = await Promise.all(
+        request.message.map(async (m) => {
+          try {
+            const content = await decryptMessageContent(sharedKey, m);
+            return { ...m, content: content ?? "[Unable to decrypt — device not set up yet]" };
+          } catch {
+            return { ...m, content: "[Unable to decrypt this message]" };
+          }
+        })
+      );
+      if (!cancelled) setDecryptedMessages(resolved);
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [requestId, request?.message]);
+
   function refetch() {
     fetch(`/api/requests/${requestId}`)
       .then((res) => res.json())
       .then(setRequest);
   }
 
-  function sendMessage() {
+  // G411-82: text is encrypted client-side before it ever reaches the
+  // server, via the shared key derived from the other party's public
+  // key. A sender with no keypair yet (see prisma/schema.prisma's
+  // User.publicKey doc comment — a test/dev account created directly,
+  // never through a real invite-signup) or whose conversation partner
+  // has no public key yet gets a clear, blocking error instead of a
+  // silent plaintext fallback — this app has no "device recovery" path
+  // that makes plaintext an acceptable substitute, so it's not offered
+  // as an option. Image bytes stay unencrypted (see conversationCrypto.js
+  // module doc / HANDOFF.md for why — Cloudinary needs to read the file
+  // to host it, and this ticket's priority is text).
+  async function sendMessage() {
     if (!draft.trim() && !image) return;
     setSending(true);
     setSendError("");
 
-    // Multipart only when an image is actually attached — a plain JSON
-    // body still works for text-only sends (server accepts both).
-    const body = new FormData();
-    if (draft.trim()) body.append("content", draft);
-    if (image) body.append("image", image);
-
-    fetch(`/api/requests/${requestId}/messages`, { method: "POST", body })
-      .then(async (res) => {
-        if (!res.ok) {
-          const data = await res.json().catch(() => ({}));
-          throw new Error(data.error || "Couldn't send that message.");
+    try {
+      const body = new FormData();
+      if (draft.trim()) {
+        const sharedKey = await getConversationKey(requestId);
+        if (!sharedKey) {
+          throw new Error(
+            "Your device isn't set up for encrypted messaging yet (or the other side isn't). Contact Gavi."
+          );
         }
-        setDraft("");
-        setImage(null);
-        refetch();
-      })
-      .catch((err) => {
-        setSendError(err.message);
-        // Clear a rejected image rather than leave a broken/invalid
-        // preview sitting on screen — most send failures with an image
-        // attached are about that image (size/type); retrying means
-        // deliberately re-attaching, not silently resending the same
-        // bad file.
-        if (image) setImage(null);
-      })
-      .finally(() => setSending(false));
+        body.append("content", await encryptMessageContent(sharedKey, draft));
+        body.append("encrypted", "true");
+      }
+      // Multipart only when an image is actually attached — a plain JSON
+      // body still works for text-only sends (server accepts both).
+      if (image) body.append("image", image);
+
+      const res = await fetch(`/api/requests/${requestId}/messages`, { method: "POST", body });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || "Couldn't send that message.");
+      }
+      setDraft("");
+      setImage(null);
+      refetch();
+    } catch (err) {
+      setSendError(err.message);
+      // Clear a rejected image rather than leave a broken/invalid
+      // preview sitting on screen — most send failures with an image
+      // attached are about that image (size/type); retrying means
+      // deliberately re-attaching, not silently resending the same
+      // bad file.
+      if (image) setImage(null);
+    } finally {
+      setSending(false);
+    }
   }
 
   if (error) {
@@ -185,7 +242,7 @@ function RequestDetail({ requestId, onBack }) {
 
       <Card>
         <h2>Messages</h2>
-        <MessageThread messages={request.message} />
+        <MessageThread messages={decryptedMessages} />
         {image && (
           <div className="message-image-preview">
             <img src={imagePreviewUrl} alt="Selected attachment preview" />

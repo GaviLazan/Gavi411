@@ -6,6 +6,7 @@ import requestsRouter from './routes/requests.js'
 import invitesRouter from './routes/invites.js'
 import cors from 'cors'
 import { clerkMiddleware, requireAuth } from './middleware/auth.js'
+import { prisma } from './lib/prisma.js'
 
 const app = express()
 
@@ -29,6 +30,24 @@ app.get('/api/health', (req, res) => {
 // attaches req.user for authenticated ones.
 app.get('/api/me', requireAuth, (req, res) => {
   res.json({ user: req.user })
+})
+
+// PATCH /api/me/public-key — uploads this user's E2E messaging public key
+// (G411-82). Called once, right after the device generates its keypair
+// (signup handoff — see client/src/App.jsx — or the one-off admin
+// bootstrap in InviteAdmin.jsx). Overwrite-safe: re-running it (a second
+// device, a lost-key recovery) just replaces the stored key, same as any
+// other "this device is now the source of truth" operation in this app.
+app.patch('/api/me/public-key', requireAuth, async (req, res) => {
+  const { publicKey } = req.body
+  if (!publicKey || typeof publicKey !== 'string') {
+    return res.status(400).json({ error: 'publicKey is required' })
+  }
+  const user = await prisma.user.update({
+    where: { clerkId: req.user.clerkId },
+    data: { publicKey },
+  })
+  res.json({ user })
 })
 
 const PORT = process.env.PORT || 3000

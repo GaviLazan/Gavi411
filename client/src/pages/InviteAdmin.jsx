@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { downloadInviteCsv } from '../lib/inviteCsv'
+import { createAndUploadKeypair } from '../lib/escrow'
 
 // Minimal admin invite-creation screen (G411-41; escrow passphrase + CSV
 // export added G411-28 stage 4). Not the full admin cockpit (G411-37/38)
@@ -17,6 +18,32 @@ function InviteAdmin({ onBack }) {
   // persisted anywhere to be fetched again later.
   const [lastInvite, setLastInvite] = useState(null) // { token, label, passphrase }
   const [invites, setInvites] = useState([])
+
+  // G411-82 admin bootstrap: the only account that never went through
+  // the real invite-signup flow (it predates invites entirely) is Gavi's
+  // own admin account, so it has no messaging keypair. The "no separate
+  // sign-in bootstrap for existing/regular users" rule (Jira pickup
+  // comment) is specifically about NOT doing this automatically for
+  // everyone — this is a one-off, admin-only, self-service button, not a
+  // background bootstrap. Anyone can trigger this from their own signed-
+  // in session for their own account, but it only shows once (hidden as
+  // soon as /api/me reports a publicKey already on file), so it's not a
+  // standing "regenerate my key" control.
+  const [hasPublicKey, setHasPublicKey] = useState(true) // assume yes until checked, avoids a flash
+  const [keypairStatus, setKeypairStatus] = useState('idle') // 'idle' | 'working' | 'error'
+  useEffect(() => {
+    fetch('/api/me')
+      .then((res) => res.json())
+      .then((data) => setHasPublicKey(Boolean(data.user?.publicKey)))
+      .catch(() => {})
+  }, [])
+
+  async function handleGenerateKeypair() {
+    setKeypairStatus('working')
+    const ok = await createAndUploadKeypair()
+    setKeypairStatus(ok ? 'idle' : 'error')
+    if (ok) setHasPublicKey(true)
+  }
 
   function loadInvites() {
     fetch('/api/invites')
@@ -60,6 +87,17 @@ function InviteAdmin({ onBack }) {
     <div className="invite-admin">
       <button type="button" onClick={onBack}>&larr; Back</button>
       <h2>Invites</h2>
+
+      {!hasPublicKey && (
+        <p role="alert">
+          This account has no messaging encryption key yet (expected for the original admin
+          account, created before invites existed).{' '}
+          <button type="button" onClick={handleGenerateKeypair} disabled={keypairStatus === 'working'}>
+            {keypairStatus === 'working' ? 'Generating…' : 'Generate my encryption key'}
+          </button>
+          {keypairStatus === 'error' && ' Failed — try again.'}
+        </p>
+      )}
 
       <form onSubmit={handleCreate}>
         <input
