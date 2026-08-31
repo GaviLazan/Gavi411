@@ -14,6 +14,7 @@ import "../components/ReviewSummary.css";
 // importing Input.jsx first.
 import "../components/Input.css";
 import { getConversationKey, encryptMessageContent, decryptMessageContent } from "../lib/conversationCrypto";
+import { createAndUploadKeypair } from "../lib/escrow";
 
 // Request detail / "ticket" page (G411-75). Minimum scope per the ticket:
 // the request's own fields + urgency/status + the existing Message thread
@@ -62,6 +63,11 @@ function RequestDetail({ requestId, onBack }) {
   const [request, setRequest] = useState(null);
   const [error, setError] = useState(""); // load failure — replaces the whole page
   const [sendError, setSendError] = useState(""); // send failure — inline, thread stays visible
+  // True specifically when the send failed because THIS device has no
+  // keypair (not any other send failure) — drives whether the recovery
+  // button below renders. A dedicated flag rather than string-matching
+  // sendError's text, which is fragile against future copy changes.
+  const [needsKeypair, setNeedsKeypair] = useState(false);
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
   const [image, setImage] = useState(null); // File | null (G411-26)
@@ -71,6 +77,19 @@ function RequestDetail({ requestId, onBack }) {
   // MessageThread actually gets, decrypted client-side. Kept as separate
   // state (not computed inline in JSX) because decryption is async.
   const [decryptedMessages, setDecryptedMessages] = useState([]);
+  // Distinguishes "genuinely no messages" from "haven't decrypted the
+  // first batch yet" — without this, MessageThread briefly renders "No
+  // messages yet." on every load before the async decrypt effect below
+  // resolves, even when the thread has real messages (Sibling review
+  // finding, second round).
+  const [decrypting, setDecrypting] = useState(true);
+  // Self-service recovery for a regular (non-admin) user whose keypair
+  // never got generated/uploaded — sendMessage()'s blocking error below
+  // is where this is actually hit, so the fix lives right next to it,
+  // not tucked away on the admin-only InviteAdmin.jsx screen (Sibling
+  // review finding, second round — createAndUploadKeypair() itself was
+  // already generic, just never offered to a regular user anywhere).
+  const [keypairStatus, setKeypairStatus] = useState("idle"); // 'idle' | 'working' | 'error'
 
   // One object URL per `image`, not recreated on every render (Sibling
   // review finding: was called inline in JSX, leaking a new blob URL on
@@ -113,27 +132,52 @@ function RequestDetail({ requestId, onBack }) {
     let cancelled = false;
     if (!request?.message) {
       setDecryptedMessages([]);
+      setDecrypting(false);
       return;
     }
 
-    getConversationKey(requestId).then(async (sharedKey) => {
-      const resolved = await Promise.all(
-        request.message.map(async (m) => {
-          try {
-            const content = await decryptMessageContent(sharedKey, m);
-            return { ...m, content: content ?? "[Unable to decrypt — device not set up yet]" };
-          } catch {
-            return { ...m, content: "[Unable to decrypt this message]" };
-          }
-        })
-      );
-      if (!cancelled) setDecryptedMessages(resolved);
-    });
+    setDecrypting(true);
+    getConversationKey(requestId)
+      .then(async (sharedKey) => {
+        const resolved = await Promise.all(
+          request.message.map(async (m) => {
+            try {
+              const content = await decryptMessageContent(sharedKey, m);
+              return { ...m, content: content ?? "[Unable to decrypt — device not set up yet]" };
+            } catch {
+              return { ...m, content: "[Unable to decrypt this message]" };
+            }
+          })
+        );
+        if (!cancelled) setDecryptedMessages(resolved);
+      })
+      // getConversationKey can reject (IndexedDB error, network failure
+      // fetching /public-keys, a malformed key throwing in crypto.subtle)
+      // rather than just resolving null — previously unhandled, which
+      // left decryptedMessages stuck at [] forever with no error shown,
+      // silently rendering "No messages yet." over a real thread
+      // (Sibling review finding, second round).
+      .catch(() => {
+        if (!cancelled) setDecryptedMessages([]);
+      })
+      .finally(() => {
+        if (!cancelled) setDecrypting(false);
+      });
 
     return () => {
       cancelled = true;
     };
   }, [requestId, request?.message]);
+
+  async function handleGenerateKeypair() {
+    setKeypairStatus("working");
+    const ok = await createAndUploadKeypair();
+    setKeypairStatus(ok ? "idle" : "error");
+    if (ok) {
+      setSendError(""); // clear the stale "device isn't set up" message
+      setNeedsKeypair(false);
+    }
+  }
 
   function refetch() {
     fetch(`/api/requests/${requestId}`)
@@ -156,14 +200,16 @@ function RequestDetail({ requestId, onBack }) {
     if (!draft.trim() && !image) return;
     setSending(true);
     setSendError("");
+    setNeedsKeypair(false);
 
     try {
       const body = new FormData();
       if (draft.trim()) {
         const sharedKey = await getConversationKey(requestId);
         if (!sharedKey) {
+          setNeedsKeypair(true);
           throw new Error(
-            "Your device isn't set up for encrypted messaging yet (or the other side isn't). Contact Gavi."
+            "Your device isn't set up for encrypted messaging yet (or the other side isn't)."
           );
         }
         body.append("content", await encryptMessageContent(sharedKey, draft));
@@ -242,7 +288,19 @@ function RequestDetail({ requestId, onBack }) {
 
       <Card>
         <h2>Messages</h2>
-        <MessageThread messages={decryptedMessages} />
+        {decrypting ? (
+          <p className="review-empty">Loading messages…</p>
+        ) : (
+          <MessageThread messages={decryptedMessages} />
+        )}
+        {needsKeypair && (
+          <p role="alert">
+            <button type="button" onClick={handleGenerateKeypair} disabled={keypairStatus === "working"}>
+              {keypairStatus === "working" ? "Generating…" : "Generate my encryption key"}
+            </button>
+            {keypairStatus === "error" && " Failed — try again."}
+          </p>
+        )}
         {image && (
           <div className="message-image-preview">
             <img src={imagePreviewUrl} alt="Selected attachment preview" />
