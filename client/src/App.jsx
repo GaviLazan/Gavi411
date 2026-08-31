@@ -15,7 +15,9 @@ import {
   clearStashedInviteToken,
   getStashedInvitePassphrase,
   clearStashedInvitePassphrase,
-  getRecoveryParamsFromUrl,
+  captureRecoveryParamsFromUrl,
+  getStashedRecoveryParams,
+  clearStashedRecoveryParams,
 } from './lib/inviteToken'
 import { createAndUploadEscrowBackup } from './lib/escrow'
 
@@ -23,6 +25,11 @@ import { createAndUploadEscrowBackup } from './lib/escrow'
 // the URL — see client/src/lib/inviteToken.js for why sessionStorage,
 // not the URL param itself, carries the token through an OAuth round trip.
 captureInviteTokenFromUrl()
+// G411-28 stage 4: same reasoning, same moment, for a ?recover= link —
+// Sibling review finding, a lost/new device opening a recovery link is
+// just as likely to be signed OUT (hitting the same OAuth hazard) as a
+// brand-new signup is.
+captureRecoveryParamsFromUrl()
 
 const THEME_LABEL = { system: 'Auto', light: 'Light', dark: 'Dark' }
 
@@ -78,6 +85,17 @@ function App() {
   // was nothing to send). Starts true when there's no stashed token —
   // only signups need to wait.
   const [tokenHandoffDone, setTokenHandoffDone] = useState(() => !getStashedInviteToken())
+  // Sibling review finding: escrow upload failures were only logged to
+  // the console — a friend on a flaky connection got zero recoverable
+  // backup with no indication anything went wrong. A disaster-recovery
+  // feature failing silently is worse than not having it; this is a
+  // one-line dismissible notice, not a blocker (see escrow.js's own doc
+  // comment — the crypto subsystem is still standalone/non-critical-path,
+  // so a failure here shouldn't stop the friend from using the app).
+  // Declared here (before the effect that sets it) — used to sit below
+  // it, which the linter flagged as reading state ahead of its own
+  // initialization.
+  const [escrowBackupFailed, setEscrowBackupFailed] = useState(false)
 
   useEffect(() => {
     if (!isSignedIn) return
@@ -96,21 +114,33 @@ function App() {
     // server — no duplicate claim to reconcile at all, standard fix for
     // this exact StrictMode double-effect pattern.
     const controller = new AbortController()
+    let claimSucceeded = false
     fetch('/api/requests', { headers: { 'x-invite-token': token }, signal: controller.signal })
+      .then((res) => { claimSucceeded = res.ok })
       .catch(() => {}) // AbortError on cleanup is expected, not a real failure
       .finally(async () => {
         if (controller.signal.aborted) return
         clearStashedInviteToken()
         // Escrow (G411-28 stage 4): if this invite link carried a
-        // passphrase fragment, upload the wrapped backup now — right
-        // after the same token that gates signup has been consumed, so
-        // this only ever fires once per real signup (StrictMode's
-        // aborted duplicate never reaches here either, same as above).
+        // passphrase fragment AND the claim request that gates signup
+        // actually succeeded, upload the wrapped backup now (Sibling
+        // review finding — previously fired regardless of whether the
+        // claim itself succeeded, uploading a backup keyed to a token
+        // that was never actually claimed). The server's own PATCH also
+        // requires requireAuth + usedByUserId ownership (see
+        // server/routes/invites.js) as the real, structural guard — this
+        // check just avoids the wasted/nonsensical call on a known-failed
+        // claim.
         const passphrase = getStashedInvitePassphrase()
-        if (passphrase) {
-          await createAndUploadEscrowBackup(token, passphrase)
-          clearStashedInvitePassphrase()
+        if (claimSucceeded && passphrase) {
+          const ok = await createAndUploadEscrowBackup(token, passphrase)
+          if (!ok) setEscrowBackupFailed(true)
         }
+        clearStashedInvitePassphrase()
+        // Re-check after the await above (Sibling review finding — the
+        // original single check before the async escrow call no longer
+        // covered an abort that happens mid-upload).
+        if (controller.signal.aborted) return
         setTokenHandoffDone(true)
       })
     return () => controller.abort()
@@ -123,11 +153,10 @@ function App() {
   // User row (see server/middleware/auth.js) — no valid invite.
   const [role, setRole] = useState(null)
   const [unauthorized, setUnauthorized] = useState(false)
-  // G411-28 stage 4: a ?recover=<token>#<passphrase> link. Read once at
-  // module init time (same as captureInviteTokenFromUrl) — recovery is a
-  // one-shot action per page load, doesn't need to react to later URL
-  // changes.
-  const [recovery, setRecovery] = useState(getRecoveryParamsFromUrl)
+  // G411-28 stage 4: a ?recover=<token>#<passphrase> link, stashed by
+  // captureRecoveryParamsFromUrl() above the same way the signup token
+  // is — read once here, doesn't need to react to later URL changes.
+  const [recovery, setRecovery] = useState(getStashedRecoveryParams)
   useEffect(() => {
     if (!isSignedIn || !tokenHandoffDone) return
     fetch('/api/me')
@@ -196,6 +225,14 @@ function App() {
           </span>
         )}
       </div>
+      {escrowBackupFailed && (
+        <p role="alert" className="escrow-backup-warning">
+          Your account was created, but we couldn't save your recovery backup — if you lose this
+          device you may not be able to recover your encrypted messages. Contact Gavi if this
+          keeps happening.{' '}
+          <button type="button" onClick={() => setEscrowBackupFailed(false)}>Dismiss</button>
+        </p>
+      )}
       <ClerkLoading>Loading…</ClerkLoading>
       <ClerkLoaded>
         {isSignedIn && !tokenHandoffDone ? (
@@ -207,7 +244,7 @@ function App() {
             token={recovery.token}
             passphrase={recovery.passphrase}
             onDone={() => {
-              window.history.replaceState({}, '', window.location.pathname)
+              clearStashedRecoveryParams()
               setRecovery({ token: null, passphrase: null })
             }}
           />

@@ -13,14 +13,21 @@
 // the response body ONLY — it is never persisted (see prisma/schema.prisma's
 // PendingInvite comment). The admin UI (InviteAdmin.jsx) is the only place
 // that ever sees it, and only at this moment, to build the invite link's
-// URL fragment and offer it for CSV export. PATCH /:token/backup (no auth
-// — same reasoning as GET /:token/valid, a brand-new signup hasn't fully
-// landed a session-linked flow yet) lets the friend's browser upload the
-// encrypted backup once it's wrapped client-side. GET /:token/backup (no
-// auth, by design — the recovery page itself is the gate: without the
-// passphrase from the URL fragment, the returned ciphertext is useless)
-// lets a lost-device recovery page fetch it back.
-
+// URL fragment and offer it for CSV export.
+//
+// PATCH/GET /:token/backup both require requireAuth AND bind to
+// usedByUserId (Sibling review finding — an earlier version had no auth
+// at all, so anyone holding a still-unused token could PATCH garbage into
+// it before the real friend signed up, permanently locking out their real
+// upload via the one-shot backupCiphertext:null guard; GET had the same
+// problem in reverse, ciphertext fetchable indefinitely by anyone with
+// the token). usedByUserId is only ever set by requireAuth's own claim
+// flow (lib/invites.js's linkClaimedInvite), at the moment a real signup
+// actually happens — so "signed in AND usedByUserId matches me" means
+// "I am the person this exact invite was actually claimed by," which a
+// leaked-but-unused token alone can never satisfy. Recovery (GET, from a
+// new device) still works under this rule: it's the same Clerk identity
+// signing in again, so usedByUserId still matches.
 import express from 'express'
 import crypto from 'node:crypto'
 import { requireAuth } from '../middleware/auth.js'
@@ -82,38 +89,36 @@ router.get('/:token/valid', async (req, res) => {
 // PATCH /:token/backup — the friend's browser uploads its escrow backup
 // once, right after signup (client wraps the private key with
 // crypto.js's escrowPrivateKey() using the passphrase from the URL
-// fragment — see App.jsx/client/src/lib/crypto.js). No auth: this fires
-// in the same brief pre-"fully signed in" window as the /:token/valid
-// check, and the token itself (a 24-byte random secret only the invite
-// recipient has) is the actual access control here, same reasoning as
-// that route. Only accepted once per token (won't overwrite an existing
-// backup) — a second call is either a bug or someone replaying a token
-// they don't own, neither should silently clobber a real backup.
-router.patch('/:token/backup', async (req, res) => {
+// fragment — see App.jsx/client/src/lib/crypto.js). Requires a real
+// signed-in session AND that this exact invite's usedByUserId is this
+// caller (see module doc comment) — closes the token-squatting window a
+// bare-token check left open. Only accepted once per token (won't
+// overwrite an existing backup).
+router.patch('/:token/backup', requireAuth, async (req, res) => {
   const { salt, iv, ciphertext } = req.body
   if (!salt || !iv || !ciphertext) {
     return res.status(400).json({ error: 'salt, iv, and ciphertext are required' })
   }
 
   const result = await prisma.pendingInvite.updateMany({
-    where: { token: req.params.token, backupCiphertext: null },
+    where: { token: req.params.token, usedByUserId: req.user.clerkId, backupCiphertext: null },
     data: { backupSalt: salt, backupIv: iv, backupCiphertext: ciphertext },
   })
 
   if (result.count === 0) {
-    return res.status(404).json({ error: 'Invite not found or backup already stored' })
+    return res.status(404).json({ error: 'Invite not found, not yours, or backup already stored' })
   }
   res.status(204).end()
 })
 
-// GET /:token/backup — fetches the encrypted backup for recovery. No auth
-// by design (same reasoning as /:token/valid and the PATCH above): the
-// recovery page can only do anything useful with this ciphertext if it
-// also has the passphrase from the URL fragment, which never reaches the
-// server. Without it, this response is just noise to an attacker.
-router.get('/:token/backup', async (req, res) => {
+// GET /:token/backup — fetches the encrypted backup for recovery. Same
+// auth + ownership binding as the PATCH above (Sibling review finding —
+// previously fetchable indefinitely by anyone holding the token, no
+// expiry or gate at all). Still safe for a new-device recovery: it's the
+// same Clerk identity signing in again, so usedByUserId still matches.
+router.get('/:token/backup', requireAuth, async (req, res) => {
   const invite = await prisma.pendingInvite.findUnique({ where: { token: req.params.token } })
-  if (!invite || !invite.backupCiphertext) {
+  if (!invite || invite.usedByUserId !== req.user.clerkId || !invite.backupCiphertext) {
     return res.status(404).json({ error: 'No backup found for this token' })
   }
   res.json({ salt: invite.backupSalt, iv: invite.backupIv, ciphertext: invite.backupCiphertext })
