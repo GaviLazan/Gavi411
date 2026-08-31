@@ -225,9 +225,87 @@ deleted. G411-28 stays at Landed (not Reconciled — full E2E pass still
 has G411-82 outstanding as its real remaining scope, plus search index/
 device-linking once that lands).
 
-**Next up**: G411-82 (wire live messages to E2E crypto) is the real next
-piece of this pass, once picked up — not yet started. Search index and
-device-linking wait for it.
+**G411-82 done (2026-08-31), Landed.** Wired the real, live `Message`
+thread (`POST/GET /:id/messages`, `MessageThread.jsx`, `RequestDetail.jsx`
+— previously 100% plaintext despite stages 1-3's crypto core existing) to
+actual client-side E2E encryption. New: `User.publicKey`, `Message.
+encrypted` (schema, migration `20260831163345_add_message_encrypted_user_
+publickey`, applied live), `GET /:id/public-keys` (server resolves the
+other party — owner↔any admin), `PATCH /api/me/public-key`,
+`client/src/lib/conversationCrypto.js` (per-conversation shared-key
+derivation + envelope round-trip), `server/lib/requestAccess.js`
+(`canAccessRequest` — deduped 4 independently-written owner-or-admin
+checks). `RequestDetail.jsx` encrypts on send / decrypts on load; a mixed
+plaintext+encrypted thread renders correctly, a bad/undecryptable row
+shows a placeholder instead of crashing. Image bytes stay unencrypted
+(Cloudinary needs to read the file; text was the stated priority) — a
+known, documented gap, not silently dropped. `escrow.js`'s
+`createAndUploadKeypair()` now covers a no-passphrase signup too (fixed a
+real gap: previously only the escrow/passphrase path ever generated a
+keypair at all).
+
+**3 full rounds of Sibling review** on this ticket (PR #34) — first time
+applying the new "post the review as real PR comments" rule (CLAUDE.md,
+added this session), so the full back-and-forth is readable directly on
+the PR, not just here:
+- **Round 1** (7 angles): found self-service key recovery was admin-only
+  — a regular friend whose keypair setup silently failed had zero way to
+  fix it themselves, since the only recovery button lived on the
+  admin-only `InviteAdmin.jsx` screen. Fixed by adding the same recovery
+  action directly in `RequestDetail.jsx`, where the blocking error
+  actually fires. Also fixed: unhandled promise rejection in the decrypt
+  effect (silently rendered "No messages yet." over a real thread), a
+  visible empty-state flash on every normal load.
+- **My own follow-up fixes** (not from a review pass): extracted
+  `canAccessRequest()`, added deterministic `orderBy` to the admin
+  public-key lookup, added key-derivation caching in
+  `conversationCrypto.js`.
+- **Round 2** (2 independent passes, one with an explicit verification
+  step): found a **critical regression I'd just introduced** — the new
+  cache only evicted rejected promises, not resolved `null`s, so a user
+  who used the just-added recovery button and retried kept getting a
+  stale cached `null` back, silently defeating that exact fix until a
+  page reload. Fixed (evicts on both), with 2 new regression tests. Also
+  fixed: `POST /:id/messages` checked the encryption precondition before
+  the ownership check (non-owner info leak — got a 400 instead of the
+  router's deliberate 404), and a missing-keypair send failure was
+  clearing the user's attached image even though the failure had
+  nothing to do with it.
+
+**Real gap worth naming**: the round-2 critical bug was a regression *I*
+introduced fixing a round-1 finding — a reminder that a fix pass needs
+its own re-review, not just trust that a targeted patch didn't break
+something adjacent.
+
+**Merge blocked on `main`'s branch protection** (`required_approving_
+review_count: 1`) despite the account being a repo admin with
+`enforce_admins: false`, which should exempt it — same issue PR #33 hit.
+Root cause still not identified (checked every axis the API exposes,
+all identical to the 32+ prior successful merges). Gavi's explicit call,
+again, to bypass via `--admin`. Branch protection itself still not
+changed — this has now recurred twice, worth someone actually looking
+at the repo settings if a third occurrence happens.
+
+**135/135 Vitest passing.** PR #34 merged as `acce30e` (regular merge
+commit). All 7 worktrees resynced and confirmed clean at `acce30e`.
+Merged branch deleted (local + remote); `agent-e2e` worktree reset to
+its `agent-e2e/base` branch. Migration confirmed applied to live Neon.
+G411-82 Landed (not Reconciled — needs a live two-browser round-trip
+verification + Gavi's explicit confirm, same standard as G411-28's
+stages, not done as part of this wrap-up).
+
+**Deferred, real but lower priority, not filed as tickets**: no cache
+invalidation on sign-out (SPA, no reload — narrow blast radius, admin-
+only in practice); duplicated "generate keypair" UI shell between
+`InviteAdmin.jsx` and `RequestDetail.jsx` (only the underlying call is
+shared); `escrow.js`'s `createAndUploadEscrowBackup` conflates two
+independent failure modes into one boolean; the "other party" lookup in
+`GET /:id/public-keys` doesn't share `requestAccess.js`'s pattern despite
+this same PR establishing it.
+
+**Next up**: search index and device-linking (G411-28's remaining
+pieces) are now unblocked — G411-82 was their real prerequisite. Not
+started yet.
 
 **Deliverable owed once the whole E2E pass is done**: a 2-page PDF/slide
 deck explaining how the E2E encryption works in practice, including which
@@ -272,14 +350,39 @@ touched by this pass; his branch to merge when ready.
 - **Jira transition calls can get blocked once by Claude Code's own
   permission classifier** (unrelated to Jira) — retry once or twice before
   treating it as a real failure; this happened on G411-76 and resolved on
-  retry with zero state change needed.
+  retry with zero state change needed. Same pattern hit `npx prisma migrate
+  status` on G411-82's wrap-up — retry or check from a different worktree
+  rather than assume something's actually broken.
 - **`/code-review` skill's background plumbing can re-notify already-
   finished subagents 2-3 times** mid-review — noisy transcript, not
-  duplicate work, nothing to act on twice. Also happened on G411-76.
+  duplicate work, nothing to act on twice. Also happened on G411-76. On
+  G411-82 this went further: a background review-consolidation loop got
+  genuinely stuck (agents re-requesting already-delivered findings in a
+  cycle) — turned out to coincide with hitting the account's monthly spend
+  limit, which silently caused agents to fail/resume into the same loop
+  instead of surfacing the real error. If a review loop looks stuck for
+  many minutes with no forward progress, stop everything and check for a
+  spend-limit error before assuming it's just noisy plumbing.
+- **`main`'s branch protection (`required_approving_review_count: 1`)
+  has now blocked 2 different PRs (#33, #34) despite the merging account
+  being a repo admin with `enforce_admins: false`**, which should exempt
+  it per GitHub's own model — same as how 32+ earlier PRs merged with
+  zero reviews. Root cause not identified either time. Gavi's call both
+  times: bypass with `gh pr merge --merge --admin`, never on your own
+  judgment without asking first. Setting itself still unchanged — worth
+  someone actually looking at the repo's branch protection config if a
+  third PR hits this.
+- **Post the Sibling review + fix conversation as real PR comments**
+  (CLAUDE.md rule, added 2026-08-31) — every review pass and every fix
+  pass that follows gets its own `gh pr comment`, not just a chat
+  summary. First applied (including a retroactive backfill) on PR #34.
 - **Full worktree sync check** (git status + git log hash match against
   `origin/main`, every worktree) is a required step before calling any
   stage's wrap-up complete — don't skip it because "the ticket's own files
-  are clean."
+  are clean." Note: a role worktree can't `git checkout main` directly if
+  the primary worktree already holds that branch (git's one-worktree-per-
+  branch rule) — `git merge origin/main --ff-only` on the worktree's own
+  current branch achieves the same sync without needing the checkout.
 
 ---
 
