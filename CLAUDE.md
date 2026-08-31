@@ -301,7 +301,20 @@ question that costs one turn.**
      its own tool call, every time.
   6. **Commit** — self-merge if routine, flag for a live Sibling review
      first if load-bearing (see `gavi411-commit-convention.md`).
-  7. **HANDOFF.md** — update with current state.
+  7. **HANDOFF.md** — update with current state. **Also check
+     `gavi411-brain.md`** (added 2026-08-31, real gap found live —
+     several sessions' worth of genuine standing decisions accumulated
+     only in HANDOFF.md and were never promoted, going stale/lost once
+     HANDOFF.md's own perishable content got overwritten): if this
+     ticket produced a decision that should outlive this ticket and this
+     HANDOFF.md cycle — a real architectural/process call, a corrected
+     assumption, a mechanism worth remembering the next time something
+     similar comes up — add it to brain.md's numbered decision log now,
+     not "later." A one-line status update belongs in HANDOFF.md only; a
+     decision belongs in brain.md too. When genuinely unsure which a
+     given item is, err toward logging it in brain.md — HANDOFF.md gets
+     overwritten and a missed decision is easy to lose for good, while an
+     over-logged status note in brain.md is just mildly redundant.
   8. **Full sync check, every worktree** (added 2026-08-25, real gap
      found live — "sync git" was reported done while the primary
      worktree still had two uncommitted files sitting in it, and
@@ -321,8 +334,8 @@ question that costs one turn.**
   9. **Report back** — one line per step above, ✓ or ✗, so a skipped step
      is visible immediately. Example: "Scope ✓ · Falsifier ✓ · Aegis
      fields ✓ · Evidence ✓ · Jira → Reconciled ✓ · Committed ✓ ·
-     HANDOFF.md ✓ · Worktrees synced ✓." Then say what's next on the
-     spine.
+     HANDOFF.md ✓ · brain.md ✓ (or N/A if nothing decision-worthy) ·
+     Worktrees synced ✓." Then say what's next on the spine.
 - **Context-window handoff** (decided 2026-08-18): there's no verified way
   for Claude Code to read its own exact context-usage % — don't trust
   claims of a `CLAUDE_CONTEXT_TOKEN_COUNT`-style env var or similar; none
