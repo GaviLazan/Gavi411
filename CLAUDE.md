@@ -94,7 +94,28 @@ the relevant doc rather than recall it — especially `HANDOFF.md`
 (perishable, changes constantly) and any file a system-reminder says
 changed on disk since you last read it.
 
-**2. Don't assert how a tool behaves — check its actual spec first.**
+**2. Log a real decision to `gavi411-brain.md` when it's made, not just
+at ticket wrap-up.** (Added 2026-08-31, real gap found live — several
+sessions' worth of genuine standing decisions from a single ticket
+[G411-81, 2026-08-30] sat only in `HANDOFF.md` for over a day and were
+never promoted; they'd have been lost for good the next time
+`HANDOFF.md` got overwritten, since nothing forced the check until that
+ticket's own wrap-up, which itself never happened as a distinct step.)
+The "wrap it up" checklist's step 7 is the backstop, not the primary
+mechanism — waiting until wrap-up is too late if wrap-up gets skipped,
+delayed, or the ticket sprawls across a session boundary first. The
+moment a real standing decision actually gets made mid-session — an
+architectural call, a corrected assumption, a mechanism worth
+remembering next time something similar comes up, anything that should
+outlive this ticket and this HANDOFF.md cycle — add the numbered entry
+to `gavi411-brain.md` right then, the same turn, not deferred to
+"later" or "at wrap-up." A one-line status update still belongs in
+`HANDOFF.md` only; a decision belongs in `gavi411-brain.md` too, live.
+When genuinely unsure which a given item is, log it in `gavi411-
+brain.md` — an over-logged status note there is mildly redundant, a
+missed decision is easy to lose for good.
+
+**3. Don't assert how a tool behaves — check its actual spec first.**
 Claims like "this will run unattended," "this chains into the next
 step automatically," or "this enforces X" must be verified against the
 tool's real description (`ToolSearch`, its documented behavior) before
@@ -105,7 +126,7 @@ self-orchestrating when the actual tools only provide background
 dispatch + notification — every chaining/review/go-ahead step still
 needs a human or a live session to act on it.
 
-**3. Three checkpoints per ticket, non-negotiable, regardless of who's
+**4. Three checkpoints per ticket, non-negotiable, regardless of who's
 writing the code** (decision #60's guardrails, restated as concrete
 gates so they can't be silently compressed into one step):
    - **Mid-flight**: if a real decision comes up that isn't yours to
@@ -139,7 +160,7 @@ gates so they can't be silently compressed into one step):
      outcome and let Gavi decide whether to continue, even if nothing
      looks wrong. Never auto-advance through a queue of tickets.
 
-**4. Sibling review is mandatory on every agentic child, self-merge only
+**5. Sibling review is mandatory on every agentic child, self-merge only
 after it passes** (decision #62/#63) — checks tests exist and pass, docs/
 `HANDOFF.md` are actually updated, Aegis fields are actually written,
 Jira is actually transitioned. No outside human approval is required or
@@ -157,7 +178,7 @@ not something that only exists in a chat transcript. Applies to every
 review/fix cycle on every PR, not just the first one; a PR with 3 rounds
 of review gets 3 rounds of comments.
 
-**5. When in doubt about scope, ownership, or whether something needs
+**6. When in doubt about scope, ownership, or whether something needs
 Gavi's sign-off — ask. A wrong guess that quietly ships is worse than a
 question that costs one turn.**
 
