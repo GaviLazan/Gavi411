@@ -12,454 +12,162 @@ accumulated. If something here turns out to matter long-term, promote it to
 
 ---
 
-## Active plan: G411-28 (target E2E), one pass across 4 stages (2026-08-30)
+## Where this session left off (2026-08-31, context running full)
 
-**Gavi's explicit sequencing, pre-approved as one pass** — report back after
-each stage, flag genuine ambiguity via `AskUserQuestion`, but don't stop for
-a go-ahead between stages unless something real comes up:
+**Sync status**: primary + all 6 role worktrees clean, all at `fcdd815`,
+matching `origin/main`. Nothing uncommitted, nothing to resync.
 
-1. **G411-28, pieces #1–2 first**: keypair generation (Web Crypto API,
-   client-side, private key in IndexedDB, public key on server) + per-
-   conversation ECDH shared secret + AES-GCM message/image encryption. No
-   dependency on anything below — genuinely startable now.
-2. **G411-41**: invite token generation (admin creates a one-time token,
-   stored server-side) + a real admin-facing invite-creation UI (this was
-   just added to G411-41's scope 2026-08-27 — previously the ticket only
-   described the backend mechanism, no UI existed anywhere to trigger it).
-3. **G411-81** (new ticket, filed 2026-08-27): decide + implement the
-   actual mechanism that makes an invite token block Clerk sign-up — app-
-   side token validation vs. Clerk allowlist (two real options, not
-   equivalent, ticket lays out both). Test one real invite end-to-end in a
-   real browser. **G411-81 is not a duplicate of G411-41** — G411-41
-   produces the token, G411-81 is what makes possessing it matter (right
-   now Clerk sign-up is still fully public, nothing enforces anything).
-4. **Back to G411-28**: escrow generation + CSV export (unblocked by
-   G411-41 existing), admin-side client search index + admin-approved
-   device-linking flow (unblocked by G411-76, already Reconciled).
+**G411-28's 4-stage E2E pass — 3 of 4 stages done, stage 4 done in a
+narrowed form:**
+- Stage 1 (crypto core), stage 2 (invite tokens/G411-41), stage 3
+  (invite-gating/G411-81) — all Landed, all from a prior session
+  (2026-08-30).
+- Stage 4 (originally: escrow + search index + device-linking) —
+  **narrowed to escrow-only this session**. Search index and device-
+  linking need real encrypted messages to operate on, which didn't exist
+  until the wiring below landed — building them against synthetic data
+  would've been infrastructure theater. Escrow (PR #33) landed clean:
+  passphrase generation, CSV export (fixed twice from real live-testing —
+  1Password doesn't auto-map columns at all, it's fully manual, and a
+  header row was being imported as a bogus second item), recovery flow.
+- **G411-82** (new ticket, filed this session): the real gap G411-28
+  never covered — wiring the actual live `Message` thread
+  (`POST/GET /:id/messages`, `MessageThread.jsx`, `RequestDetail.jsx`,
+  previously 100% plaintext) to the crypto core from stages 1-3. **Landed
+  this session, PR #34**, after 3 rounds of Sibling review (7 angles each,
+  one round included a critical regression *I* introduced fixing a prior
+  round's finding — caught by the next review pass, fixed). 135/135
+  Vitest passing. Full review conversation posted as real PR comments
+  (new standing rule, see below) — read PR #34's comment history directly
+  for the blow-by-blow if picking this back up, it's genuinely detailed.
 
-**Stage 1 done (2026-08-30), moving to stage 2.** G411-28 crypto core
-landed: `client/src/lib/crypto.js` (keypair gen, ECDH, AES-GCM, Web Crypto
-API only, no deps) + `client/src/lib/keyStore.js` (IndexedDB wrapper,
-browser-only, untested by design) + `client/src/lib/crypto.test.js`.
-Sibling review found and fixed a real bug (`bufToBase64` stack-overflowed
-on real image-sized payloads via spread — chunked the encode instead,
-added a 200KB regression test). 56/56 Vitest passing. PR #29 merged
-(regular merge commit), G411-28 Landed in Jira (Reconciled deferred —
-this is one child issue covering the whole target-E2E scope, stages 2-4
-still open under it, so Reconciled waits for the full pass to finish, not
-per-stage). Standalone subsystem per decision #28 — not yet wired into
-the live message send/receive flow, that's still ahead.
+**G411-82 Reconciled verification — in progress, not finished. This is
+exactly where to pick back up.** Started the real Falsifier check (two
+signed-in parties exchange a message, confirm real ciphertext in Neon,
+both sides decrypt correctly) and found a real, live problem before
+finishing it:
 
-**Stage 2 done (2026-08-30), moving to stage 3.** G411-41 landed:
-`PendingInvite` Prisma model (token PK, label, usedAt/usedByUserId set
-together), `server/routes/invites.js` (admin create/list, no-auth
-`GET /:token/valid` — the pre-signin check), `server/middleware/auth.js`
-now marks a token used via `x-invite-token` header (best-effort, doesn't
-block signup — G411-81's job), `client/src/lib/inviteToken.js`
-(sessionStorage stash, survives Clerk's OAuth redirect unlike a bare URL
-param), `client/src/App.jsx` (signed-out visitors blocked from Clerk
-SignIn without a valid stashed token; returning signed-in users skip the
-check), `client/src/pages/InviteAdmin.jsx` (minimal admin screen — create
-+ copy link + list, admin-only "Invites" header button). Sibling review
-found and fixed a real race (App.jsx fires several first-sign-in requests
-concurrently; only the one that wins `requireAuth`'s user-creation race
-used to mark the invite, so the token-bearing request could lose the race
-and silently discard the token forever) — mark-used logic moved outside
-the `if (!user)` block, guarded idempotent via `usedByUserId: null` in
-the where clause. 70/70 Vitest passing. PR #31 merged, G411-41 Landed in
-Jira (Reconciled deferred to a later confirm, same reasoning as G411-28).
-Migration applied live against the real Neon DB.
+- **Every `User` row in the real DB had `publicKey: null`**, including
+  Gavi's own admin account — nobody could actually send an encrypted
+  message yet. Root cause: all these accounts predate G411-82's
+  keygen-at-signup wiring.
+- Gavi used `InviteAdmin.jsx`'s "Generate my encryption key" button live
+  to give his own admin account a real key — **confirmed working,
+  `publicKey` is now real in the DB.**
+- **But that surfaced a second, more serious problem, live**: that button
+  calls the plain (non-escrow) keygen path — there's no `PendingInvite`
+  token for an already-existing admin account to escrow against. So
+  Gavi's admin key now exists with **zero recovery path** — if he loses
+  his device, every encrypted message he's party to is gone permanently.
+  This is a real, live risk on the actual account today.
+- Also found live: a real pre-existing friend account (Gavi's cousin,
+  shown the app before G411-82 fully landed) is stuck the same way —
+  keyless, no self-service fix, and architecturally **admin can't
+  generate a key for someone else** (Web Crypto's `generateKeypair()` is
+  client-side by design, private key never leaves the browser that
+  generates it — only the account's own signed-in session can fix it).
+- **Filed G411-83** (parented under Messaging epic, Open) to own this —
+  scope per Gavi's direction: admin panel gets a view of keyless users
+  and can flag/nudge them; any signed-in user with no key sees an
+  in-app prompt to generate one in their own session; admin's own
+  escrow-backup gap needs a real fix (self-issued backup mechanism, not
+  tied to an invite token — exact design not yet decided, do that at
+  pickup). **Not blocking G411-82's Reconciled** — G411-82's own scope
+  (wiring live send/receive to real encryption) is independently
+  complete and correct; this is a separate, real gap in account/key
+  lifecycle.
+- Logged as `gavi411-brain.md` decision #86.
 
-Note logged on the ticket: G411-41's Jira description still carries the
-historical `Owner: [You]` tag (pre-2026-08-24). Per CLAUDE.md decision
-#63 this doesn't gate who builds it — flagged, not treated as a stop.
+**What's actually still needed to finish G411-82's Reconciled check**:
+now that Gavi's admin account has a real key, the live two-party
+Falsifier can actually run — need a **second** real signed-in identity
+with a key (a fresh signup through a real invite link would get one
+automatically via the code this session built). Was about to set this up
+with Playwright (a real devDependency, `client/package.json`) driving a
+fresh signup through a real invite when the context ran full. Prisma
+Studio was running on `localhost:5555` against the `agent-e2e` worktree's
+DB to inspect real rows after — **that process was killed** before this
+handoff, restart it (`cd Gavi411-agent-e2e && npx prisma studio --port
+5555 --browser none`) if picking this back up. Dev servers (client
+`5173`, server `3000`) were running out of `Gavi411-agent-e2e` — check
+`lsof -i :3000 -i :5173` before assuming they're still up; may need a
+restart too.
 
-**Stage 3 done (2026-08-30), moving to stage 4 (back to G411-28).** G411-81
-landed after real live-testing found and fixed genuine bugs across 3 rounds
-— this was the most churn any stage in this pass has had, worth reading in
-full if picking this back up:
+**G411-28 itself**: stays Landed, not Reconciled — real scope (search
+index, device-linking) is still unbuilt underneath it, now unblocked by
+G411-82 but not started. G411-28's own Reconciled shouldn't happen until
+that scope is actually built or explicitly re-scoped.
 
-- **Decision**: app-side token validation, not Clerk allowlist (Gavi's
-  call) — allowlist needs a known email at invite-creation time, which
-  G411-41 deliberately doesn't require.
-- **Round 1 (initial build)**: `requireAuth` gated new-User-row creation
-  on a valid, unused invite token — the real enforcement point, since
-  G411-41's App.jsx-level SignIn-blocking only stopped the UI, not
-  Clerk's own directly-reachable hosted sign-up URL.
-- **Live testing immediately found real bugs round 1 missed**: App.jsx's
-  SignIn-blocking (from G411-41) also blocked an *existing* user from
-  ever signing back in (isSignedIn is false for both cases) — removed;
-  invite links landed on SignIn instead of SignUp — fixed by picking the
-  component based on stashed-token presence; a transient one-off DB
-  error and a "+ New request" button wrongly coupled to list-load
-  success were also fixed live.
-- **Sibling review #1** (after those live fixes) found a confirmed TOCTOU
-  race: the gate's read-only validity check and the actual claim were
-  two separate operations, letting two concurrent signups both pass
-  before either claimed — one invite could seed two accounts. Also
-  flagged a client-side request race and code duplication.
-- **Fixing that surfaced a NEW live bug** (`server/lib/invites.js` didn't
-  exist yet at this point): the atomic-claim fix moved the claim before
-  `user.create`, but `PendingInvite.usedByUserId` is a foreign key to
-  `User.clerkId` — writing it before the User row exists violated the
-  FK. Real crash, caught by Gavi's own live retest (not by any
-  automated check). Fixed with a two-phase claim: `claimInvite()` sets
-  only `usedAt` (no FK) as the atomic exclusivity gate;
-  `linkClaimedInvite()` fills `usedByUserId` in once the User row
-  exists; `unclaimInvite()` releases the claim if account creation
-  fails afterward. `server/lib/invites.js` is now the shared
-  validity/claim helper for both `auth.js` and `routes/invites.js`.
-  Client-side: `AbortController` cancels React StrictMode's duplicate
-  effect invocation so only one real request per legitimate signup ever
-  reaches the server.
-- **Sibling review #2** found 3 more real issues on the rewrite: a stale/
-  already-used invite link was routing into a live Clerk SignUp flow
-  instead of showing "invite-only" (creating an orphaned Clerk identity
-  for a dead link) — fixed by re-adding a validity check via the
-  existing no-auth `/:token/valid` route; a narrow race where a
-  legitimate concurrent duplicate could 403 if its sibling was still
-  mid-flight — fixed with a short bounded retry (3× 150ms); the temp
-  account-indicator/sign-out UI was flagged as scaffolding to remove,
-  but Gavi's call is it stays as an accepted interim feature.
-- **Sibling review #3** returned findings that were confirmed (via
-  `gh pr view --json headRefOid` matching the actual pushed commit) to
-  be reviewing stale/cached code, not the real current state — treated
-  as a false positive, not actioned. Worth knowing this can happen; verify
-  against the actual commit hash before trusting a review's findings if
-  something looks like it should already be fixed.
-- **Also resolved**: confirmed the `.cl-footerAction` CSS-hide (Clerk's
-  own "Sign up"/"Sign in" footer link) is non-exploitable — every
-  data-mutating route independently goes through `requireAuth`'s same
-  gate regardless of which URL/link reaches Clerk sign-up, so a visible
-  `href` in devtools grants no additional access. Gavi's call to leave
-  the CSS-hide as-is, no further change.
+### New standing rules from this session, both in `CLAUDE.md` now
+- **Post the Sibling review + fix conversation as real PR comments** —
+  every review pass and every fix pass gets its own `gh pr comment`, not
+  just a chat summary. First applied on PR #34 (including backfilling
+  its earlier rounds).
+- **Log a real decision to `gavi411-brain.md` the moment it's made**, not
+  deferred to a ticket's own wrap-up — the wrap-up checklist's brain.md
+  check is the backstop, not the primary mechanism. This was added
+  specifically because several real decisions from a 2026-08-30 session
+  (G411-81's invite-gating mechanism, a two-phase-claim pattern, a
+  stale-Sibling-review lesson) sat only in HANDOFF.md for over a day and
+  were never promoted — backfilled as decisions #77-80 once caught.
 
-90/90 Vitest passing. PR #32 merged (regular merge commit), G411-81
-Landed in Jira (Reconciled deferred, same reasoning as the other 2
-stages — full pass isn't done yet). Both Falsifier halves live-verified
-by Gavi directly: valid invite → signup → real access (twice back-to-
-back, no recurrence of the earlier transient failure); no invite → real
-Clerk identity created but never a usable account, clear "no permission"
-message shown.
+### Known rough edges, still true
+- **`main`'s branch protection has now blocked 2 PRs (#33, #34)** despite
+  the merging account being an admin with `enforce_admins: false` (should
+  be exempt). Root cause still not found. Gavi's standing call: bypass
+  via `gh pr merge --merge --admin`, always ask first, never assume.
+  Logged as brain.md decision #81 — worth someone actually digging into
+  repo settings if a third PR hits this.
+- **Hitting the account's monthly spend limit mid-session can cause a
+  background review/agent loop to look stuck** (agents silently
+  fail/resume into the same cycle instead of surfacing the real error).
+  If a review loop looks stuck for many minutes with zero forward
+  progress, check for a spend-limit error before assuming it's just
+  noisy plumbing.
+- **A role worktree can't `git checkout <branch>` if the primary
+  worktree already holds that branch** (git's one-worktree-per-branch
+  rule) — `git merge origin/main --ff-only` on the worktree's own current
+  branch achieves the same sync without the checkout.
+- `npx prisma migrate status` / similar can get blocked once by Claude
+  Code's own permission classifier, unrelated to the command itself —
+  retry, or check from a different worktree.
 
-**Stage 4 done (2026-08-31), scope narrowed mid-flight — read this before
-touching search index or device-linking.** A user-journey check (Gavi's
-prompt) found the build agent was working from a wrong premise: it
-assumed no live Message model/UI existed yet. False — `Message` model,
-`POST/GET /:id/messages`, `MessageThread.jsx`, `RequestDetail.jsx` are
-all real and 100% plaintext today. Search index and device-linking need
-real encrypted messages to mean anything, and wiring the live thread to
-the stage-1 crypto core is real, separate scope that no existing ticket
-covered (G411-28's own description explicitly excludes it, pointing at
-G411-27 — which is actually the unrelated server-side at-rest fallback,
-still Open). **Filed G411-82** ("Wire live Message thread to
-client-side E2E crypto"), parented under the Messaging epic (G411-3), in
-normal queue order — not jumped ahead. Search index + device-linking are
-blocked on it and were dropped from this stage entirely (no stub/
-synthetic versions built).
-
-**What actually shipped this round: escrow generation + CSV export +
-recovery only.** `client/src/lib/escrow.js` (extractable escrow keypair,
-PBKDF2-derived key from the passphrase wraps it, `keyStore.js` gets the
-result), `client/src/lib/inviteCsv.js` (CSV row builder), `client/src/
-pages/Recover.jsx` (recovery page), `server/routes/invites.js` (`PATCH`/
-`GET /:token/backup`), `prisma/schema.prisma` (`PendingInvite.backupSalt/
-backupIv/backupCiphertext`), `client/src/lib/inviteToken.js` (recovery
-param stashing), `client/src/App.jsx` (signup handoff wiring),
-`client/src/pages/InviteAdmin.jsx` (passphrase display + CSV button).
-
-Sibling review ran as 6 parallel angles (correctness, security, reuse,
-simplification, conventions, efficiency) — multiple angles independently
-converged on the same 2 critical findings, a strong signal they were
-real: (1) `PATCH`/`GET /:token/backup` had **no auth at all** — any
-holder of an unused invite token could squat it before the real friend
-signed up, silently and permanently killing their backup (fixed:
-requires `requireAuth`, bound to `usedByUserId`); (2) the recovery link's
-token+passphrase could be **lost across Clerk's OAuth redirect** for a
-signed-out visitor — breaking recovery for exactly the device-loss case
-it exists for (fixed: stashed to sessionStorage on load, same pattern as
-the invite-token path). 3 more real fixes: passphrase URL fragment
-wasn't actually stripped from browser history despite a comment claiming
-it was; escrow upload failures were silently swallowed with no
-user-facing error; race/ordering bugs in the signup handoff effect.
-Deferred as cosmetic (not correctness/security): passphrase reveal-on-
-click styling, some claim-pattern/stash-quartet reuse nits.
-
-**Second round of live fixes, found by Gavi actually using the feature**
-(not caught by Sibling review — worth noting the gap): the CSV export's
-header row (`title,passphrase,notes`) didn't do what it was built for.
-1Password's CSV import doesn't auto-map by header name or column
-position at all — Gavi assigns each column's type by hand every import —
-and the header row itself was being imported as a second, bogus fake
-item. Took 2 wrong-theory iterations (see [[verify-dont-theorize-on-
-user-reports]] memory) before landing on the real fix: dropped the
-header row entirely, single data row only (`username`/`website`/
-`password`/`notes` — label goes in `username`, `website` is a fixed
-"Gavi411" literal since 1Password requires something there, `password`
-carries the real passphrase).
-
-**Also fixed this session, unrelated to the feature itself**: the
-`agent-e2e` worktree was missing its `client/.env` symlink (every other
-role worktree has one, back to the primary worktree's real file) —
-caused a real white-page failure when the dev server was started there
-for live testing. Fixed with `ln -s`, matching the existing pattern
-exactly (see [[gavi411-worktree-env-symlinks]] memory). Also had to
-`npm install` fresh in both `server/` and the worktree root, and run
-`npx prisma generate` — worktrees don't share `node_modules`.
-
-**PR #33 merge was blocked** by `main`'s branch protection
-(`required_approving_review_count: 1`) despite the account being a repo
-admin with `enforce_admins: false` (which should exempt admin merges —
-matches how all 32 prior PRs merged with zero actual reviews). Root
-cause not identified despite checking every axis the API exposes
-(settings, account, permissions, `isAdminEnforced` all identical to
-prior successful merges) — Gavi's explicit call was to use `--admin` to
-bypass it this once, same as how it's apparently always effectively
-worked. Merged as regular commit `ebbb77c`. Branch protection itself
-was NOT changed — worth someone looking at why this PR differed from
-the other 32 if it recurs.
-
-**111/111 Vitest passing.** All 7 worktrees (primary + 6 role) resynced
-to `ebbb77c`, confirmed clean, matching `origin/main`. Merged branch
-deleted. G411-28 stays at Landed (not Reconciled — full E2E pass still
-has G411-82 outstanding as its real remaining scope, plus search index/
-device-linking once that lands).
-
-**G411-82 done (2026-08-31), Landed.** Wired the real, live `Message`
-thread (`POST/GET /:id/messages`, `MessageThread.jsx`, `RequestDetail.jsx`
-— previously 100% plaintext despite stages 1-3's crypto core existing) to
-actual client-side E2E encryption. New: `User.publicKey`, `Message.
-encrypted` (schema, migration `20260831163345_add_message_encrypted_user_
-publickey`, applied live), `GET /:id/public-keys` (server resolves the
-other party — owner↔any admin), `PATCH /api/me/public-key`,
-`client/src/lib/conversationCrypto.js` (per-conversation shared-key
-derivation + envelope round-trip), `server/lib/requestAccess.js`
-(`canAccessRequest` — deduped 4 independently-written owner-or-admin
-checks). `RequestDetail.jsx` encrypts on send / decrypts on load; a mixed
-plaintext+encrypted thread renders correctly, a bad/undecryptable row
-shows a placeholder instead of crashing. Image bytes stay unencrypted
-(Cloudinary needs to read the file; text was the stated priority) — a
-known, documented gap, not silently dropped. `escrow.js`'s
-`createAndUploadKeypair()` now covers a no-passphrase signup too (fixed a
-real gap: previously only the escrow/passphrase path ever generated a
-keypair at all).
-
-**3 full rounds of Sibling review** on this ticket (PR #34) — first time
-applying the new "post the review as real PR comments" rule (CLAUDE.md,
-added this session), so the full back-and-forth is readable directly on
-the PR, not just here:
-- **Round 1** (7 angles): found self-service key recovery was admin-only
-  — a regular friend whose keypair setup silently failed had zero way to
-  fix it themselves, since the only recovery button lived on the
-  admin-only `InviteAdmin.jsx` screen. Fixed by adding the same recovery
-  action directly in `RequestDetail.jsx`, where the blocking error
-  actually fires. Also fixed: unhandled promise rejection in the decrypt
-  effect (silently rendered "No messages yet." over a real thread), a
-  visible empty-state flash on every normal load.
-- **My own follow-up fixes** (not from a review pass): extracted
-  `canAccessRequest()`, added deterministic `orderBy` to the admin
-  public-key lookup, added key-derivation caching in
-  `conversationCrypto.js`.
-- **Round 2** (2 independent passes, one with an explicit verification
-  step): found a **critical regression I'd just introduced** — the new
-  cache only evicted rejected promises, not resolved `null`s, so a user
-  who used the just-added recovery button and retried kept getting a
-  stale cached `null` back, silently defeating that exact fix until a
-  page reload. Fixed (evicts on both), with 2 new regression tests. Also
-  fixed: `POST /:id/messages` checked the encryption precondition before
-  the ownership check (non-owner info leak — got a 400 instead of the
-  router's deliberate 404), and a missing-keypair send failure was
-  clearing the user's attached image even though the failure had
-  nothing to do with it.
-
-**Real gap worth naming**: the round-2 critical bug was a regression *I*
-introduced fixing a round-1 finding — a reminder that a fix pass needs
-its own re-review, not just trust that a targeted patch didn't break
-something adjacent.
-
-**Merge blocked on `main`'s branch protection** (`required_approving_
-review_count: 1`) despite the account being a repo admin with
-`enforce_admins: false`, which should exempt it — same issue PR #33 hit.
-Root cause still not identified (checked every axis the API exposes,
-all identical to the 32+ prior successful merges). Gavi's explicit call,
-again, to bypass via `--admin`. Branch protection itself still not
-changed — this has now recurred twice, worth someone actually looking
-at the repo settings if a third occurrence happens.
-
-**135/135 Vitest passing.** PR #34 merged as `acce30e` (regular merge
-commit). All 7 worktrees resynced and confirmed clean at `acce30e`.
-Merged branch deleted (local + remote); `agent-e2e` worktree reset to
-its `agent-e2e/base` branch. Migration confirmed applied to live Neon.
-G411-82 Landed (not Reconciled — needs a live two-browser round-trip
-verification + Gavi's explicit confirm, same standard as G411-28's
-stages, not done as part of this wrap-up).
-
-**Deferred, real but lower priority, not filed as tickets**: no cache
-invalidation on sign-out (SPA, no reload — narrow blast radius, admin-
-only in practice); duplicated "generate keypair" UI shell between
-`InviteAdmin.jsx` and `RequestDetail.jsx` (only the underlying call is
-shared); `escrow.js`'s `createAndUploadEscrowBackup` conflates two
-independent failure modes into one boolean; the "other party" lookup in
-`GET /:id/public-keys` doesn't share `requestAccess.js`'s pattern despite
-this same PR establishing it.
-
-**Next up**: search index and device-linking (G411-28's remaining
-pieces) are now unblocked — G411-82 was their real prerequisite. Not
-started yet.
-
-**Deliverable owed once the whole E2E pass is done**: a 2-page PDF/slide
-deck explaining how the E2E encryption works in practice, including which
-files are involved — Gavi asked for this on 2026-08-30, to hand over once
-all 4 stages land, not per-stage.
-
-### DESIGN.md — resolved, no action needed
-The uncommitted DESIGN.md diff flagged earlier this session turned out to
-be Gavi's own WIP, since committed — findable on `docs/design-product-md-
-refresh` (commits `9a93ee4`, `5b7ea6a`), not yet merged into `main`. Not
-touched by this pass; his branch to merge when ready.
+### Next steps, in order
+1. **Finish G411-82's live Reconciled verification** — get a second real
+   signed-in party with a key (Playwright through a real invite signup,
+   or manually), exchange messages, verify real ciphertext in Neon via
+   Prisma Studio, confirm both sides decrypt correctly. Then transition
+   G411-82 Reviewing→Landed(already there)→Reconciled with Gavi's
+   explicit confirm.
+2. **G411-83** (key-recovery gap) — real design work needed at pickup for
+   the admin self-escrow mechanism; the keyless-user-nudge UI is more
+   straightforward. Not started.
+3. **G411-28's remaining scope** (search index, device-linking) — now
+   unblocked by G411-82, not started. G411-28 stays Landed until this is
+   done or explicitly re-scoped.
+4. **Deliverable still owed**: a 2-page PDF/slide deck explaining how the
+   E2E encryption works in practice, once the full G411-28 pass is done
+   — Gavi asked for this 2026-08-30, hand over at the end, not per-stage.
 
 ### Prerequisites already resolved, don't re-derive
 - **G411-76** (Clerk↔Prisma sync + admin role) — Reconciled. Real admin
   identity exists (`user_3I3duQkdEIz1mzbOC0iumup3AzM` = Gavi, promoted via
   `scripts/promote-admin.js`), name/email sync from Clerk works correctly.
 - **G411-79** (video/doc attachment architecture) — investigation resolved
-  (separate chat), written into the ticket. Not part of this pass, unrelated.
+  (separate chat), written into the ticket. Unrelated to current work.
+- **DESIGN.md** — Gavi's own WIP on `docs/design-product-md-refresh`, not
+  yet merged into `main`, not touched by any of this. His branch to merge
+  when ready.
 
-### Worktree/role assignment for this pass
-- **Stage 1 (G411-28 crypto core)**: use the **`agent-e2e`** role —
-  dedicated worktree already exists at `../Gavi411-agent-e2e` (currently on
-  branch `agent-e2e/base`, 2 commits behind `main` at `c32c95e` vs. main's
-  `5a50a4b` — resync it before starting, per the commit-convention's
-  "resync the role worktree right after its own PR merges" section, since
-  it missed G411-76's merge). Git identity: `git-as-agent-e2e` /
-  `agent-e2e@gavi411.local`.
-- **Stages 2-3 (G411-41, G411-81)**: use **`agent-backend`** — same role
-  that built G411-76, dedicated worktree at `../Gavi411-agent-backend`
-  (currently on stale branch `agent-backend/G411-73-theme-toggle`, also 2
-  commits behind — resync before use). Git identity: `git-as-agent-backend`
-  / `agent-backend@gavi411.local`.
-- **Stage 4 (G411-28 completion)**: back to `agent-e2e`.
-- Every stage: one branch per child issue (`agent-<role>/G411-XX-slug`),
-  Sibling review before merge (all of this is load-bearing — auth, crypto,
-  identity), regular merge commit (`--merge`, never squash), branch deleted
-  after merge, HANDOFF.md updated, Jira transitioned through the real named
-  states (Open→Implementing→Reviewing→Landed→Reconciled — Landed→Reconciled
-  needs Gavi's explicit confirm per the hard-to-reverse-action rule).
-
-### Known rough edges to remember mid-pass
-- **Jira transition calls can get blocked once by Claude Code's own
-  permission classifier** (unrelated to Jira) — retry once or twice before
-  treating it as a real failure; this happened on G411-76 and resolved on
-  retry with zero state change needed. Same pattern hit `npx prisma migrate
-  status` on G411-82's wrap-up — retry or check from a different worktree
-  rather than assume something's actually broken.
-- **`/code-review` skill's background plumbing can re-notify already-
-  finished subagents 2-3 times** mid-review — noisy transcript, not
-  duplicate work, nothing to act on twice. Also happened on G411-76. On
-  G411-82 this went further: a background review-consolidation loop got
-  genuinely stuck (agents re-requesting already-delivered findings in a
-  cycle) — turned out to coincide with hitting the account's monthly spend
-  limit, which silently caused agents to fail/resume into the same loop
-  instead of surfacing the real error. If a review loop looks stuck for
-  many minutes with no forward progress, stop everything and check for a
-  spend-limit error before assuming it's just noisy plumbing.
-- **`main`'s branch protection (`required_approving_review_count: 1`)
-  has now blocked 2 different PRs (#33, #34) despite the merging account
-  being a repo admin with `enforce_admins: false`**, which should exempt
-  it per GitHub's own model — same as how 32+ earlier PRs merged with
-  zero reviews. Root cause not identified either time. Gavi's call both
-  times: bypass with `gh pr merge --merge --admin`, never on your own
-  judgment without asking first. Setting itself still unchanged — worth
-  someone actually looking at the repo's branch protection config if a
-  third PR hits this.
-- **Post the Sibling review + fix conversation as real PR comments**
-  (CLAUDE.md rule, added 2026-08-31) — every review pass and every fix
-  pass that follows gets its own `gh pr comment`, not just a chat
-  summary. First applied (including a retroactive backfill) on PR #34.
-- **Full worktree sync check** (git status + git log hash match against
-  `origin/main`, every worktree) is a required step before calling any
-  stage's wrap-up complete — don't skip it because "the ticket's own files
-  are clean." Note: a role worktree can't `git checkout main` directly if
-  the primary worktree already holds that branch (git's one-worktree-per-
-  branch rule) — `git merge origin/main --ff-only` on the worktree's own
-  current branch achieves the same sync without needing the checkout.
-
----
-
-## G411-81 — Open, not started (filed 2026-08-27)
-
-Invite-link gating mechanism for Clerk sign-up. Carries forward G411-71's
-real remaining scope (G411-71 stayed Reconciled per Gavi's explicit call —
-not reopened; a comment on G411-71 points here). Full scope: two candidate
-mechanisms (app-side token validation vs. Clerk allowlist), pick one,
-implement it, test one real invite end-to-end. Depends on G411-41 existing
-first (or being built in parallel) for its own test step.
-
----
-
-## G411-41 — Open, scope updated 2026-08-27, not started
-
-Now explicitly includes the admin-facing invite-creation UI (previously
-missing — this was the real gap found while checking G411-28's readiness,
-via a full user-journey walkthrough). Needs: token generation + storage,
-a real (can be minimal) admin screen to trigger it and get the resulting
-link, token validation on signin, mark-used. Does NOT include deciding the
-actual Clerk-gating mechanism — that's G411-81.
-
----
-
-## G411-76 — Reconciled (2026-08-26 session, unchanged, for reference)
-
-Clerk↔Prisma sync fixed (real name/email now populate on user creation via
-Clerk's Backend API, not blank JWT claims), `User.email` column added,
-admin role mechanism built (`scripts/promote-admin.js`, reproducible, not a
-manual DB mutation). Sibling review found and fixed 4 real issues (primary-
-email resolution via `primaryEmailAddressId` not array index, try/catch
-around the Clerk API call, a P2002 race-recovery on concurrent user
-creation, the promotion script itself). PR #28 merged, 50/50 Vitest passing
-as of the last schema change (see below).
-
----
-
-## Gap-triage session — closed out 2026-08-27, decisions #70/#71 logged
-
-A user-journey walkthrough (`gavi411-user-journey-walkthrough.md`, full
-output preserved in repo root) found 17 candidate gaps; Gavi's review
-rejected 12 of them as a category error — **"ticket is Open, feature isn't
-built yet" is not a gap on a project that isn't half-built**, it's just the
-backlog. See `gavi411-brain.md` decision #71 for the corrected definition
-of what counts as a real finding going forward (must cite either a current
-blocker on in-progress work, or a genuine status/reality mismatch). Decision
-#70 covers the specific mechanism that caused one real mismatch: "Reconciled"
-has no Cancelled/Won't-Fix sibling, so a ticket whose *original premise* gets
-corrected mid-life can end up Reconciled without its *actual* (pivoted)
-remaining scope ever being checked — this is what happened to G411-71.
-
-**4 real items actioned this session** (all committed, `5a50a4b`):
-- `prisma/schema.prisma`: `Request.updatedAt` and `User.updatedAt` were
-  both missing `@updatedAt` — fixed, migrated live (`20260827_add_updated_at_directive`).
-- G411-71: comment added pointing to G411-81 (its real remaining scope),
-  not reopened.
-- G411-69 (profile completion): bumped to Priority: High — every signed-in
-  friend today carries a permanent fake `phoneNumber: "pending-<clerkId>"`.
-- G411-45 (credit schema+display): description updated to explicitly
-  require granting the correct initial tiered balance on user creation —
-  currently every new user gets `creditBalance: 0` with no grant mechanism,
-  blocking a real new user's very first request.
-
-**Nothing else from that walkthrough needs action** — the other 13 items
-were withdrawn as non-gaps or already correctly tracked as Open.
-
----
-
-## Next steps, in order
-
-1. **Start here on a fresh session**: G411-28 stage 1 — keypair gen + ECDH
-   + AES-GCM message/image encryption, in the `agent-e2e` worktree
-   (resync it against `main` first).
-2. Report back to Gavi, then move to G411-41 (`agent-backend` worktree).
-3. Report back, then G411-81 (same worktree/role).
-4. Report back, then return to G411-28 for escrow/CSV export + admin
-   search index + device-linking.
-5. Each stage gets its own Sibling review, Jira transitions, and a
-   HANDOFF.md update — don't batch these to the end of the whole pass.
+### Worktree/role reference
+- 7 worktrees: primary (`Gavi411`) + 6 roles (`Gavi411-agent-backend`,
+  `-cicd`, `-design`, `-e2e`, `-frontend`, `-test`).
+- `agent-e2e` is the role for E2E crypto work — currently on its
+  `agent-e2e/base` idle branch, synced. Git identity already configured
+  per-worktree (`git config --worktree`), no need to re-run `git-as-*`
+  unless starting genuinely fresh.
+- `.env` / `client/.env` in every role worktree are **symlinks** back to
+  the primary worktree's real files, not copies — if a role worktree's
+  dev server throws a missing-env-var error, check for a missing symlink
+  (`ln -s`, never `cp`) before assuming a code bug. Confirmed this was
+  the actual cause of a real white-page failure earlier this session.
