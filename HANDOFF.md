@@ -142,9 +142,92 @@ back, no recurrence of the earlier transient failure); no invite → real
 Clerk identity created but never a usable account, clear "no permission"
 message shown.
 
-**Next up**: back to G411-28 (stage 4) — escrow generation + CSV export,
-admin-side client search index, admin-approved device-linking flow.
-`agent-e2e` worktree. Not started yet this session.
+**Stage 4 done (2026-08-31), scope narrowed mid-flight — read this before
+touching search index or device-linking.** A user-journey check (Gavi's
+prompt) found the build agent was working from a wrong premise: it
+assumed no live Message model/UI existed yet. False — `Message` model,
+`POST/GET /:id/messages`, `MessageThread.jsx`, `RequestDetail.jsx` are
+all real and 100% plaintext today. Search index and device-linking need
+real encrypted messages to mean anything, and wiring the live thread to
+the stage-1 crypto core is real, separate scope that no existing ticket
+covered (G411-28's own description explicitly excludes it, pointing at
+G411-27 — which is actually the unrelated server-side at-rest fallback,
+still Open). **Filed G411-82** ("Wire live Message thread to
+client-side E2E crypto"), parented under the Messaging epic (G411-3), in
+normal queue order — not jumped ahead. Search index + device-linking are
+blocked on it and were dropped from this stage entirely (no stub/
+synthetic versions built).
+
+**What actually shipped this round: escrow generation + CSV export +
+recovery only.** `client/src/lib/escrow.js` (extractable escrow keypair,
+PBKDF2-derived key from the passphrase wraps it, `keyStore.js` gets the
+result), `client/src/lib/inviteCsv.js` (CSV row builder), `client/src/
+pages/Recover.jsx` (recovery page), `server/routes/invites.js` (`PATCH`/
+`GET /:token/backup`), `prisma/schema.prisma` (`PendingInvite.backupSalt/
+backupIv/backupCiphertext`), `client/src/lib/inviteToken.js` (recovery
+param stashing), `client/src/App.jsx` (signup handoff wiring),
+`client/src/pages/InviteAdmin.jsx` (passphrase display + CSV button).
+
+Sibling review ran as 6 parallel angles (correctness, security, reuse,
+simplification, conventions, efficiency) — multiple angles independently
+converged on the same 2 critical findings, a strong signal they were
+real: (1) `PATCH`/`GET /:token/backup` had **no auth at all** — any
+holder of an unused invite token could squat it before the real friend
+signed up, silently and permanently killing their backup (fixed:
+requires `requireAuth`, bound to `usedByUserId`); (2) the recovery link's
+token+passphrase could be **lost across Clerk's OAuth redirect** for a
+signed-out visitor — breaking recovery for exactly the device-loss case
+it exists for (fixed: stashed to sessionStorage on load, same pattern as
+the invite-token path). 3 more real fixes: passphrase URL fragment
+wasn't actually stripped from browser history despite a comment claiming
+it was; escrow upload failures were silently swallowed with no
+user-facing error; race/ordering bugs in the signup handoff effect.
+Deferred as cosmetic (not correctness/security): passphrase reveal-on-
+click styling, some claim-pattern/stash-quartet reuse nits.
+
+**Second round of live fixes, found by Gavi actually using the feature**
+(not caught by Sibling review — worth noting the gap): the CSV export's
+header row (`title,passphrase,notes`) didn't do what it was built for.
+1Password's CSV import doesn't auto-map by header name or column
+position at all — Gavi assigns each column's type by hand every import —
+and the header row itself was being imported as a second, bogus fake
+item. Took 2 wrong-theory iterations (see [[verify-dont-theorize-on-
+user-reports]] memory) before landing on the real fix: dropped the
+header row entirely, single data row only (`username`/`website`/
+`password`/`notes` — label goes in `username`, `website` is a fixed
+"Gavi411" literal since 1Password requires something there, `password`
+carries the real passphrase).
+
+**Also fixed this session, unrelated to the feature itself**: the
+`agent-e2e` worktree was missing its `client/.env` symlink (every other
+role worktree has one, back to the primary worktree's real file) —
+caused a real white-page failure when the dev server was started there
+for live testing. Fixed with `ln -s`, matching the existing pattern
+exactly (see [[gavi411-worktree-env-symlinks]] memory). Also had to
+`npm install` fresh in both `server/` and the worktree root, and run
+`npx prisma generate` — worktrees don't share `node_modules`.
+
+**PR #33 merge was blocked** by `main`'s branch protection
+(`required_approving_review_count: 1`) despite the account being a repo
+admin with `enforce_admins: false` (which should exempt admin merges —
+matches how all 32 prior PRs merged with zero actual reviews). Root
+cause not identified despite checking every axis the API exposes
+(settings, account, permissions, `isAdminEnforced` all identical to
+prior successful merges) — Gavi's explicit call was to use `--admin` to
+bypass it this once, same as how it's apparently always effectively
+worked. Merged as regular commit `ebbb77c`. Branch protection itself
+was NOT changed — worth someone looking at why this PR differed from
+the other 32 if it recurs.
+
+**111/111 Vitest passing.** All 7 worktrees (primary + 6 role) resynced
+to `ebbb77c`, confirmed clean, matching `origin/main`. Merged branch
+deleted. G411-28 stays at Landed (not Reconciled — full E2E pass still
+has G411-82 outstanding as its real remaining scope, plus search index/
+device-linking once that lands).
+
+**Next up**: G411-82 (wire live messages to E2E crypto) is the real next
+piece of this pass, once picked up — not yet started. Search index and
+device-linking wait for it.
 
 **Deliverable owed once the whole E2E pass is done**: a 2-page PDF/slide
 deck explaining how the E2E encryption works in practice, including which
