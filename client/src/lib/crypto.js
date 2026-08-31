@@ -94,3 +94,78 @@ function bufToBase64(buf) {
 function base64ToBuf(base64) {
   return Uint8Array.from(atob(base64), (c) => c.charCodeAt(0)).buffer
 }
+
+// --- Escrow (G411-28 stage 4) ---------------------------------------------
+//
+// The device's own long-term private key is deliberately non-extractable
+// (generateKeypair above) — that's correct for day-to-day use, but it means
+// there's nothing to back up if the device is lost. Escrow solves this with
+// a SEPARATE, extractable ECDH keypair generated once at signup, whose
+// private key is immediately wrapped (PBKDF2-derived AES-GCM key, from a
+// one-time passphrase the server generates and hands to Gavi out-of-band —
+// see server/routes/invites.js) and uploaded as ciphertext only. The
+// server never sees the passphrase or the unwrapped key. Recovery imports
+// the unwrapped key back in as non-extractable (see recoverPrivateKey) —
+// same security posture as a freshly generated device key, so escrow never
+// leaves a long-lived extractable key sitting around.
+//
+// ponytail: regenerating identity deterministically from the passphrase
+// (no export/wrap step at all) was considered and would be less code, but
+// Web Crypto has no seeded ECDH keygen — doing that correctly means
+// hand-rolling EC scalar derivation, which is real crypto-library work,
+// not simpler. Wrap-and-upload is the actually-simpler-and-correct option.
+
+const PBKDF2_ITERATIONS = 210_000 // OWASP 2023 minimum for PBKDF2-HMAC-SHA256
+
+// Generates the extractable keypair escrowPrivateKey() wraps and uploads.
+// Deliberately separate from generateKeypair() above — that one is
+// non-extractable by design and stays that way; this is the one place an
+// extractable ECDH private key is allowed to exist, and only transiently
+// (exported once, wrapped, then the caller should keep only the
+// non-extractable form — see recoverPrivateKey).
+export async function generateExtractableKeypair() {
+  return crypto.subtle.generateKey(ECDH_PARAMS, true, ['deriveKey', 'deriveBits'])
+}
+
+// Derives an AES-GCM key from the escrow passphrase + a random salt.
+async function deriveEscrowKey(passphrase, salt) {
+  const keyMaterial = await crypto.subtle.importKey(
+    'raw',
+    new TextEncoder().encode(passphrase),
+    'PBKDF2',
+    false,
+    ['deriveKey'],
+  )
+  return crypto.subtle.deriveKey(
+    { name: 'PBKDF2', salt, iterations: PBKDF2_ITERATIONS, hash: 'SHA-256' },
+    keyMaterial,
+    AES_PARAMS,
+    false,
+    ['encrypt', 'decrypt'],
+  )
+}
+
+// Generates a fresh extractable ECDH keypair for escrow purposes and
+// returns its private key wrapped under the passphrase, ready to upload.
+// Returns { publicKey (base64, raw), backup: { salt, iv, ciphertext } (all
+// base64) }. The caller is responsible for actually using/storing
+// publicKey/privateKey as the device's real identity — this function only
+// produces the recoverable backup.
+export async function escrowPrivateKey(passphrase, keypair) {
+  const salt = crypto.getRandomValues(new Uint8Array(16))
+  const escrowKey = await deriveEscrowKey(passphrase, salt)
+  const pkcs8 = await crypto.subtle.exportKey('pkcs8', keypair.privateKey)
+  const { iv, ciphertext } = await encrypt(escrowKey, new Uint8Array(pkcs8))
+  return { salt: bufToBase64(salt), iv, ciphertext }
+}
+
+// Reverses escrowPrivateKey: given the passphrase and the stored backup,
+// decrypts and re-imports the private key. Imported as non-extractable —
+// once recovered, the key gets the same protection as any other device key
+// (see generateKeypair's doc comment), it doesn't stay exportable.
+export async function recoverPrivateKey(passphrase, backup) {
+  const salt = base64ToBuf(backup.salt)
+  const escrowKey = await deriveEscrowKey(passphrase, new Uint8Array(salt))
+  const pkcs8 = await decrypt(escrowKey, backup)
+  return crypto.subtle.importKey('pkcs8', pkcs8, ECDH_PARAMS, false, ['deriveKey', 'deriveBits'])
+}

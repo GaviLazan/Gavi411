@@ -6,12 +6,15 @@
 import { describe, it, expect } from 'vitest'
 import {
   generateKeypair,
+  generateExtractableKeypair,
   exportPublicKey,
   importPublicKey,
   deriveSharedKey,
   encrypt,
   decrypt,
   decryptText,
+  escrowPrivateKey,
+  recoverPrivateKey,
 } from './crypto.js'
 
 describe('crypto core (keypair, ECDH, AES-GCM)', () => {
@@ -93,5 +96,44 @@ describe('crypto core (keypair, ECDH, AES-GCM)', () => {
     expect(e1.ciphertext).not.toBe('repeat me')
     expect(e1.iv).not.toBe(e2.iv)
     expect(e1.ciphertext).not.toBe(e2.ciphertext)
+  })
+})
+
+describe('escrow (wrap/unwrap a private key with a passphrase)', () => {
+  it('recovers a key that can derive the same shared secret as the original', async () => {
+    const escrowKeypair = await generateExtractableKeypair()
+    const bob = await generateKeypair()
+
+    const backup = await escrowPrivateKey('correct horse battery staple', escrowKeypair)
+    const recovered = await recoverPrivateKey('correct horse battery staple', backup)
+
+    const originalShared = await deriveSharedKey(escrowKeypair.privateKey, bob.publicKey)
+    const recoveredShared = await deriveSharedKey(recovered, bob.publicKey)
+
+    const envelope = await encrypt(originalShared, 'escrow round trip')
+    expect(await decryptText(recoveredShared, envelope)).toBe('escrow round trip')
+  })
+
+  it('recovered key is non-extractable, unlike the original escrow keypair', async () => {
+    const escrowKeypair = await generateExtractableKeypair()
+    expect(escrowKeypair.privateKey.extractable).toBe(true)
+
+    const backup = await escrowPrivateKey('a passphrase', escrowKeypair)
+    const recovered = await recoverPrivateKey('a passphrase', backup)
+    expect(recovered.extractable).toBe(false)
+  })
+
+  it('wrong passphrase fails to recover', async () => {
+    const escrowKeypair = await generateExtractableKeypair()
+    const backup = await escrowPrivateKey('right passphrase', escrowKeypair)
+    await expect(recoverPrivateKey('wrong passphrase', backup)).rejects.toThrow()
+  })
+
+  it('backup fields are all base64 strings, safe to store/transmit as JSON', async () => {
+    const escrowKeypair = await generateExtractableKeypair()
+    const backup = await escrowPrivateKey('a passphrase', escrowKeypair)
+    expect(backup.salt).toBeTypeOf('string')
+    expect(backup.iv).toBeTypeOf('string')
+    expect(backup.ciphertext).toBeTypeOf('string')
   })
 })
