@@ -12,46 +12,46 @@ accumulated. If something here turns out to matter long-term, promote it to
 
 ---
 
-## Where this session left off (2026-09-01) — PR #35's fix is IMPLEMENTED and pushed, waiting on Matan's re-review
+## Where this session left off (2026-09-01) — PR #35 MERGED, G411-28 still open (search-index half not started)
 
-**Status update (later same day):** the fix plan below (both halves of
-Fix 1, Fix 2, the Medium finding, and both nits) has now been fully
-**implemented, tested, committed, and pushed** to
-`agent-e2e/G411-28-device-linking` at commit `351cbc4`. This is NOT the
-same state as earlier today — do not re-implement any of this.
+**Status update (later same day, again):** Matan approved PR #35
+("APPROVE WITH COMMENTS," two non-blocking nits) after the fix round
+described below. Both nits were fixed anyway before merging
+(`wrapMissingConversationKeys` now wraps via `Promise.all` instead of a
+sequential loop; `GET /api/devices/my-status` now scopes by an optional
+`?deviceId=` instead of always returning the account's most-recently-
+created device row). **PR #35 is merged** — regular merge commit
+`e47df21` on `main`, branch `agent-e2e/G411-28-device-linking` deleted
+both locally and remotely. All 7 worktrees (primary + 6 role) are synced
+to `e47df21`, confirmed via a full `git status --short`/`git log -1`
+sweep — every one clean, every one at the same commit.
 
-- All code changes described below are done: `conversationCrypto.js`
-  (Fix 1b + Fix 2's `OTHER_PARTY_MISSING_KEY` sentinel), `devices.js`
-  (new `GET /missing-wraps` + `POST /wrap-additional` routes),
-  `deviceLinking.js` (`wrapForRequests` helper + new
-  `wrapMissingConversationKeys`), `App.jsx` (admin on-load sweep trigger),
-  `RequestDetail.jsx` (scoped sweep trigger, sentinel-aware banner, admin
-  self-service hidden per the Medium finding), `InviteAdmin.jsx`
-  (pluralization nit).
-- Tests: `conversationCrypto.test.js` extended, new
-  `deviceLinking.test.js` (previously nonexistent — Matan's own finding),
-  `devices.test.js` extended. **171 tests pass (36 client + 135 server),
-  zero regressions**, confirmed via a fresh run this session, plus a
-  clean `vite build`.
-- **PR #35 comment posted** point-by-point against Matan's findings,
-  tagging `@MatanLazimi` for re-review:
-  https://github.com/GaviLazan/Gavi411/pull/35#issuecomment-5492439095
-- **Jira comment posted** on G411-28 with the same summary.
-- **Did NOT self-merge** — per the plan, waiting on Matan's actual
-  re-review. Per the standing rule logged last session (don't run a full
-  agentic Sibling review when a real outside human reviewer is already
-  assigned), no separate agentic review was run on this fix — Matan is
-  the reviewer for this PR.
+**Real process incident found and fixed mid-session**: right before
+Matan's approval was checked, `main` had accidentally gained an entire
+unreviewed, pre-Sibling-review copy of the device-linking feature via a
+mislabeled commit (`302f463`, titled as a docs-only commit but actually
+committing ~840 lines of feature code via a broad `git add` in a dirty
+working tree) — this caused real merge conflicts on PR #35. Resolved by
+merging `main` into the PR branch and taking PR #35's reviewed version on
+every conflicting file. Full root-cause writeup and the new standing
+git-hygiene rule are in `gavi411-brain.md` decision #91 and `CLAUDE.md`'s
+Required workflow rule 4 (verify `git status`/`git diff --cached --stat`
+matches the intended file list before every commit).
 
-**What's next, concretely:** wait for Matan's re-review on PR #35. If he
-approves: normal merge process (regular merge commit, never squash;
-delete branch after). If he finds more issues: same cycle — post his new
-findings as a PR/Jira comment BEFORE fixing anything (standing rule from
-last session), then fix, then comment again. Once merged, G411-28 STILL
-isn't fully done — the search-index half of its scope was never started.
+**G411-28 is NOT Reconciled, NOT Landed yet** — device-linking is only
+part of its scope (see the ticket's own summary: keypair gen, ECDH,
+AES-GCM, admin client-side search index, escrow+CSV, device-linking).
+The search-index half was never started this session. Ticket stays at
+**Implementing**. Don't transition it further until that remaining scope
+is actually built or a scope-split decision is made with Gavi.
+
+**What's next, concretely:** either continue G411-28 (search-index half)
+or pick a different ticket — needs an explicit pickup decision with Gavi,
+same as any session start.
 
 The original fix-plan section below is kept for reference (what was
-actually built), not as a to-do list anymore.
+actually built across both PR #35 review rounds), not as a to-do list
+anymore.
 
 ### Where things stand right now, precisely
 - **PR #35**: branch `agent-e2e/G411-28-device-linking`, currently at
