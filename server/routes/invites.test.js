@@ -21,6 +21,10 @@ vi.mock('../middleware/auth.js', () => ({
     req.user = usersByClerkId[currentUserId]
     next()
   },
+  requireAdmin: (req, res, next) => {
+    if (req.user.role !== 'ADMIN') return res.status(404).json({ error: 'Not found' })
+    next()
+  },
 }))
 
 const prismaMock = {

@@ -54,9 +54,18 @@ export async function loadLinkedConversationKeys() {
 
   const adminKey = await importPublicKey(adminPublicKey)
   const result = new Map()
+  // Sibling review finding: one bad/mismatched wrapped key used to throw
+  // out of this whole loop, discarding every already-unwrapped key too —
+  // silently, since the caller (App.jsx) wraps this in a bare .catch().
+  // A per-key try/catch means one bad row costs that one conversation,
+  // not the entire linked-device experience.
   for (const { requestId, wrappedKey, iv } of keys) {
-    const key = await unwrapConversationKey({ iv, ciphertext: wrappedKey }, devicePrivateKey, adminKey)
-    result.set(requestId, key)
+    try {
+      const key = await unwrapConversationKey({ iv, ciphertext: wrappedKey }, devicePrivateKey, adminKey)
+      result.set(requestId, key)
+    } catch (err) {
+      console.error(`Failed to unwrap conversation key for request ${requestId}:`, err)
+    }
   }
   return result
 }
@@ -69,21 +78,37 @@ export async function loadLinkedConversationKeys() {
 // CryptoKey conversationCrypto.js normally works with — see that
 // function's own doc comment for why), so this re-fetches it per request
 // from the same /public-keys route the normal send/receive path already
-// uses — a request with no public key on file yet (friend never
-// generated one) is skipped, nothing to wrap for it.
+// uses. `requestIds` is expected to already be scoped to the device
+// owner's own requests — see InviteAdmin.jsx's caller and devices.js's
+// server-side ownership check for the actual enforcement (Sibling review
+// finding: this function used to be handed every request in the system).
+//
+// Sibling review findings, both fixed here: (1) per-request work ran
+// sequentially (one network round trip at a time) — Promise.all runs them
+// concurrently instead, since each request's wrap is fully independent.
+// (2) a request with no friend public key yet was silently skipped with
+// no record — skippedRequestIds is now returned so the caller can warn
+// admin that device inherits full history is NOT yet true for those
+// conversations, and returns which ones so a future retry can target
+// exactly them (see this function's own comment for why "run approve
+// again later" isn't automatic yet — no re-run trigger exists today).
 export async function approveDevice(device, adminPrivateKey, requestIds) {
   const devicePublicKey = await importPublicKey(device.publicKey)
 
-  const wrappedKeys = []
-  for (const requestId of requestIds) {
-    const res = await fetch(`/api/requests/${requestId}/public-keys`)
-    if (!res.ok) continue
-    const { other } = await res.json()
-    if (!other) continue // friend has no public key yet, nothing to wrap
-    const friendPublicKey = await importPublicKey(other)
-    const { iv, ciphertext } = await wrapConversationKey(adminPrivateKey, friendPublicKey, devicePublicKey)
-    wrappedKeys.push({ requestId, wrappedKey: ciphertext, iv })
-  }
+  const results = await Promise.all(
+    requestIds.map(async (requestId) => {
+      const res = await fetch(`/api/requests/${requestId}/public-keys`)
+      if (!res.ok) return { requestId, skipped: true }
+      const { other } = await res.json()
+      if (!other) return { requestId, skipped: true } // friend has no public key yet, nothing to wrap
+      const friendPublicKey = await importPublicKey(other)
+      const { iv, ciphertext } = await wrapConversationKey(adminPrivateKey, friendPublicKey, devicePublicKey)
+      return { requestId, wrappedKey: ciphertext, iv, skipped: false }
+    }),
+  )
+
+  const wrappedKeys = results.filter((r) => !r.skipped).map(({ skipped, ...rest }) => rest)
+  const skippedRequestIds = results.filter((r) => r.skipped).map((r) => r.requestId)
 
   const res = await fetch(`/api/devices/${device.id}/approve`, {
     method: 'POST',
@@ -91,7 +116,8 @@ export async function approveDevice(device, adminPrivateKey, requestIds) {
     body: JSON.stringify({ wrappedKeys }),
   })
   if (!res.ok) throw new Error('Failed to approve device')
-  return res.json()
+  const body = await res.json()
+  return { ...body, skippedRequestIds }
 }
 
 export async function rejectDevice(deviceId) {

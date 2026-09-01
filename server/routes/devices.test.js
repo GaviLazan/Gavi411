@@ -22,6 +22,10 @@ vi.mock('../middleware/auth.js', () => ({
     req.user = usersByClerkId[currentUserId]
     next()
   },
+  requireAdmin: (req, res, next) => {
+    if (req.user.role !== 'ADMIN') return res.status(404).json({ error: 'Not found' })
+    next()
+  },
 }))
 
 const prismaMock = {
@@ -36,6 +40,9 @@ const prismaMock = {
   conversationDeviceKey: {
     createMany: vi.fn(),
     findMany: vi.fn(),
+  },
+  request: {
+    count: vi.fn(),
   },
   user: {
     findFirst: vi.fn(),
@@ -128,9 +135,23 @@ describe('POST /api/devices/:id/approve', () => {
     expect(res.status).toBe(404)
   })
 
+  it('400s when a wrappedKeys requestId does not belong to the device owner (Sibling review finding)', async () => {
+    currentUserId = ADMIN
+    prismaMock.device.findUnique.mockResolvedValue({ id: 1, status: 'PENDING', userId: USER })
+    prismaMock.request.count.mockResolvedValue(0) // the requestId belongs to someone else
+
+    const res = await request(app)
+      .post('/api/devices/1/approve')
+      .send({ wrappedKeys: [{ requestId: 999, wrappedKey: 'wk', iv: 'iv' }] })
+
+    expect(res.status).toBe(400)
+    expect(prismaMock.$transaction).not.toHaveBeenCalled()
+  })
+
   it('marks the device APPROVED and persists the wrapped keys in one transaction', async () => {
     currentUserId = ADMIN
-    prismaMock.device.findUnique.mockResolvedValue({ id: 1, status: 'PENDING' })
+    prismaMock.device.findUnique.mockResolvedValue({ id: 1, status: 'PENDING', userId: USER })
+    prismaMock.request.count.mockResolvedValue(1) // the one requestId genuinely belongs to USER
 
     const res = await request(app)
       .post('/api/devices/1/approve')

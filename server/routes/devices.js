@@ -6,7 +6,7 @@
 // themselves (G411-82).
 
 import express from 'express'
-import { requireAuth } from '../middleware/auth.js'
+import { requireAuth, requireAdmin } from '../middleware/auth.js'
 import { prisma } from '../lib/prisma.js'
 
 const router = express.Router()
@@ -46,11 +46,7 @@ function notifyAdminOfDeviceRequest(device, requestingUser) {
 // enough of the requesting user's info to show a real name (not just a
 // clerkId) — this is the exact query G411-37/38's eventual admin cockpit
 // should call directly rather than re-deriving.
-router.get('/pending', requireAuth, async (req, res) => {
-  if (req.user.role !== 'ADMIN') {
-    return res.status(404).json({ error: 'Not found' })
-  }
-
+router.get('/pending', requireAuth, requireAdmin, async (req, res) => {
   const pending = await prisma.device.findMany({
     where: { status: 'PENDING' },
     orderBy: { createdAt: 'asc' },
@@ -69,11 +65,7 @@ router.get('/pending', requireAuth, async (req, res) => {
 // resulting wrapped keys and flips the Device to APPROVED, in one
 // transaction so a partial failure can't leave a device marked approved
 // with no usable keys, or vice versa.
-router.post('/:id/approve', requireAuth, async (req, res) => {
-  if (req.user.role !== 'ADMIN') {
-    return res.status(404).json({ error: 'Not found' })
-  }
-
+router.post('/:id/approve', requireAuth, requireAdmin, async (req, res) => {
   const id = Number(req.params.id)
   if (!Number.isInteger(id)) {
     return res.status(400).json({ error: 'Invalid device id' })
@@ -87,6 +79,23 @@ router.post('/:id/approve', requireAuth, async (req, res) => {
   const device = await prisma.device.findUnique({ where: { id } })
   if (!device || device.status !== 'PENDING') {
     return res.status(404).json({ error: 'Pending device not found' })
+  }
+
+  // Sibling review finding: this used to trust the client-submitted
+  // requestId list wholesale — every other request-scoped route
+  // (requests.js) gates through canAccessRequest first. Not exploitable
+  // beyond what an admin already has blanket access to in this
+  // single-admin app, but this is the actual fix for the client-side
+  // over-wrapping bug this same review round found (InviteAdmin.jsx used
+  // to hand this route every request in the system, not just the
+  // device's own account's) — belt-and-suspenders so a client bug can't
+  // silently wrap a key for the wrong device's owner again.
+  const requestIds = wrappedKeys.map((k) => k.requestId)
+  const ownedCount = await prisma.request.count({
+    where: { id: { in: requestIds }, userId: device.userId },
+  })
+  if (ownedCount !== requestIds.length) {
+    return res.status(400).json({ error: 'wrappedKeys must only reference the device owner\'s own requests' })
   }
 
   await prisma.$transaction([
@@ -110,11 +119,7 @@ router.post('/:id/approve', requireAuth, async (req, res) => {
 
 // POST /:id/reject — admin declines a pending device outright, no keys
 // ever get wrapped for it.
-router.post('/:id/reject', requireAuth, async (req, res) => {
-  if (req.user.role !== 'ADMIN') {
-    return res.status(404).json({ error: 'Not found' })
-  }
-
+router.post('/:id/reject', requireAuth, requireAdmin, async (req, res) => {
   const id = Number(req.params.id)
   if (!Number.isInteger(id)) {
     return res.status(400).json({ error: 'Invalid device id' })
