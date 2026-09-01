@@ -13,9 +13,10 @@ import "../components/ReviewSummary.css";
 // Input.css was only ever loaded as a side effect of NewRequest.jsx
 // importing Input.jsx first.
 import "../components/Input.css";
-import { getConversationKey, encryptMessageContent, decryptMessageContent } from "../lib/conversationCrypto";
+import { getConversationKey, encryptMessageContent, decryptMessageContent, OTHER_PARTY_MISSING_KEY } from "../lib/conversationCrypto";
 import { createAndUploadKeypair } from "../lib/escrow";
-import { requestDeviceLink, getMyDeviceStatus } from "../lib/deviceLinking";
+import { requestDeviceLink, getMyDeviceStatus, wrapMissingConversationKeys } from "../lib/deviceLinking";
+import { loadPrivateKey } from "../lib/keyStore";
 
 // Request detail / "ticket" page (G411-75). Minimum scope per the ticket:
 // the request's own fields + urgency/status + the existing Message thread
@@ -60,7 +61,7 @@ function typeDetailRows(details, keyPrefix = "") {
 // anything), the server's own check stays authoritative either way.
 const IMAGE_ACCEPT = "image/gif,image/jpeg,image/png,image/heic,image/webp";
 
-function RequestDetail({ requestId, onBack }) {
+function RequestDetail({ requestId, onBack, isAdmin }) {
   const [request, setRequest] = useState(null);
   const [error, setError] = useState(""); // load failure — replaces the whole page
   const [sendError, setSendError] = useState(""); // send failure — inline, thread stays visible
@@ -69,6 +70,18 @@ function RequestDetail({ requestId, onBack }) {
   // button below renders. A dedicated flag rather than string-matching
   // sendError's text, which is fragile against future copy changes.
   const [needsKeypair, setNeedsKeypair] = useState(false);
+  // Matan's Sibling review, PR #35, Fix 2: getConversationKey returning
+  // null used to mean two unrelated things — THIS device has no key
+  // (needsKeypair above, genuinely fixable by the recovery buttons below)
+  // or the OTHER PARTY has no key yet (nothing on this device is broken).
+  // Both used to show the same destructive "request access to your
+  // existing messages" button, which calls requestDeviceLink() —
+  // unconditionally overwrites this device's local keypair via
+  // generateKeypair()+savePrivateKey(). Under the other-party-missing
+  // cause, clicking it destroyed a perfectly good working key for no
+  // benefit. This flag gates the buttons off in favor of a plain,
+  // non-actionable status line for that case.
+  const [otherPartyMissingKey, setOtherPartyMissingKey] = useState(false);
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
   const [image, setImage] = useState(null); // File | null (G411-26)
@@ -195,6 +208,19 @@ function RequestDetail({ requestId, onBack }) {
     });
   }, []);
 
+  // Matan's Sibling review, PR #35, Fix 1a: self-healing sweep, scoped to
+  // just this Request — a second, more contained trigger point alongside
+  // App.jsx's on-load sweep, so a long admin session (tab left open for
+  // days, no reload) still eventually self-heals for whichever
+  // conversations admin actually opens. Best-effort, same silent-no-op
+  // convention as the on-load sweep.
+  useEffect(() => {
+    if (!isAdmin) return;
+    loadPrivateKey().then((key) => {
+      if (key) wrapMissingConversationKeys(key, requestId);
+    });
+  }, [isAdmin, requestId]);
+
   async function handleRequestDeviceLink() {
     setDeviceLinkStatus("requesting");
     try {
@@ -227,6 +253,7 @@ function RequestDetail({ requestId, onBack }) {
     setSending(true);
     setSendError("");
     setNeedsKeypair(false);
+    setOtherPartyMissingKey(false);
 
     // Local flag, not just the needsKeypair state var — the catch block
     // below runs synchronously off this function's own execution, and
@@ -238,6 +265,11 @@ function RequestDetail({ requestId, onBack }) {
       const body = new FormData();
       if (draft.trim()) {
         const sharedKey = await getConversationKey(requestId);
+        if (sharedKey === OTHER_PARTY_MISSING_KEY) {
+          missingKeypair = true; // still blocks the send + keeps the image, just not THIS device's fault
+          setOtherPartyMissingKey(true);
+          throw new Error("Waiting on the other side to set up encryption — nothing to fix on your device.");
+        }
         if (!sharedKey) {
           missingKeypair = true;
           setNeedsKeypair(true);
@@ -330,21 +362,39 @@ function RequestDetail({ requestId, onBack }) {
         ) : (
           <MessageThread messages={decryptedMessages} />
         )}
+        {otherPartyMissingKey && (
+          // Matan's Sibling review, PR #35, Fix 2 — nothing to fix on this
+          // device, so no button is offered (the destructive "request
+          // access" flow below would overwrite a perfectly good local key
+          // for no benefit).
+          <p role="alert">Waiting on the other side to set up encryption.</p>
+        )}
         {needsKeypair && (
           <p role="alert">
             <button type="button" onClick={handleGenerateKeypair} disabled={keypairStatus === "working"}>
               {keypairStatus === "working" ? "Generating…" : "Generate my encryption key"}
             </button>
             {keypairStatus === "error" && " Failed — try again."}
-            {" or, if you already have an account with messages elsewhere, "}
-            {deviceLinkStatus === "pending" ? (
-              "a request to link this device is waiting on admin approval."
-            ) : (
-              <button type="button" onClick={handleRequestDeviceLink} disabled={deviceLinkStatus === "requesting"}>
-                {deviceLinkStatus === "requesting" ? "Requesting…" : "request access to your existing messages"}
-              </button>
+            {/* Matan's Sibling review, PR #35, Medium finding: admin's own
+                second device has no Request rows of its own to inherit
+                (admin never owns a Request — device.userId never matches
+                one), so this self-service flow silently gets zero keys
+                for admin. Real admin-key recovery is G411-83's job, a
+                different mechanism — hide this flow for admin entirely
+                rather than let it look like it should work. */}
+            {!isAdmin && (
+              <>
+                {" or, if you already have an account with messages elsewhere, "}
+                {deviceLinkStatus === "pending" ? (
+                  "a request to link this device is waiting on admin approval."
+                ) : (
+                  <button type="button" onClick={handleRequestDeviceLink} disabled={deviceLinkStatus === "requesting"}>
+                    {deviceLinkStatus === "requesting" ? "Requesting…" : "request access to your existing messages"}
+                  </button>
+                )}
+                {deviceLinkStatus === "error" && " Failed — try again."}
+              </>
             )}
-            {deviceLinkStatus === "error" && " Failed — try again."}
           </p>
         )}
         {image && (

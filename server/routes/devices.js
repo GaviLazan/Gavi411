@@ -95,7 +95,7 @@ router.post('/:id/approve', requireAuth, requireAdmin, async (req, res) => {
     where: { id: { in: requestIds }, userId: device.userId },
   })
   if (ownedCount !== requestIds.length) {
-    return res.status(400).json({ error: 'wrappedKeys must only reference the device owner\'s own requests' })
+    return res.status(400).json({ error: "wrappedKeys must only reference the device owner's own requests" })
   }
 
   await prisma.$transaction([
@@ -132,6 +132,105 @@ router.post('/:id/reject', requireAuth, requireAdmin, async (req, res) => {
   if (device.count === 0) {
     return res.status(404).json({ error: 'Pending device not found' })
   }
+
+  res.json({ ok: true })
+})
+
+// GET /missing-wraps — admin-only self-healing check (Matan's Sibling
+// review, PR #35, Fix 1a): a linked device approved BEFORE some Request
+// existed has no ConversationDeviceKey row for it — getConversationKey
+// now refuses to derive a wrong key for that case (see
+// conversationCrypto.js), so this route is how admin's browser finds
+// which (device, request) pairs still need wrapping. Optional `requestId`
+// query param scopes the check to one Request (RequestDetail.jsx's
+// per-page trigger); omitted, it checks every APPROVED device's owner's
+// requests (App.jsx's on-load sweep).
+router.get('/missing-wraps', requireAuth, requireAdmin, async (req, res) => {
+  const { requestId } = req.query
+  const requestFilter = requestId ? { id: Number(requestId) } : {}
+  if (requestId && !Number.isInteger(requestFilter.id)) {
+    return res.status(400).json({ error: 'Invalid requestId' })
+  }
+
+  const devices = await prisma.device.findMany({
+    where: { status: 'APPROVED' },
+    select: { id: true, userId: true, publicKey: true },
+  })
+  if (devices.length === 0) return res.json([])
+
+  const requests = await prisma.request.findMany({
+    where: { ...requestFilter, userId: { in: devices.map((d) => d.userId) } },
+    select: { id: true, userId: true },
+  })
+  if (requests.length === 0) return res.json([])
+
+  const existing = await prisma.conversationDeviceKey.findMany({
+    where: {
+      deviceId: { in: devices.map((d) => d.id) },
+      requestId: { in: requests.map((r) => r.id) },
+    },
+    select: { deviceId: true, requestId: true },
+  })
+  const existingSet = new Set(existing.map((k) => `${k.deviceId}:${k.requestId}`))
+
+  const missing = []
+  for (const device of devices) {
+    for (const request of requests) {
+      if (request.userId !== device.userId) continue
+      if (existingSet.has(`${device.id}:${request.id}`)) continue
+      missing.push({ deviceId: device.id, requestId: request.id, devicePublicKey: device.publicKey })
+    }
+  }
+
+  res.json(missing)
+})
+
+// POST /wrap-additional — persists wrapped keys for (device, request)
+// pairs found via GET /missing-wraps above. Deliberately separate from
+// POST /:id/approve: that route also flips a PENDING device to APPROVED,
+// which must NOT re-fire here (the devices this route serves are already
+// APPROVED — this is just filling in keys for requests that showed up
+// after approval, or that got skipped as "friend has no public key yet"
+// at the time). Same ownership check as /:id/approve, applied per-key
+// since wrappedKeys here can span multiple devices at once (App.jsx's
+// on-load sweep can be healing several linked devices in one pass).
+router.post('/wrap-additional', requireAuth, requireAdmin, async (req, res) => {
+  const { wrappedKeys } = req.body // [{ deviceId, requestId, wrappedKey, iv }, ...]
+  if (!Array.isArray(wrappedKeys) || wrappedKeys.length === 0) {
+    return res.status(400).json({ error: 'wrappedKeys array is required' })
+  }
+
+  const deviceIds = [...new Set(wrappedKeys.map((k) => k.deviceId))]
+  const devices = await prisma.device.findMany({
+    where: { id: { in: deviceIds }, status: 'APPROVED' },
+    select: { id: true, userId: true },
+  })
+  const ownerByDeviceId = new Map(devices.map((d) => [d.id, d.userId]))
+  if (ownerByDeviceId.size !== deviceIds.length) {
+    return res.status(400).json({ error: 'wrappedKeys must only reference approved devices' })
+  }
+
+  const requestIds = [...new Set(wrappedKeys.map((k) => k.requestId))]
+  const requests = await prisma.request.findMany({
+    where: { id: { in: requestIds } },
+    select: { id: true, userId: true },
+  })
+  const ownerByRequestId = new Map(requests.map((r) => [r.id, r.userId]))
+
+  const allOwned = wrappedKeys.every((k) => ownerByRequestId.get(k.requestId) === ownerByDeviceId.get(k.deviceId))
+  if (!allOwned) {
+    return res.status(400).json({ error: "wrappedKeys must only reference the device owner's own requests" })
+  }
+
+  await prisma.conversationDeviceKey.createMany({
+    data: wrappedKeys.map((k) => ({
+      requestId: k.requestId,
+      deviceId: k.deviceId,
+      wrappedKey: k.wrappedKey,
+      iv: k.iv,
+    })),
+    skipDuplicates: true,
+  })
 
   res.json({ ok: true })
 })

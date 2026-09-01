@@ -5,7 +5,17 @@
 // glue RequestDetail.jsx/MessageThread.jsx actually call.
 
 import { deriveSharedKey, encrypt, decryptText, importPublicKey } from './crypto.js'
-import { loadPrivateKey } from './keyStore.js'
+import { loadPrivateKey, loadDeviceId } from './keyStore.js'
+
+// Sentinel `getConversationKey` can return instead of `null`, for the one
+// case that isn't "this device needs a fix": the OTHER party simply has no
+// public key yet. Matan's Sibling review (PR #35, Fix 2) — the two null
+// causes used to be indistinguishable to callers, so RequestDetail.jsx
+// offered the same destructive "request access" button (overwrites this
+// device's local key) for both, even though it only helps cause (i).
+// Exported so callers can `=== OTHER_PARTY_MISSING_KEY` without
+// duplicating the sentinel value.
+export const OTHER_PARTY_MISSING_KEY = Symbol('other-party-missing-key')
 
 // requestId -> Promise<CryptoKey|null>, cached for the life of this page
 // load (Sibling review finding — RequestDetail.jsx's decrypt effect
@@ -64,28 +74,48 @@ export async function getConversationKey(requestId) {
     const privateKey = await loadPrivateKey()
     if (!privateKey) return null
 
+    // Matan's Sibling review, PR #35, Fix 1b: a LINKED device (one that
+    // went through deviceLinking.js's requestDeviceLink, not the
+    // account's original signup device) has no direct ECDH relationship
+    // with the other party at all — it never exchanged public keys with
+    // them, it only ever received admin's already-derived conversation
+    // key, pre-wrapped, per request. If this requestId isn't in
+    // linkedConversationKeys (checked above, before this promise even
+    // starts), that means either the request didn't exist yet when this
+    // device was approved, or a wrap is still pending. Falling through to
+    // deriveSharedKey below would silently produce a REAL but WRONG
+    // shared key (this device's own keypair was never meant to talk to
+    // this other party), and messages would render an opaque "unable to
+    // decrypt" forever with no indication why. Returning null here instead
+    // makes the existing needsKeypair/recovery-banner path in
+    // RequestDetail.jsx fire — the missing-wraps sweep (devices.js,
+    // App.jsx/RequestDetail.jsx) is what actually resolves it.
+    const deviceId = await loadDeviceId()
+    if (deviceId != null) return null
+
     const res = await fetch(`/api/requests/${requestId}/public-keys`)
     if (!res.ok) return null
     const { other } = await res.json()
-    if (!other) return null
+    if (!other) return OTHER_PARTY_MISSING_KEY
 
     const otherPublicKey = await importPublicKey(other)
     return deriveSharedKey(privateKey, otherPublicKey)
   })()
 
   conversationKeyCache.set(requestId, promise)
-  // Neither a rejected promise NOR a resolved null should poison the
-  // cache forever — both mean "couldn't derive a key right now," which
-  // can genuinely change on the next call (e.g. the user just used the
-  // self-service "Generate my encryption key" recovery button, or the
-  // other party just uploaded theirs). Real bug caught by Sibling review
+  // Neither a rejected promise NOR a resolved null/sentinel should poison
+  // the cache forever — all three mean "couldn't derive a key right now,"
+  // which can genuinely change on the next call (e.g. the user just used
+  // the self-service "Generate my encryption key" recovery button, the
+  // other party just uploaded theirs, or the missing-wraps sweep just
+  // filled in a linked device's key). Real bug caught by Sibling review
   // (second round): only rejections were evicted here originally, so a
   // cached null from before the recovery button was clicked kept being
   // returned after the fix succeeded, silently defeating that whole
   // recovery flow until a full page reload.
   promise.then(
     (key) => {
-      if (key === null) conversationKeyCache.delete(requestId)
+      if (key === null || key === OTHER_PARTY_MISSING_KEY) conversationKeyCache.delete(requestId)
     },
     () => conversationKeyCache.delete(requestId)
   )
@@ -105,7 +135,9 @@ export async function encryptMessageContent(sharedKey, text) {
 // Gavi's call that old messages stay plaintext, not migrated.
 export async function decryptMessageContent(sharedKey, message) {
   if (!message.encrypted) return message.content
-  if (!sharedKey) return null // caller renders a placeholder, doesn't crash
+  // OTHER_PARTY_MISSING_KEY is a real (truthy) Symbol, not a usable key —
+  // caller renders a placeholder either way, same as the no-key case.
+  if (!sharedKey || sharedKey === OTHER_PARTY_MISSING_KEY) return null
   const envelope = JSON.parse(message.content)
   return decryptText(sharedKey, envelope)
 }

@@ -43,6 +43,7 @@ const prismaMock = {
   },
   request: {
     count: vi.fn(),
+    findMany: vi.fn(),
   },
   user: {
     findFirst: vi.fn(),
@@ -216,5 +217,116 @@ describe('GET /api/devices/my-keys', () => {
     expect(res.status).toBe(200)
     expect(res.body.adminPublicKey).toBe('admin-pub-key')
     expect(res.body.keys).toEqual([{ requestId: 5, wrappedKey: 'wk', iv: 'iv' }])
+  })
+})
+
+// Matan's Sibling review, PR #35, Fix 1a — self-healing sweep for a
+// linked device approved before some Request existed.
+describe('GET /api/devices/missing-wraps', () => {
+  it('404s for a non-admin', async () => {
+    currentUserId = USER
+    const res = await request(app).get('/api/devices/missing-wraps')
+    expect(res.status).toBe(404)
+  })
+
+  it('400s on a non-numeric requestId', async () => {
+    currentUserId = ADMIN
+    const res = await request(app).get('/api/devices/missing-wraps?requestId=abc')
+    expect(res.status).toBe(400)
+  })
+
+  it('returns an empty list when there are no approved devices', async () => {
+    currentUserId = ADMIN
+    prismaMock.device.findMany.mockResolvedValue([])
+    const res = await request(app).get('/api/devices/missing-wraps')
+    expect(res.status).toBe(200)
+    expect(res.body).toEqual([])
+  })
+
+  it('lists (device, request) pairs with no existing ConversationDeviceKey row', async () => {
+    currentUserId = ADMIN
+    prismaMock.device.findMany.mockResolvedValue([
+      { id: 1, userId: USER, publicKey: 'device-pub' },
+    ])
+    prismaMock.request.findMany.mockResolvedValue([
+      { id: 5, userId: USER },
+      { id: 6, userId: USER },
+    ])
+    // Request 5 already has a wrap; request 6 doesn't.
+    prismaMock.conversationDeviceKey.findMany.mockResolvedValue([{ deviceId: 1, requestId: 5 }])
+
+    const res = await request(app).get('/api/devices/missing-wraps')
+
+    expect(res.status).toBe(200)
+    expect(res.body).toEqual([{ deviceId: 1, requestId: 6, devicePublicKey: 'device-pub' }])
+  })
+
+  it('scopes to one requestId when given', async () => {
+    currentUserId = ADMIN
+    prismaMock.device.findMany.mockResolvedValue([
+      { id: 1, userId: USER, publicKey: 'device-pub' },
+    ])
+    prismaMock.request.findMany.mockResolvedValue([{ id: 6, userId: USER }])
+    prismaMock.conversationDeviceKey.findMany.mockResolvedValue([])
+
+    const res = await request(app).get('/api/devices/missing-wraps?requestId=6')
+
+    expect(res.status).toBe(200)
+    expect(prismaMock.request.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: expect.objectContaining({ id: 6 }) }),
+    )
+    expect(res.body).toEqual([{ deviceId: 1, requestId: 6, devicePublicKey: 'device-pub' }])
+  })
+})
+
+describe('POST /api/devices/wrap-additional', () => {
+  it('404s for a non-admin', async () => {
+    currentUserId = USER
+    const res = await request(app).post('/api/devices/wrap-additional').send({ wrappedKeys: [] })
+    expect(res.status).toBe(404)
+  })
+
+  it('400s with an empty wrappedKeys array', async () => {
+    currentUserId = ADMIN
+    const res = await request(app).post('/api/devices/wrap-additional').send({ wrappedKeys: [] })
+    expect(res.status).toBe(400)
+  })
+
+  it('400s when a referenced device is not APPROVED', async () => {
+    currentUserId = ADMIN
+    prismaMock.device.findMany.mockResolvedValue([]) // device 1 not found/not approved
+    const res = await request(app)
+      .post('/api/devices/wrap-additional')
+      .send({ wrappedKeys: [{ deviceId: 1, requestId: 6, wrappedKey: 'wk', iv: 'iv' }] })
+    expect(res.status).toBe(400)
+    expect(prismaMock.conversationDeviceKey.createMany).not.toHaveBeenCalled()
+  })
+
+  it("400s when a requestId doesn't belong to the device owner", async () => {
+    currentUserId = ADMIN
+    prismaMock.device.findMany.mockResolvedValue([{ id: 1, userId: USER }])
+    prismaMock.request.findMany.mockResolvedValue([{ id: 6, userId: ADMIN }]) // wrong owner
+    const res = await request(app)
+      .post('/api/devices/wrap-additional')
+      .send({ wrappedKeys: [{ deviceId: 1, requestId: 6, wrappedKey: 'wk', iv: 'iv' }] })
+    expect(res.status).toBe(400)
+    expect(prismaMock.conversationDeviceKey.createMany).not.toHaveBeenCalled()
+  })
+
+  it('persists wrapped keys without flipping device status', async () => {
+    currentUserId = ADMIN
+    prismaMock.device.findMany.mockResolvedValue([{ id: 1, userId: USER }])
+    prismaMock.request.findMany.mockResolvedValue([{ id: 6, userId: USER }])
+
+    const res = await request(app)
+      .post('/api/devices/wrap-additional')
+      .send({ wrappedKeys: [{ deviceId: 1, requestId: 6, wrappedKey: 'wk', iv: 'iv' }] })
+
+    expect(res.status).toBe(200)
+    expect(prismaMock.conversationDeviceKey.createMany).toHaveBeenCalledWith({
+      data: [{ requestId: 6, deviceId: 1, wrappedKey: 'wk', iv: 'iv' }],
+      skipDuplicates: true,
+    })
+    expect(prismaMock.device.update).not.toHaveBeenCalled()
   })
 })

@@ -92,9 +92,16 @@ export async function loadLinkedConversationKeys() {
 // conversations, and returns which ones so a future retry can target
 // exactly them (see this function's own comment for why "run approve
 // again later" isn't automatic yet — no re-run trigger exists today).
-export async function approveDevice(device, adminPrivateKey, requestIds) {
-  const devicePublicKey = await importPublicKey(device.publicKey)
-
+// Wraps one already-imported device public key for each requestId in
+// `requestIds`, using admin's own private key + each request's friend
+// public key (re-fetched per request — see this file's other doc comments
+// for why the derived CryptoKey conversationCrypto.js normally works with
+// isn't enough here). Shared by approveDevice (fresh approval, wraps every
+// request at once) and the missing-wraps sweep below (wraps just the
+// specific requests a GET /missing-wraps check found) — pulled out
+// (Matan's Sibling review, PR #35, Fix 1a) so "wrap these specific
+// (device, request) pairs" isn't reimplemented for the sweep.
+async function wrapForRequests(adminPrivateKey, devicePublicKey, requestIds) {
   const results = await Promise.all(
     requestIds.map(async (requestId) => {
       const res = await fetch(`/api/requests/${requestId}/public-keys`)
@@ -107,17 +114,54 @@ export async function approveDevice(device, adminPrivateKey, requestIds) {
     }),
   )
 
-  const wrappedKeys = results.filter((r) => !r.skipped).map(({ skipped, ...rest }) => rest)
+  const wrapped = results.filter((r) => !r.skipped).map(({ skipped, ...rest }) => rest)
   const skippedRequestIds = results.filter((r) => r.skipped).map((r) => r.requestId)
+  return { wrapped, skippedRequestIds }
+}
+
+export async function approveDevice(device, adminPrivateKey, requestIds) {
+  const devicePublicKey = await importPublicKey(device.publicKey)
+  const { wrapped, skippedRequestIds } = await wrapForRequests(adminPrivateKey, devicePublicKey, requestIds)
 
   const res = await fetch(`/api/devices/${device.id}/approve`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ wrappedKeys }),
+    body: JSON.stringify({ wrappedKeys: wrapped }),
   })
   if (!res.ok) throw new Error('Failed to approve device')
   const body = await res.json()
   return { ...body, skippedRequestIds }
+}
+
+// Self-healing sweep (Matan's Sibling review, PR #35, Fix 1a): finds and
+// fills in any (approved device, request) pair still missing a wrapped
+// key — e.g. a request created after the device was already approved.
+// `requestId` scopes the check to one Request (RequestDetail.jsx's
+// per-page trigger); omitted, it checks every linked device's owner's
+// requests (App.jsx's on-load sweep). Silently no-ops on any failure —
+// this is a background best-effort heal, not a user-facing action; the
+// existing needsKeypair banner is still there if it doesn't manage to fix
+// things this pass.
+export async function wrapMissingConversationKeys(adminPrivateKey, requestId) {
+  const query = requestId != null ? `?requestId=${requestId}` : ''
+  const res = await fetch(`/api/devices/missing-wraps${query}`)
+  if (!res.ok) return
+  const missing = await res.json()
+  if (missing.length === 0) return
+
+  const wrappedKeys = []
+  for (const { deviceId, requestId: reqId, devicePublicKey } of missing) {
+    const devicePublic = await importPublicKey(devicePublicKey)
+    const { wrapped } = await wrapForRequests(adminPrivateKey, devicePublic, [reqId])
+    for (const w of wrapped) wrappedKeys.push({ ...w, deviceId })
+  }
+  if (wrappedKeys.length === 0) return
+
+  await fetch('/api/devices/wrap-additional', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ wrappedKeys }),
+  })
 }
 
 export async function rejectDevice(deviceId) {

@@ -92,7 +92,7 @@ function InviteAdmin({ onBack }) {
         // trigger exists once a device is APPROVED, so at minimum admin
         // needs to know it happened.
         setDeviceActionError(
-          `Approved, but ${skippedRequestIds.length} conversation(s) couldn't be shared yet (the friend has no encryption key on file) — request # ${skippedRequestIds.join(', ')}.`,
+          `Approved, but ${skippedRequestIds.length} conversation(s) couldn't be shared yet (the friend has no encryption key on file) — request${skippedRequestIds.length > 1 ? 's' : ''} # ${skippedRequestIds.join(', ')}.`,
         )
       }
       loadPendingDevices()
