@@ -126,7 +126,24 @@ self-orchestrating when the actual tools only provide background
 dispatch + notification — every chaining/review/go-ahead step still
 needs a human or a live session to act on it.
 
-**4. Three checkpoints per ticket, non-negotiable, regardless of who's
+**4. Before running `git commit`, verify the file list matches the
+message — never trust stated intent as evidence of the actual diff.**
+(Decision #91, real incident 2026-09-01: commit `302f463`, titled as a
+small "log decision #88" doc-only commit, actually also committed an
+entire ~840-line feature — the pre-review, pre-Sibling-review version of
+device-linking — straight onto `main`, bypassing the no-direct-commits
+rule and both real review rounds. Root cause: a broad `git add`
+[`-A`/`.`/`-a`] in a working tree that had unrelated feature files sitting
+modified/untracked, for what was meant to be a two-file commit — the
+message was written to match intent, never checked against what was
+actually staged.) Before every commit, run `git status` and/or
+`git diff --cached --stat` and confirm the file list is exactly what the
+message describes — no more, no fewer. This applies doubly to small,
+low-ceremony commits (a decision-log entry, a doc fix, a one-line nit) —
+those are precisely the ones most likely to skip a deliberate review
+step because they don't feel like they need one.
+
+**5. Three checkpoints per ticket, non-negotiable, regardless of who's
 writing the code** (decision #60's guardrails, restated as concrete
 gates so they can't be silently compressed into one step):
    - **Mid-flight**: if a real decision comes up that isn't yours to
@@ -160,7 +177,7 @@ gates so they can't be silently compressed into one step):
      outcome and let Gavi decide whether to continue, even if nothing
      looks wrong. Never auto-advance through a queue of tickets.
 
-**5. Sibling review is mandatory on every agentic child, self-merge only
+**6. Sibling review is mandatory on every agentic child, self-merge only
 after it passes** (decision #62/#63) — checks tests exist and pass, docs/
 `HANDOFF.md` are actually updated, Aegis fields are actually written,
 Jira is actually transitioned. No outside human approval is required or
@@ -178,7 +195,7 @@ not something that only exists in a chat transcript. Applies to every
 review/fix cycle on every PR, not just the first one; a PR with 3 rounds
 of review gets 3 rounds of comments.
 
-**6. When in doubt about scope, ownership, or whether something needs
+**7. When in doubt about scope, ownership, or whether something needs
 Gavi's sign-off — ask. A wrong guess that quietly ships is worse than a
 question that costs one turn.**
 
