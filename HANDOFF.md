@@ -12,15 +12,46 @@ accumulated. If something here turns out to matter long-term, promote it to
 
 ---
 
-## Where this session left off (2026-09-01) — mid-fix, PR #35 blocked, needs a fresh context window
+## Where this session left off (2026-09-01) — PR #35's fix is IMPLEMENTED and pushed, waiting on Matan's re-review
 
-**This is the single most important thing to read before doing anything:**
-PR #35 (G411-28, device-linking) has a real, un-implemented fix pending.
-Matan (Gavi's friend, real collaborator, GitHub handle `MatanLazimi`) did a
-genuine Sibling review and found two blocking bugs. The fix has been
-**fully designed and discussed with Gavi, posted as PR/Jira comments, but
-NOT YET WRITTEN IN CODE.** Do not re-litigate the design — it's decided.
-Just implement it. Read this whole section before touching any file.
+**Status update (later same day):** the fix plan below (both halves of
+Fix 1, Fix 2, the Medium finding, and both nits) has now been fully
+**implemented, tested, committed, and pushed** to
+`agent-e2e/G411-28-device-linking` at commit `351cbc4`. This is NOT the
+same state as earlier today — do not re-implement any of this.
+
+- All code changes described below are done: `conversationCrypto.js`
+  (Fix 1b + Fix 2's `OTHER_PARTY_MISSING_KEY` sentinel), `devices.js`
+  (new `GET /missing-wraps` + `POST /wrap-additional` routes),
+  `deviceLinking.js` (`wrapForRequests` helper + new
+  `wrapMissingConversationKeys`), `App.jsx` (admin on-load sweep trigger),
+  `RequestDetail.jsx` (scoped sweep trigger, sentinel-aware banner, admin
+  self-service hidden per the Medium finding), `InviteAdmin.jsx`
+  (pluralization nit).
+- Tests: `conversationCrypto.test.js` extended, new
+  `deviceLinking.test.js` (previously nonexistent — Matan's own finding),
+  `devices.test.js` extended. **171 tests pass (36 client + 135 server),
+  zero regressions**, confirmed via a fresh run this session, plus a
+  clean `vite build`.
+- **PR #35 comment posted** point-by-point against Matan's findings,
+  tagging `@MatanLazimi` for re-review:
+  https://github.com/GaviLazan/Gavi411/pull/35#issuecomment-5492439095
+- **Jira comment posted** on G411-28 with the same summary.
+- **Did NOT self-merge** — per the plan, waiting on Matan's actual
+  re-review. Per the standing rule logged last session (don't run a full
+  agentic Sibling review when a real outside human reviewer is already
+  assigned), no separate agentic review was run on this fix — Matan is
+  the reviewer for this PR.
+
+**What's next, concretely:** wait for Matan's re-review on PR #35. If he
+approves: normal merge process (regular merge commit, never squash;
+delete branch after). If he finds more issues: same cycle — post his new
+findings as a PR/Jira comment BEFORE fixing anything (standing rule from
+last session), then fix, then comment again. Once merged, G411-28 STILL
+isn't fully done — the search-index half of its scope was never started.
+
+The original fix-plan section below is kept for reference (what was
+actually built), not as a to-do list anymore.
 
 ### Where things stand right now, precisely
 - **PR #35**: branch `agent-e2e/G411-28-device-linking`, currently at
