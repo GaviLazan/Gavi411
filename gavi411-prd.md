@@ -116,7 +116,16 @@ States: **in queue** (Gavi hasn't seen it) → **received** (seen, not handling 
 - Deliberately no published hours and no response-time promises.
 - Automatic Shabbat/Yom Tov detection (via a zmanim API, with configurable buffers, following Gavi's location/timezone) is a **v2/stretch goal** — see §6.3. v1 ships with manual toggle only.
 ## 5. Messaging Security
- 
+
+**Status (2026-09-01): target design landed.** G411-28 (the stretch goal
+below) shipped in full — device-linking (PR #35) and the admin search index
+(PR #36) both built/reviewed, live message thread wired to it via G411-82.
+The encryption-at-rest fallback described below never triggered (its
+precondition — running out of time before E2E landed — didn't happen) and
+was closed without code; see decision #92 in `gavi411-brain.md` and
+G411-27's own ticket for the disposition. Left in this doc as historical
+record of the original design tradeoff, not as live/pending scope.
+
 **Target design (stretch goal):** conversation-scoped, escrowed end-to-end encryption.
 - Per-user asymmetric keypair (Web Crypto API), generated client-side on first use. Private key local (IndexedDB); public key on server.
 - Each 1:1 conversation derives a shared secret via ECDH; messages (and images) encrypted client-side with AES-GCM before transmission. Server stores/relays ciphertext only.

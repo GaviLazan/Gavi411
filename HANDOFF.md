@@ -12,9 +12,16 @@ accumulated. If something here turns out to matter long-term, promote it to
 
 ---
 
-## Where this session left off (2026-09-01) — PR #35 merged; PR #36 open, waiting on Matan's review
+## Where this session left off (2026-09-01, later) — G411-27 Reconciled without code; PR #36 still waiting on Matan
 
-**The one thing to read before doing anything else:** G411-28's two
+**New this session:** G411-27 (encryption-at-rest fallback) was Reconciled
+directly from Open with no code — its precondition ("time runs out before
+E2E lands") never happened, since G411-28 made it. Full reasoning in the
+ticket description and `gavi411-brain.md` decision #92; `gavi411-prd.md` §5
+got a status note pointing at the same. Nothing else changed — PR #36 is
+still open with zero reviews, still not this session's job to touch.
+
+**The one thing to read before doing anything else (unchanged):** G411-28's two
 remaining pieces (device-linking, search index) are BOTH now built and
 pushed. Device-linking (PR #35) is fully merged. The search index (PR
 #36) is open, its own Sibling review already ran and its findings are
