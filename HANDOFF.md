@@ -12,22 +12,29 @@ accumulated. If something here turns out to matter long-term, promote it to
 
 ---
 
-## Where this session left off (2026-09-01, later) — G411-27 Reconciled without code; PR #36 still waiting on Matan
+## Where this session left off (2026-09-01, later still) — PR #36 MERGED; G411-28's full stated scope is now built
 
-**New this session:** G411-27 (encryption-at-rest fallback) was Reconciled
-directly from Open with no code — its precondition ("time runs out before
-E2E lands") never happened, since G411-28 made it. Full reasoning in the
-ticket description and `gavi411-brain.md` decision #92; `gavi411-prd.md` §5
-got a status note pointing at the same. Nothing else changed — PR #36 is
-still open with zero reviews, still not this session's job to touch.
+**Latest update:** Matan approved PR #36 cleanly ("APPROVE — no blocking
+findings") — merged, regular merge commit `56bd818` on `main`, branch
+deleted both locally and remotely. All 7 worktrees (primary + 6 role)
+resynced to `56bd818`, confirmed clean via a full sweep. 189 tests still
+pass post-merge.
 
-**The one thing to read before doing anything else (unchanged):** G411-28's two
-remaining pieces (device-linking, search index) are BOTH now built and
-pushed. Device-linking (PR #35) is fully merged. The search index (PR
-#36) is open, its own Sibling review already ran and its findings are
-already fixed, and it's sitting blocked on GitHub waiting for a human
-approval — **not** waiting on more work from a fresh session. Do not
-start rebuilding or re-reviewing either piece from scratch.
+**G411-28 itself is NOT yet transitioned.** Its own Jira description
+names exactly two remaining pieces (search index, device-linking) — both
+are now merged (PR #36, PR #35). A comment noting this was posted on the
+ticket, but the actual scope-description refresh and the
+Implementing → Reviewing → Landed → Reconciled transition were
+deliberately left as an explicit next-session decision, not auto-
+advanced. **Whoever picks this project up next should re-read G411-28's
+live description fresh (it may already be updated by another session)
+before deciding whether it's ready to move.**
+
+**Earlier this same day:** G411-27 (encryption-at-rest fallback) was
+Reconciled directly from Open with no code — its precondition ("time
+runs out before E2E lands") never happened, since G411-28 made it. Full
+reasoning in the ticket description and `gavi411-brain.md` decision #92;
+`gavi411-prd.md` §5 got a status note pointing at the same.
 
 ### PR #35 (device-linking) — MERGED, done
 - Regular merge commit `e47df21` on `main`. Branch
@@ -39,9 +46,9 @@ start rebuilding or re-reviewing either piece from scratch.
   /api/devices/my-status` now scopes by the polling device's own id).
 - Nothing further needed on this piece.
 
-### PR #36 (admin client-side search index) — OPEN, blocked on review, not on code
-- Branch `agent-e2e/G411-28-search-index`, worktree `Gavi411-agent-e2e`,
-  clean, currently at commit `01a4f2c`.
+### PR #36 (admin client-side search index) — MERGED, done
+- Regular merge commit `56bd818` on `main`. Branch
+  `agent-e2e/G411-28-search-index` deleted, both locally and remotely.
 - **What it does**: server-only-ciphertext-preserving search — admin's
   browser decrypts every conversation locally (admin already has the
   keys, is a party to every Request) and searches message content
@@ -50,89 +57,69 @@ start rebuilding or re-reviewing either piece from scratch.
   (`buildSearchIndex`/`searchIndex`); `RequestList.jsx` got a search box
   (reuses the existing `Input` component) that bypasses the normal
   open/closed/collapsible sections while a query is active.
-- **A full agentic Sibling review already ran on this PR** (high effort,
-  multi-angle) — 7 findings, most-severity first: (1) a
-  `getConversationKey` exception used to abort the WHOLE index build
-  instead of costing just one request, (2) a linked device's search
-  silently missed any conversation created after its one-shot key-map
-  seeding at sign-in, (3) the search-index effect could build against
-  stale message-less data during the brief window before `isAdmin`
-  resolves, plus 4 lower-severity efficiency/cleanup findings (sequential
-  decrypt loop, an implicit CSS-import dependency, a duplicated Prisma
-  include literal, and searchIndex.js's decrypt logic duplicating
-  RequestDetail.jsx's own copy).
-- **All 3 correctness findings + 2 of the 4 cleanup findings are already
-  fixed and pushed**, commit `01a4f2c`: `buildSearchIndex` now runs every
-  request via `Promise.all` with per-request isolation (fixes findings 1
-  and 4 at once); `RequestList.jsx` re-polls
-  `loadLinkedConversationKeys()` on mount for admin (narrow fix for
-  finding 2 — G411-84 is the real push-driven version, still deferred);
-  the search-index effect now gates on `requests` actually carrying
-  `.message` arrays, not just `isAdmin` (fixes finding 3); `MESSAGE_INCLUDE`
-  extracted in `requests.js`; `RequestList.jsx` now imports
-  `ReviewSummary.css` directly instead of depending on another page
-  having loaded it first. **Not fixed, deliberately**: the
-  `searchIndex.js`/`RequestDetail.jsx` decrypt-logic overlap — judged a
-  real but arguable design tradeoff (bulk multi-request vs. single live
+- **A full agentic Sibling review ran first** (high effort, multi-angle)
+  — 7 findings. The 3 correctness ones (a `getConversationKey` exception
+  used to abort the WHOLE index build instead of costing just one
+  request; a linked device's search silently missing any conversation
+  created after its one-shot key-map seeding at sign-in; the search-index
+  effect building against stale message-less data during the brief
+  window before `isAdmin` resolves) plus 2 of the 4 cleanup findings
+  (duplicated Prisma include literal, implicit CSS-import dependency)
+  were fixed before Matan's review, commit `01a4f2c`. Left deliberately
+  unfixed: `searchIndex.js`/`RequestDetail.jsx`'s decrypt-logic overlap —
+  a real but arguable tradeoff (bulk multi-request vs. single live
   conversation), not a clear extraction win.
-- Both review rounds (findings, then the fix summary) are posted as real
-  PR comments on #36, in order — nothing here only exists in chat.
+- **Matan's review**: "APPROVE — no blocking findings." Verified all 189
+  tests pass live himself, confirmed the fixes hold up under a fresh
+  read, flagged one non-blocking note (no component-level test for
+  `RequestList.jsx`'s new search wiring — matches this codebase's
+  existing convention of no React component tests anywhere, so
+  deliberately not added; worth picking up opportunistically per his own
+  note, not a blocker).
+- Both review rounds (agentic findings, the fix summary, Matan's
+  approval) are all real PR comments/reviews on #36, in order.
 - 189 tests pass (47 client + 142 server), zero regressions, confirmed
-  fresh this session. Clean `vite build`.
-- **Why it's not merged yet — a real GitHub-level gate, not a project-
-  policy question:** `gh pr merge` refused with "the base branch policy
-  prohibits the merge." Checked directly:
-  `required_approving_review_count: 1` on `main`'s branch protection —
-  GitHub itself requires one formal approving review before merge,
-  independent of this project's own agentic-self-merge policy (decision
-  #62/#63, which governs whether Gavi wants an agentic Sibling review to
-  be sufficient — it doesn't control what GitHub enforces on top of
-  that). `--admin` would bypass it but Gavi chose NOT to use that this
-  session — chose instead to tag Matan again, same as PR #35.
-- **Matan has been tagged** on PR #36
-  (https://github.com/GaviLazan/Gavi411/pull/36#issuecomment-5493319290)
-  asking for a look, same pattern as #35. As of this handoff: **no
-  review from him yet** (`reviews: []`, confirmed via `gh pr view 36
-  --json reviews` moments before this was written).
+  fresh post-merge. Clean `vite build`.
+- A real GitHub-level branch-protection gate (`required_approving_review_count: 1`
+  on `main`) blocked self-merge even after the agentic review passed —
+  this is independent of the project's own agentic-self-merge policy
+  (decision #62/#63); GitHub itself required one formal approval.
+  Resolved by tagging Matan again (same as PR #35), not by using
+  `--admin` to bypass it.
 
 ### What's next, concretely
-1. **Wait for Matan's review on PR #36.** Nothing to build — the code and
-   its own Sibling review are both done. If he approves: normal merge
-   (regular merge commit, never squash — `git merge --no-ff`/`gh pr merge
-   --merge`; delete branch after). If he requests changes: same cycle as
-   #35 — post his findings as a PR/Jira comment BEFORE fixing anything,
-   then fix, then comment again documenting what changed.
-2. **After #36 merges**: G411-28's Jira description named exactly two
-   remaining pieces (device-linking, search index) — both will be done.
-   Re-check G411-28's actual current scope/description at that point
-   before deciding whether it's ready for Landed → Reconciled, since its
-   description may have been updated by another session in the meantime
-   (this file's own rule #1: read fresh, don't reason from memory).
-3. **A new session picking up a DIFFERENT ticket in the meantime** (which
-   is presumably why this handoff exists) should treat PR #36 as fully
-   out of its way — don't touch the `Gavi411-agent-e2e` worktree, don't
-   re-review or re-build the search index, don't merge #36 without an
-   explicit go-ahead from Gavi once Matan's review actually lands.
+1. **G411-28's Jira description hasn't been refreshed yet** to reflect
+   that both its named remaining pieces (search index, device-linking)
+   are now merged — a comment was posted noting this, but the actual
+   description edit and the Implementing → Reviewing → Landed →
+   Reconciled transition were deliberately left as an explicit decision
+   for whoever picks this up next, not auto-advanced. Re-read the
+   ticket's live description fresh before deciding (per this file's own
+   rule #1 — it may already be stale relative to another session's edit
+   by the time you read this).
+2. Once that's settled, G411-28's next natural step (if not already
+   covered elsewhere) is the E2E encryption explainer deck, still owed —
+   see below.
 
 ### Real state, right now, confirmed via git status/log across every worktree
-- Primary (`Gavi411`): clean, `main`, `3d8f942`.
-- `Gavi411-agent-backend`: clean, `agent-backend/G411-81-invite-gate`, `3d8f942`.
-- `Gavi411-agent-cicd`: clean, `agent-cicd/G411-16-deploy-config`, `3d8f942`.
-- `Gavi411-agent-design`: clean, `agent-design/G411-17-design-foundation`, `3d8f942`.
-- `Gavi411-agent-e2e`: clean, `agent-e2e/G411-28-search-index`, `01a4f2c`
-  (correctly ahead of `main` — this is PR #36's own unmerged branch, will
-  resync once #36 merges, same as it did after #35).
-- `Gavi411-agent-frontend`: clean, `agent-frontend/G411-15-pwa-baseline`, `3d8f942`.
-- `Gavi411-agent-test`: clean, `agent-test/base`, `3d8f942`.
+- All 7 worktrees (primary + 6 role) clean, identical, at `56bd818`:
+  `Gavi411` (`main`), `Gavi411-agent-backend`
+  (`agent-backend/G411-81-invite-gate`), `Gavi411-agent-cicd`
+  (`agent-cicd/G411-16-deploy-config`), `Gavi411-agent-design`
+  (`agent-design/G411-17-design-foundation`), `Gavi411-agent-e2e`
+  (reset onto `main`'s tip now that PR #36 is merged — same resync
+  pattern as after PR #35), `Gavi411-agent-frontend`
+  (`agent-frontend/G411-15-pwa-baseline`), `Gavi411-agent-test`
+  (`agent-test/base`).
 
-### Other loose ends, unrelated to G411-28, unchanged from before
+### Other loose ends, unrelated to G411-28's own transition, unchanged from before
 - **G411-83** (key-recovery bootstrap patch) — still Open, not started.
-- **The E2E encryption explainer deck** — still owed, not delivered,
-  waiting on G411-28's full scope to actually land (it's very close now —
-  just #36's merge away).
-- A design-hook flag came up twice this session on pre-existing,
-  untouched files (`client/src/index.css` line 200/211/216 — font-size/
-  radius outside `DESIGN.md`'s scale; `client/src/App.css` line 162 — a
+- **The E2E encryption explainer deck** — still owed, not delivered. Both
+  blocking pieces (search index, device-linking) are now actually merged,
+  so nothing further should block starting this.
+- Two design-hook flags came up this session on pre-existing, untouched
+  files (`client/src/index.css` line 200/211/216 — font-size/radius
+  outside `DESIGN.md`'s scale; `client/src/App.css` line 162 — a
   layout-property CSS transition). Both left standing deliberately: not
   introduced by this session's diffs, not in scope for G411-28. Worth a
   real design-focused pass at some point, not an emergency.
