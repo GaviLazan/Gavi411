@@ -6,6 +6,14 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import express from 'express'
 import request from 'supertest'
 
+// notifyAdminOfDeviceRequest (G411-29) requires VAPID_* to be set before
+// its first real send — set here so the test doesn't depend on a real
+// .env existing in whatever environment runs the suite (CI, a fresh
+// checkout).
+process.env.VAPID_SUBJECT ??= 'mailto:test@example.com'
+process.env.VAPID_PUBLIC_KEY ??= 'test-public-key'
+process.env.VAPID_PRIVATE_KEY ??= 'test-private-key'
+
 const USER = 'user_regular'
 const ADMIN = 'user_admin'
 
@@ -47,11 +55,23 @@ const prismaMock = {
   },
   user: {
     findFirst: vi.fn(),
+    findMany: vi.fn(),
+  },
+  pushSubscription: {
+    findMany: vi.fn(),
+    delete: vi.fn(),
   },
   $transaction: vi.fn((ops) => Promise.all(ops)),
 }
 
 vi.mock('../lib/prisma.js', () => ({ prisma: prismaMock }))
+
+// notifyAdminOfDeviceRequest (G411-29) pulls in web-push transitively via
+// ../lib/webPush.js — mocked so POST / doesn't attempt a real network call
+// or require real VAPID env vars in the test environment.
+vi.mock('web-push', () => ({
+  default: { setVapidDetails: vi.fn(), sendNotification: vi.fn().mockResolvedValue() },
+}))
 
 const { default: devicesRouter } = await import('./devices.js')
 
@@ -62,6 +82,9 @@ app.use('/api/devices', devicesRouter)
 beforeEach(() => {
   currentUserId = null
   vi.clearAllMocks()
+  // Default: no admins found, so notifyAdminOfDeviceRequest's push fanout
+  // is a no-op unless a specific test overrides it.
+  prismaMock.user.findMany.mockResolvedValue([])
 })
 
 describe('POST /api/devices', () => {
@@ -92,6 +115,25 @@ describe('POST /api/devices', () => {
     expect(prismaMock.device.create).toHaveBeenCalledWith({
       data: { userId: USER, publicKey: 'device-pub-key' },
     })
+  })
+
+  it('pushes a notification to every ADMIN user (G411-29) without delaying the response', async () => {
+    currentUserId = USER
+    prismaMock.device.create.mockResolvedValue({ id: 1, status: 'PENDING', userId: USER, publicKey: 'k' })
+    prismaMock.user.findMany.mockResolvedValue([{ clerkId: ADMIN, role: 'ADMIN' }])
+    prismaMock.pushSubscription.findMany.mockResolvedValue([
+      { id: 1, endpoint: 'https://push.example/admin', p256dh: 'p', auth: 'a' },
+    ])
+    const webpush = (await import('web-push')).default
+
+    const res = await request(app).post('/api/devices').send({ publicKey: 'device-pub-key' })
+    expect(res.status).toBe(201) // response doesn't wait on the push fanout
+
+    // Flush the fire-and-forget notify chain's microtasks.
+    await new Promise((resolve) => setImmediate(resolve))
+
+    expect(prismaMock.user.findMany).toHaveBeenCalledWith({ where: { role: 'ADMIN' } })
+    expect(webpush.sendNotification).toHaveBeenCalledTimes(1)
   })
 })
 

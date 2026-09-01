@@ -1,9 +1,15 @@
-// Tests for sendPushToUser (G411-29) — the two real behaviors worth
-// covering: a 410/404 delivery failure deletes the stale subscription, and
-// one subscription's failure never blocks delivery to the user's other
-// subscriptions.
+// Tests for sendPushToUser (G411-29) — the real behaviors worth covering:
+// a 410/404 delivery failure deletes the stale subscription, one
+// subscription's failure never blocks delivery to the user's other
+// subscriptions, and missing VAPID config fails loud with a clear message
+// (Sibling review finding — this used to fail with an opaque error deep
+// inside the web-push library).
 
 import { describe, it, expect, vi, beforeEach } from 'vitest'
+
+process.env.VAPID_SUBJECT ??= 'mailto:test@example.com'
+process.env.VAPID_PUBLIC_KEY ??= 'test-public-key'
+process.env.VAPID_PRIVATE_KEY ??= 'test-private-key'
 
 const sendNotification = vi.fn()
 

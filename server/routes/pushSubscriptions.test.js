@@ -44,6 +44,14 @@ describe('POST /api/push', () => {
     expect(prismaMock.pushSubscription.upsert).not.toHaveBeenCalled()
   })
 
+  it('rejects a request where endpoint/keys are the wrong type (Sibling review finding)', async () => {
+    const res = await request(app)
+      .post('/api/push')
+      .send({ endpoint: 12345, keys: { p256dh: {}, auth: 'a' } })
+    expect(res.status).toBe(400)
+    expect(prismaMock.pushSubscription.upsert).not.toHaveBeenCalled()
+  })
+
   it('upserts a subscription keyed by endpoint, scoped to the signed-in user', async () => {
     prismaMock.pushSubscription.upsert.mockResolvedValue({ id: 1 })
 

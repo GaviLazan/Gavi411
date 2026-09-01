@@ -15,8 +15,15 @@ const router = express.Router()
 // once) must not create a duplicate row.
 router.post('/', requireAuth, async (req, res) => {
   const { endpoint, keys } = req.body
-  if (!endpoint || !keys?.p256dh || !keys?.auth) {
-    return res.status(400).json({ error: 'endpoint and keys.{p256dh,auth} are required' })
+  if (
+    typeof endpoint !== 'string' ||
+    !endpoint ||
+    typeof keys?.p256dh !== 'string' ||
+    !keys.p256dh ||
+    typeof keys?.auth !== 'string' ||
+    !keys.auth
+  ) {
+    return res.status(400).json({ error: 'endpoint and keys.{p256dh,auth} must be non-empty strings' })
   }
 
   const subscription = await prisma.pushSubscription.upsert({
@@ -34,8 +41,8 @@ router.post('/', requireAuth, async (req, res) => {
 // another's row by guessing/replaying an endpoint string.
 router.delete('/', requireAuth, async (req, res) => {
   const { endpoint } = req.body
-  if (!endpoint) {
-    return res.status(400).json({ error: 'endpoint is required' })
+  if (typeof endpoint !== 'string' || !endpoint) {
+    return res.status(400).json({ error: 'endpoint must be a non-empty string' })
   }
 
   await prisma.pushSubscription.deleteMany({

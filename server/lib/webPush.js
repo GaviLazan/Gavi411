@@ -12,14 +12,23 @@ import { prisma } from './prisma.js'
 // file must never crash just because env vars aren't set yet (a fresh
 // dev checkout, a test run that doesn't load .env). Real misconfiguration
 // still surfaces loudly, just at the first actual send instead of import.
+//
+// Sibling review finding: a missing VAPID_* env var used to throw from
+// inside sendPushToUser's fire-and-forget caller, visible only as a
+// buried console.error with zero operator-facing signal — checked
+// explicitly and up front instead, with a clear message naming what's
+// missing, since "which env var" is exactly what a misconfigured deploy
+// needs to know fast.
 let vapidConfigured = false
 function ensureVapidConfigured() {
   if (vapidConfigured) return
-  webpush.setVapidDetails(
-    process.env.VAPID_SUBJECT,
-    process.env.VAPID_PUBLIC_KEY,
-    process.env.VAPID_PRIVATE_KEY,
-  )
+  const { VAPID_SUBJECT, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY } = process.env
+  if (!VAPID_SUBJECT || !VAPID_PUBLIC_KEY || !VAPID_PRIVATE_KEY) {
+    throw new Error(
+      'Web Push is misconfigured: VAPID_SUBJECT, VAPID_PUBLIC_KEY, and VAPID_PRIVATE_KEY must all be set (see .env.example). Push notifications cannot be sent until this is fixed.',
+    )
+  }
+  webpush.setVapidDetails(VAPID_SUBJECT, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY)
   vapidConfigured = true
 }
 
@@ -44,7 +53,9 @@ export async function sendPushToUser(userId, payload) {
         )
       } catch (err) {
         if (err.statusCode === 404 || err.statusCode === 410) {
-          await prisma.pushSubscription.delete({ where: { id: sub.id } }).catch(() => {})
+          await prisma.pushSubscription
+            .delete({ where: { id: sub.id } })
+            .catch((deleteErr) => console.error(`Failed to clean up stale subscription ${sub.id}:`, deleteErr.message))
         } else {
           console.error(`Push delivery failed for subscription ${sub.id}:`, err.message)
         }

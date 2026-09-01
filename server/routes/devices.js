@@ -14,8 +14,8 @@ const router = express.Router()
 
 // POST / — a signed-in user's new device (no local key yet, or a key that
 // doesn't match anything the server already has for them) asks to be
-// linked. Creates a PENDING Device row and pings admin (see the stub
-// below). Does not touch User.publicKey — that field stays whatever the
+// linked. Creates a PENDING Device row and pings admin via Web Push (see
+// notifyAdminOfDeviceRequest below). Does not touch User.publicKey — that field stays whatever the
 // account's original/primary device set at signup (G411-82); every device
 // after that is a Device row here, approved or not.
 router.post('/', requireAuth, async (req, res) => {
