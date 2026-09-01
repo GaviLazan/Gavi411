@@ -210,7 +210,13 @@ question that costs one turn.**
 - Deploy: Vercel (frontend) + Render free tier (backend, cold-start accepted)
 - Images: Cloudinary free tier, URL stored in DB
 - No WebSockets — message thread is fetch-on-load + POST-to-send, paired
-  with notifications (Web Push for friends, Telegram for Gavi)
+  with notifications. Web Push is the primary channel for everyone,
+  friends and admin (Gavi) alike; Telegram is a secondary channel for
+  Gavi specifically, deprioritized behind Web Push (decision #45, PRD
+  §6.1 — "Should," acceptable to wait if Web Push alone covers it).
+  Corrected 2026-09-01 (decision #93) — previously read "Web Push for
+  friends, Telegram for Gavi," which read as an exclusive split; it was
+  never meant to forbid admin from also getting Web Push.
 - No LLM anywhere in the intake/triage flow — deterministic, DB-backed
   keyword matching only, runs entirely on Gavi's own server
 

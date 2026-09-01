@@ -102,7 +102,7 @@ identified, not as a permanent extra field.
    - Existing user → notified that a request was opened for them.
    - Guest → link opens a one-time chat view; associated with their phone number for future history merge. *(v2/stretch — see §6.3)*
 ### 4.3 Messaging model
-No real-time chat / WebSockets — the free deployment tier can't sustain persistent connections, and it isn't needed. Instead: a message thread per request (fetch on load, POST to send), paired with notifications (Web Push for friends, Telegram for Gavi) so people know to check back. WhatsApp real-time integration considered and ruled out (official API needs Meta approval + per-message cost; unofficial libraries are ban-risk).
+No real-time chat / WebSockets — the free deployment tier can't sustain persistent connections, and it isn't needed. Instead: a message thread per request (fetch on load, POST to send), paired with notifications so people know to check back — Web Push is the primary channel for everyone (friends and admin alike), Telegram is a secondary channel for Gavi specifically (see §6.1 — deprioritized behind Web Push, decision #45). WhatsApp real-time integration considered and ruled out (official API needs Meta approval + per-message cost; unofficial libraries are ban-risk).
  
 ### 4.4 Request lifecycle
 States: **in queue** (Gavi hasn't seen it) → **received** (seen, not handling yet) → **working on it** → **waiting on friend** (clarification or solution confirmation) → **resolved—pending confirmation** → **closed**. Exit paths: **cancelled** (refund, especially if untouched), **self-solved**.
