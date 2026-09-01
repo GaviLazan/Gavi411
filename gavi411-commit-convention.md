@@ -331,6 +331,18 @@ one-off download/resolve per session.
   to the persistent per-role agent worktree branches (`agent-backend@`,
   etc.) — those are long-lived infrastructure, not per-PR branches, and
   are never deleted as a side effect of a merge.
+- **Always use the `gh` CLI for GitHub operations, never the `github` MCP
+  connector (added 2026-09-01, real gap found live)**: this project's
+  `plugin:github:github` MCP server has repeatedly failed to connect
+  ("Authorization header is badly formatted") while `gh` has always been
+  correctly authenticated and working. Caught live on PR #35: a Sibling
+  review's findings should have been posted as real PR comments per the
+  standing rule two sections up, but got printed only in chat instead
+  because the MCP was down and `gh` wasn't tried as the obvious fallback
+  — Gavi had to point out `gh` works fine and always has. Don't even try
+  the MCP connector first "to check" — go straight to `gh` (`gh pr
+  comment`, `gh pr create`, `gh api`, etc.) for every GitHub operation in
+  this project, every time.
 - **Absence claims get independently reproduced, not taken on the
   claimant's word (added 2026-08-23)**: any "couldn't verify / not
   possible / blocked" claim — from an unattended agent's self-report or
