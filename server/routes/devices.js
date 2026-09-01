@@ -8,6 +8,7 @@
 import express from 'express'
 import { requireAuth, requireAdmin } from '../middleware/auth.js'
 import { prisma } from '../lib/prisma.js'
+import { sendPushToUser } from '../lib/webPush.js'
 
 const router = express.Router()
 
@@ -27,18 +28,32 @@ router.post('/', requireAuth, async (req, res) => {
     data: { userId: req.user.clerkId, publicKey },
   })
 
-  notifyAdminOfDeviceRequest(device, req.user)
+  notifyAdminOfDeviceRequest(device, req.user).catch((err) =>
+    console.error('notifyAdminOfDeviceRequest failed:', err),
+  )
 
   res.status(201).json(device)
 })
 
-// ponytail: no real Push/Telegram wiring here — that's the unbuilt
-// Notifications epic's job (G411-29/49/50/51). This is a single, obvious
-// call site for that epic to fill in later instead of having to find
-// where a device request actually gets created.
-function notifyAdminOfDeviceRequest(device, requestingUser) {
+// G411-29: first real Web Push integration point. Which OTHER events also
+// push (new message, status change, etc.) is G411-51's trigger-matrix
+// job — this one call site was already stubbed out for exactly this. A
+// push failure here (no admin subscription yet, delivery error — both
+// handled inside sendPushToUser) must never break device-request creation
+// itself, so this stays fire-and-forget from the route's perspective.
+async function notifyAdminOfDeviceRequest(device, requestingUser) {
   console.log(
     `[device-request] ${requestingUser.firstName} ${requestingUser.lastName} (${requestingUser.clerkId}) requested a new device link, Device.id=${device.id}`,
+  )
+
+  const admins = await prisma.user.findMany({ where: { role: 'ADMIN' } })
+  await Promise.all(
+    admins.map((admin) =>
+      sendPushToUser(admin.clerkId, {
+        title: 'New device link request',
+        body: `${requestingUser.firstName} ${requestingUser.lastName} wants to link a new device`,
+      }),
+    ),
   )
 }
 

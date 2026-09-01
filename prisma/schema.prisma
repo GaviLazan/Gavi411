@@ -109,6 +109,25 @@ model User {
   creditTransactions CreditTransaction[]
   usedInvite         PendingInvite?
   devices            Device[]
+  pushSubscriptions  PushSubscription[]
+}
+
+// Web Push delivery target (G411-29). Deliberately separate from Device
+// (E2E crypto identity, G411-28) — a push subscription's lifecycle doesn't
+// track a device's crypto trust status at all: clearing site data kills a
+// subscription without touching E2E approval, and a subscription can be
+// (re)created any time independent of keypair generation. One row per
+// browser/PWA install that has granted push permission; a user can have
+// several (phone + desktop). `endpoint` is unique per browser install —
+// re-subscribing the same browser upserts rather than duplicating.
+model PushSubscription {
+  id        Int      @id @default(autoincrement())
+  userId    String
+  user      User     @relation(fields: [userId], references: [clerkId])
+  endpoint  String   @unique
+  p256dh    String // browser-issued public key, base64url
+  auth      String // browser-issued auth secret, base64url
+  createdAt DateTime @default(now())
 }
 
 // Multi-device support (G411-28's device-linking, 2026-09-01). `User.

@@ -29,3 +29,17 @@ self.addEventListener('install', () => {
 self.addEventListener('activate', (event) => {
   event.waitUntil(self.clients.claim())
 })
+
+// G411-29: display an incoming Web Push message. `sendPushToUser` (server/
+// lib/webPush.js) sends { title, body } JSON — matches what
+// notifyAdminOfDeviceRequest sends today. showNotification is required
+// here (a push event without one gets the browser to show its own generic
+// "this site was updated" notification instead, on Chrome).
+self.addEventListener('push', (event) => {
+  const data = event.data ? event.data.json() : {}
+  event.waitUntil(
+    self.registration.showNotification(data.title || 'Gavi411', {
+      body: data.body || '',
+    }),
+  )
+})
