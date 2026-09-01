@@ -30,7 +30,7 @@
 // signing in again, so usedByUserId still matches.
 import express from 'express'
 import crypto from 'node:crypto'
-import { requireAuth } from '../middleware/auth.js'
+import { requireAuth, requireAdmin } from '../middleware/auth.js'
 import { prisma } from '../lib/prisma.js'
 import { isInviteValid } from '../lib/invites.js'
 
@@ -41,11 +41,7 @@ const router = express.Router()
 // (gavi411.app/?token=<token>#<passphrase>) and offer a CSV export right
 // now — this response is the ONLY place the passphrase ever exists
 // server-side.
-router.post('/', requireAuth, async (req, res) => {
-  if (req.user.role !== 'ADMIN') {
-    return res.status(404).json({ error: 'Not found' })
-  }
-
+router.post('/', requireAuth, requireAdmin, async (req, res) => {
   const { label } = req.body
   // 24 random bytes, base64url — URL-safe (no +/=  chars to encode),
   // long enough that guessing isn't a real path in.
@@ -64,11 +60,7 @@ router.post('/', requireAuth, async (req, res) => {
 
 // GET / — admin lists invites (newest first) so the UI can show what's
 // been generated and whether it's been used yet.
-router.get('/', requireAuth, async (req, res) => {
-  if (req.user.role !== 'ADMIN') {
-    return res.status(404).json({ error: 'Not found' })
-  }
-
+router.get('/', requireAuth, requireAdmin, async (req, res) => {
   const invites = await prisma.pendingInvite.findMany({
     orderBy: { createdAt: 'desc' },
     include: { usedByUser: { select: { firstName: true, lastName: true } } },

@@ -172,3 +172,15 @@ export async function requireAuth(req, res, next) {
   req.user = user
   next()
 }
+
+// requireAdmin — chains after requireAuth (needs req.user already set).
+// 404s rather than 403s for a non-admin, same no-route-existence-leak
+// convention used everywhere this check appears. Sibling review finding
+// (G411-28 PR #35): this exact 2-line check was hand-copied 5 times across
+// invites.js and devices.js before being extracted here.
+export function requireAdmin(req, res, next) {
+  if (req.user.role !== 'ADMIN') {
+    return res.status(404).json({ error: 'Not found' })
+  }
+  next()
+}

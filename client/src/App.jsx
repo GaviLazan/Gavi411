@@ -20,8 +20,9 @@ import {
   clearStashedRecoveryParams,
 } from './lib/inviteToken'
 import { createAndUploadEscrowBackup, createAndUploadKeypair } from './lib/escrow'
-import { loadLinkedConversationKeys } from './lib/deviceLinking'
+import { loadLinkedConversationKeys, wrapMissingConversationKeys } from './lib/deviceLinking'
 import { seedLinkedConversationKeys } from './lib/conversationCrypto'
+import { loadPrivateKey } from './lib/keyStore'
 
 // G411-41: stash any ?token= before Clerk's own redirect flow can touch
 // the URL — see client/src/lib/inviteToken.js for why sessionStorage,
@@ -186,6 +187,20 @@ function App() {
       .catch(() => {})
   }, [isSignedIn, tokenHandoffDone])
 
+  // Matan's Sibling review, PR #35, Fix 1a: self-healing sweep, admin
+  // side. Only admin's browser ever holds the private key needed to wrap
+  // a conversation key for a linked device, so this can't run until
+  // `role` resolves to ADMIN — a regular friend's browser has nothing to
+  // contribute here (they only ever consume already-wrapped keys, via
+  // loadLinkedConversationKeys above). Best-effort, silently no-ops on
+  // any failure — see wrapMissingConversationKeys's own doc comment.
+  useEffect(() => {
+    if (role !== 'ADMIN') return
+    loadPrivateKey().then((key) => {
+      if (key) wrapMissingConversationKeys(key)
+    })
+  }, [role])
+
   return (
     <div className="design-preview">
       <div className="header-row">
@@ -275,7 +290,7 @@ function App() {
           ) : view === 'invite-admin' ? (
             <InviteAdmin onBack={() => setView('list')} />
           ) : view === 'detail' ? (
-            <RequestDetail requestId={selectedRequestId} onBack={() => setView('list')} />
+            <RequestDetail requestId={selectedRequestId} onBack={() => setView('list')} isAdmin={role === 'ADMIN'} />
           ) : (
             <RequestList
               onNewRequest={() => setView('new')}

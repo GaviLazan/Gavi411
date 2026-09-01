@@ -76,11 +76,25 @@ function InviteAdmin({ onBack }) {
     try {
       const adminPrivateKey = await loadPrivateKey()
       if (!adminPrivateKey) throw new Error('no local key')
-      // Admin is a party to every request (G411-28's whole premise for the
-      // search index too) — every request id is fair game to wrap.
+      // Sibling review finding (critical): this used to wrap EVERY
+      // request in the system for the new device — since /api/requests
+      // returns every friend's requests to an admin caller, that handed
+      // a newly-linked device decrypt access to every other friend's
+      // private conversations, not just its own account's. Scoped to
+      // device.userId's own requests only — that's the actual account
+      // this device belongs to.
       const requests = await fetch('/api/requests').then((res) => res.json())
-      const requestIds = requests.map((r) => r.id)
-      await approveDevice(device, adminPrivateKey, requestIds)
+      const requestIds = requests.filter((r) => r.userId === device.userId).map((r) => r.id)
+      const { skippedRequestIds } = await approveDevice(device, adminPrivateKey, requestIds)
+      if (skippedRequestIds.length > 0) {
+        // Sibling review finding: a skipped conversation (friend has no
+        // public key yet) used to be silent and permanent — no re-run
+        // trigger exists once a device is APPROVED, so at minimum admin
+        // needs to know it happened.
+        setDeviceActionError(
+          `Approved, but ${skippedRequestIds.length} conversation(s) couldn't be shared yet (the friend has no encryption key on file) — request${skippedRequestIds.length > 1 ? 's' : ''} # ${skippedRequestIds.join(', ')}.`,
+        )
+      }
       loadPendingDevices()
     } catch {
       setDeviceActionError('Could not approve this device — try again.')
@@ -204,7 +218,7 @@ function InviteAdmin({ onBack }) {
           {pendingDevices.map((d) => (
             <li key={d.id}>
               <span dir="auto">{d.user.firstName} {d.user.lastName}</span>
-              {' '}({d.user.email || 'no email'})
+              {' '}(<span dir="auto">{d.user.email || 'no email'}</span>)
               {' '}
               <button type="button" onClick={() => handleApproveDevice(d)} disabled={workingDeviceId === d.id}>
                 {workingDeviceId === d.id ? 'Working…' : 'Approve'}
