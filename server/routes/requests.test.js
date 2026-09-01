@@ -114,6 +114,38 @@ describe('GET /api/requests', () => {
     expect(res.status).toBe(500)
     expect(res.body).toEqual({ error: 'Failed to load requests' })
   })
+
+  // G411-28 admin search index — opt-in bulk messages include.
+  it('does not include messages by default, even for an admin', async () => {
+    currentUserId = ADMIN
+    prismaMock.request.findMany.mockResolvedValue([sampleRequest])
+
+    await request(app).get('/api/requests')
+
+    const call = prismaMock.request.findMany.mock.calls[0][0]
+    expect(call.include).toBeUndefined()
+  })
+
+  it('includes messages for an admin when ?include=messages is given', async () => {
+    currentUserId = ADMIN
+    prismaMock.request.findMany.mockResolvedValue([sampleRequest])
+
+    await request(app).get('/api/requests?include=messages')
+
+    expect(prismaMock.request.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ include: { message: { orderBy: { createdAt: 'asc' } } } })
+    )
+  })
+
+  it('ignores ?include=messages for a non-admin', async () => {
+    currentUserId = OWNER
+    prismaMock.request.findMany.mockResolvedValue([sampleRequest])
+
+    await request(app).get('/api/requests?include=messages')
+
+    const call = prismaMock.request.findMany.mock.calls[0][0]
+    expect(call.include).toBeUndefined()
+  })
 })
 
 describe('GET /api/requests/:id', () => {
