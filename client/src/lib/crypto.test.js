@@ -15,6 +15,8 @@ import {
   decryptText,
   escrowPrivateKey,
   recoverPrivateKey,
+  wrapConversationKey,
+  unwrapConversationKey,
 } from './crypto.js'
 
 describe('crypto core (keypair, ECDH, AES-GCM)', () => {
@@ -135,5 +137,41 @@ describe('escrow (wrap/unwrap a private key with a passphrase)', () => {
     expect(backup.salt).toBeTypeOf('string')
     expect(backup.iv).toBeTypeOf('string')
     expect(backup.ciphertext).toBeTypeOf('string')
+  })
+})
+
+describe('device linking (wrap/unwrap a conversation key for a new device)', () => {
+  it('a device unwraps the exact conversation key admin wrapped for it', async () => {
+    const admin = await generateKeypair()
+    const device = await generateKeypair()
+    const friend = await generateKeypair()
+
+    // The real (non-extractable) conversation key admin already uses with
+    // the friend day-to-day — wrapConversationKey re-derives its own
+    // extractable copy internally (see that function's doc comment), so
+    // this one is only used here to prove the unwrapped key matches it.
+    const conversationKey = await deriveSharedKey(admin.privateKey, friend.publicKey)
+
+    const wrapped = await wrapConversationKey(admin.privateKey, friend.publicKey, device.publicKey)
+    const unwrapped = await unwrapConversationKey(wrapped, device.privateKey, admin.publicKey)
+
+    // Can't compare CryptoKey objects directly (same convention as the
+    // ECDH test above) — prove equivalence by encrypting with the
+    // original conversation key and decrypting with the unwrapped one.
+    const envelope = await encrypt(conversationKey, 'device-linked history')
+    expect(await decryptText(unwrapped, envelope)).toBe('device-linked history')
+  })
+
+  it('a different device cannot unwrap a key that was not wrapped for it', async () => {
+    const admin = await generateKeypair()
+    const device = await generateKeypair()
+    const otherDevice = await generateKeypair()
+    const friend = await generateKeypair()
+
+    const wrapped = await wrapConversationKey(admin.privateKey, friend.publicKey, device.publicKey)
+
+    await expect(
+      unwrapConversationKey(wrapped, otherDevice.privateKey, admin.publicKey),
+    ).rejects.toThrow()
   })
 })

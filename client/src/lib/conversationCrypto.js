@@ -31,12 +31,31 @@ export function _clearConversationKeyCacheForTests() {
   conversationKeyCache.clear()
 }
 
+// G411-28 device-linking: once THIS device is approved, its wrapped
+// conversation keys are unwrapped once (loadLinkedConversationKeys) and
+// seeded in here — getConversationKey below checks this before falling
+// back to its own normal ECDH derivation, since a linked device has no
+// direct ECDH relationship of its own with the other party (it never
+// exchanged public keys with them; it only received the conversation key
+// admin already derived, pre-wrapped). Populated lazily, once, by
+// App.jsx's post-approval check — see deviceLinking.js's own doc comment.
+const linkedConversationKeys = new Map()
+
+export function seedLinkedConversationKeys(keysByRequestId) {
+  for (const [requestId, key] of keysByRequestId) {
+    linkedConversationKeys.set(requestId, key)
+  }
+}
+
 // Fetches both parties' public keys for a request from the server (see
 // server/routes/requests.js GET /:id/public-keys) and derives the shared
 // AES-GCM key for this conversation. Returns null if either party has no
 // public key yet (see the route's own doc comment for why that's a real,
 // expected case, not just an error).
 export async function getConversationKey(requestId) {
+  if (linkedConversationKeys.has(requestId)) {
+    return linkedConversationKeys.get(requestId)
+  }
   if (conversationKeyCache.has(requestId)) {
     return conversationKeyCache.get(requestId)
   }

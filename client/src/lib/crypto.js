@@ -95,6 +95,52 @@ function base64ToBuf(base64) {
   return Uint8Array.from(atob(base64), (c) => c.charCodeAt(0)).buffer
 }
 
+// --- Device linking (G411-28, 2026-09-01) ---------------------------------
+//
+// When admin approves a new device, each conversation's AES-GCM key needs
+// to reach that device without ever touching the server in the clear.
+// Reuses this file's own encrypt/decrypt (AES-GCM) rather than adding a
+// second wrap primitive (Web Crypto's AES-KW) — one fewer algorithm to
+// reason about, same security property (the wrapping key is itself an
+// ECDH-derived shared secret only admin's and the device's private keys
+// can reconstruct).
+
+// Wraps a conversation's AES-GCM key for one specific device: encrypts its
+// raw bytes under ECDH(admin.privateKey, device.publicKey). Returns
+// { iv, ciphertext } (base64) — same envelope shape as a message, so no
+// new wire format to learn.
+//
+// Takes `friendPublicKey` (not the conversation CryptoKey itself) because
+// the real conversation key from deriveSharedKey() is deliberately
+// non-extractable (see that function's own doc comment) — its raw bytes
+// can never be read out, by design, so there's nothing to wrap. ECDH is
+// deterministic given the same two keys, so re-deriving with
+// extractable: true here reproduces the exact same shared secret, this
+// time as a value only ever used transiently to export+wrap it — never
+// stored, never used to encrypt/decrypt a message directly.
+export async function wrapConversationKey(adminPrivateKey, friendPublicKey, devicePublicKey) {
+  const extractableConversationKey = await crypto.subtle.deriveKey(
+    { name: 'ECDH', public: friendPublicKey },
+    adminPrivateKey,
+    AES_PARAMS,
+    true,
+    ['encrypt', 'decrypt'],
+  )
+  const wrappingKey = await deriveSharedKey(adminPrivateKey, devicePublicKey)
+  const raw = await crypto.subtle.exportKey('raw', extractableConversationKey)
+  return encrypt(wrappingKey, new Uint8Array(raw))
+}
+
+// Reverses wrapConversationKey from the new device's side: derives the
+// same shared secret (ECDH is symmetric — device.privateKey +
+// admin.publicKey lands on the identical wrappingKey admin used), decrypts
+// the wrapped bytes, re-imports as a usable AES-GCM CryptoKey.
+export async function unwrapConversationKey(wrapped, devicePrivateKey, adminPublicKey) {
+  const wrappingKey = await deriveSharedKey(devicePrivateKey, adminPublicKey)
+  const raw = await decrypt(wrappingKey, wrapped)
+  return crypto.subtle.importKey('raw', raw, AES_PARAMS, false, ['encrypt', 'decrypt'])
+}
+
 // --- Escrow (G411-28 stage 4) ---------------------------------------------
 //
 // The device's own long-term private key is deliberately non-extractable
