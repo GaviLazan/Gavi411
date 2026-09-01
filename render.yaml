@@ -34,3 +34,19 @@ services:
         sync: false
       - key: NODE_VERSION
         value: 22.23.1
+      # Added 2026-09-01 — real gap found live: CLOUDINARY_URL and the
+      # three VAPID_* vars were never declared here, so Render's dashboard
+      # never prompted for them and neither was ever actually set on the
+      # live service (confirmed via Render logs: "Must supply api_key"
+      # from Cloudinary, and a VAPID misconfiguration error from
+      # server/lib/webPush.js). Blueprint changes don't retroactively
+      # populate existing services — see .env.example for the values these
+      # must match; still needs manually entering in Render's dashboard.
+      - key: CLOUDINARY_URL
+        sync: false
+      - key: VAPID_PUBLIC_KEY
+        sync: false
+      - key: VAPID_PRIVATE_KEY
+        sync: false
+      - key: VAPID_SUBJECT
+        sync: false
