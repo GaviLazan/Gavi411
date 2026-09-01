@@ -189,6 +189,57 @@ describe('POST /api/devices/:id/reject', () => {
   })
 })
 
+// Matan's Sibling review, carried-over non-blocking note: this used to
+// always return the account's most-recently-created Device row regardless
+// of which device asked — an account polling from two different devices
+// could see the wrong one's status.
+describe('GET /api/devices/my-status', () => {
+  it('401s when signed out', async () => {
+    const res = await request(app).get('/api/devices/my-status')
+    expect(res.status).toBe(401)
+  })
+
+  it('returns the most-recent device when no deviceId is given (original behavior, unscoped)', async () => {
+    currentUserId = USER
+    prismaMock.device.findFirst.mockResolvedValue({ id: 5, status: 'PENDING' })
+
+    const res = await request(app).get('/api/devices/my-status')
+
+    expect(res.status).toBe(200)
+    expect(res.body.device).toEqual({ id: 5, status: 'PENDING' })
+    expect(prismaMock.device.findFirst).toHaveBeenCalledWith({
+      where: { userId: USER },
+      orderBy: { createdAt: 'desc' },
+    })
+  })
+
+  it('scopes to exactly the given deviceId (own device) when provided', async () => {
+    currentUserId = USER
+    prismaMock.device.findFirst.mockResolvedValue({ id: 3, status: 'APPROVED' })
+
+    const res = await request(app).get('/api/devices/my-status?deviceId=3')
+
+    expect(res.status).toBe(200)
+    expect(res.body.device).toEqual({ id: 3, status: 'APPROVED' })
+    expect(prismaMock.device.findFirst).toHaveBeenCalledWith({
+      where: { id: 3, userId: USER },
+    })
+  })
+
+  it('does not leak another user\'s device — scoped lookup naturally returns null, not their row', async () => {
+    currentUserId = USER
+    prismaMock.device.findFirst.mockResolvedValue(null) // the Prisma where clause excludes it, same mock either way
+
+    const res = await request(app).get('/api/devices/my-status?deviceId=999')
+
+    expect(res.status).toBe(200)
+    expect(res.body.device).toBeNull()
+    expect(prismaMock.device.findFirst).toHaveBeenCalledWith({
+      where: { id: 999, userId: USER },
+    })
+  })
+})
+
 describe('GET /api/devices/my-keys', () => {
   it('404s when the device does not belong to the caller', async () => {
     currentUserId = USER

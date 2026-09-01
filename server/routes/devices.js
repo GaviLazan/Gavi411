@@ -235,13 +235,29 @@ router.post('/wrap-additional', requireAuth, requireAdmin, async (req, res) => {
   res.json({ ok: true })
 })
 
-// GET /my-status — the caller's own most recent device row, if any (so a
-// device that just called POST / can poll "am I approved yet?").
+// GET /my-status — polls one device's own approval status. Matan's
+// Sibling review, carried-over non-blocking note: this used to always
+// return the account's most-recently-created Device row regardless of
+// which device was actually asking — an account that requested linking
+// from two different devices could have one device's poll reflect the
+// OTHER device's status. An optional `deviceId` query param (the caller's
+// own saved id, once requestDeviceLink() has one — see deviceLinking.js)
+// scopes the lookup to that exact row; omitted (or not owned by this
+// user — falls through the same as omitted, no 404, since this is just a
+// polling convenience, not a security boundary), falls back to the
+// original most-recent behavior for the brief window before a deviceId
+// exists yet.
 router.get('/my-status', requireAuth, async (req, res) => {
-  const device = await prisma.device.findFirst({
-    where: { userId: req.user.clerkId },
-    orderBy: { createdAt: 'desc' },
-  })
+  const { deviceId } = req.query
+  const id = Number(deviceId)
+
+  const device = Number.isInteger(id)
+    ? await prisma.device.findFirst({ where: { id, userId: req.user.clerkId } })
+    : await prisma.device.findFirst({
+        where: { userId: req.user.clerkId },
+        orderBy: { createdAt: 'desc' },
+      })
+
   res.json({ device })
 })
 

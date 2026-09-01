@@ -27,9 +27,19 @@ export async function requestDeviceLink() {
   return device
 }
 
-// Polls this device's own approval status.
+// Polls this device's own approval status. Scoped by this browser's own
+// saved deviceId when one exists (Matan's Sibling review, carried-over
+// non-blocking note: without this, an account that requested linking from
+// two different devices could have one device's poll reflect the OTHER
+// device's status, since the server used to just return the most
+// recently created row for the account). Falls back to "most recent" —
+// the server route's original behavior — for the window before
+// requestDeviceLink() has saved a deviceId yet (there's nothing else to
+// scope by until then).
 export async function getMyDeviceStatus() {
-  const res = await fetch('/api/devices/my-status')
+  const deviceId = await loadDeviceId()
+  const query = deviceId != null ? `?deviceId=${deviceId}` : ''
+  const res = await fetch(`/api/devices/my-status${query}`)
   if (!res.ok) return null
   const { device } = await res.json()
   return device
@@ -149,12 +159,18 @@ export async function wrapMissingConversationKeys(adminPrivateKey, requestId) {
   const missing = await res.json()
   if (missing.length === 0) return
 
-  const wrappedKeys = []
-  for (const { deviceId, requestId: reqId, devicePublicKey } of missing) {
-    const devicePublic = await importPublicKey(devicePublicKey)
-    const { wrapped } = await wrapForRequests(adminPrivateKey, devicePublic, [reqId])
-    for (const w of wrapped) wrappedKeys.push({ ...w, deviceId })
-  }
+  // Matan's Sibling review (2nd approval round, non-blocking nit): each
+  // pair's wrap is fully independent — same reasoning as approveDevice's
+  // own wrapForRequests, which already runs its per-request work via
+  // Promise.all rather than a sequential loop. Was a plain for-await here.
+  const results = await Promise.all(
+    missing.map(async ({ deviceId, requestId: reqId, devicePublicKey }) => {
+      const devicePublic = await importPublicKey(devicePublicKey)
+      const { wrapped } = await wrapForRequests(adminPrivateKey, devicePublic, [reqId])
+      return wrapped.map((w) => ({ ...w, deviceId }))
+    }),
+  )
+  const wrappedKeys = results.flat()
   if (wrappedKeys.length === 0) return
 
   await fetch('/api/devices/wrap-additional', {
