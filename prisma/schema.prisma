@@ -46,6 +46,12 @@ enum Status {
   SELF_SOLVED
 }
 
+enum DeviceStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
 // Invite tokens (G411-41). Admin creates one (no email needed up front —
 // Gavi may not know it, or the friend signs up via Google OAuth with a
 // different address than expected). The token itself is the gate: the
@@ -96,12 +102,56 @@ model User {
   // before the one-off bootstrap below) — /api/requests/:id/messages
   // refuses to accept a message from a sender with no public key rather
   // than silently falling back to plaintext.
-  publicKey     String?
+  publicKey String?
 
   request            Request[]
   messages           Message[]
   creditTransactions CreditTransaction[]
   usedInvite         PendingInvite?
+  devices            Device[]
+}
+
+// Multi-device support (G411-28's device-linking, 2026-09-01). `User.
+// publicKey` above stays as the account's original/primary device (the one
+// created at signup) for backward compat with G411-82's existing send/
+// receive path — every additional device a user signs in from is a row
+// here instead. A PENDING row means "signed in via Clerk, generated its
+// own local keypair, waiting on admin to grant it access to existing
+// conversations" (see ConversationDeviceKey below for what "access"
+// concretely means — this table alone doesn't grant anything).
+model Device {
+  id         Int          @id @default(autoincrement())
+  userId     String
+  user       User         @relation(fields: [userId], references: [clerkId])
+  publicKey  String
+  status     DeviceStatus @default(PENDING)
+  createdAt  DateTime     @default(now())
+  approvedAt DateTime?
+
+  conversationKeys ConversationDeviceKey[]
+}
+
+// One row per (conversation, linked device) — the conversation's AES-GCM
+// key, wrapped (AES-KW) for this specific device's public key so only that
+// device's own private key can unwrap it. Written once, in a batch, right
+// when admin approves a device (every Request admin is a party to gets
+// wrapped at once — Gavi's call, "new device inherits everything
+// immediately" over lazy per-conversation wrapping). The device fetches
+// its own rows, unwraps each with ECDH(device.privateKey, admin.publicKey),
+// and from then on decrypts that conversation's messages exactly like any
+// other device would — no per-message re-encryption, no change to how
+// Message.content is stored or read.
+model ConversationDeviceKey {
+  id         Int      @id @default(autoincrement())
+  requestId  Int
+  request    Request  @relation(fields: [requestId], references: [id])
+  deviceId   Int
+  device     Device   @relation(fields: [deviceId], references: [id])
+  wrappedKey String // base64 AES-KW-wrapped conversation key
+  iv         String // base64, AES-KW wrap IV
+  createdAt  DateTime @default(now())
+
+  @@unique([requestId, deviceId])
 }
 
 model Request {
@@ -125,8 +175,9 @@ model Request {
   userId String
   user   User   @relation(fields: [userId], references: [clerkId])
 
-  message Message[]
-  note    Note[]
+  message                Message[]
+  note                   Note[]
+  conversationDeviceKeys ConversationDeviceKey[]
 }
 
 model Message {

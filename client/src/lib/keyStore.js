@@ -39,3 +39,31 @@ export async function loadPrivateKey() {
     req.onerror = () => reject(req.error)
   })
 }
+
+// Device-linking (G411-28, 2026-09-01). This device's own `Device.id` row
+// on the server, once it's requested linking — needed to later ask
+// GET /api/devices/my-keys "have I been approved, and what's mine to
+// unwrap." Plain number, not a CryptoKey, so it shares the object store
+// (IndexedDB doesn't care about value shape) rather than needing its own
+// store/db version bump.
+const DEVICE_ID_KEY = 'device-id'
+
+export async function saveDeviceId(id) {
+  const db = await openDb()
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE_NAME, 'readwrite')
+    tx.objectStore(STORE_NAME).put(id, DEVICE_ID_KEY)
+    tx.oncomplete = () => resolve()
+    tx.onerror = () => reject(tx.error)
+  })
+}
+
+export async function loadDeviceId() {
+  const db = await openDb()
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE_NAME, 'readonly')
+    const req = tx.objectStore(STORE_NAME).get(DEVICE_ID_KEY)
+    req.onsuccess = () => resolve(req.result ?? null)
+    req.onerror = () => reject(req.error)
+  })
+}

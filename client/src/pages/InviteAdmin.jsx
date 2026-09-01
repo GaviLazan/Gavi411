@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
 import { downloadInviteCsv } from '../lib/inviteCsv'
 import { createAndUploadKeypair } from '../lib/escrow'
+import { getPendingDevices, approveDevice, rejectDevice } from '../lib/deviceLinking'
+import { loadPrivateKey } from '../lib/keyStore'
 
 // Minimal admin invite-creation screen (G411-41; escrow passphrase + CSV
 // export added G411-28 stage 4). Not the full admin cockpit (G411-37/38)
@@ -53,6 +55,52 @@ function InviteAdmin({ onBack }) {
   }
 
   useEffect(loadInvites, [])
+
+  // Device-linking (G411-28, 2026-09-01) — bare-minimum admin UI, real
+  // cockpit is G411-37/38's job (see that ticket's own comment pointing
+  // back here). Just enough to actually exercise the approve/reject
+  // routes: a flat list, no styling, no per-request breakdown.
+  const [pendingDevices, setPendingDevices] = useState([])
+  const [deviceActionError, setDeviceActionError] = useState(null)
+  const [workingDeviceId, setWorkingDeviceId] = useState(null)
+
+  function loadPendingDevices() {
+    getPendingDevices().then(setPendingDevices).catch(() => {})
+  }
+
+  useEffect(loadPendingDevices, [])
+
+  async function handleApproveDevice(device) {
+    setWorkingDeviceId(device.id)
+    setDeviceActionError(null)
+    try {
+      const adminPrivateKey = await loadPrivateKey()
+      if (!adminPrivateKey) throw new Error('no local key')
+      // Admin is a party to every request (G411-28's whole premise for the
+      // search index too) — every request id is fair game to wrap.
+      const requests = await fetch('/api/requests').then((res) => res.json())
+      const requestIds = requests.map((r) => r.id)
+      await approveDevice(device, adminPrivateKey, requestIds)
+      loadPendingDevices()
+    } catch {
+      setDeviceActionError('Could not approve this device — try again.')
+    } finally {
+      setWorkingDeviceId(null)
+    }
+  }
+
+  async function handleRejectDevice(device) {
+    setWorkingDeviceId(device.id)
+    setDeviceActionError(null)
+    try {
+      await rejectDevice(device.id)
+      loadPendingDevices()
+    } catch {
+      setDeviceActionError('Could not reject this device — try again.')
+    } finally {
+      setWorkingDeviceId(null)
+    }
+  }
 
   async function handleCreate(e) {
     e.preventDefault()
@@ -140,6 +188,31 @@ function InviteAdmin({ onBack }) {
               {inv.usedAt
                 ? `used by ${inv.usedByUser?.firstName || 'someone'}`
                 : 'unused'}
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {/* G411-28 device-linking — bare-minimum shim, real cockpit is
+          G411-37/38's job (see that ticket for the pointer back here). */}
+      <h3>Pending device requests</h3>
+      {deviceActionError && <p role="alert">{deviceActionError}</p>}
+      {pendingDevices.length === 0 ? (
+        <p>None pending.</p>
+      ) : (
+        <ul>
+          {pendingDevices.map((d) => (
+            <li key={d.id}>
+              <span dir="auto">{d.user.firstName} {d.user.lastName}</span>
+              {' '}({d.user.email || 'no email'})
+              {' '}
+              <button type="button" onClick={() => handleApproveDevice(d)} disabled={workingDeviceId === d.id}>
+                {workingDeviceId === d.id ? 'Working…' : 'Approve'}
+              </button>
+              {' '}
+              <button type="button" onClick={() => handleRejectDevice(d)} disabled={workingDeviceId === d.id}>
+                Reject
+              </button>
             </li>
           ))}
         </ul>

@@ -20,6 +20,8 @@ import {
   clearStashedRecoveryParams,
 } from './lib/inviteToken'
 import { createAndUploadEscrowBackup, createAndUploadKeypair } from './lib/escrow'
+import { loadLinkedConversationKeys } from './lib/deviceLinking'
+import { seedLinkedConversationKeys } from './lib/conversationCrypto'
 
 // G411-41: stash any ?token= before Clerk's own redirect flow can touch
 // the URL — see client/src/lib/inviteToken.js for why sessionStorage,
@@ -96,6 +98,15 @@ function App() {
   // it, which the linter flagged as reading state ahead of its own
   // initialization.
   const [escrowBackupFailed, setEscrowBackupFailed] = useState(false)
+
+  // G411-28 device-linking: once per sign-in, check whether this device
+  // has any approved-but-not-yet-loaded conversation keys and seed them
+  // into conversationCrypto.js's cache. A no-op (empty Map) for every
+  // device that never requested linking — see deviceLinking.js.
+  useEffect(() => {
+    if (!isSignedIn) return
+    loadLinkedConversationKeys().then(seedLinkedConversationKeys).catch(() => {})
+  }, [isSignedIn])
 
   useEffect(() => {
     if (!isSignedIn) return

@@ -15,6 +15,7 @@ import "../components/ReviewSummary.css";
 import "../components/Input.css";
 import { getConversationKey, encryptMessageContent, decryptMessageContent } from "../lib/conversationCrypto";
 import { createAndUploadKeypair } from "../lib/escrow";
+import { requestDeviceLink, getMyDeviceStatus } from "../lib/deviceLinking";
 
 // Request detail / "ticket" page (G411-75). Minimum scope per the ticket:
 // the request's own fields + urgency/status + the existing Message thread
@@ -179,6 +180,31 @@ function RequestDetail({ requestId, onBack }) {
     }
   }
 
+  // G411-28 device-linking, bare-minimum trigger (real cockpit-side UI is
+  // G411-37/38's job). Distinct from handleGenerateKeypair above: that one
+  // makes THIS device the account's only key (fine for a genuinely
+  // keyless account — G411-83's bootstrap case), this one asks admin to
+  // grant THIS device access to whatever key(s) already exist for the
+  // account elsewhere — the two are alternatives, not sequential steps,
+  // so both stay offered side by side rather than one replacing the other.
+  const [deviceLinkStatus, setDeviceLinkStatus] = useState("idle"); // 'idle' | 'requesting' | 'pending' | 'error'
+
+  useEffect(() => {
+    getMyDeviceStatus().then((device) => {
+      if (device?.status === "PENDING") setDeviceLinkStatus("pending");
+    });
+  }, []);
+
+  async function handleRequestDeviceLink() {
+    setDeviceLinkStatus("requesting");
+    try {
+      await requestDeviceLink();
+      setDeviceLinkStatus("pending");
+    } catch {
+      setDeviceLinkStatus("error");
+    }
+  }
+
   function refetch() {
     fetch(`/api/requests/${requestId}`)
       .then((res) => res.json())
@@ -310,6 +336,15 @@ function RequestDetail({ requestId, onBack }) {
               {keypairStatus === "working" ? "Generating…" : "Generate my encryption key"}
             </button>
             {keypairStatus === "error" && " Failed — try again."}
+            {" or, if you already have an account with messages elsewhere, "}
+            {deviceLinkStatus === "pending" ? (
+              "a request to link this device is waiting on admin approval."
+            ) : (
+              <button type="button" onClick={handleRequestDeviceLink} disabled={deviceLinkStatus === "requesting"}>
+                {deviceLinkStatus === "requesting" ? "Requesting…" : "request access to your existing messages"}
+              </button>
+            )}
+            {deviceLinkStatus === "error" && " Failed — try again."}
           </p>
         )}
         {image && (
