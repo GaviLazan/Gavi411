@@ -296,6 +296,7 @@ function App() {
               onNewRequest={() => setView('new')}
               onShowInstallHelp={() => setView('install-help')}
               onOpenRequest={(id) => { setSelectedRequestId(id); setView('detail'); }}
+              isAdmin={role === 'ADMIN'}
             />
           )
         ) : inviteTokenState === 'checking' ? (
