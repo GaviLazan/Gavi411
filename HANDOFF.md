@@ -12,137 +12,138 @@ accumulated. If something here turns out to matter long-term, promote it to
 
 ---
 
-## Where this session left off (2026-09-01, later still) — G411-28 AND G411-29 both Reconciled; a real messaging bug report needs a live test session before G411-83/84
+## Where this session left off (2026-09-01, later still) — G411-85 filed: real E2E messaging regressions found live-testing. This supersedes the earlier G411-83→84→79 queue plan.
 
-### G411-28 (target E2E) — Reconciled, full scope built and shipped
-All four stages done, all merged onto `main` as regular merge commits,
-never squash:
-- **Stage 1** (crypto core: keypair gen, ECDH, AES-GCM) — `client/src/lib/crypto.js`.
-- **Stage 2/3** (invite/escrow model) — `PendingInvite` schema.
-- **Escrow generation + CSV export** — PR #33 (`ebbb77c`).
-- **Live message thread wired to the crypto core** — G411-82 (own ticket,
-  Reconciled separately, PR #34 `acce30e`) — this was the real missing
-  prerequisite found mid-pass; search index/device-linking are meaningless
-  against plaintext-only data, so this had to land first.
-- **Admin-approved device-linking** (real `Device` model, request/approve/
-  re-encrypt flow) — PR #35 (`e47df21`). Two Matan review rounds,
-  "APPROVE WITH COMMENTS" — his two High findings (silent cross-device key
-  corruption on new conversations; a destructive recovery button that
-  couldn't distinguish "this device has no key" from "the other party has
-  no key") both fixed before merge.
-- **Admin client-side search index** — PR #36 (`56bd818`). Full agentic
-  Sibling review (3 correctness fixes) then Matan "APPROVE — no blocking
-  findings."
-- Aegis fields (Claim/Falsifier/Evidence-bar-met/Reviewer-type) written
-  against real landed state, then transitioned Implementing → Reviewing →
-  Landed → Reconciled. Verified this session (2026-09-01) against real
-  git history — both merge commits exist on `main`, both source files
-  (`searchIndex.js`, the `Device` model) are physically present. Status is
-  accurate, not a stale claim.
+**Read this before picking anything up.** G411-28 and G411-29 both landed
+and Reconciled earlier this session (full detail below), but live
+testing immediately after found real, confirmed bugs in the E2E
+messaging/device-linking mechanism those tickets shipped. **G411-85 is
+now the most urgent item in the Messaging epic** — more urgent than the
+previously-agreed G411-83 → G411-84 → G411-79 order, since G411-83/84
+both build directly on the same device-linking mechanism G411-85 found
+broken. Confirm with Gavi whether G411-85 should be picked up before
+G411-83, but treat that as the live default unless told otherwise —
+building more on top of a confirmed-broken mechanism without fixing it
+first is the wrong order.
 
-**G411-83 relationship, decided explicitly** (in G411-28's own ticket):
-G411-28 owns the real, permanent multi-device architecture — G411-83 is a
-narrow bootstrap patch on top of it (admin-visibility into pre-existing
-keyless accounts, a self-service keygen banner, admin's own single-device
-self-escrow), not a competing mechanism. G411-83 must reference G411-28's
-`Device` model, not reinvent it.
+### G411-85 — 4 real, confirmed findings (filed, Open, parented under G411-3)
+All confirmed against real DB timestamps and actual on-screen behavior
+during a live test session (admin phone + a real test-account PC), not
+theorized:
 
-**G411-27** (encryption-at-rest fallback) — Reconciled directly from Open,
-no code. Its precondition ("time runs out before E2E lands") never
-happened, since G411-28 landed instead. Decision #92.
+- **(A)** A device-linked browser can read messages after a page refresh,
+  but the send path (`sendMessage()` in `RequestDetail.jsx`) doesn't
+  recognize it as usable and still blocks with the generate/request
+  prompt. Read path and send path disagree about whether the device is
+  ready.
+- **(B)** "Generate my encryption key" is destructive and **unrecoverable
+  through the UI** once a browser has ever called `requestDeviceLink()` —
+  `getConversationKey()` (`client/src/lib/conversationCrypto.js`)
+  permanently short-circuits to linked-device-only mode via a
+  `deviceId != null` check, never falling back to direct ECDH again, and
+  nothing anywhere clears the saved `deviceId` (`keyStore.js`'s
+  `saveDeviceId` is write-only, confirmed via grep). Real repro: a
+  working, readable message became unreadable the moment the test user
+  clicked "generate" after already being device-linked.
+- **(C)** Images are never encrypted — contradicts `gavi411-brain.md`
+  decision #47 and the PRD's explicit line ("Images get the same
+  treatment — encrypt before upload, decrypt on display"). This was a
+  scope cut made silently during G411-82's build, justified only in a
+  code comment, never surfaced to Gavi for sign-off.
+- **(D)** The generate/request-key recovery flow is only reachable as a
+  side effect of a failed send attempt — not a standing, visible state
+  when a user opens a thread they can't yet decrypt.
+
+**Real damage from this session's testing** (test data only, request
+#23): message id 22 (pre-dates any device link) is permanently
+unreadable by design — expected, not fixable retroactively. Message id
+24 was readable, then made unreadable again by finding (B) — this WOULD
+be equally destructive against real friend data, with no UI recovery
+path today.
+
+**G411-82 (Reconciled) has a real status/reality mismatch** — flagged via
+a comment on that ticket, not unilaterally reopened (Gavi's call per the
+hard-to-reverse-action rule). Its Falsifier text implies full encryption
+coverage; finding (C) shows that's false for images.
 
 ### G411-29 (Web Push infra) — Reconciled, merged as PR #37 (`42c2501`)
-- Prisma: new `PushSubscription` model (deliberately separate from
-  `Device` — different lifecycles, clearing browser data kills a
-  subscription without touching E2E device approval).
-- `server/lib/webPush.js`: `sendPushToUser()`, VAPID via the `web-push`
-  package, stale-subscription cleanup, per-subscription failure isolation.
-- `server/routes/pushSubscriptions.js`: `POST`/`DELETE /api/push`.
-- Client `webPush.js` + `sw.js`'s new `push` event handler.
-- First real integration point: `devices.js`'s `notifyAdminOfDeviceRequest`
-  (previously a `console.log` stub built ahead of time for this) now
-  actually pushes every `ADMIN` user.
-- Full Sibling review (10 findings; 7 initially posted with a broken
-  comment body — a `code-review` skill bug posting a local scratch-file
-  path instead of content, repaired live via `gh api` PATCH — see decision
-  #94). 7 correctness fixes landed (commit `c1aa0a4`); the review's top
-  finding (Web Push used for admin, seemingly contradicting CLAUDE.md's
-  old "Web Push for friends, Telegram for Gavi" phrasing) resolved as a
-  **doc correction, not code** — that phrasing was imprecise, not the
-  code (decision #93). Merged via `gh pr merge --admin` — Gavi's explicit,
-  per-PR call to bypass GitHub's required-review gate, not a standing
-  policy change.
-- 200/200 tests pass. Aegis fields written in the real Jira custom
-  fields (not just prose) — first ticket done this way; an audit of older
-  Reconciled tickets for the same gap is still outstanding, not urgent.
-- All 7 worktrees (primary + 6 role) resynced to `42c2501`/`b7806c6`,
-  confirmed clean via a full sweep.
+Full Sibling review (10 findings, 7 fixed — VAPID-fail-loud, stale-sub
+cleanup logging, type validation, guarded JSON parse, env-var guards,
+res.ok checks + rollback). Top finding (Web Push for admin vs. CLAUDE.md's
+old phrasing) resolved as a doc correction (decision #93), not code —
+Web Push is the primary channel for everyone, Telegram secondary for
+Gavi. Merged via `--admin` (Gavi's explicit per-PR call to bypass
+GitHub's required-review gate). Aegis fields written in the real Jira
+custom fields this time (Falsifier/Evidence-required/Evidence-bar-met/
+Role/Reviewer-type) — a real gap on older tickets that's still
+unaudited, not urgent.
 
-### Queue order for this stretch — explicit override, not epic/key order
-Gavi's direct instruction this session: **G411-83, then G411-84, then
-G411-79** — in that order, overriding the project's normal strict
-epic/key-order default for this specific stretch. G411-83/84 both build
-directly on G411-28's now-landed device architecture and G411-29's now-
-landed push infra respectively, so doing them next (ahead of G411-79,
-lower priority per Gavi) is a deliberate, explicit call — not something a
-future session should infer applies generally. Once G411-83/84 are done,
-resume normal epic/key order (G411-79 next, then wherever queue order
-naturally continues).
+### G411-28 (target E2E) — Reconciled, full stated scope shipped
+Device-linking (PR #35) + admin search index (PR #36) both merged, both
+Matan-reviewed. Confirmed live via real git history (merge commits +
+source files present), not just trusting the Jira comment. **But**:
+G411-85's findings above show real correctness gaps in what actually
+shipped here — Reconciled being accurate for "did the described pieces
+land" doesn't mean the mechanism is bug-free; see G411-85.
 
-### Open bug report — needs a live test session, not a guess-and-patch
-Gavi reported (2026-09-01): sending a message **with an image attached**
-failed on his phone "the other day" — before this session's G411-28/29
-changes landed, so **not yet confirmed as still-reproducing post-merge**.
-Per the standing rule (verify, don't theorize on user reports), this
-needs a real live test — not a blind patch based on guessing where the
-image-upload path might break. See "Suggested test session" below for
-the concrete plan. Do not start G411-83/84 build work assuming this bug
-is unrelated or already fixed — confirm first, since G411-83 explicitly
-touches the same `Device`/keypair bootstrap territory an image-send
-failure could plausibly intersect with (E2E-encrypted image payloads go
-through the same crypto path as encrypted text).
+### A real production bug, found and fixed this session: image-send never worked in production
+`CLOUDINARY_URL` was never declared in `render.yaml`, so Render's
+dashboard never prompted for it and it was never set on the live
+service — confirmed via Render's own logs (`Error: Must supply api_key`
+from Cloudinary's SDK). Pre-dates this session, not a G411-28/29
+regression. Same gap found for the three `VAPID_*` vars (added this
+session, same oversight, caught same-day). `render.yaml` now declares
+all four (commit `e006295`); Gavi manually added the real values in
+Render's dashboard and redeployed — **confirmed fixed live** (image send
+succeeded after redeploy, before findings A-D above surfaced during the
+same test).
 
-**Suggested test session** (proposed this session, not yet scheduled):
-a short, dedicated live-testing pass — real phone, real signed-in
-account, real image attachment, real send — run *before* picking up
-G411-83, for two reasons: (1) it's the most direct way to find out
-whether the failure still reproduces after G411-28/82's crypto-wiring
-changes, and (2) G411-83 is precisely the "keypair bootstrap" ticket most
-likely to interact with an image-encryption failure, so confirming this
-first avoids building on top of an assumption. Needs: Gavi's phone, a
-real signed-in test account (not a fresh Playwright synthetic), a real
-image file, network conditions similar to the original failure if known
-(WiFi vs. cellular, foreground vs. backgrounded PWA). 15–20 minutes is
-enough for a first repro attempt; keep it as its own session step, not
-folded silently into G411-83's pickup ritual.
+**Standing gap, not yet closed**: nothing currently catches
+`render.yaml`/`.env.example` drift automatically. This is the second
+time a required env var was added to `.env.example` without a matching
+`render.yaml` entry. Worth a lightweight check before/at deploy-affecting
+tickets, though no such check exists yet.
+
+### Queue order — G411-85 changes the plan
+Earlier this session, explicit order was: G411-83, then G411-84, then
+G411-79 (ahead of normal epic/key order — decision #95, a one-time
+override, not a standing policy). **G411-85's findings likely change
+this** — G411-83/84 both build on the same device-linking mechanism
+G411-85 found broken (finding B in particular: G411-83's whole point is
+key-recovery bootstrap, which is exactly the mechanism now confirmed
+destructive-and-unrecoverable). Don't start G411-83 build work without
+first confirming with Gavi whether G411-85 should land first.
 
 ### Real state, right now, confirmed via git status/log across every worktree
-All 7 worktrees (primary + 6 role) clean, identical, at `b7806c6`:
-`Gavi411` (`main`), `Gavi411-agent-backend`
-(`agent-backend/G411-81-invite-gate`), `Gavi411-agent-cicd`
-(`agent-cicd/G411-16-deploy-config`), `Gavi411-agent-design`
-(`agent-design/G411-17-design-foundation`), `Gavi411-agent-e2e`
-(`agent-e2e/base`, fresh tracking branch since its old
-`G411-28-search-index` branch merged/deleted), `Gavi411-agent-frontend`
-(`agent-frontend/G411-15-pwa-baseline`), `Gavi411-agent-test`
-(`agent-test/base`).
+All 7 worktrees (primary + 6 role) clean, identical, at `f25d417` as of
+last check (before the `render.yaml` fix commit `e006295` — re-verify
+worktree sync at next session start, don't assume it's still current).
 
 ### What's next, concretely
-1. **Confirm the image-send bug** via a live test session (see above) —
-   before, not during, G411-83 pickup.
-2. **G411-83** (key-recovery bootstrap patch) — Open, not started. Real
-   scope per G411-28's own description: admin-visibility into keyless
-   legacy accounts, self-service keygen banner, admin's own single-device
-   self-escrow. Must reference G411-28's `Device` model, not reinvent it.
-3. **G411-84** (push-driven background key-wrap) — Open, not started.
-   Its blocker (G411-29's Web Push infra) is now resolved — unblocked to
-   start once G411-83 is done.
-4. **G411-79** (video/document attachments) — lower priority per Gavi,
-   after 83/84.
-5. **The E2E encryption explainer deck** — still owed, not delivered.
+1. **Confirm with Gavi**: does G411-85 jump ahead of G411-83/84/79
+   entirely, or does some piece of G411-83 still make sense to do first
+   (e.g. its admin-visibility/self-escrow scope is somewhat independent
+   of the device-linking bugs)? Don't assume either way.
+2. **G411-85** itself needs real scoping before a fix starts — four
+   findings, likely not all the same size of fix. (A) and (B) are the
+   same underlying mechanism (`getConversationKey`'s linked-device
+   short-circuit) and might be one fix; (C) is a separate, larger
+   feature (actual image encryption); (D) is a smaller UX/discoverability
+   fix.
+3. **G411-82's Reconciled status** — Gavi needs to decide whether to
+   formally reopen it or leave the comment as the record and let G411-85
+   be the tracked fix. Not decided this session.
+4. Once G411-85 (and whatever's left of G411-83) are sorted: G411-84,
+   then G411-79, per decision #95's original order.
+5. The E2E encryption explainer deck — still owed, now arguably more
+   important given how much of the mechanism got clarified this session
+   (both what works and what's broken).
 
 ### Other loose ends, unchanged from before
 - Two design-hook flags from earlier sessions
   (`client/src/index.css` line 200/211/216, `client/src/App.css` line
-  162) — still standing, still not urgent, still not in scope for any
-  currently-active ticket.
+  162) — still standing, still not urgent.
+- **Memory note saved** (not Jira, not urgent): admin can currently open/
+  message a Request with themself (no real self-vs-triage distinction
+  yet) — flagged for G411-37/38's cockpit build, see
+  `g411-37-38-admin-self-request.md` in persistent memory.
