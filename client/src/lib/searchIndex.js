@@ -25,32 +25,48 @@ import { getConversationKey, decryptMessageContent } from './conversationCrypto.
 // per prisma/schema.prisma). A message that fails to decrypt (no key,
 // corrupt envelope) is skipped rather than included as noise — nothing
 // useful to search in an opaque ciphertext failure.
+//
+// Sibling review findings (PR #36): every request is processed
+// concurrently via Promise.all — each request's key derivation is an
+// independent /public-keys round trip, so this also fixes the correctness
+// bug the old sequential for-loop had: one request's getConversationKey
+// throwing (a real network/WebCrypto exception, not just a non-ok
+// response — that case was already outside the per-message try/catch)
+// used to abort the ENTIRE index build for every remaining request. Each
+// request's own try/catch now isolates that request's own failure
+// instead.
 export async function buildSearchIndex(requests) {
-  const entries = []
-
-  for (const req of requests) {
-    if (!req.message?.length) continue
-    // Only derive a shared key when this request actually has an
-    // encrypted message to decrypt — a request with only legacy
-    // plaintext rows (pre-G411-82) has nothing to unwrap, and deriving a
-    // key it doesn't need means an unnecessary /public-keys round trip
-    // per such request on every admin app load.
-    const hasEncrypted = req.message.some((m) => m.encrypted)
-    const sharedKey = hasEncrypted ? await getConversationKey(req.id) : null
-
-    for (const message of req.message) {
-      let text
+  const perRequest = await Promise.all(
+    requests.map(async (req) => {
+      if (!req.message?.length) return []
       try {
-        text = await decryptMessageContent(sharedKey, message)
-      } catch {
-        continue // corrupt envelope or similar — not searchable, not fatal to the rest of the index
-      }
-      if (!text) continue
-      entries.push({ requestId: req.id, messageId: message.id, text })
-    }
-  }
+        // Only derive a shared key when this request actually has an
+        // encrypted message to decrypt — a request with only legacy
+        // plaintext rows (pre-G411-82) has nothing to unwrap, and
+        // deriving a key it doesn't need means an unnecessary
+        // /public-keys round trip per such request on every admin app
+        // load.
+        const hasEncrypted = req.message.some((m) => m.encrypted)
+        const sharedKey = hasEncrypted ? await getConversationKey(req.id) : null
 
-  return entries
+        const decrypted = await Promise.all(
+          req.message.map(async (message) => {
+            try {
+              const text = await decryptMessageContent(sharedKey, message)
+              return text ? { requestId: req.id, messageId: message.id, text } : null
+            } catch {
+              return null // corrupt envelope or similar — not searchable, not fatal to the rest of the index
+            }
+          }),
+        )
+        return decrypted.filter(Boolean)
+      } catch {
+        return [] // this request's key derivation failed (network/WebCrypto) — costs only this request, not the whole index
+      }
+    }),
+  )
+
+  return perRequest.flat()
 }
 
 // Plain case-insensitive substring match — the actual "search" over the

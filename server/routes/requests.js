@@ -11,6 +11,11 @@ import { canAccessRequest } from '../lib/requestAccess.js'
 
 const router = express.Router()
 
+// Shared by GET / (admin's opt-in ?include=messages) and GET /:id — both
+// want a request's messages in the same order, so one literal instead of
+// two independently-maintained copies (Sibling review finding, PR #36).
+const MESSAGE_INCLUDE = { message: { orderBy: { createdAt: 'asc' } } }
+
 // memoryStorage — files stay in RAM as a Buffer just long enough to
 // forward to Cloudinary, never written to disk. Fine at a 10MB cap on a
 // free-tier backend; would need rethinking for anything larger (see
@@ -98,7 +103,7 @@ router.get('/', requireAuth, async (req, res) => {
     const requests = await prisma.request.findMany({
       where,
       orderBy: { createdAt: 'desc' },
-      ...(includeMessages && { include: { message: { orderBy: { createdAt: 'asc' } } } }),
+      ...(includeMessages && { include: MESSAGE_INCLUDE }),
     })
 
     res.json(requests)
@@ -117,7 +122,7 @@ router.get('/:id', requireAuth, async (req, res) => {
 
   const request = await prisma.request.findUnique({
     where: { id },
-    include: { message: { orderBy: { createdAt: 'asc' } } },
+    include: MESSAGE_INCLUDE,
   })
 
   if (!request) {

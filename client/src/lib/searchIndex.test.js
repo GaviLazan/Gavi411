@@ -66,6 +66,33 @@ describe('buildSearchIndex', () => {
 
     expect(entries).toEqual([])
   })
+
+  // Sibling review finding (PR #36): getConversationKey throwing outright
+  // (a real network/WebCrypto exception, not just a non-ok response) used
+  // to escape the per-message try/catch and abort buildSearchIndex
+  // entirely — one bad request cost every other request's entries too.
+  // Each request now runs independently via Promise.all, so a thrown
+  // exception only costs that one request.
+  it('isolates one request\'s getConversationKey exception — other requests still get indexed', async () => {
+    const admin = await generateKeypair()
+    mockLoadPrivateKey.mockResolvedValue(admin.privateKey)
+
+    fetch.mockImplementation((url) => {
+      if (url === '/api/requests/6/public-keys') {
+        return Promise.reject(new Error('network blip'))
+      }
+      return Promise.resolve({ ok: true, json: async () => ({ other: null }) })
+    })
+
+    const requests = [
+      { id: 6, message: [{ id: 60, encrypted: true, content: '{"iv":"x","ciphertext":"y"}' }] },
+      { id: 7, message: [{ id: 70, encrypted: false, content: 'plain and fine' }] },
+    ]
+
+    const entries = await buildSearchIndex(requests)
+
+    expect(entries).toEqual([{ requestId: 7, messageId: 70, text: 'plain and fine' }])
+  })
 })
 
 describe('searchIndex', () => {

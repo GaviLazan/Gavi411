@@ -3,6 +3,15 @@ import Card from "../components/Card";
 import Button from "../components/Button";
 import Input from "../components/Input";
 import { buildSearchIndex, searchIndex } from "../lib/searchIndex";
+import { loadLinkedConversationKeys } from "../lib/deviceLinking";
+import { seedLinkedConversationKeys } from "../lib/conversationCrypto";
+// Sibling review finding, PR #36: the new "No matching conversations."
+// empty state below uses .review-empty, which only ever worked here by
+// relying on another page (NewRequest.jsx/RequestDetail.jsx) importing
+// this CSS first — same implicit-CSS-import bug class this codebase has
+// hit twice before on RequestDetail.jsx itself. Imported directly so this
+// page's styling doesn't depend on another page having loaded first.
+import "../components/ReviewSummary.css";
 
 // Statuses that read as "done" for the open/closed toggle (G411-67).
 // PRD/brain.md's lifecycle only names a single terminal "closed" state
@@ -96,15 +105,50 @@ function RequestList({ onNewRequest, onShowInstallHelp, onOpenRequest, isAdmin }
   const [searchEntries, setSearchEntries] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
 
+  // Sibling review finding (PR #36): a linked device's
+  // linkedConversationKeys map (conversationCrypto.js) is otherwise only
+  // ever seeded once, at App.jsx's sign-in effect — a request created (or
+  // a wrap completed by admin's own missing-wraps sweep) after that
+  // snapshot has no entry, so getConversationKey returns null and that
+  // conversation's messages silently vanish from search with no
+  // indicator. No push/poll infra exists to notify a linked device the
+  // moment a new wrap lands (that's G411-84, explicitly deferred) — this
+  // is the narrow, in-scope fix: re-poll on every RequestList mount, so
+  // search reflects reasonably fresh state without needing new
+  // infrastructure. A no-op (empty Map) for a device that was never
+  // linked, same as App.jsx's own sign-in call.
+  useEffect(() => {
+    if (!isAdmin) return;
+    loadLinkedConversationKeys().then(seedLinkedConversationKeys).catch(() => {});
+  }, [isAdmin]);
+
   useEffect(() => {
     let cancelled = false;
-    if (!isAdmin || !requests) {
+    // Sibling review finding (PR #36): isAdmin resolves asynchronously
+    // (App.jsx's /api/me fetch) after the very first render, so this
+    // effect and the fetch effect above can both re-fire once it flips
+    // true — but this effect must not build against a `requests` value
+    // fetched BEFORE isAdmin was true (i.e. without ?include=messages,
+    // so every row lacks `.message`). Checking that at least one row
+    // actually carries a `message` array (not just `isAdmin && requests`)
+    // means this effect waits for the corrected re-fetch to land instead
+    // of building a false "index" of zero entries from stale data.
+    const hasMessageData = requests?.some((r) => Array.isArray(r.message));
+    if (!isAdmin || !hasMessageData) {
       setSearchEntries([]);
       return;
     }
-    buildSearchIndex(requests).then((entries) => {
-      if (!cancelled) setSearchEntries(entries);
-    });
+    buildSearchIndex(requests)
+      .then((entries) => {
+        if (!cancelled) setSearchEntries(entries);
+      })
+      // Sibling review finding: buildSearchIndex can still reject outright
+      // (e.g. a bug outside its own per-request try/catch) — without this,
+      // that was an unhandled promise rejection silently leaving
+      // searchEntries stale with no indication anything went wrong.
+      .catch(() => {
+        if (!cancelled) setSearchEntries([]);
+      });
     return () => {
       cancelled = true;
     };
