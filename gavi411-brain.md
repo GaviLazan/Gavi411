@@ -372,6 +372,11 @@ crucial, not a someday-nice-to-have.
 - Root cause not fully diagnosed (outside this project's control — it's the `code-review` skill's own posting path, not something in this repo), but the scratch files themselves still existed on disk with the real content, so recovery was possible: read each `cN.md` file directly, then `gh api -X PATCH repos/.../pulls/comments/<id>` to overwrite each broken body with the real content. All 7 verified fixed by reading them back afterward.
 - **Standing practice going forward**: after any `/code-review ... --comment` run, spot-check at least one posted comment's actual body via `gh api` (or the PR page) before trusting the "N comments posted" summary — the tool's own success report doesn't catch this class of failure, since the post itself succeeds, it just posts the wrong content.
 
+### Decision #95 — G411-83/84 explicitly queue-jumped ahead of G411-79, a one-time override not a new default (2026-09-01)
+- Gavi's direct instruction after G411-28/29 both landed: work G411-83, then G411-84, then G411-79 — in that order, ahead of strict epic/key order (which would otherwise put G411-79 first among the remaining Messaging-epic Open children).
+- This is a deliberate, explicit exception for this specific stretch — not a reversal of the standing "epic order, not severity" default. Both G411-83 and G411-84 build directly on infrastructure that just landed (G411-28's `Device` model, G411-29's Web Push), so sequencing them next while that context is warm is the actual reason, not a general re-ranking of the backlog by importance.
+- After G411-83/84 are done, queue order reverts to normal (G411-79 next, then wherever the backlog naturally continues) — a future session should not read this as "84 and 83-adjacent tickets always jump the queue."
+
 ## 7. Not Yet Discussed
  
 - Data model, architecture, tech decisions (schema itself not yet drafted — first task on deck).
