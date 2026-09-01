@@ -29,3 +29,29 @@ self.addEventListener('install', () => {
 self.addEventListener('activate', (event) => {
   event.waitUntil(self.clients.claim())
 })
+
+// G411-29: display an incoming Web Push message. `sendPushToUser` (server/
+// lib/webPush.js) sends { title, body } JSON — matches what
+// notifyAdminOfDeviceRequest sends today. showNotification is required
+// here (a push event without one gets the browser to show its own generic
+// "this site was updated" notification instead, on Chrome).
+//
+// Sibling review finding: event.data.json() used to throw unhandled on a
+// malformed/non-JSON payload — since that throw happened before
+// showNotification ran, it produced exactly the generic-fallback
+// notification this code exists to avoid. Guarded so a bad payload still
+// shows *something* instead of silently failing.
+self.addEventListener('push', (event) => {
+  let data = {}
+  try {
+    data = event.data ? event.data.json() : {}
+  } catch {
+    // Malformed payload — fall through to the default title/body below
+    // rather than let showNotification never get called.
+  }
+  event.waitUntil(
+    self.registration.showNotification(data.title || 'Gavi411', {
+      body: data.body || '',
+    }),
+  )
+})

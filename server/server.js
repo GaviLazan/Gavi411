@@ -5,6 +5,7 @@ import 'dotenv/config'
 import requestsRouter from './routes/requests.js'
 import invitesRouter from './routes/invites.js'
 import devicesRouter from './routes/devices.js'
+import pushSubscriptionsRouter from './routes/pushSubscriptions.js'
 import cors from 'cors'
 import { clerkMiddleware, requireAuth } from './middleware/auth.js'
 import { prisma } from './lib/prisma.js'
@@ -22,6 +23,7 @@ app.use(clerkMiddleware())
 app.use('/api/requests', requestsRouter)
 app.use('/api/invites', invitesRouter)
 app.use('/api/devices', devicesRouter)
+app.use('/api/push', pushSubscriptionsRouter)
 
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok' })
