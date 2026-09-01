@@ -367,6 +367,11 @@ crucial, not a someday-nice-to-have.
 - Gavi's call: that phrasing was never meant as an exclusive split — it described which channel was expected to matter most for whom, not a hard boundary forbidding admin from also getting Web Push. Real intent (already consistent with PRD §6.1's own priority table, decision #45: Telegram is "Should," explicitly deprioritized behind Web Push, "acceptable to wait if Web Push alone covers notification needs"): **Web Push is the primary channel for everyone, friends and admin alike; Telegram is a secondary/supplementary channel for Gavi specifically**, not a replacement.
 - `CLAUDE.md` and `gavi411-prd.md` §4.3 both corrected to state this precisely instead of the ambiguous shorthand. `devices.js`'s admin-via-Web-Push wiring (G411-29) stands as correct, not a bug — no code change needed, this was a doc-vs-intent gap, not an implementation gap.
 
+### Decision #94 — `/code-review --comment` posted broken PR comments (local scratch-file paths instead of content), caught and repaired live (2026-09-01)
+- Real incident during G411-29/PR #37's Sibling review: 7 of the 10 inline PR comments the `--comment` flag posted were literally the string `@/tmp/claude-1000/.../scratchpad/pr37comments/cN.md` — a local file path — instead of the actual finding text. Confirmed via `gh api repos/.../pulls/37/comments` reading the raw comment bodies back.
+- Root cause not fully diagnosed (outside this project's control — it's the `code-review` skill's own posting path, not something in this repo), but the scratch files themselves still existed on disk with the real content, so recovery was possible: read each `cN.md` file directly, then `gh api -X PATCH repos/.../pulls/comments/<id>` to overwrite each broken body with the real content. All 7 verified fixed by reading them back afterward.
+- **Standing practice going forward**: after any `/code-review ... --comment` run, spot-check at least one posted comment's actual body via `gh api` (or the PR page) before trusting the "N comments posted" summary — the tool's own success report doesn't catch this class of failure, since the post itself succeeds, it just posts the wrong content.
+
 ## 7. Not Yet Discussed
  
 - Data model, architecture, tech decisions (schema itself not yet drafted — first task on deck).

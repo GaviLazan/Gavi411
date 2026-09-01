@@ -12,114 +12,114 @@ accumulated. If something here turns out to matter long-term, promote it to
 
 ---
 
-## Where this session left off (2026-09-01, later still) — PR #36 MERGED; G411-28's full stated scope is now built
+## Where this session left off (2026-09-01, later still) — G411-29 (Web Push) Reconciled; G411-27 also Reconciled without code
 
-**Latest update:** Matan approved PR #36 cleanly ("APPROVE — no blocking
-findings") — merged, regular merge commit `56bd818` on `main`, branch
+**G411-29 (Web Push notification delivery infra) is done, merged, and
+Reconciled.** PR #37 merged as regular merge commit `42c2501` on `main`
+(`--admin` used to bypass GitHub's required-approving-review gate — an
+explicit, per-PR call from Gavi, not a standing policy change). Branch
 deleted both locally and remotely. All 7 worktrees (primary + 6 role)
-resynced to `56bd818`, confirmed clean via a full sweep. 189 tests still
-pass post-merge.
+resynced to `42c2501`, confirmed clean via a full sweep.
 
-**G411-28 itself is NOT yet transitioned.** Its own Jira description
-names exactly two remaining pieces (search index, device-linking) — both
-are now merged (PR #36, PR #35). A comment noting this was posted on the
-ticket, but the actual scope-description refresh and the
-Implementing → Reviewing → Landed → Reconciled transition were
-deliberately left as an explicit next-session decision, not auto-
-advanced. **Whoever picks this project up next should re-read G411-28's
-live description fresh (it may already be updated by another session)
-before deciding whether it's ready to move.**
+### What got built
+- Prisma: new `PushSubscription` model, deliberately separate from
+  `Device` (E2E crypto identity) — different lifecycles (clearing browser
+  data kills a subscription without touching E2E device approval).
+- `server/lib/webPush.js`: `sendPushToUser()` wraps the `web-push`
+  package — cleans up stale (410/404) subscriptions, isolates
+  per-subscription failures, and (after the fix pass) fails loud with a
+  clear message if VAPID env vars are missing instead of an opaque throw.
+- `server/routes/pushSubscriptions.js`: `POST`/`DELETE /api/push`
+  (subscribe/unsubscribe), now with real type validation (Sibling review
+  finding).
+- `client/src/lib/webPush.js`: `subscribeToPush`/`unsubscribeFromPush` —
+  guards a missing `VITE_VAPID_PUBLIC_KEY`, checks `res.ok`, rolls back
+  the browser subscription if the server registration fails.
+- `client/public/sw.js`: real `push` event handler (was a no-op SW,
+  G411-15 baseline only), with a guarded JSON parse.
+- First real integration point: `devices.js`'s `notifyAdminOfDeviceRequest`
+  (previously a `console.log` stub built ahead of time for exactly this)
+  now actually pushes every `ADMIN` user.
+- 200/200 tests pass (12 new across the two commits). Live-verified
+  post-merge: server boots with real VAPID env vars, `/api/health` and
+  `/api/push` (auth-gated, 401s correctly) confirmed via curl against a
+  real running process.
 
-**Earlier this same day:** G411-27 (encryption-at-rest fallback) was
-Reconciled directly from Open with no code — its precondition ("time
-runs out before E2E lands") never happened, since G411-28 made it. Full
-reasoning in the ticket description and `gavi411-brain.md` decision #92;
-`gavi411-prd.md` §5 got a status note pointing at the same.
+### Sibling review — real findings, real fixes, all on the record
+A full multi-angle review ran on PR #37 and posted 10 inline comments
+(7 of them initially posted with a broken body — a literal local
+scratch-file path instead of the real content, a bug in the review
+skill's `--comment` posting path this session hit live; all 7 repaired
+in place via `gh api` PATCH, verified content now correct on GitHub).
 
-### PR #35 (device-linking) — MERGED, done
-- Regular merge commit `e47df21` on `main`. Branch
-  `agent-e2e/G411-28-device-linking` deleted, both locally and remotely.
-- Matan gave two real review rounds on this one (a genuine outside
-  collaborator, GitHub handle `MatanLazimi`) — final verdict "APPROVE
-  WITH COMMENTS." His two non-blocking nits were fixed anyway before
-  merge (`wrapMissingConversationKeys` now uses `Promise.all`; `GET
-  /api/devices/my-status` now scopes by the polling device's own id).
-- Nothing further needed on this piece.
+- **Top finding**: `devices.js` notifies admin via Web Push, which
+  conflicted with CLAUDE.md's old "Web Push for friends, Telegram for
+  Gavi" phrasing. Resolved as a **doc correction, not a code change**
+  (decision #93, `gavi411-brain.md`) — confirmed with Gavi that the
+  phrasing was imprecise, not the code: Web Push is the primary channel
+  for everyone, Telegram secondary for Gavi. `CLAUDE.md`/`gavi411-prd.md`
+  corrected on `main` directly (commit `cb14154`).
+- **7 correctness findings fixed** (commit `c1aa0a4`): VAPID-missing
+  fails loud with a clear message; stale-subscription delete failure now
+  logged instead of silently swallowed; `POST`/`DELETE /api/push` now
+  type-check `endpoint`/`keys`; `sw.js`'s push-payload JSON parse is
+  guarded; client env-var guard on `VITE_VAPID_PUBLIC_KEY`; `res.ok`
+  checks + subscribe rollback on server-registration failure.
+- **Deferred, per the review's own scale-appropriate reasoning**
+  (single-admin app): the N+1 query in `notifyAdminOfDeviceRequest`,
+  fire-and-forget response-ordering, zero-admin silent no-op logging, and
+  extracting a shared `notifyAdmins()` helper ahead of G411-51 actually
+  needing it.
+- Both review rounds (findings + fix summary) posted as real PR comments,
+  in order, per standing policy.
 
-### PR #36 (admin client-side search index) — MERGED, done
-- Regular merge commit `56bd818` on `main`. Branch
-  `agent-e2e/G411-28-search-index` deleted, both locally and remotely.
-- **What it does**: server-only-ciphertext-preserving search — admin's
-  browser decrypts every conversation locally (admin already has the
-  keys, is a party to every Request) and searches message content
-  client-side. `GET /api/requests` gained an admin-only opt-in
-  `?include=messages`; new `client/src/lib/searchIndex.js`
-  (`buildSearchIndex`/`searchIndex`); `RequestList.jsx` got a search box
-  (reuses the existing `Input` component) that bypasses the normal
-  open/closed/collapsible sections while a query is active.
-- **A full agentic Sibling review ran first** (high effort, multi-angle)
-  — 7 findings. The 3 correctness ones (a `getConversationKey` exception
-  used to abort the WHOLE index build instead of costing just one
-  request; a linked device's search silently missing any conversation
-  created after its one-shot key-map seeding at sign-in; the search-index
-  effect building against stale message-less data during the brief
-  window before `isAdmin` resolves) plus 2 of the 4 cleanup findings
-  (duplicated Prisma include literal, implicit CSS-import dependency)
-  were fixed before Matan's review, commit `01a4f2c`. Left deliberately
-  unfixed: `searchIndex.js`/`RequestDetail.jsx`'s decrypt-logic overlap —
-  a real but arguable tradeoff (bulk multi-request vs. single live
-  conversation), not a clear extraction win.
-- **Matan's review**: "APPROVE — no blocking findings." Verified all 189
-  tests pass live himself, confirmed the fixes hold up under a fresh
-  read, flagged one non-blocking note (no component-level test for
-  `RequestList.jsx`'s new search wiring — matches this codebase's
-  existing convention of no React component tests anywhere, so
-  deliberately not added; worth picking up opportunistically per his own
-  note, not a blocker).
-- Both review rounds (agentic findings, the fix summary, Matan's
-  approval) are all real PR comments/reviews on #36, in order.
-- 189 tests pass (47 client + 142 server), zero regressions, confirmed
-  fresh post-merge. Clean `vite build`.
-- A real GitHub-level branch-protection gate (`required_approving_review_count: 1`
-  on `main`) blocked self-merge even after the agentic review passed —
-  this is independent of the project's own agentic-self-merge policy
-  (decision #62/#63); GitHub itself required one formal approval.
-  Resolved by tagging Matan again (same as PR #35), not by using
-  `--admin` to bypass it.
+### Aegis fields — actually filled this time, in the real fields
+G411-29's Claim/Falsifier/Evidence-required/Evidence-bar-met/Role/
+Reviewer-type are all set in Jira's real custom fields (not just prose in
+the description) — a real gap Gavi caught earlier this session on G411-27
+that's now the standing practice going forward. **Note**: an audit of
+older Reconciled tickets for the same empty-Aegis-fields gap is still
+outstanding (flagged in `gavi411-brain.md`, not urgent).
+
+### Earlier this same session
+- **G411-27** (encryption-at-rest fallback) Reconciled directly from Open
+  with no code — its precondition ("time runs out before E2E lands")
+  never happened, since G411-28 made it. Decision #92.
+- **PR #36** (search index, G411-28) merged earlier this session by a
+  prior turn — Matan approved clean. G411-28 itself is NOT yet
+  transitioned (see below).
 
 ### What's next, concretely
-1. **G411-28's Jira description hasn't been refreshed yet** to reflect
-   that both its named remaining pieces (search index, device-linking)
-   are now merged — a comment was posted noting this, but the actual
-   description edit and the Implementing → Reviewing → Landed →
-   Reconciled transition were deliberately left as an explicit decision
-   for whoever picks this up next, not auto-advanced. Re-read the
-   ticket's live description fresh before deciding (per this file's own
-   rule #1 — it may already be stale relative to another session's edit
-   by the time you read this).
-2. Once that's settled, G411-28's next natural step (if not already
-   covered elsewhere) is the E2E encryption explainer deck, still owed —
-   see below.
+1. **G411-28's own Jira transition is still outstanding.** Its
+   description named exactly two remaining pieces (search index,
+   device-linking) — both are merged. A comment was posted noting this,
+   but the actual Implementing → Reviewing → Landed → Reconciled
+   transition was deliberately left as an explicit next-session decision.
+   Re-read its live description fresh before deciding — may already be
+   stale relative to another session's edit.
+2. **Epic order for the next pickup**: Messaging (G411-3) still has
+   G411-79, G411-83, G411-84 Open. Per project convention (strict epic/
+   key order, no jumping ahead for "relatedness"), G411-79 (video/document
+   attachments) is next in line unless Gavi says otherwise.
+3. **The E2E encryption explainer deck** — still owed, not delivered.
 
 ### Real state, right now, confirmed via git status/log across every worktree
-- All 7 worktrees (primary + 6 role) clean, identical, at `56bd818`:
-  `Gavi411` (`main`), `Gavi411-agent-backend`
-  (`agent-backend/G411-81-invite-gate`), `Gavi411-agent-cicd`
-  (`agent-cicd/G411-16-deploy-config`), `Gavi411-agent-design`
-  (`agent-design/G411-17-design-foundation`), `Gavi411-agent-e2e`
-  (reset onto `main`'s tip now that PR #36 is merged — same resync
-  pattern as after PR #35), `Gavi411-agent-frontend`
-  (`agent-frontend/G411-15-pwa-baseline`), `Gavi411-agent-test`
-  (`agent-test/base`).
+All 7 worktrees (primary + 6 role) clean, identical, at `42c2501`:
+`Gavi411` (`main`), `Gavi411-agent-backend`
+(`agent-backend/G411-81-invite-gate`), `Gavi411-agent-cicd`
+(`agent-cicd/G411-16-deploy-config`), `Gavi411-agent-design`
+(`agent-design/G411-17-design-foundation`), `Gavi411-agent-e2e`
+(reset to a fresh `agent-e2e/base` tracking `origin/main`, since its old
+branch `G411-28-search-index` is merged/deleted), `Gavi411-agent-frontend`
+(`agent-frontend/G411-15-pwa-baseline`), `Gavi411-agent-test`
+(`agent-test/base`).
 
-### Other loose ends, unrelated to G411-28's own transition, unchanged from before
+### Other loose ends, unchanged from before
 - **G411-83** (key-recovery bootstrap patch) — still Open, not started.
-- **The E2E encryption explainer deck** — still owed, not delivered. Both
-  blocking pieces (search index, device-linking) are now actually merged,
-  so nothing further should block starting this.
-- Two design-hook flags came up this session on pre-existing, untouched
-  files (`client/src/index.css` line 200/211/216 — font-size/radius
-  outside `DESIGN.md`'s scale; `client/src/App.css` line 162 — a
-  layout-property CSS transition). Both left standing deliberately: not
-  introduced by this session's diffs, not in scope for G411-28. Worth a
-  real design-focused pass at some point, not an emergency.
+- **G411-84** (push-driven background key-wrap) — still Open. Its
+  blocker (G411-29's Web Push infra) is now resolved — it's unblocked to
+  start whenever picked up, though epic/key order still applies.
+- **The E2E encryption explainer deck** — still owed.
+- Two design-hook flags from earlier sessions
+  (`client/src/index.css` line 200/211/216, `client/src/App.css` line
+  162) — still standing, still not urgent, still not this ticket's scope.
