@@ -17,6 +17,7 @@ import { getConversationKey, encryptMessageContent, decryptMessageContent, OTHER
 import { createAndUploadKeypair } from "../lib/escrow";
 import { requestDeviceLink, getMyDeviceStatus, wrapMissingConversationKeys } from "../lib/deviceLinking";
 import { loadPrivateKey } from "../lib/keyStore";
+import { E2E_ENABLED } from "../lib/e2eConfig";
 
 // Request detail / "ticket" page (G411-75). Minimum scope per the ticket:
 // the request's own fields + urgency/status + the existing Message thread
@@ -151,7 +152,16 @@ function RequestDetail({ requestId, onBack, isAdmin }) {
     }
 
     setDecrypting(true);
-    getConversationKey(requestId)
+    // Decision #98 pause: sendMessage() below never sends encrypted:true
+    // anymore, but rows from BEFORE the pause can still be real encrypted
+    // envelopes (E2E was live, G411-82) — skipping key derivation
+    // unconditionally would render those as "unable to decrypt" even
+    // though the ciphertext and both parties' keys are still intact
+    // (Sibling review finding, PR #38). Only skip the fetch/derive when
+    // every row in this thread is already plaintext — same guard
+    // searchIndex.js uses.
+    const hasEncrypted = request.message.some((m) => m.encrypted);
+    (E2E_ENABLED || hasEncrypted ? getConversationKey(requestId) : Promise.resolve(null))
       .then(async (sharedKey) => {
         const resolved = await Promise.all(
           request.message.map(async (m) => {
@@ -203,6 +213,7 @@ function RequestDetail({ requestId, onBack, isAdmin }) {
   const [deviceLinkStatus, setDeviceLinkStatus] = useState("idle"); // 'idle' | 'requesting' | 'pending' | 'error'
 
   useEffect(() => {
+    if (!E2E_ENABLED) return;
     getMyDeviceStatus().then((device) => {
       if (device?.status === "PENDING") setDeviceLinkStatus("pending");
     });
@@ -215,7 +226,7 @@ function RequestDetail({ requestId, onBack, isAdmin }) {
   // conversations admin actually opens. Best-effort, same silent-no-op
   // convention as the on-load sweep.
   useEffect(() => {
-    if (!isAdmin) return;
+    if (!E2E_ENABLED || !isAdmin) return;
     loadPrivateKey().then((key) => {
       if (key) wrapMissingConversationKeys(key, requestId);
     });
@@ -264,21 +275,28 @@ function RequestDetail({ requestId, onBack, isAdmin }) {
     try {
       const body = new FormData();
       if (draft.trim()) {
-        const sharedKey = await getConversationKey(requestId);
-        if (sharedKey === OTHER_PARTY_MISSING_KEY) {
-          missingKeypair = true; // still blocks the send + keeps the image, just not THIS device's fault
-          setOtherPartyMissingKey(true);
-          throw new Error("Waiting on the other side to set up encryption — nothing to fix on your device.");
+        // Decision #98 pause: always send plaintext, no key derivation,
+        // no blocking on either side's keypair status. E2E_ENABLED flips
+        // this back to the real encrypt path.
+        if (E2E_ENABLED) {
+          const sharedKey = await getConversationKey(requestId);
+          if (sharedKey === OTHER_PARTY_MISSING_KEY) {
+            missingKeypair = true; // still blocks the send + keeps the image, just not THIS device's fault
+            setOtherPartyMissingKey(true);
+            throw new Error("Waiting on the other side to set up encryption — nothing to fix on your device.");
+          }
+          if (!sharedKey) {
+            missingKeypair = true;
+            setNeedsKeypair(true);
+            throw new Error(
+              "Your device isn't set up for encrypted messaging yet (or the other side isn't)."
+            );
+          }
+          body.append("content", await encryptMessageContent(sharedKey, draft));
+          body.append("encrypted", "true");
+        } else {
+          body.append("content", draft);
         }
-        if (!sharedKey) {
-          missingKeypair = true;
-          setNeedsKeypair(true);
-          throw new Error(
-            "Your device isn't set up for encrypted messaging yet (or the other side isn't)."
-          );
-        }
-        body.append("content", await encryptMessageContent(sharedKey, draft));
-        body.append("encrypted", "true");
       }
       // Multipart only when an image is actually attached — a plain JSON
       // body still works for text-only sends (server accepts both).
@@ -362,14 +380,14 @@ function RequestDetail({ requestId, onBack, isAdmin }) {
         ) : (
           <MessageThread messages={decryptedMessages} />
         )}
-        {otherPartyMissingKey && (
+        {E2E_ENABLED && otherPartyMissingKey && (
           // Matan's Sibling review, PR #35, Fix 2 — nothing to fix on this
           // device, so no button is offered (the destructive "request
           // access" flow below would overwrite a perfectly good local key
           // for no benefit).
           <p role="alert">Waiting on the other side to set up encryption.</p>
         )}
-        {needsKeypair && (
+        {E2E_ENABLED && needsKeypair && (
           <p role="alert">
             <button type="button" onClick={handleGenerateKeypair} disabled={keypairStatus === "working"}>
               {keypairStatus === "working" ? "Generating…" : "Generate my encryption key"}

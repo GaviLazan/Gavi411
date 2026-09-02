@@ -8,6 +8,7 @@ import { requireAuth } from '../middleware/auth.js'
 import { prisma } from '../lib/prisma.js'
 import { validateImage, uploadImage, MAX_IMAGE_BYTES } from '../lib/cloudinary.js'
 import { canAccessRequest } from '../lib/requestAccess.js'
+import { E2E_ENABLED } from '../lib/e2eConfig.js'
 
 const router = express.Router()
 
@@ -388,7 +389,13 @@ router.post('/:id/messages', requireAuth, uploadImageField, async (req, res) => 
     // error before ever reaching here (see RequestDetail.jsx); this is
     // the structural backstop, same convention as this router's other
     // checks.
-    const isEncrypted = encrypted === true || encrypted === 'true'
+    //
+    // Decision #98 pause: E2E_ENABLED=false forces every new message to
+    // plaintext server-side too, regardless of what the client sends —
+    // the client itself no longer sends encrypted:true (see
+    // e2eConfig.js/RequestDetail.jsx), but this is the structural
+    // backstop for that, same reasoning as the check it replaces.
+    const isEncrypted = E2E_ENABLED && (encrypted === true || encrypted === 'true')
     if (isEncrypted && !req.user.publicKey) {
       return res.status(400).json({ error: 'Your device has no encryption key on file yet' })
     }
