@@ -1,0 +1,61 @@
+/* Admin tabbed shell (G411-38) — status pill + tab strip. Friend view
+   doesn't use these classes at all. */
+.status-pill {
+  display: inline-block;
+  padding: 4px 14px;
+  border-radius: var(--radius-pill);
+  background: var(--accent-bg);
+  color: var(--accent);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.admin-tab {
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  padding: var(--space-2) var(--space-3);
+  color: var(--text);
+  cursor: pointer;
+  opacity: 0.6;
+}
+
+.admin-tab-active {
+  opacity: 1;
+  border-bottom-color: var(--accent);
+  color: var(--accent);
+}
+
+/* Details/Thread side by side — toggled via state (RequestDetail.jsx),
+   defaulted from viewport width but overridable either way. */
+.admin-detail-columns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-4);
+  align-items: start;
+}
+
+@media (max-width: 640px) {
+  .admin-detail-columns {
+    grid-template-columns: 1fr;
+  }
+}
+
+.admin-layout-toggle {
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  background: none;
+  border: 1px solid var(--accent-border);
+  border-radius: var(--radius-pill);
+  padding: 4px 14px;
+  color: var(--accent);
+  cursor: pointer;
+}
+
+.admin-layout-toggle:hover {
+  background: var(--accent-bg);
+}

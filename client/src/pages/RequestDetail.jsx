@@ -13,6 +13,7 @@ import "../components/ReviewSummary.css";
 // Input.css was only ever loaded as a side effect of NewRequest.jsx
 // importing Input.jsx first.
 import "../components/Input.css";
+import "./RequestDetail.css";
 import { getConversationKey, encryptMessageContent, decryptMessageContent, OTHER_PARTY_MISSING_KEY } from "../lib/conversationCrypto";
 import { createAndUploadKeypair } from "../lib/escrow";
 import { requestDeviceLink, getMyDeviceStatus, wrapMissingConversationKeys } from "../lib/deviceLinking";
@@ -62,8 +63,27 @@ function typeDetailRows(details, keyPrefix = "") {
 // anything), the server's own check stays authoritative either way.
 const IMAGE_ACCEPT = "image/gif,image/jpeg,image/png,image/heic,image/webp";
 
+// G411-38: admin's three tabs. Friends only ever see one view (below),
+// no tab state needed for them.
+const ADMIN_TABS = [
+  { value: "details", label: "Details" },
+  { value: "thread", label: "Thread" },
+  { value: "notes", label: "Notes" },
+];
+
 function RequestDetail({ requestId, onBack, isAdmin }) {
   const [request, setRequest] = useState(null);
+  // Admin-only tab state (G411-38) — friends never see tabs, so this is
+  // simply unused/ignored on their path rather than gated behind isAdmin
+  // at declaration (cheaper than conditionally calling useState).
+  const [adminTab, setAdminTab] = useState("thread");
+  // Details/Thread side-by-side toggle — defaults on for a wide viewport
+  // (matches the codebase's one existing breakpoint, App.css/index.css),
+  // off for narrow, but admin can flip it either way regardless of
+  // width (Gavi: "doesn't need to be auto, I can toggle it"). Read once
+  // at mount, not kept in sync with live resizes — a toggle the admin
+  // just set shouldn't silently flip back because the window resized.
+  const [sideBySide, setSideBySide] = useState(() => window.matchMedia("(min-width: 1025px)").matches);
   const [error, setError] = useState(""); // load failure — replaces the whole page
   const [sendError, setSendError] = useState(""); // send failure — inline, thread stays visible
   // True specifically when the send failed because THIS device has no
@@ -340,42 +360,41 @@ function RequestDetail({ requestId, onBack, isAdmin }) {
     return <Card>Loading…</Card>;
   }
 
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-4)", width: "100%", maxWidth: 420 }}>
-      <Button variant="secondary" onClick={onBack}>← Back</Button>
+  const detailsCard = (
+    <Card className="review-summary">
+      <h2>Request details</h2>
+      <div className="review-row">
+        <span className="review-label">Issue/Request</span>
+        <span className="review-value" dir="auto">{request.freeText}</span>
+      </div>
+      <div className="review-row">
+        <span className="review-label">Status</span>
+        <span className="review-value">{labelize(request.status)}</span>
+      </div>
+      <div className="review-row">
+        <span className="review-label">Urgency</span>
+        <span className="review-value">{labelize(request.urgency)}</span>
+      </div>
+      {request.type && (
+        <div className="review-row">
+          <span className="review-label">Type</span>
+          <span className="review-value">{labelize(request.type)}</span>
+        </div>
+      )}
+      {request.additionalInfo && (
+        <div className="review-row">
+          <span className="review-label">Anything else</span>
+          <span className="review-value" dir="auto">{request.additionalInfo}</span>
+        </div>
+      )}
+      {typeDetailRows(request.typeDetails)}
+    </Card>
+  );
 
-      <Card className="review-summary">
-        <h2>Request details</h2>
-        <div className="review-row">
-          <span className="review-label">Issue/Request</span>
-          <span className="review-value" dir="auto">{request.freeText}</span>
-        </div>
-        <div className="review-row">
-          <span className="review-label">Status</span>
-          <span className="review-value">{labelize(request.status)}</span>
-        </div>
-        <div className="review-row">
-          <span className="review-label">Urgency</span>
-          <span className="review-value">{labelize(request.urgency)}</span>
-        </div>
-        {request.type && (
-          <div className="review-row">
-            <span className="review-label">Type</span>
-            <span className="review-value">{labelize(request.type)}</span>
-          </div>
-        )}
-        {request.additionalInfo && (
-          <div className="review-row">
-            <span className="review-label">Anything else</span>
-            <span className="review-value" dir="auto">{request.additionalInfo}</span>
-          </div>
-        )}
-        {typeDetailRows(request.typeDetails)}
-      </Card>
-
-      <Card>
-        <h2>Messages</h2>
-        {decrypting ? (
+  const threadCard = (
+    <Card>
+      <h2>Messages</h2>
+      {decrypting ? (
           <p className="review-empty">Loading messages…</p>
         ) : (
           <MessageThread messages={decryptedMessages} />
@@ -474,6 +493,95 @@ function RequestDetail({ requestId, onBack, isAdmin }) {
           )}
         </div>
       </Card>
+  );
+
+  // Storage/logic is G411-40's job — this tab is just the shell slot it
+  // plugs into.
+  const notesCard = (
+    <Card>
+      <h2>Notes</h2>
+      <p className="review-empty">Private notes aren't wired up yet.</p>
+    </Card>
+  );
+
+  if (!isAdmin) {
+    return (
+      <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-4)", width: "100%", maxWidth: 420 }}>
+        <Button variant="secondary" onClick={onBack}>← Back</Button>
+        {detailsCard}
+        {threadCard}
+      </div>
+    );
+  }
+
+  // Admin: tabbed shell (G411-38) — status pill pinned near the top,
+  // outside/above the tabs, so it stays visible across every tab switch.
+  // The pill is read-only display for now; real lifecycle controls
+  // (dropdown/actions to change status) are G411-39's job, not this
+  // ticket's — this is only the shell that will host them.
+  //
+  // sideBySide (toggle above) puts Details/Thread in two columns and
+  // hides their now-redundant tab buttons — nothing to switch between
+  // once both are visible. Notes stays its own tab either way.
+  return (
+    <div className="admin-detail-shell" style={{ display: "flex", flexDirection: "column", gap: "var(--space-4)", width: "100%", maxWidth: sideBySide ? 900 : 420 }}>
+      <Button variant="secondary" onClick={onBack}>← Back</Button>
+
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "var(--space-3)" }}>
+        <span className="status-pill">{labelize(request.status)}</span>
+        <button type="button" className="admin-layout-toggle" onClick={() => setSideBySide((v) => !v)}>
+          {sideBySide ? "Stack tabs" : "Side by side"}
+        </button>
+      </div>
+
+      {/* Side by side already shows Details+Thread together — nothing
+          left to switch between there, so those two buttons hide.
+          Notes becomes a single on/off toggle instead of a one-way tab
+          (a plain filtered tab button left no way back to the columns —
+          caught live: "can't get back to details and thread"). */}
+      {sideBySide ? (
+        <div role="tablist" style={{ display: "flex", gap: "var(--space-2)", borderBottom: "1px solid var(--border)" }}>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={adminTab === "notes"}
+            className={`admin-tab${adminTab === "notes" ? " admin-tab-active" : ""}`}
+            onClick={() => setAdminTab(adminTab === "notes" ? "details" : "notes")}
+          >
+            {adminTab === "notes" ? "← Details & Thread" : "Notes"}
+          </button>
+        </div>
+      ) : (
+        <div role="tablist" style={{ display: "flex", gap: "var(--space-2)", borderBottom: "1px solid var(--border)" }}>
+          {ADMIN_TABS.map((tab) => (
+            <button
+              key={tab.value}
+              type="button"
+              role="tab"
+              aria-selected={adminTab === tab.value}
+              className={`admin-tab${adminTab === tab.value ? " admin-tab-active" : ""}`}
+              onClick={() => setAdminTab(tab.value)}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {sideBySide ? (
+        adminTab === "notes" ? notesCard : (
+          <div className="admin-detail-columns">
+            {detailsCard}
+            {threadCard}
+          </div>
+        )
+      ) : (
+        <>
+          {adminTab === "thread" && threadCard}
+          {adminTab === "details" && detailsCard}
+          {adminTab === "notes" && notesCard}
+        </>
+      )}
     </div>
   );
 }
