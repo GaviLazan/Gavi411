@@ -99,6 +99,16 @@ const ADMIN_STATUS_OPTIONS = {
 // same convention as the discard-request flow it was built for.
 const STATUS_NEEDS_CONFIRM = ["CANCELLED", "SELF_SOLVED"];
 
+// G411-87: friend-facing lifecycle buttons — a small fixed set (not a
+// general dropdown like ADMIN_STATUS_OPTIONS above), since the ticket's
+// scope is exactly these two named exits, each gated to specific source
+// statuses per TRANSITIONS/decision #100's refund rule. Kept as simple
+// membership checks rather than a table, since there's no "offer
+// whichever of N options apply" shape here — just two independent
+// conditionally-shown buttons.
+const FRIEND_CANCELLABLE_FROM = ["IN_QUEUE", "RECEIVED"];
+const FRIEND_SELF_SOLVABLE_FROM = ["WORKING_ON_IT", "WAITING_ON_USER"];
+
 // G411-38: admin's three tabs. Friends only ever see one view (below),
 // no tab state needed for them.
 const ADMIN_TABS = [
@@ -719,9 +729,47 @@ function RequestDetail({ requestId, onBack, isAdmin }) {
   );
 
   if (!isAdmin) {
+    // G411-87: friend-facing lifecycle actions — same PATCH /:id route,
+    // same applyStatus/handleDowngradeUrgency/confirm-modal machinery
+    // G411-39 built for admin's status pill, just a different (smaller,
+    // fixed) set of offered actions and no dropdown. Cancel/Self-solved
+    // both route through the confirm modal via STATUS_NEEDS_CONFIRM,
+    // same as admin's disruptive-exit gate — ending your own request is
+    // just as worth double-checking as an admin doing it.
+    const canCancel = FRIEND_CANCELLABLE_FROM.includes(request.status);
+    const canSelfSolve = FRIEND_SELF_SOLVABLE_FROM.includes(request.status);
+    const canDowngradeUrgency = request.urgency === "HIGH";
     return (
       <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-4)", width: "100%", maxWidth: 420 }}>
         <Button variant="secondary" onClick={onBack}>← Back</Button>
+        {(canCancel || canSelfSolve || canDowngradeUrgency) && (
+          <div style={{ display: "flex", flexWrap: "wrap", gap: "var(--space-2)" }}>
+            {canCancel && (
+              <Button variant="secondary" onClick={() => setConfirmStatus("CANCELLED")} disabled={statusSaving}>
+                Cancel request
+              </Button>
+            )}
+            {canSelfSolve && (
+              <Button variant="secondary" onClick={() => setConfirmStatus("SELF_SOLVED")} disabled={statusSaving}>
+                Mark self-solved
+              </Button>
+            )}
+            {canDowngradeUrgency && (
+              <Button variant="secondary" onClick={handleDowngradeUrgency} disabled={statusSaving}>
+                No longer urgent
+              </Button>
+            )}
+          </div>
+        )}
+        {statusError && <p className="message-send-error" role="alert">{statusError}</p>}
+        <ConfirmModal
+          open={confirmStatus !== null}
+          message={confirmStatus === "SELF_SOLVED"
+            ? "Mark this request as self-solved? This ends the request."
+            : "Cancel this request?"}
+          onConfirm={() => applyStatus(confirmStatus)}
+          onCancel={() => setConfirmStatus(null)}
+        />
         {detailsCard}
         {threadCard}
       </div>
