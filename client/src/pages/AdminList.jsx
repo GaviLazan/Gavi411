@@ -217,25 +217,40 @@ function AdminList({ onOpenRequest, onNewRequest }) {
   const isGrouped = group === "person" && !matchingRequestIds;
   const groups = isGrouped ? groupByPerson(sorted) : [sorted];
 
+  // "+ New request" renders in EVERY state below (error, loading,
+  // loaded) — creating a request has nothing to do with whether the
+  // existing list could be fetched (same reasoning RequestList's own
+  // button uses; a real bug in an earlier draft of this fix put the
+  // button after the error/loading early-returns, so it silently
+  // vanished whenever the list hadn't finished loading — caught live,
+  // Gavi couldn't find the button at all).
   if (error) {
     return (
-      <Card>
-        <p>{error}</p>
-        <button type="button" onClick={() => setRetryToken((t) => t + 1)}>Try again</button>
-      </Card>
+      <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-4)", width: "100%", maxWidth: 560 }}>
+        <Button variant="primary" onClick={onNewRequest}>
+          + New request
+        </Button>
+        <Card>
+          <p>{error}</p>
+          <button type="button" onClick={() => setRetryToken((t) => t + 1)}>Try again</button>
+        </Card>
+      </div>
     );
   }
 
   if (requests === null) {
-    return <Card>Loading…</Card>;
+    return (
+      <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-4)", width: "100%", maxWidth: 560 }}>
+        <Button variant="primary" onClick={onNewRequest}>
+          + New request
+        </Button>
+        <Card>Loading…</Card>
+      </div>
+    );
   }
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-4)", width: "100%", maxWidth: 560 }}>
-      {/* Sibling review finding: admin lost the ability to create a
-          request for themselves when this screen replaced RequestList as
-          admin's home view — RequestList always had this button, AdminList
-          never did. Same affordance, same handler shape. */}
       <Button variant="primary" onClick={onNewRequest}>
         + New request
       </Button>
