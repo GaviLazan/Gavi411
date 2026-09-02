@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { timeSince, lastActivityAt, filterRequests, sortRequests, groupByPerson } from "./adminListSort";
+import { timeSince, lastActivityAt, filterRequests, sortRequests, groupByPerson, matchesPlainFields } from "./adminListSort";
 
 describe("timeSince", () => {
   it("formats minutes for a recent timestamp", () => {
@@ -102,5 +102,41 @@ describe("groupByPerson", () => {
     expect(groups).toHaveLength(2);
     expect(groups[0].map((r) => r.id)).toEqual([1, 3]);
     expect(groups[1].map((r) => r.id)).toEqual([2]);
+  });
+});
+
+describe("matchesPlainFields", () => {
+  const request = {
+    user: { firstName: "Ada", lastName: "Lovelace" },
+    freeText: "Need a hotel in Rome",
+    type: "TRAVEL",
+  };
+
+  it("matches on friend name, case-insensitive", () => {
+    expect(matchesPlainFields(request, "ada")).toBe(true);
+    expect(matchesPlainFields(request, "LOVELACE")).toBe(true);
+  });
+
+  it("matches on request title/freeText", () => {
+    expect(matchesPlainFields(request, "hotel")).toBe(true);
+  });
+
+  it("matches on request type", () => {
+    expect(matchesPlainFields(request, "travel")).toBe(true);
+  });
+
+  it("does not match an unrelated query", () => {
+    expect(matchesPlainFields(request, "purchase")).toBe(false);
+  });
+
+  it("returns false for an empty query", () => {
+    expect(matchesPlainFields(request, "")).toBe(false);
+    expect(matchesPlainFields(request, "   ")).toBe(false);
+  });
+
+  it("handles a request with no user (defensive)", () => {
+    const noUser = { ...request, user: null };
+    expect(matchesPlainFields(noUser, "ada")).toBe(false);
+    expect(matchesPlainFields(noUser, "hotel")).toBe(true);
   });
 });

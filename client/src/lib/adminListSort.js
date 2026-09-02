@@ -54,6 +54,19 @@ export function sortRequests(requests, sort) {
   return copy;
 }
 
+// Plaintext-field match against a request's name/title/type — no
+// decryption needed, unlike message content (see searchIndex.js). Gavi's
+// direct feedback: message-only search silently failed for a request
+// with no matching message (or none at all), even when its name/title/
+// type were an obvious match.
+export function matchesPlainFields(request, query) {
+  const q = query.trim().toLowerCase();
+  if (!q) return false;
+  const friendName = request.user ? `${request.user.firstName} ${request.user.lastName}` : "";
+  const haystack = `${friendName} ${request.freeText} ${request.type ?? ""}`.toLowerCase();
+  return haystack.includes(q);
+}
+
 export function groupByPerson(requests) {
   const map = new Map();
   for (const r of requests) {

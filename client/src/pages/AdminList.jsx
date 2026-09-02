@@ -3,7 +3,7 @@ import Card from "../components/Card";
 import Select from "../components/Select";
 import Input from "../components/Input";
 import { statusLabel } from "./RequestList";
-import { timeSince, lastActivityAt, filterRequests, sortRequests, groupByPerson } from "../lib/adminListSort";
+import { timeSince, lastActivityAt, filterRequests, sortRequests, groupByPerson, matchesPlainFields } from "../lib/adminListSort";
 import { buildSearchIndex, searchIndex } from "../lib/searchIndex";
 import { loadLinkedConversationKeys } from "../lib/deviceLinking";
 import { seedLinkedConversationKeys } from "../lib/conversationCrypto";
@@ -159,10 +159,19 @@ function AdminList({ onOpenRequest }) {
     };
   }, [requests]);
 
+  // Message-content matches (decrypted, via searchIndex) UNIONED with
+  // plaintext-field matches (name/title/type — no decryption needed, all
+  // already in memory). Gavi's direct feedback: message-only search is
+  // "pretty dumb" — a request with no matching message (or none at all)
+  // was unfindable even when its name/title/type were an obvious match.
   const matchingRequestIds = useMemo(() => {
     if (!searchQuery.trim()) return null; // null = "no search active", not "matched nothing"
-    return new Set(searchIndex(searchEntries, searchQuery).map((e) => e.requestId));
-  }, [searchEntries, searchQuery]);
+    const ids = new Set(searchIndex(searchEntries, searchQuery).map((e) => e.requestId));
+    for (const r of requests ?? []) {
+      if (matchesPlainFields(r, searchQuery)) ids.add(r.id);
+    }
+    return ids;
+  }, [searchEntries, searchQuery, requests]);
 
   // A search in progress bypasses sort/filter/group entirely — search
   // means "show me every match across the whole list," not "respect
