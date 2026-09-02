@@ -12,7 +12,59 @@ accumulated. If something here turns out to matter long-term, promote it to
 
 ---
 
-## Where this session left off (2026-09-02) — Epic 4 fully Reconciled, G411-37 Reconciled (PR #51, `68e63c9`), Epic 5 (Admin Cockpit) now in progress.
+## Where this session left off (2026-09-02) — G411-38 Reconciled (PR #54, `e4aaebb`). Epic 5 (Admin Cockpit) continues.
+
+**G411-38 (admin detail screen — Thread/Details/Notes tabs) — Reconciled,
+PR #54 merged `e4aaebb`.** Tabbed the existing admin path of
+`RequestDetail.jsx` (it already had message-thread + `typeDetails`
+rendering from earlier work, predating this ticket) into three tabs, plus
+a read-only status pill pinned near the top (real lifecycle logic is
+G411-39's job) and a Notes tab shell (storage is G411-40's job). Friend
+view unchanged — same single stacked view as always.
+
+Also added, live per Gavi's own ask mid-session: an admin-only Details+
+Thread **side-by-side layout toggle** — defaults from viewport width
+(≥1025px) but overridable at any width, Notes replaces the two columns
+when opened rather than hiding alongside them, with a working way back.
+Two real bugs surfaced and fixed live during this: Notes silently not
+rendering in side-by-side mode (tab strip had filtered its own button
+out), and once fixed, no way back from Notes to Details/Thread (the tab
+strip only showed the one Notes button with no toggle-off). One Sibling
+review round found one further real bug (side-by-side's CSS collapse
+breakpoint at 640px didn't match the JS toggle's 1025px default, so a
+manual toggle on a ~700-1024px viewport squeezed two cramped columns) —
+fixed with `auto-fit`/`minmax` instead of a fixed breakpoint, no
+sync-two-numbers problem left. Both the review finding and the fix are
+posted as real PR #54 comments.
+
+**Real process mistake this session, now logged as decision #105**: the
+work was first branched as `agent-frontend/G411-38-...` and committed
+from the primary worktree under Gavi's own identity — wrong role
+(`agent-frontend` is infra-only per `gavi411-commit-convention.md`,
+product UI is `agent-backend`'s job) and wrong worktree/identity. Caught
+mid-wrap-up, not before starting. Recovered cleanly: diff saved as a
+patch, verified to apply clean against a detached clean-`main` scratch
+worktree, then the primary worktree's copy discarded and the patch
+re-applied/committed from `Gavi411-agent-backend` under its real
+`agent-backend@gavi411.local` identity. No work lost, one extra round
+trip. Full mechanics in brain.md #105.
+
+**G411-89 filed, deferred, not started** — real perf bug Gavi noticed and
+this session traced live (not guessed): `AdminList`/`RequestList` fully
+unmount and refetch from scratch on every navigation away from and back
+to the list view, because `App.jsx`'s view switch is one mutually-
+exclusive ternary. Confirmed NOT a slow query (local API timed 2-5ms)
+and NOT the `/api/me`/role chain (stays cached across navigation since
+`App` itself never remounts) — purely wasted refetches on every back-
+navigation, worse deployed where Render's cold start compounds it.
+Fix shape (not started): keep the list components mounted across the
+view switch (CSS-hidden, not unmounted) instead of conditionally
+rendering them — touches every `App.jsx` view branch, not just admin.
+Parented under G411-5 since that's where Gavi noticed it (invite button
+symptom), but the bug is identical on the friend-facing `RequestList` too
+and should get the same fix, not a follow-up ticket.
+
+---
 
 **Epic 4 (Request Lifecycle) — fully Reconciled.** All 7 children (G411-30
 through G411-36) Reconciled, Epic itself Reconciled. Decision detail in
@@ -59,46 +111,47 @@ actually checking — which was wrong. Gavi caught it live. Fixed:
 transitioned Open→Implementing→Reviewing→Landed→Reconciled in order once
 actually verified, Aegis fields written (late, against real final state).
 
-**A second, related miss, same evening, not yet promoted to brain.md**:
-after merging PR #51 and finishing the worktree sync, a wrap-up report
-showed "Jira transition ✓ — G411-37 now Landed" as a checkmarked, done
-item, with no question anywhere in that message about the still-open
-Landed→Reconciled confirm — the message moved straight to "what's next"
-instead. Gavi had to separately ask "are we good to go, or is something
-left" before the reconcile confirm actually got asked. Worth folding into
-brain.md's decision #104 (or a new decision) next session if it isn't
-already — the fix (memory `reconcile-confirm-plain-question.md`, updated
-live): a wrap-up report must never show a Jira-transition checkmark for a
-ticket sitting at Landed without that same message also asking, in plain
-text, whether to reconcile it.
+**A second, related miss, same evening** — folded into decision #104's
+second paragraph in brain.md: a wrap-up report must never show a
+Jira-transition checkmark for a ticket sitting at Landed without that
+same message also asking, in plain text, whether to reconcile it.
 
 ### Real state, right now
 All 7 worktrees (primary `Gavi411` + 6 role worktrees) synced and clean
-at `e0f42f6` as of this session's wrap-up (confirmed via `git status
---short` + `git log --oneline -1` across all 7). G411-37 is Reconciled
-in Jira (confirmed live via API, not just this doc). Dev servers were run
-live this session directly from the primary worktree for Gavi to click
-through changes in real time — port 3000 (backend) and 5173 (client).
-Not confirmed still running at session end; check before assuming either
-is up.
+at `e4aaebb` as of this session's wrap-up (confirmed via `git status
+--short` + `git log --oneline -1` across all 7 — the `agent-backend`
+worktree's now-dead `G411-38` ticket branch was deleted, it's back on its
+prior stable branch `G411-33-34-close-reopen`, fast-forwarded to match).
+G411-38 is Reconciled in Jira (confirmed live via API). G411-89 (list-view
+refetch-on-navigation perf bug) filed and Open, not started. **All dev
+servers stopped** — this session's own (backend :3000, client :5174 —
+5173 was already occupied by something else when this session started)
+plus two stale leftovers from a prior session Gavi flagged mid-wrap-up
+(a `Gavi411-agent-e2e` backend `node --watch server.js`, and a Prisma
+Studio on :5555) — confirmed via `lsof`/`ps` that nothing but VS Code's
+own internal ports remain listening.
 
 ### What's next, concretely
-1. **G411-44** ("Gavi-initiated request flow — paste content, generate
+1. **G411-89** (list views refetch from scratch on every back-navigation
+   — real perf bug, traced not guessed, see above) — filed, parented
+   under G411-5, not started. Worth doing before it compounds with more
+   view branches; fix touches `App.jsx`'s view-switch structure broadly.
+2. **G411-39** (status lifecycle controls) and **G411-40** (private notes
+   storage/logic) are the natural next Epic 5 children — G411-38 built
+   the shell (status pill display-only, Notes tab placeholder) that both
+   of these plug real logic into.
+3. **G411-44** ("Gavi-initiated request flow — paste content, generate
    share link, existing-user notify path", Should, Epic 5, not started)
    is the real, already-scoped ticket for admin initiating a request ON
-   BEHALF OF someone else — explicitly flagged live this session as
-   something Gavi will need. G411-37's "+ New request" button is
+   BEHALF OF someone else — explicitly flagged live in an earlier session
+   as something Gavi will need. G411-37's "+ New request" button is
    correctly scoped as admin-creates-for-themselves only; G411-44 is the
    separate on-someone-else's-behalf flow.
-2. **G411-38** (admin detail screen — Thread/Details/Notes tabs, status
-   control pinned near top) is the natural next Epic 5 child — G411-37's
-   list screen needs somewhere to drill into.
-3. **Two friend/admin UI gaps still deliberately deferred and tracked**:
+4. **Two friend/admin UI gaps still deliberately deferred and tracked**:
    G411-87 (friend-facing cancel/self-solved/downgrade buttons) and
    G411-88 (admin nudge button) — both filed, parented under G411-5,
    neither started.
-4. **Epic 5 (Admin Cockpit) itself is still Implementing** — has real
-   Reconciled children now (G411-37, G411-41, G411-70, G411-71, G411-76,
-   G411-81), but several children remain Open (G411-38 through G411-44
-   except what's listed above, G411-68, 69, 80, 87, 88) — not close to
-   Epic-level Reconciled yet.
+5. **Epic 5 (Admin Cockpit) itself is still Implementing** — real
+   Reconciled children now (G411-37, G411-38, G411-41, G411-70, G411-71,
+   G411-76, G411-81), but several remain Open (G411-39, 40, 44, 68, 69,
+   80, 87, 88, 89) — not close to Epic-level Reconciled yet.
