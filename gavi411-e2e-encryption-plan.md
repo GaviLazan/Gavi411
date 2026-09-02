@@ -289,16 +289,36 @@ Real open question, needs Gavi's call before implementation starts:
 
 ## 8. Next concrete step
 
-**The wipe (§4) is done.** Admin's own account is re-onboarded, has a
-real escrow backup, and a genuine encrypt/decrypt round-trip was
-confirmed live. Session paused here (2026-09-02), by Gavi's explicit
-call, before starting §5 (reverting `sendMessage()` to always-plaintext)
-— that's the next real work, not yet started. E2E/escrow-only rebuild
-(§2) stays untouched, deliberately, per Gavi's "don't want to touch E2E
-right now at all" — §5's plaintext-reversion is the only in-scope next
-step, not a return to the architecture question.
+**§5 (plaintext-reversion) is done — G411-86, Landed 2026-09-02.**
+`E2E_ENABLED = false` (client + server twin configs) gates every real
+encrypt/decrypt/device-link call site off, decoupled not deleted per
+Gavi's explicit correction — `crypto.js`/`conversationCrypto.js`/
+`deviceLinking.js`/`escrow.js`/`keyStore.js` are untouched on disk,
+flipping the flag back to `true` is the whole reactivation step. Live
+click-through verified on both localhost and the Vercel deployment: new
+messages send as plaintext (`encrypted: false`), pre-pause encrypted rows
+still decrypt correctly on the origin/device holding the matching key.
+150 server + 50 client tests passing. PR #38 (Sibling review found and
+fixed one real bug same round — see below).
 
-Before starting §5: re-confirm with Gavi that's still the right next
-step (this doc may be read by a fresh session), then scope the actual
-code checklist for real (§5's list is still a guess, not yet traced file
-by file the way the wipe was).
+**Known, accepted gap, surfaced during G411-86's live verification, not
+a regression**: with device-linking/escrow recovery UI gated off along
+with everything else, an old encrypted message (from the brief live-E2E
+window before this pause) is unreadable on any device/browser origin
+that doesn't already hold the original private key — no in-app recovery
+path today. This is exactly the "encrypted → plaintext" direction never
+existing (§2's escrow-only design already named this tradeoff for the
+*eventual* rebuild — "a friend without their original passphrase needs a
+human to hand it back" — but right now, paused, there's no fallback UI
+at all, not even that). Accepted by Gavi as fine (2026-09-02): the
+affected message set is small and fixed in size (nothing new gets added
+to it, since all new messages are plaintext going forward), so it's not
+worth re-exposing recovery UI just for it. Revisit if this ever needs to
+change — e.g. if the escrow-only rebuild (§2) actually happens, its
+device/passphrase-recovery mechanism would cover this same gap as a side
+effect, not a separate fix.
+
+**What's next on the spine**: E2E is paused per decision #98; the rest of
+the product (Lifecycle, Cockpit, Credits, Notifications) resumes as the
+priority. E2E/escrow-only rebuild (§2) stays untouched until there's
+explicit time/decision to come back to it — not the current focus.
