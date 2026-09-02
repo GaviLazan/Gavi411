@@ -282,6 +282,18 @@ router.patch('/:id', requireAuth, async (req, res) => {
         error: `Cannot move from ${existing.status} to ${status}`,
       })
     }
+    // G411-33: closing is friend-only, unlike every other transition on
+    // this route (which admin can trigger via canAccessRequest's bypass).
+    // Distinct from auto-close (G411-35, timeout-driven, no friend
+    // confirmation) — this is specifically the "did this resolve it?"
+    // manual confirm flow. Gavi's explicit call (see gavi411-brain.md
+    // decision log): "I want to have friend confirmation ... not just
+    // close on my own."
+    if (status === Status.CLOSED && req.user.role === 'ADMIN') {
+      return res.status(400).json({
+        error: 'Only the friend can confirm and close a request',
+      })
+    }
     data.status = status
   }
 
@@ -444,14 +456,34 @@ router.post('/:id/messages', requireAuth, uploadImageField, async (req, res) => 
       imageUrl = uploaded.secure_url
     }
 
-    const message = await prisma.message.create({
-      data: {
-        content: hasText ? content : '',
-        encrypted: isEncrypted,
-        imageUrl,
-        requestId: id,
-        userId: req.user.clerkId,
-      },
+    // G411-34: sending a message on a CLOSED request reopens it — no
+    // separate "reopen" button, this IS the mechanism (PRD §4.4). Target
+    // status depends on who messages (see gavi411-brain.md decision log):
+    // a friend reopening means Gavi hasn't seen this new activity yet
+    // (IN_QUEUE — not RECEIVED, since "unseen by me right now" is the
+    // real distinction, not "brand new"); an admin messaging means the
+    // ball's back in the friend's court (WAITING_ON_USER), symmetric
+    // with the existing WORKING_ON_IT<->WAITING_ON_USER pattern. Message
+    // create + status write run in one transaction so they can't diverge
+    // (e.g. a message lands but the reopen status write fails).
+    const reopenTarget = req.user.role === 'ADMIN' ? Status.WAITING_ON_USER : Status.IN_QUEUE
+
+    const message = await prisma.$transaction(async (tx) => {
+      const created = await tx.message.create({
+        data: {
+          content: hasText ? content : '',
+          encrypted: isEncrypted,
+          imageUrl,
+          requestId: id,
+          userId: req.user.clerkId,
+        },
+      })
+
+      if (existing.status === Status.CLOSED) {
+        await tx.request.update({ where: { id }, data: { status: reopenTarget } })
+      }
+
+      return created
     })
 
     res.status(201).json(message)

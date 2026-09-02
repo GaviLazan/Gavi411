@@ -438,6 +438,27 @@ describe('PATCH /api/requests/:id', () => {
       expect(prismaMock.creditTransaction.create).not.toHaveBeenCalled()
     })
   })
+
+  // G411-33 — close is friend-only
+  describe('close is friend-only (G411-33)', () => {
+    it('allows a friend to close from RESOLVED_PENDING_CONFIRMATION', async () => {
+      currentUserId = OWNER
+      prismaMock.request.findUnique.mockResolvedValue({ ...sampleRequest, status: 'RESOLVED_PENDING_CONFIRMATION' })
+      prismaMock.request.update.mockResolvedValue({ ...sampleRequest, status: 'CLOSED' })
+
+      const res = await request(app).patch('/api/requests/1').send({ status: 'CLOSED' })
+      expect(res.status).toBe(200)
+    })
+
+    it('400s an admin trying to close directly', async () => {
+      currentUserId = ADMIN
+      prismaMock.request.findUnique.mockResolvedValue({ ...sampleRequest, status: 'RESOLVED_PENDING_CONFIRMATION' })
+
+      const res = await request(app).patch('/api/requests/1').send({ status: 'CLOSED' })
+      expect(res.status).toBe(400)
+      expect(prismaMock.request.update).not.toHaveBeenCalled()
+    })
+  })
 })
 
 // No coverage existed for POST / (create + deduct) before G411-48's
@@ -570,6 +591,48 @@ describe('POST /api/requests/:id/messages (G411-24)', () => {
 
     const res = await request(app).post('/api/requests/1/messages').send({ content: 'hi' })
     expect(res.status).toBe(201)
+  })
+})
+
+// G411-34 — reopen-on-message
+describe('POST /api/requests/:id/messages — reopen-on-message (G411-34)', () => {
+  it('a friend message on a CLOSED request reopens it to IN_QUEUE', async () => {
+    currentUserId = OWNER
+    prismaMock.request.findUnique.mockResolvedValue({ ...sampleRequest, status: 'CLOSED' })
+    prismaMock.message.create.mockResolvedValue({ id: 7, content: 'still need help', requestId: 1, userId: OWNER })
+
+    const res = await request(app).post('/api/requests/1/messages').send({ content: 'still need help' })
+
+    expect(res.status).toBe(201)
+    expect(prismaMock.request.update).toHaveBeenCalledWith({
+      where: { id: 1 },
+      data: { status: 'IN_QUEUE' },
+    })
+  })
+
+  it('an admin message on a CLOSED request reopens it to WAITING_ON_USER', async () => {
+    currentUserId = ADMIN
+    prismaMock.request.findUnique.mockResolvedValue({ ...sampleRequest, status: 'CLOSED' })
+    prismaMock.message.create.mockResolvedValue({ id: 8, content: 'one more thing', requestId: 1, userId: ADMIN })
+
+    const res = await request(app).post('/api/requests/1/messages').send({ content: 'one more thing' })
+
+    expect(res.status).toBe(201)
+    expect(prismaMock.request.update).toHaveBeenCalledWith({
+      where: { id: 1 },
+      data: { status: 'WAITING_ON_USER' },
+    })
+  })
+
+  it('a message on a non-CLOSED request does not touch status at all', async () => {
+    currentUserId = OWNER
+    prismaMock.request.findUnique.mockResolvedValue({ ...sampleRequest, status: 'WORKING_ON_IT' })
+    prismaMock.message.create.mockResolvedValue({ id: 9, content: 'update', requestId: 1, userId: OWNER })
+
+    const res = await request(app).post('/api/requests/1/messages').send({ content: 'update' })
+
+    expect(res.status).toBe(201)
+    expect(prismaMock.request.update).not.toHaveBeenCalled()
   })
 })
 
