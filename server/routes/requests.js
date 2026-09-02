@@ -205,9 +205,13 @@ const URGENCY_VALUES = Object.values(Urgency)
 // status, values are the set of statuses it may move to directly. Terminal
 // states (CLOSED, CANCELLED, SELF_SOLVED) map to an empty array — reopening
 // a closed request is G411-34's job (a new message, not a status PATCH) and
-// isn't a transition this table needs to know about. Who is allowed to
-// trigger which edge (friend vs admin) is deliberately NOT enforced here —
-// that's G411-31/32/33's job, layered on top of this shell.
+// isn't a transition this table needs to know about. This table alone is
+// NOT the full source of truth for whether a transition is legal — most
+// edges are actor-agnostic (either party can trigger them via
+// canAccessRequest's bypass), but specific edges layer a named actor-gate
+// on top: canSetUrgency (G411-32, urgency field) and canCloseRequest
+// (G411-33, the -> CLOSED edge specifically, friend-only). Check both this
+// table AND those predicates before assuming a transition is unrestricted.
 const TRANSITIONS = {
   IN_QUEUE: [Status.RECEIVED, Status.CANCELLED],
   RECEIVED: [Status.WORKING_ON_IT, Status.CANCELLED],
@@ -234,6 +238,19 @@ const REFUNDABLE_EXITS = [Status.CANCELLED, Status.SELF_SOLVED]
 function canSetUrgency(existingUrgency, nextUrgency, user) {
   if (user.role === 'ADMIN') return true
   return existingUrgency === Urgency.HIGH && nextUrgency === Urgency.NORMAL
+}
+
+// G411-33: closing is friend-only, unlike every other transition on this
+// route (admin can trigger those via canAccessRequest's bypass). Distinct
+// from auto-close (G411-35, timeout-driven, no friend confirmation) — this
+// is specifically the "did this resolve it?" manual confirm flow. Gavi's
+// explicit call (see gavi411-brain.md decision log): "I want to have
+// friend confirmation ... not just close on my own." Named alongside
+// canSetUrgency (same actor-gating shape) rather than inlined, per Sibling
+// review finding.
+function canCloseRequest(nextStatus, user) {
+  if (nextStatus !== Status.CLOSED) return true
+  return user.role !== 'ADMIN'
 }
 
 // PATCH /:id — accepts a status/urgency update. Status changes are checked
@@ -280,6 +297,11 @@ router.patch('/:id', requireAuth, async (req, res) => {
     if (!TRANSITIONS[existing.status].includes(status)) {
       return res.status(400).json({
         error: `Cannot move from ${existing.status} to ${status}`,
+      })
+    }
+    if (!canCloseRequest(status, req.user)) {
+      return res.status(400).json({
+        error: 'Only the friend can confirm and close a request',
       })
     }
     data.status = status
@@ -444,15 +466,46 @@ router.post('/:id/messages', requireAuth, uploadImageField, async (req, res) => 
       imageUrl = uploaded.secure_url
     }
 
-    const message = await prisma.message.create({
-      data: {
-        content: hasText ? content : '',
-        encrypted: isEncrypted,
-        imageUrl,
-        requestId: id,
-        userId: req.user.clerkId,
-      },
-    })
+    // G411-34: sending a message on a CLOSED request reopens it — no
+    // separate "reopen" button, this IS the mechanism (PRD §4.4). Target
+    // status depends on who messages (see gavi411-brain.md decision log):
+    // a friend reopening means Gavi hasn't seen this new activity yet
+    // (IN_QUEUE — not RECEIVED, since "unseen by me right now" is the
+    // real distinction, not "brand new"); an admin messaging means the
+    // ball's back in the friend's court (WAITING_ON_USER), symmetric
+    // with the existing WORKING_ON_IT<->WAITING_ON_USER pattern.
+    //
+    // Only enters a transaction on the CLOSED path (Sibling review finding
+    // — the plain case, an ordinary message on a non-CLOSED request, has
+    // nothing to make atomic and shouldn't pay for one). Status is
+    // re-checked FRESH inside the transaction, not trusted from the
+    // pre-transaction `existing` read above (also a Sibling review
+    // finding — two near-simultaneous messages could otherwise both see
+    // CLOSED from their own stale snapshot and both write a reopen,
+    // racing on which reopenTarget wins by commit order instead of real
+    // message order).
+    const messageData = {
+      content: hasText ? content : '',
+      encrypted: isEncrypted,
+      imageUrl,
+      requestId: id,
+      userId: req.user.clerkId,
+    }
+
+    let message
+    if (existing.status === Status.CLOSED) {
+      const reopenTarget = req.user.role === 'ADMIN' ? Status.WAITING_ON_USER : Status.IN_QUEUE
+      message = await prisma.$transaction(async (tx) => {
+        const created = await tx.message.create({ data: messageData })
+        const fresh = await tx.request.findUnique({ where: { id }, select: { status: true } })
+        if (fresh.status === Status.CLOSED) {
+          await tx.request.update({ where: { id }, data: { status: reopenTarget } })
+        }
+        return created
+      })
+    } else {
+      message = await prisma.message.create({ data: messageData })
+    }
 
     res.status(201).json(message)
   } catch (err) {
