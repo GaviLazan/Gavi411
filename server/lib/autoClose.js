@@ -22,14 +22,17 @@
 
 import { Status } from '@prisma/client'
 import { prisma } from './prisma.js'
-import { getAdminUser } from './requestAccess.js'
+import { getAdminUser, AUTO_CLOSE_WARNING_TEXT } from './requestAccess.js'
 
 const DAY_MS = 24 * 60 * 60 * 1000
 const CLOSE_AFTER_MS = 14 * DAY_MS
 const WARNING_LEAD_MS = 2 * DAY_MS
 
-export const AUTO_CLOSE_WARNING_TEXT =
-  "This request has been quiet for a while — if we don't hear back in the next couple of days, we'll go ahead and close it. Just reply here to keep it open."
+// Re-exported so existing importers of AUTO_CLOSE_WARNING_TEXT from this
+// module (the nudge route, tests) don't need to change their import path
+// — the constant itself now lives in requestAccess.js so hasAdminMessaged
+// can exclude it without a circular import (see that file's comment).
+export { AUTO_CLOSE_WARNING_TEXT }
 
 // Sends the warning/nudge message, authored as the admin account. Used by
 // both the auto-close job and the manual nudge endpoint. `admin` can be
@@ -95,7 +98,7 @@ export async function runAutoCloseCheck() {
     if (alreadyWarned && inactiveMs >= CLOSE_AFTER_MS) {
       await prisma.$transaction(async (tx) => {
         const fresh = await tx.request.findUnique({ where: { id: req.id }, select: { status: true } })
-        if (fresh.status === Status.WAITING_ON_USER) {
+        if (fresh?.status === Status.WAITING_ON_USER) {
           await tx.request.update({ where: { id: req.id }, data: { status: Status.CLOSED } })
         }
       })

@@ -391,7 +391,7 @@ describe('PATCH /api/requests/:id', () => {
 
       expect(res.status).toBe(200)
       expect(prismaMock.message.findFirst).toHaveBeenCalledWith({
-        where: { requestId: 1, user: { role: 'ADMIN' } },
+        where: expect.objectContaining({ requestId: 1, user: { role: 'ADMIN' } }),
       })
       expect(prismaMock.user.update).toHaveBeenCalledWith({
         where: { clerkId: OWNER },
