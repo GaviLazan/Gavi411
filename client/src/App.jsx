@@ -8,6 +8,7 @@ import RequestDetail from './pages/RequestDetail'
 import InstallHelp from './pages/InstallHelp'
 import InviteAdmin from './pages/InviteAdmin'
 import ConfirmModal from './components/ConfirmModal'
+import Button from './components/Button'
 import { useTheme } from './useTheme'
 import Recover from './pages/Recover'
 import {
@@ -315,7 +316,7 @@ function App() {
             // path instead of a silent dead end.
             <div>
               <p>Couldn't load your account. Try again?</p>
-              <button type="button" onClick={() => setRoleRetryToken((t) => t + 1)}>Try again</button>
+              <Button onClick={() => setRoleRetryToken((t) => t + 1)}>Try again</Button>
             </div>
           ) : role === null ? (
             // Sibling review finding: rendering RequestList/AdminList based

@@ -199,10 +199,15 @@ function AdminList({ onOpenRequest, onNewRequest }) {
     // of routing both through filterRequests via a magic "all" sentinel
     // (Sibling review finding — that meant a reader had to open
     // filterRequests to learn "all" means "no-op passthrough").
-    const base = matchingRequestIds
-      ? requests.filter((r) => matchingRequestIds.has(r.id))
-      : filterRequests(requests, filter);
-    return sortRequests(base, sort);
+    // Sibling review finding: this used to call sortRequests
+    // unconditionally, so an active search still applied the (disabled,
+    // supposedly inert) Sort dropdown's stale value — contradicting the
+    // comment above and the disabled UI's implication that sort no
+    // longer applies during a search.
+    if (matchingRequestIds) {
+      return requests.filter((r) => matchingRequestIds.has(r.id));
+    }
+    return sortRequests(filterRequests(requests, filter), sort);
   }, [requests, filter, sort, matchingRequestIds]);
 
   // One shape either way — a list of groups, ungrouped is just one group
@@ -232,7 +237,7 @@ function AdminList({ onOpenRequest, onNewRequest }) {
         </Button>
         <Card>
           <p>{error}</p>
-          <button type="button" onClick={() => setRetryToken((t) => t + 1)}>Try again</button>
+          <Button onClick={() => setRetryToken((t) => t + 1)}>Try again</Button>
         </Card>
       </div>
     );
