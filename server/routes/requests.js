@@ -4,7 +4,7 @@ import express from 'express'
 import multer from 'multer'
 import { Status, Urgency } from '@prisma/client'
 import { matchKeywords } from '../lib/matchKeywords.js'
-import { requireAuth } from '../middleware/auth.js'
+import { requireAuth, requireAdmin } from '../middleware/auth.js'
 import { prisma } from '../lib/prisma.js'
 import { validateImage, uploadImage, MAX_IMAGE_BYTES } from '../lib/cloudinary.js'
 import { canAccessRequest, hasAdminMessaged } from '../lib/requestAccess.js'
@@ -399,6 +399,58 @@ router.post('/:id/nudge', requireAuth, async (req, res) => {
     console.error('Failed to send nudge:', err)
     res.status(500).json({ error: 'Failed to send nudge' })
   }
+})
+
+// GET /:id/notes, POST /:id/notes — private admin-only notes (G411-40, PRD
+// §6.2 "Private notes per request | Visible only to Gavi | Should"). The
+// `Note` model already existed in prisma/schema.prisma (migrated
+// 2026-08-19's init migration) with zero routes built against it until
+// now — no schema change needed for this ticket.
+//
+// requireAdmin (not canAccessRequest) is the real security boundary here,
+// per Gavi411's own no-route-existence-leak convention used everywhere
+// else on this router: a non-admin gets 404, same as every other
+// admin-only/ownership check on this file. This is enforced server-side,
+// not just hidden client-side — the PRD explicitly frames this as a
+// visibility boundary, not a UI nicety.
+router.get('/:id/notes', requireAuth, requireAdmin, async (req, res) => {
+  const id = Number(req.params.id)
+  if (!Number.isInteger(id)) {
+    return res.status(400).json({ error: 'Invalid request id' })
+  }
+
+  const existing = await prisma.request.findUnique({ where: { id }, select: { id: true } })
+  if (!existing) {
+    return res.status(404).json({ error: 'Request not found' })
+  }
+
+  const notes = await prisma.note.findMany({
+    where: { requestId: id },
+    orderBy: { createdAt: 'asc' },
+  })
+  res.json(notes)
+})
+
+router.post('/:id/notes', requireAuth, requireAdmin, async (req, res) => {
+  const id = Number(req.params.id)
+  if (!Number.isInteger(id)) {
+    return res.status(400).json({ error: 'Invalid request id' })
+  }
+
+  const { content } = req.body
+  if (!content || !content.trim()) {
+    return res.status(400).json({ error: 'content is required' })
+  }
+
+  const existing = await prisma.request.findUnique({ where: { id }, select: { id: true } })
+  if (!existing) {
+    return res.status(404).json({ error: 'Request not found' })
+  }
+
+  const note = await prisma.note.create({
+    data: { content: content.trim(), requestId: id },
+  })
+  res.status(201).json(note)
 })
 
 // POST /match — keyword-match free text against the Trigger table
