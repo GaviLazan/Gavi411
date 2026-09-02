@@ -7,7 +7,7 @@ import { matchKeywords } from '../lib/matchKeywords.js'
 import { requireAuth } from '../middleware/auth.js'
 import { prisma } from '../lib/prisma.js'
 import { validateImage, uploadImage, MAX_IMAGE_BYTES } from '../lib/cloudinary.js'
-import { canAccessRequest } from '../lib/requestAccess.js'
+import { canAccessRequest, hasAdminMessaged } from '../lib/requestAccess.js'
 import { E2E_ENABLED } from '../lib/e2eConfig.js'
 import { deductCredit, refundCredit } from '../lib/credits.js'
 
@@ -219,6 +219,12 @@ const TRANSITIONS = {
   SELF_SOLVED: [],
 }
 
+// G411-31: exits that refund 1 credit, gated on no ADMIN-role user having
+// messaged on the request yet (Gavi's rule — see gavi411-brain.md decision
+// log; one admin message is still fine, might just be a clarifying
+// question).
+const REFUNDABLE_EXITS = [Status.CANCELLED, Status.SELF_SOLVED]
+
 // PATCH /:id — accepts a status/urgency update. Status changes are checked
 // against TRANSITIONS above (G411-30); urgency is still a plain enum-value
 // write (G411-32 will add the "no longer urgent"-only rule on top).
@@ -263,27 +269,20 @@ router.patch('/:id', requireAuth, async (req, res) => {
     data.status = status
   }
 
-  // G411-31: cancel/self-solved refund 1 credit, but only if no ADMIN-role
-  // user has messaged on this request yet — Gavi's rule, "one message from
-  // me is fine, might just be a clarifying question." Runs status update +
-  // refund in one transaction so a crash mid-way can't leave the status
-  // changed without the refund (or vice versa).
-  const REFUNDABLE_EXITS = [Status.CANCELLED, Status.SELF_SOLVED]
-  if (status !== undefined && REFUNDABLE_EXITS.includes(status)) {
-    const adminMessage = await prisma.message.findFirst({
-      where: { requestId: id, user: { role: 'ADMIN' } },
-    })
+  // G411-31 refund: both the "has an admin messaged" check and the credit
+  // refund run inside the SAME transaction as the status write (Sibling
+  // review finding — reading adminMessage outside the transaction let two
+  // concurrent cancels both observe "untouched" and both refund; Prisma
+  // serializes concurrent transactions touching the same rows, closing
+  // that race).
+  const isRefundable = status !== undefined && REFUNDABLE_EXITS.includes(status)
 
-    const updated = await prisma.$transaction(async (tx) => {
-      if (!adminMessage) {
-        await refundCredit(tx, existing.userId)
-      }
-      return tx.request.update({ where: { id }, data })
-    })
-    return res.json(updated)
-  }
-
-  const updated = await prisma.request.update({ where: { id }, data })
+  const updated = await prisma.$transaction(async (tx) => {
+    if (isRefundable && !(await hasAdminMessaged(tx, id))) {
+      await refundCredit(tx, existing.userId)
+    }
+    return tx.request.update({ where: { id }, data })
+  })
   res.json(updated)
 })
 

@@ -11,3 +11,16 @@
 export function canAccessRequest(request, user) {
   return request.userId === user.clerkId || user.role === 'ADMIN'
 }
+
+// True if any ADMIN-role user has sent a Message on this request — G411-31's
+// "untouched" refund-eligibility check, pulled out to its own named export
+// since G411-32/33 (urgent downgrade, close-confirm flow) will likely need
+// the same "has an admin touched this request" fact. Takes a Prisma client
+// (or transaction client `tx`) so callers can run it inside their own
+// transaction.
+export async function hasAdminMessaged(db, requestId) {
+  const adminMessage = await db.message.findFirst({
+    where: { requestId, user: { role: 'ADMIN' } },
+  })
+  return adminMessage !== null
+}

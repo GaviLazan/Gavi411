@@ -150,13 +150,15 @@ export async function requireAuth(req, res, next) {
             // our side, so this is a placeholder until that flow fills
             // it in.
             phoneNumber: `pending-${userId}`,
-            // G411-45: tiered initial grant per PRD §9 (Limited 2, Regular
-            // 5, Close 7), not the old hardcoded 0. groupTag isn't
-            // collected at signup yet, so this reads the schema's own
-            // @default(REGULAR) — initialCreditFor's own REGULAR fallback
-            // would cover that anyway, but naming it here keeps the two
-            // defaults from silently drifting apart if one changes later.
-            creditBalance: initialCreditFor('REGULAR'),
+            // G411-45: initial grant is no longer hardcoded 0 (real bug —
+            // new users couldn't submit even one request until manually
+            // topped up). NOT yet tiered by group in practice: groupTag
+            // isn't collected anywhere at/before signup, so every new user
+            // gets initialCreditFor's REGULAR-tier amount today.
+            // initialCreditFor(LIMITED/CLOSE) only becomes reachable once
+            // groupTag collection exists — that's separate scope, not this
+            // ticket's job.
+            creditBalance: initialCreditFor(undefined),
           },
         })
       } catch (err) {
