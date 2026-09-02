@@ -634,6 +634,22 @@ describe('POST /api/requests/:id/messages — reopen-on-message (G411-34)', () =
     expect(res.status).toBe(201)
     expect(prismaMock.request.update).not.toHaveBeenCalled()
   })
+
+  it('does not double-reopen if the request was already reopened by the time the transaction re-checks (Sibling review race fix)', async () => {
+    currentUserId = OWNER
+    // Pre-transaction read sees CLOSED (stale); the in-tx fresh re-read
+    // sees it's already been reopened by a concurrent write — the second
+    // reopen must not fire.
+    prismaMock.request.findUnique
+      .mockResolvedValueOnce({ ...sampleRequest, status: 'CLOSED' })
+      .mockResolvedValueOnce({ status: 'WAITING_ON_USER' })
+    prismaMock.message.create.mockResolvedValue({ id: 10, content: 'hi again', requestId: 1, userId: OWNER })
+
+    const res = await request(app).post('/api/requests/1/messages').send({ content: 'hi again' })
+
+    expect(res.status).toBe(201)
+    expect(prismaMock.request.update).not.toHaveBeenCalled()
+  })
 })
 
 describe('POST /api/requests/:id/messages — encrypted flag (G411-82)', () => {
