@@ -23,6 +23,7 @@ import { createAndUploadEscrowBackup, createAndUploadKeypair } from './lib/escro
 import { loadLinkedConversationKeys, wrapMissingConversationKeys } from './lib/deviceLinking'
 import { seedLinkedConversationKeys } from './lib/conversationCrypto'
 import { loadPrivateKey } from './lib/keyStore'
+import { E2E_ENABLED } from './lib/e2eConfig'
 
 // G411-41: stash any ?token= before Clerk's own redirect flow can touch
 // the URL — see client/src/lib/inviteToken.js for why sessionStorage,
@@ -195,7 +196,7 @@ function App() {
   // loadLinkedConversationKeys above). Best-effort, silently no-ops on
   // any failure — see wrapMissingConversationKeys's own doc comment.
   useEffect(() => {
-    if (role !== 'ADMIN') return
+    if (!E2E_ENABLED || role !== 'ADMIN') return
     loadPrivateKey().then((key) => {
       if (key) wrapMissingConversationKeys(key)
     })

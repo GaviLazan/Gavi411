@@ -340,11 +340,15 @@ describe('POST /api/requests/:id/messages (G411-24)', () => {
 })
 
 describe('POST /api/requests/:id/messages — encrypted flag (G411-82)', () => {
-  it('stores encrypted: true and the raw envelope string when the client sends encrypted="true"', async () => {
+  // Decision #98 pause: E2E_ENABLED=false, so this route now forces
+  // encrypted: false regardless of what the client sends — see
+  // e2eConfig.js. The client itself no longer sends encrypted:'true'
+  // either (RequestDetail.jsx), but this is the structural backstop.
+  it('forces encrypted: false even when the client sends encrypted="true" (E2E paused)', async () => {
     currentUserId = OWNER
     prismaMock.request.findUnique.mockResolvedValue(sampleRequest)
     const envelope = JSON.stringify({ iv: 'abc', ciphertext: 'def' })
-    prismaMock.message.create.mockResolvedValue({ id: 9, content: envelope, encrypted: true })
+    prismaMock.message.create.mockResolvedValue({ id: 9, content: envelope, encrypted: false })
 
     const res = await request(app)
       .post('/api/requests/1/messages')
@@ -352,7 +356,7 @@ describe('POST /api/requests/:id/messages — encrypted flag (G411-82)', () => {
 
     expect(res.status).toBe(201)
     expect(prismaMock.message.create).toHaveBeenCalledWith({
-      data: { content: envelope, encrypted: true, imageUrl: null, requestId: 1, userId: OWNER },
+      data: { content: envelope, encrypted: false, imageUrl: null, requestId: 1, userId: OWNER },
     })
   })
 
@@ -369,18 +373,31 @@ describe('POST /api/requests/:id/messages — encrypted flag (G411-82)', () => {
     })
   })
 
-  it('400s when a sender with no public key on file tries to send encrypted content', async () => {
+  // Was a 400 pre-pause (a keyless sender can't have produced a real
+  // envelope). With E2E_ENABLED=false the isEncrypted precondition never
+  // even evaluates true, so a keyless sender's "encrypted" send just
+  // lands as an ordinary plaintext message instead of being rejected.
+  it('accepts a send from a keyless sender as plaintext (E2E paused, no key precondition)', async () => {
     currentUserId = OTHER // OTHER has a publicKey in this fixture — swap it out for this test
     const noKeyUser = { ...usersByClerkId[OTHER], publicKey: null }
     usersByClerkId[OTHER] = noKeyUser
     prismaMock.request.findUnique.mockResolvedValue({ ...sampleRequest, userId: OTHER })
+    prismaMock.message.create.mockResolvedValue({ id: 11, content: 'hi', encrypted: false })
 
     const res = await request(app)
       .post('/api/requests/1/messages')
       .send({ content: JSON.stringify({ iv: 'a', ciphertext: 'b' }), encrypted: 'true' })
 
-    expect(res.status).toBe(400)
-    expect(prismaMock.message.create).not.toHaveBeenCalled()
+    expect(res.status).toBe(201)
+    expect(prismaMock.message.create).toHaveBeenCalledWith({
+      data: {
+        content: JSON.stringify({ iv: 'a', ciphertext: 'b' }),
+        encrypted: false,
+        imageUrl: null,
+        requestId: 1,
+        userId: OTHER,
+      },
+    })
     usersByClerkId[OTHER] = { clerkId: OTHER, role: 'USER', publicKey: 'other-pubkey' } // restore
   })
 
