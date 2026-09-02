@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Card from "../components/Card";
 import Button from "../components/Button";
+import Select from "../components/Select";
+import ConfirmModal from "../components/ConfirmModal";
 import MessageThread from "../components/MessageThread";
 import { statusLabel as labelize } from "./RequestList";
 // This page reuses ReviewSummary's .review-row/.review-label/.review-value
@@ -62,6 +64,40 @@ function typeDetailRows(details, keyPrefix = "") {
 // available; this is only a UI hint anyway (accept doesn't enforce
 // anything), the server's own check stays authoritative either way.
 const IMAGE_ACCEPT = "image/gif,image/jpeg,image/png,image/heic,image/webp";
+
+// G411-39: which statuses this UI OFFERS from a given current status —
+// mirrors server/routes/requests.js's own TRANSITIONS table (admin side
+// only; canCloseRequest is friend-only so CLOSED is never offered here).
+// This is deliberately just an offer-list, not a second source of truth:
+// the server re-validates every PATCH against its own TRANSITIONS/
+// canSetUrgency/canCloseRequest regardless of what this table shows, same
+// "client can't add restriction beyond what the server enforces, client
+// must not offer what the server would reject" contract as every other
+// admin-only control on this page. No shared package between client/
+// server (separate Vercel/Render deploys), so duplicating this small
+// table is the same accepted tradeoff as IMAGE_ACCEPT above — kept in
+// sync by hand.
+//
+// WAITING_ON_USER -> CLOSED (auto-close) and any -> CLOSED (friend
+// confirm) are both deliberately absent — CLOSED is never admin-
+// triggerable via this route (canCloseRequest), so it's never offered.
+const ADMIN_STATUS_OPTIONS = {
+  IN_QUEUE: ["RECEIVED", "CANCELLED"],
+  RECEIVED: ["WORKING_ON_IT", "CANCELLED"],
+  WORKING_ON_IT: ["WAITING_ON_USER", "RESOLVED_PENDING_CONFIRMATION", "CANCELLED", "SELF_SOLVED"],
+  WAITING_ON_USER: ["WORKING_ON_IT", "RESOLVED_PENDING_CONFIRMATION", "CANCELLED", "SELF_SOLVED"],
+  RESOLVED_PENDING_CONFIRMATION: ["WORKING_ON_IT"],
+  CLOSED: [],
+  CANCELLED: [],
+  SELF_SOLVED: [],
+};
+
+// G411-39: statuses whose transition is disruptive enough to confirm
+// first — cancelling or marking self-solved ends the request outright.
+// Plain in-flow moves (RECEIVED, WORKING_ON_IT, WAITING_ON_USER, etc.)
+// don't need a confirm step; ConfirmModal.jsx (G411-64) is reused as-is,
+// same convention as the discard-request flow it was built for.
+const STATUS_NEEDS_CONFIRM = ["CANCELLED", "SELF_SOLVED"];
 
 // G411-38: admin's three tabs. Friends only ever see one view (below),
 // no tab state needed for them.
@@ -266,6 +302,85 @@ function RequestDetail({ requestId, onBack, isAdmin }) {
     fetch(`/api/requests/${requestId}`)
       .then((res) => res.json())
       .then(setRequest);
+  }
+
+  // G411-39: admin status-control state. `pendingStatus` holds a status
+  // picked in the dropdown but not yet applied (either awaiting the
+  // confirm modal for a disruptive exit, or awaiting the explicit
+  // "Change" click) — the select itself is uncontrolled-ish, reset back
+  // to the current status after every apply/cancel so it never drifts
+  // from server-confirmed reality.
+  const [pendingStatus, setPendingStatus] = useState("");
+  const [statusSaving, setStatusSaving] = useState(false);
+  const [statusError, setStatusError] = useState("");
+  const [confirmStatus, setConfirmStatus] = useState(null); // status awaiting Yes/No, or null
+
+  // Shared by the plain-dropdown path and the confirm-modal path — same
+  // existing PATCH /:id route G411-30/31/32 already built and tested,
+  // no new backend logic (Ponytail: this is a UI surface over an
+  // already-built state machine).
+  async function applyStatus(nextStatus) {
+    setStatusSaving(true);
+    setStatusError("");
+    try {
+      const res = await fetch(`/api/requests/${requestId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: nextStatus }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || "Couldn't change the status.");
+      }
+      const updated = await res.json();
+      setRequest(updated);
+    } catch (err) {
+      setStatusError(err.message);
+    } finally {
+      setStatusSaving(false);
+      setPendingStatus("");
+      setConfirmStatus(null);
+    }
+  }
+
+  function handleStatusSelect(nextStatus) {
+    setPendingStatus(nextStatus);
+  }
+
+  function handleStatusChangeClick() {
+    if (!pendingStatus) return;
+    if (STATUS_NEEDS_CONFIRM.includes(pendingStatus)) {
+      setConfirmStatus(pendingStatus);
+    } else {
+      applyStatus(pendingStatus);
+    }
+  }
+
+  // G411-39, admin-only "no longer urgent" — mirrors canSetUrgency's
+  // admin branch server-side (free any-direction control), but this ONE
+  // button only ever sends HIGH -> NORMAL since that's the only urgency
+  // action PRD §6.2's control surface actually calls for; admin's fuller
+  // any-direction ability has no dedicated UI need beyond this today.
+  async function handleDowngradeUrgency() {
+    setStatusSaving(true);
+    setStatusError("");
+    try {
+      const res = await fetch(`/api/requests/${requestId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ urgency: "NORMAL" }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || "Couldn't change the urgency.");
+      }
+      const updated = await res.json();
+      setRequest(updated);
+    } catch (err) {
+      setStatusError(err.message);
+    } finally {
+      setStatusSaving(false);
+    }
   }
 
   // G411-82: text is encrypted client-side before it ever reaches the
@@ -516,23 +631,66 @@ function RequestDetail({ requestId, onBack, isAdmin }) {
 
   // Admin: tabbed shell (G411-38) — status pill pinned near the top,
   // outside/above the tabs, so it stays visible across every tab switch.
-  // The pill is read-only display for now; real lifecycle controls
-  // (dropdown/actions to change status) are G411-39's job, not this
-  // ticket's — this is only the shell that will host them.
+  // G411-39: the pill is now a real control surface — a dropdown offering
+  // only the transitions ADMIN_STATUS_OPTIONS says are legal from the
+  // current status, an explicit "Change" button (rather than firing on
+  // every select change — a stray click shouldn't silently transition a
+  // real request), a confirm step for the disruptive exits (cancel/
+  // self-solved), and a one-way "No longer urgent" button shown only
+  // when urgency is currently HIGH.
   //
   // sideBySide (toggle above) puts Details/Thread in two columns and
   // hides their now-redundant tab buttons — nothing to switch between
   // once both are visible. Notes stays its own tab either way.
+  const statusOptions = ADMIN_STATUS_OPTIONS[request.status] ?? [];
   return (
     <div className="admin-detail-shell" style={{ display: "flex", flexDirection: "column", gap: "var(--space-4)", width: "100%", maxWidth: sideBySide ? 900 : 420 }}>
       <Button variant="secondary" onClick={onBack}>← Back</Button>
 
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "var(--space-3)" }}>
-        <span className="status-pill">{labelize(request.status)}</span>
-        <button type="button" className="admin-layout-toggle" onClick={() => setSideBySide((v) => !v)}>
-          {sideBySide ? "Stack tabs" : "Side by side"}
-        </button>
+      <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-2)" }}>
+        <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", justifyContent: "space-between", gap: "var(--space-3)" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "var(--space-2)", flexWrap: "wrap" }}>
+            <span className="status-pill">{labelize(request.status)}</span>
+            {statusOptions.length > 0 && (
+              <>
+                <Select
+                  aria-label="Change status"
+                  value={pendingStatus}
+                  onChange={(e) => handleStatusSelect(e.target.value)}
+                  disabled={statusSaving}
+                  options={[
+                    { value: "", label: "Change to…" },
+                    ...statusOptions.map((s) => ({ value: s, label: labelize(s) })),
+                  ]}
+                />
+                <Button
+                  variant="secondary"
+                  onClick={handleStatusChangeClick}
+                  disabled={!pendingStatus || statusSaving}
+                >
+                  {statusSaving ? "Saving…" : "Change"}
+                </Button>
+              </>
+            )}
+            {request.urgency === "HIGH" && (
+              <Button variant="secondary" onClick={handleDowngradeUrgency} disabled={statusSaving}>
+                No longer urgent
+              </Button>
+            )}
+          </div>
+          <button type="button" className="admin-layout-toggle" onClick={() => setSideBySide((v) => !v)}>
+            {sideBySide ? "Stack tabs" : "Side by side"}
+          </button>
+        </div>
+        {statusError && <p className="message-send-error" role="alert">{statusError}</p>}
       </div>
+
+      <ConfirmModal
+        open={confirmStatus !== null}
+        message={`Change status to "${confirmStatus ? labelize(confirmStatus) : ""}"? This ends the request.`}
+        onConfirm={() => applyStatus(confirmStatus)}
+        onCancel={() => setConfirmStatus(null)}
+      />
 
       {/* Side by side already shows Details+Thread together — nothing
           left to switch between there, so those two buttons hide.
