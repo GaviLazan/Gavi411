@@ -1,17 +1,6 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import Card from "../components/Card";
 import Button from "../components/Button";
-import Input from "../components/Input";
-import { buildSearchIndex, searchIndex } from "../lib/searchIndex";
-import { loadLinkedConversationKeys } from "../lib/deviceLinking";
-import { seedLinkedConversationKeys } from "../lib/conversationCrypto";
-// Sibling review finding, PR #36: the new "No matching conversations."
-// empty state below uses .review-empty, which only ever worked here by
-// relying on another page (NewRequest.jsx/RequestDetail.jsx) importing
-// this CSS first — same implicit-CSS-import bug class this codebase has
-// hit twice before on RequestDetail.jsx itself. Imported directly so this
-// page's styling doesn't depend on another page having loaded first.
-import "../components/ReviewSummary.css";
 
 // Statuses that read as "done" for the open/closed toggle (G411-67).
 // PRD/brain.md's lifecycle only names a single terminal "closed" state
@@ -24,8 +13,8 @@ import "../components/ReviewSummary.css";
 // carrying its own separate copy (Sibling review finding).
 export const CLOSED_STATUSES = ["CLOSED", "CANCELLED", "SELF_SOLVED"];
 
-// Exported — RequestDetail.jsx reuses this for the same enum-label
-// formatting instead of duplicating it (Sibling review finding).
+// Exported — RequestDetail.jsx/AdminList.jsx reuse this for the same
+// enum-label formatting instead of duplicating it (Sibling review finding).
 export function statusLabel(status) {
   return status
     .toLowerCase()
@@ -55,12 +44,18 @@ function RequestCard({ request, onClick }) {
   );
 }
 
-// Request list / home screen (G411-67). Shows the signed-in friend's own
-// open requests (or everyone's, if admin — decided server-side, this
-// component just renders whatever GET /api/requests returns), a toggle
-// to reveal closed ones, and a fallback to the most recent closed
-// request when there are no open ones at all.
-function RequestList({ onNewRequest, onShowInstallHelp, onOpenRequest, isAdmin }) {
+// Request list / home screen (G411-67). Friend-only — G411-37 replaced
+// this as admin's home view with the cockpit-shaped AdminList, and
+// G411-37's follow-up folded search directly into AdminList too, so the
+// admin branch this component used to carry (isAdmin prop, ?include=
+// messages fetch, client-side decrypted search) is gone rather than left
+// as dead code (Sibling review finding — it was unreachable once App.jsx
+// stopped ever passing isAdmin={true} here, and a ~90-line unreachable
+// branch is exactly the kind of stale-assumption trap that costs the
+// next reader real time to rule out). Shows the signed-in friend's own
+// open requests, a toggle to reveal closed ones, and a fallback to the
+// most recent closed request when there are no open ones at all.
+function RequestList({ onNewRequest, onShowInstallHelp, onOpenRequest }) {
   const [requests, setRequests] = useState(null);
   const [error, setError] = useState("");
   const [showClosed, setShowClosed] = useState(false);
@@ -78,12 +73,8 @@ function RequestList({ onNewRequest, onShowInstallHelp, onOpenRequest, isAdmin }
       setError("");
       try {
         // Cookie-based Clerk session, same as NewRequest.jsx's fetches —
-        // no manual Authorization header needed. Admin opts into
-        // ?include=messages (G411-28 search index) — a regular friend
-        // never needs every message body just to see their own request
-        // list, so this stays off unless isAdmin actually asks for it.
-        const url = isAdmin ? "/api/requests?include=messages" : "/api/requests";
-        const res = await fetch(url);
+        // no manual Authorization header needed.
+        const res = await fetch("/api/requests");
         if (!res.ok) throw new Error("failed");
         const data = await res.json();
         if (!cancelled) setRequests(data);
@@ -96,73 +87,7 @@ function RequestList({ onNewRequest, onShowInstallHelp, onOpenRequest, isAdmin }
     return () => {
       cancelled = true;
     };
-  }, [retryToken, isAdmin]);
-
-  // G411-28 admin search index: server only ever sees ciphertext, so
-  // search has to run client-side, in admin's own browser, after
-  // decrypting every conversation locally with keys admin already holds
-  // (Gavi is a party to every request). Built once per successful load
-  // ("decrypt all on admin app load" — Gavi's call, an admin session's
-  // message volume is small enough that instant in-memory search after
-  // one upfront decrypt beats decrypting piecemeal per keystroke).
-  const [searchEntries, setSearchEntries] = useState([]);
-  const [searchQuery, setSearchQuery] = useState("");
-
-  // Sibling review finding (PR #36): a linked device's
-  // linkedConversationKeys map (conversationCrypto.js) is otherwise only
-  // ever seeded once, at App.jsx's sign-in effect — a request created (or
-  // a wrap completed by admin's own missing-wraps sweep) after that
-  // snapshot has no entry, so getConversationKey returns null and that
-  // conversation's messages silently vanish from search with no
-  // indicator. No push/poll infra exists to notify a linked device the
-  // moment a new wrap lands (that's G411-84, explicitly deferred) — this
-  // is the narrow, in-scope fix: re-poll on every RequestList mount, so
-  // search reflects reasonably fresh state without needing new
-  // infrastructure. A no-op (empty Map) for a device that was never
-  // linked, same as App.jsx's own sign-in call.
-  useEffect(() => {
-    if (!isAdmin) return;
-    loadLinkedConversationKeys().then(seedLinkedConversationKeys).catch(() => {});
-  }, [isAdmin]);
-
-  useEffect(() => {
-    let cancelled = false;
-    // Sibling review finding (PR #36): isAdmin resolves asynchronously
-    // (App.jsx's /api/me fetch) after the very first render, so this
-    // effect and the fetch effect above can both re-fire once it flips
-    // true — but this effect must not build against a `requests` value
-    // fetched BEFORE isAdmin was true (i.e. without ?include=messages,
-    // so every row lacks `.message`). Checking that at least one row
-    // actually carries a `message` array (not just `isAdmin && requests`)
-    // means this effect waits for the corrected re-fetch to land instead
-    // of building a false "index" of zero entries from stale data.
-    const hasMessageData = requests?.some((r) => Array.isArray(r.message));
-    if (!isAdmin || !hasMessageData) {
-      setSearchEntries([]);
-      return;
-    }
-    buildSearchIndex(requests)
-      .then((entries) => {
-        if (!cancelled) setSearchEntries(entries);
-      })
-      // Sibling review finding: buildSearchIndex can still reject outright
-      // (e.g. a bug outside its own per-request try/catch) — without this,
-      // that was an unhandled promise rejection silently leaving
-      // searchEntries stale with no indication anything went wrong.
-      .catch(() => {
-        if (!cancelled) setSearchEntries([]);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [isAdmin, requests]);
-
-  // Set (not array) — a request can have several matching messages, but
-  // should only ever show up once in the filtered list.
-  const matchingRequestIds = useMemo(() => {
-    if (!searchQuery.trim()) return null; // null = "no search active", not "matched nothing"
-    return new Set(searchIndex(searchEntries, searchQuery).map((e) => e.requestId));
-  }, [searchEntries, searchQuery]);
+  }, [retryToken]);
 
   // "+ New request" doesn't depend on the list loading successfully —
   // creating a request has nothing to do with whether the existing list
@@ -199,91 +124,62 @@ function RequestList({ onNewRequest, onShowInstallHelp, onOpenRequest, isAdmin }
   const closedRequests = requests.filter((r) => CLOSED_STATUSES.includes(r.status));
   const allClosed = requests.length > 0 && openRequests.length === 0;
 
-  // A search in progress bypasses the whole open/closed/collapsible
-  // machinery below — search means "show me every match, open or
-  // closed," not "respect whatever toggle state those sections happen to
-  // be in." Simpler and more correct than threading a filter through
-  // every branch of that logic.
-  const searchResults = matchingRequestIds && requests.filter((r) => matchingRequestIds.has(r.id));
-
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-4)", width: "100%", maxWidth: 420 }}>
       <Button variant="primary" onClick={onNewRequest}>
         + New request
       </Button>
 
-      {isAdmin && (
-        <Input
-          type="search"
-          placeholder="Search conversations…"
-          aria-label="Search conversations"
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-        />
+      {openRequests.length > 0 && (
+        <div>
+          <button
+            type="button"
+            className="collapsible-header"
+            aria-expanded={openExpanded}
+            aria-controls="open-requests-body"
+            onClick={() => setOpenExpanded((v) => !v)}
+          >
+            <h2>Open requests</h2>
+            <span className={`collapsible-arrow${openExpanded ? " expanded" : ""}`}>▾</span>
+          </button>
+          {/* inert (native, no JS focus-trap needed) pulls the collapsed
+              cards out of both tab order and the AT tree — Sibling review
+              finding: max-height:0/overflow:hidden alone still leaves
+              them focusable and screen-reader-visible. */}
+          <div
+            id="open-requests-body"
+            className={`collapsible-body${openExpanded ? " expanded" : ""}`}
+            inert={openExpanded ? undefined : true}
+          >
+            <div className="collapsible-body-inner">
+              {openRequests.map((r) => (
+                <RequestCard key={r.id} request={r} onClick={() => onOpenRequest(r.id)} />
+              ))}
+            </div>
+          </div>
+        </div>
       )}
 
-      {searchResults ? (
+      {allClosed && !showClosed && (
         <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-3)" }}>
-          {searchResults.length === 0 ? (
-            <p className="review-empty">No matching conversations.</p>
-          ) : (
-            searchResults.map((r) => <RequestCard key={r.id} request={r} onClick={() => onOpenRequest(r.id)} />)
-          )}
+          <h2>Most recent request</h2>
+          <RequestCard request={closedRequests[0]} onClick={() => onOpenRequest(closedRequests[0].id)} />
         </div>
-      ) : (
+      )}
+
+      {requests.length === 0 && <p>No requests yet — start one above.</p>}
+
+      {closedRequests.length > 0 && (
         <>
-          {openRequests.length > 0 && (
-            <div>
-              <button
-                type="button"
-                className="collapsible-header"
-                aria-expanded={openExpanded}
-                aria-controls="open-requests-body"
-                onClick={() => setOpenExpanded((v) => !v)}
-              >
-                <h2>Open requests</h2>
-                <span className={`collapsible-arrow${openExpanded ? " expanded" : ""}`}>▾</span>
-              </button>
-              {/* inert (native, no JS focus-trap needed) pulls the collapsed
-                  cards out of both tab order and the AT tree — Sibling review
-                  finding: max-height:0/overflow:hidden alone still leaves
-                  them focusable and screen-reader-visible. */}
-              <div
-                id="open-requests-body"
-                className={`collapsible-body${openExpanded ? " expanded" : ""}`}
-                inert={openExpanded ? undefined : true}
-              >
-                <div className="collapsible-body-inner">
-                  {openRequests.map((r) => (
-                    <RequestCard key={r.id} request={r} onClick={() => onOpenRequest(r.id)} />
-                  ))}
-                </div>
-              </div>
-            </div>
-          )}
-
-          {allClosed && !showClosed && (
+          <Button variant="secondary" onClick={() => setShowClosed((v) => !v)}>
+            {showClosed ? "Hide closed requests" : "Show closed requests"}
+          </Button>
+          {showClosed && (
             <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-3)" }}>
-              <h2>Most recent request</h2>
-              <RequestCard request={closedRequests[0]} onClick={() => onOpenRequest(closedRequests[0].id)} />
+              {closedRequests.map((r) => (
+                <RequestCard key={r.id} request={r} onClick={() => onOpenRequest(r.id)} />
+              ))}
             </div>
-          )}
-
-          {requests.length === 0 && <p>No requests yet — start one above.</p>}
-
-          {closedRequests.length > 0 && (
-            <>
-              <Button variant="secondary" onClick={() => setShowClosed((v) => !v)}>
-                {showClosed ? "Hide closed requests" : "Show closed requests"}
-              </Button>
-              {showClosed && (
-                <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-3)" }}>
-                  {closedRequests.map((r) => (
-                    <RequestCard key={r.id} request={r} onClick={() => onOpenRequest(r.id)} />
-                  ))}
-                </div>
-              )}
-            </>
           )}
         </>
       )}

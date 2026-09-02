@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import Card from "../components/Card";
 import Select from "../components/Select";
 import Input from "../components/Input";
+import Button from "../components/Button";
 import { statusLabel } from "./RequestList";
 import { timeSince, lastActivityAt, filterRequests, sortRequests, groupByPerson, matchesPlainFields } from "../lib/adminListSort";
 import { buildSearchIndex, searchIndex } from "../lib/searchIndex";
@@ -101,7 +102,7 @@ function AdminRequestRow({ request, onClick }) {
   );
 }
 
-function AdminList({ onOpenRequest }) {
+function AdminList({ onOpenRequest, onNewRequest }) {
   const [requests, setRequests] = useState(null);
   const [error, setError] = useState("");
   const [sort, setSort] = useState("urgency");
@@ -109,15 +110,21 @@ function AdminList({ onOpenRequest }) {
   const [group, setGroup] = useState("none");
   const [retryToken, setRetryToken] = useState(0);
 
-  // ?include=messages: needed for the search index below (full ordered
-  // message bodies, not the narrow last-message-only shape the plain
-  // route returns) — same fetch RequestList's admin branch always made.
+  // Plain GET /api/requests by default — the lightweight admin path
+  // (narrow `user` select + one-row-per-request `message` for "time
+  // since last activity", not full bodies). Sibling review finding: an
+  // earlier version of this fix always fetched ?include=messages (for
+  // search), which silently defeated the point of that lightweight path
+  // — every list load paid for every message body whether or not the
+  // admin ever searched. Full messages are now fetched lazily, only once
+  // the admin actually starts typing a search query (see the search
+  // effect below), so the default list load stays on the cheap path.
   useEffect(() => {
     let cancelled = false;
     async function load() {
       setError("");
       try {
-        const res = await fetch("/api/requests?include=messages");
+        const res = await fetch("/api/requests");
         if (!res.ok) throw new Error("failed");
         const data = await res.json();
         if (!cancelled) setRequests(data);
@@ -131,33 +138,42 @@ function AdminList({ onOpenRequest }) {
     };
   }, [retryToken]);
 
-  // Same "decrypt all on admin app load" call RequestList made — an
-  // admin session's message volume is small enough that one upfront
-  // decrypt beats piecemeal per-keystroke decryption.
-  useEffect(() => {
-    loadLinkedConversationKeys().then(seedLinkedConversationKeys).catch(() => {});
-  }, []);
-
   const [searchEntries, setSearchEntries] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
+  const [searchRequests, setSearchRequests] = useState(null);
 
+  // Lazy: only fetches full message bodies, seeds this device's linked
+  // keys, and builds the decrypted search index once the admin actually
+  // types something — a plain list view never pays this cost. Same
+  // "decrypt all up front, once" shape RequestList's admin search used,
+  // just deferred until it's actually needed.
   useEffect(() => {
     let cancelled = false;
-    if (!requests) {
+    if (!searchQuery.trim()) {
       setSearchEntries([]);
       return;
     }
-    buildSearchIndex(requests)
-      .then((entries) => {
+    if (searchRequests) return; // already fetched for this session
+
+    async function loadForSearch() {
+      try {
+        await loadLinkedConversationKeys().then(seedLinkedConversationKeys).catch(() => {});
+        const res = await fetch("/api/requests?include=messages");
+        if (!res.ok) throw new Error("failed");
+        const data = await res.json();
+        if (cancelled) return;
+        setSearchRequests(data);
+        const entries = await buildSearchIndex(data);
         if (!cancelled) setSearchEntries(entries);
-      })
-      .catch(() => {
+      } catch {
         if (!cancelled) setSearchEntries([]);
-      });
+      }
+    }
+    loadForSearch();
     return () => {
       cancelled = true;
     };
-  }, [requests]);
+  }, [searchQuery, searchRequests]);
 
   // Message-content matches (decrypted, via searchIndex) UNIONED with
   // plaintext-field matches (name/title/type — no decryption needed, all
@@ -179,8 +195,14 @@ function AdminList({ onOpenRequest }) {
   // RequestList's own search used).
   const sorted = useMemo(() => {
     if (!requests) return [];
-    const base = matchingRequestIds ? requests.filter((r) => matchingRequestIds.has(r.id)) : requests;
-    return sortRequests(filterRequests(base, matchingRequestIds ? "all" : filter), sort);
+    // Searching and not-searching are textually distinct branches instead
+    // of routing both through filterRequests via a magic "all" sentinel
+    // (Sibling review finding — that meant a reader had to open
+    // filterRequests to learn "all" means "no-op passthrough").
+    const base = matchingRequestIds
+      ? requests.filter((r) => matchingRequestIds.has(r.id))
+      : filterRequests(requests, filter);
+    return sortRequests(base, sort);
   }, [requests, filter, sort, matchingRequestIds]);
 
   // One shape either way — a list of groups, ungrouped is just one group
@@ -188,7 +210,12 @@ function AdminList({ onOpenRequest }) {
   // blocks, kept in sync by hand, collapsed into a single map below).
   // groupByPerson over an already-sorted/filtered admin-scale array is
   // cheap enough not to need its own memo separate from `sorted`.
-  const groups = group === "person" && !matchingRequestIds ? groupByPerson(sorted) : [sorted];
+  //
+  // isGrouped named once (Sibling review finding) — the render key below
+  // used to re-derive this same condition independently, a future edit to
+  // the grouping rule could update one and silently miss the other.
+  const isGrouped = group === "person" && !matchingRequestIds;
+  const groups = isGrouped ? groupByPerson(sorted) : [sorted];
 
   if (error) {
     return (
@@ -205,6 +232,14 @@ function AdminList({ onOpenRequest }) {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-4)", width: "100%", maxWidth: 560 }}>
+      {/* Sibling review finding: admin lost the ability to create a
+          request for themselves when this screen replaced RequestList as
+          admin's home view — RequestList always had this button, AdminList
+          never did. Same affordance, same handler shape. */}
+      <Button variant="primary" onClick={onNewRequest}>
+        + New request
+      </Button>
+
       <Input
         type="search"
         placeholder="Search conversations…"
@@ -230,7 +265,7 @@ function AdminList({ onOpenRequest }) {
       {groups.map((groupRequests, i) => (
         // Ungrouped (or searching): one group, key by position (stable,
         // only one ever exists). Grouped: key by the group's own userId.
-        <div key={group === "person" && !matchingRequestIds ? groupRequests[0]?.userId : i} style={{ display: "flex", flexDirection: "column", gap: "var(--space-2)" }}>
+        <div key={isGrouped ? groupRequests[0]?.userId : i} style={{ display: "flex", flexDirection: "column", gap: "var(--space-2)" }}>
           {groupRequests.map((r) => (
             <AdminRequestRow key={r.id} request={r} onClick={() => onOpenRequest(r.id)} />
           ))}
