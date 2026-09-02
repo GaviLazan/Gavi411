@@ -42,14 +42,25 @@ const prismaMock = {
     findMany: vi.fn(),
     findUnique: vi.fn(),
     update: vi.fn(),
+    create: vi.fn(),
   },
   message: {
     create: vi.fn(),
+    findFirst: vi.fn(),
   },
   user: {
     findFirst: vi.fn(),
     findUnique: vi.fn(),
+    update: vi.fn(),
   },
+  creditTransaction: {
+    create: vi.fn(),
+  },
+  // $transaction just runs the callback with `prismaMock` itself as `tx` —
+  // every mock above is reachable through either the top-level prisma
+  // object or the tx passed to a transaction callback, so tests can assert
+  // against the same vi.fn() either way.
+  $transaction: vi.fn((cb) => cb(prismaMock)),
 }
 
 vi.mock('../lib/prisma.js', () => ({ prisma: prismaMock }))
@@ -290,6 +301,8 @@ describe('PATCH /api/requests/:id', () => {
   it('allows the SELF_SOLVED exit from WORKING_ON_IT', async () => {
     currentUserId = OWNER
     prismaMock.request.findUnique.mockResolvedValue({ ...sampleRequest, status: 'WORKING_ON_IT' })
+    prismaMock.message.findFirst.mockResolvedValue(null) // no admin message yet
+    prismaMock.user.findUnique.mockResolvedValue({ creditBalance: 3 })
     prismaMock.request.update.mockResolvedValue({ ...sampleRequest, status: 'SELF_SOLVED' })
 
     const res = await request(app).patch('/api/requests/1').send({ status: 'SELF_SOLVED' })
@@ -299,10 +312,121 @@ describe('PATCH /api/requests/:id', () => {
   it('allows the CANCELLED exit from IN_QUEUE (untouched request)', async () => {
     currentUserId = OWNER
     prismaMock.request.findUnique.mockResolvedValue(sampleRequest) // IN_QUEUE
+    prismaMock.message.findFirst.mockResolvedValue(null)
+    prismaMock.user.findUnique.mockResolvedValue({ creditBalance: 3 })
     prismaMock.request.update.mockResolvedValue({ ...sampleRequest, status: 'CANCELLED' })
 
     const res = await request(app).patch('/api/requests/1').send({ status: 'CANCELLED' })
     expect(res.status).toBe(200)
+  })
+
+  // G411-31 — refund on cancel/self-solved, gated on "no admin message yet"
+  describe('refund on cancel/self-solved (G411-31)', () => {
+    beforeEach(() => {
+      currentUserId = OWNER
+      prismaMock.request.findUnique.mockResolvedValue(sampleRequest) // IN_QUEUE, userId: OWNER
+      prismaMock.request.update.mockResolvedValue({ ...sampleRequest, status: 'CANCELLED' })
+    })
+
+    it('refunds when no admin has messaged on the request yet', async () => {
+      prismaMock.message.findFirst.mockResolvedValue(null)
+      prismaMock.user.findUnique.mockResolvedValue({ creditBalance: 3 })
+
+      const res = await request(app).patch('/api/requests/1').send({ status: 'CANCELLED' })
+
+      expect(res.status).toBe(200)
+      expect(prismaMock.message.findFirst).toHaveBeenCalledWith({
+        where: { requestId: 1, user: { role: 'ADMIN' } },
+      })
+      expect(prismaMock.user.update).toHaveBeenCalledWith({
+        where: { clerkId: OWNER },
+        data: { creditBalance: { increment: 1 } },
+      })
+      expect(prismaMock.creditTransaction.create).toHaveBeenCalledWith({
+        data: { amount: 1, userId: OWNER },
+      })
+    })
+
+    it('does NOT refund once an admin has sent a message (Gavi\'s "touched" rule)', async () => {
+      prismaMock.message.findFirst.mockResolvedValue({ id: 99, userId: ADMIN })
+
+      const res = await request(app).patch('/api/requests/1').send({ status: 'CANCELLED' })
+
+      expect(res.status).toBe(200)
+      expect(prismaMock.user.update).not.toHaveBeenCalled()
+      expect(prismaMock.creditTransaction.create).not.toHaveBeenCalled()
+      // Status transition still happens even without a refund.
+      expect(prismaMock.request.update).toHaveBeenCalledWith({
+        where: { id: 1 },
+        data: { status: 'CANCELLED' },
+      })
+    })
+
+    it('also refunds on the SELF_SOLVED exit when untouched', async () => {
+      prismaMock.request.findUnique.mockResolvedValue({ ...sampleRequest, status: 'WORKING_ON_IT' })
+      prismaMock.request.update.mockResolvedValue({ ...sampleRequest, status: 'SELF_SOLVED' })
+      prismaMock.message.findFirst.mockResolvedValue(null)
+
+      const res = await request(app).patch('/api/requests/1').send({ status: 'SELF_SOLVED' })
+
+      expect(res.status).toBe(200)
+      expect(prismaMock.creditTransaction.create).toHaveBeenCalledWith({
+        data: { amount: 1, userId: OWNER },
+      })
+    })
+
+    it('does not touch credits at all for a non-refundable transition (e.g. RECEIVED)', async () => {
+      const res = await request(app).patch('/api/requests/1').send({ status: 'RECEIVED' })
+
+      expect(res.status).toBe(200)
+      expect(prismaMock.message.findFirst).not.toHaveBeenCalled()
+      expect(prismaMock.creditTransaction.create).not.toHaveBeenCalled()
+    })
+  })
+})
+
+// No coverage existed for POST / (create + deduct) before G411-48's
+// extraction into lib/credits.js — real gap, added here.
+describe('POST /api/requests (G411-23, deduction via lib/credits.js)', () => {
+  beforeEach(() => {
+    currentUserId = OWNER
+  })
+
+  it('401s when unauthenticated', async () => {
+    currentUserId = null
+    const res = await request(app).post('/api/requests').send({ freeText: 'help' })
+    expect(res.status).toBe(401)
+  })
+
+  it('400s when freeText is missing', async () => {
+    const res = await request(app).post('/api/requests').send({})
+    expect(res.status).toBe(400)
+  })
+
+  it('creates the request and deducts 1 credit when balance allows', async () => {
+    prismaMock.user.findUnique.mockResolvedValue({ creditBalance: 3 })
+    prismaMock.request.create.mockResolvedValue({ id: 1, freeText: 'help', userId: OWNER })
+
+    const res = await request(app).post('/api/requests').send({ freeText: 'help' })
+
+    expect(res.status).toBe(201)
+    expect(prismaMock.user.update).toHaveBeenCalledWith({
+      where: { clerkId: OWNER },
+      data: { creditBalance: { decrement: 1 } },
+    })
+    expect(prismaMock.creditTransaction.create).toHaveBeenCalledWith({
+      data: { amount: -1, userId: OWNER },
+    })
+  })
+
+  it('402s and creates nothing when balance is below 1', async () => {
+    prismaMock.user.findUnique.mockResolvedValue({ creditBalance: 0 })
+
+    const res = await request(app).post('/api/requests').send({ freeText: 'help' })
+
+    expect(res.status).toBe(402)
+    expect(prismaMock.request.create).not.toHaveBeenCalled()
+    expect(prismaMock.user.update).not.toHaveBeenCalled()
   })
 })
 
