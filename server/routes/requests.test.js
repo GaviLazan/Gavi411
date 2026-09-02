@@ -595,6 +595,43 @@ describe('POST /api/requests/:id/messages (G411-24)', () => {
 })
 
 // G411-34 — reopen-on-message
+describe('POST /api/requests/:id/nudge (G411-36)', () => {
+  it('401s when unauthenticated', async () => {
+    const res = await request(app).post('/api/requests/1/nudge')
+    expect(res.status).toBe(401)
+  })
+
+  it('403s for a non-admin', async () => {
+    currentUserId = OWNER
+    const res = await request(app).post('/api/requests/1/nudge')
+    expect(res.status).toBe(403)
+  })
+
+  it('400s if the request is not WAITING_ON_USER', async () => {
+    currentUserId = ADMIN
+    prismaMock.request.findUnique.mockResolvedValue({ ...sampleRequest, status: 'WORKING_ON_IT' })
+
+    const res = await request(app).post('/api/requests/1/nudge')
+
+    expect(res.status).toBe(400)
+    expect(prismaMock.message.create).not.toHaveBeenCalled()
+  })
+
+  it('sends the warning message for a stale WAITING_ON_USER request', async () => {
+    currentUserId = ADMIN
+    prismaMock.request.findUnique.mockResolvedValue({ ...sampleRequest, status: 'WAITING_ON_USER' })
+    prismaMock.user.findFirst.mockResolvedValue({ clerkId: ADMIN, role: 'ADMIN' })
+    prismaMock.message.create.mockResolvedValue({ id: 11, requestId: 1, userId: ADMIN })
+
+    const res = await request(app).post('/api/requests/1/nudge')
+
+    expect(res.status).toBe(201)
+    expect(prismaMock.message.create).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ requestId: 1, userId: ADMIN }) })
+    )
+  })
+})
+
 describe('POST /api/requests/:id/messages — reopen-on-message (G411-34)', () => {
   it('a friend message on a CLOSED request reopens it to IN_QUEUE', async () => {
     currentUserId = OWNER

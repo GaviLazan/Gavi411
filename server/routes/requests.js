@@ -10,6 +10,7 @@ import { validateImage, uploadImage, MAX_IMAGE_BYTES } from '../lib/cloudinary.j
 import { canAccessRequest, hasAdminMessaged } from '../lib/requestAccess.js'
 import { E2E_ENABLED } from '../lib/e2eConfig.js'
 import { deductCredit, refundCredit } from '../lib/credits.js'
+import { sendNudge } from '../lib/autoClose.js'
 
 const router = express.Router()
 
@@ -322,6 +323,38 @@ router.patch('/:id', requireAuth, async (req, res) => {
     return tx.request.update({ where: { id }, data })
   })
   res.json(updated)
+})
+
+// POST /:id/nudge — admin-only manual nudge for a stale WAITING_ON_USER
+// request (G411-36). Sends the same warning message the auto-close job
+// (G411-35) would send on its own, just Gavi-triggered instead of
+// timeout-driven. No new UI yet — backend endpoint only; the admin
+// cockpit button to call this is tracked as a separate ticket (same
+// deferred-UI pattern as G411-87 on the friend side).
+router.post('/:id/nudge', requireAuth, async (req, res) => {
+  const id = Number(req.params.id)
+  if (!Number.isInteger(id)) {
+    return res.status(400).json({ error: 'Invalid request id' })
+  }
+  if (req.user.role !== 'ADMIN') {
+    return res.status(403).json({ error: 'Only admin can send a nudge' })
+  }
+
+  const existing = await prisma.request.findUnique({ where: { id } })
+  if (!existing) {
+    return res.status(404).json({ error: 'Request not found' })
+  }
+  if (existing.status !== Status.WAITING_ON_USER) {
+    return res.status(400).json({ error: 'Can only nudge a request that is waiting on the friend' })
+  }
+
+  try {
+    const message = await sendNudge(id)
+    res.status(201).json(message)
+  } catch (err) {
+    console.error('Failed to send nudge:', err)
+    res.status(500).json({ error: 'Failed to send nudge' })
+  }
 })
 
 // POST /match — keyword-match free text against the Trigger table
