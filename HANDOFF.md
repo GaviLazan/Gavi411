@@ -12,7 +12,7 @@ accumulated. If something here turns out to matter long-term, promote it to
 
 ---
 
-## Where this session left off (2026-09-02) — Epic 4 fully Reconciled, G411-37 Landed (PR #51, `68e63c9`), Epic 5 (Admin Cockpit) now in progress.
+## Where this session left off (2026-09-02) — Epic 4 fully Reconciled, G411-37 Reconciled (PR #51, `68e63c9`), Epic 5 (Admin Cockpit) now in progress.
 
 **Epic 4 (Request Lifecycle) — fully Reconciled.** All 7 children (G411-30
 through G411-36) Reconciled, Epic itself Reconciled. Decision detail in
@@ -26,7 +26,7 @@ live this session: fresh account creation via a real invite link works,
 reused/invalid tokens correctly fall back to plain sign-in). Comment
 added to G411-81 documenting the closed evidence gap.
 
-**G411-37 (admin list screen) — Landed, PR #51 merged `68e63c9`.** New
+**G411-37 (admin list screen) — Reconciled, PR #51 merged `68e63c9`.** New
 cockpit-shaped admin list per decision #46: persistent sort/filter/group
 row, urgency-oldest-first default, avatar+name+type+preview+urgency+
 time-since-activity rows. Went through **4 real Sibling review rounds**,
@@ -56,23 +56,31 @@ never transitioned off **Open** at pickup — sat there through all 4
 review rounds while real work happened. Mid-session, when asked why Jira
 wasn't updated, this session stated the ticket was at "Reviewing" without
 actually checking — which was wrong. Gavi caught it live. Fixed:
-transitioned Open→Implementing→Reviewing→Landed in order once actually
-verified, Aegis fields written (late, against real final state).
+transitioned Open→Implementing→Reviewing→Landed→Reconciled in order once
+actually verified, Aegis fields written (late, against real final state).
+
+**A second, related miss, same evening, not yet promoted to brain.md**:
+after merging PR #51 and finishing the worktree sync, a wrap-up report
+showed "Jira transition ✓ — G411-37 now Landed" as a checkmarked, done
+item, with no question anywhere in that message about the still-open
+Landed→Reconciled confirm — the message moved straight to "what's next"
+instead. Gavi had to separately ask "are we good to go, or is something
+left" before the reconcile confirm actually got asked. Worth folding into
+brain.md's decision #104 (or a new decision) next session if it isn't
+already — the fix (memory `reconcile-confirm-plain-question.md`, updated
+live): a wrap-up report must never show a Jira-transition checkmark for a
+ticket sitting at Landed without that same message also asking, in plain
+text, whether to reconcile it.
 
 ### Real state, right now
-Primary worktree (`Gavi411`) fast-forwarded to `68e63c9` (post-merge).
-`gavi411-brain.md` has one uncommitted edit in flight (decision #104) —
-committing alongside this HANDOFF.md update as a doc-only commit at
-session wrap. **Role worktrees not yet re-synced this session** — needs
-a `git status --short` + `git log --oneline -1` check across all 6
-(`Gavi411-agent-backend/cicd/design/e2e/frontend/test`) before the next
-session starts.
-
-Dev servers were run live this session directly from the primary
-worktree (`Gavi411`, not any role worktree) for Gavi to click through
-changes in real time — port 3000 (backend) and 5173 (client). Not
-confirmed still running at session end; check before assuming either is
-up.
+All 7 worktrees (primary `Gavi411` + 6 role worktrees) synced and clean
+at `e0f42f6` as of this session's wrap-up (confirmed via `git status
+--short` + `git log --oneline -1` across all 7). G411-37 is Reconciled
+in Jira (confirmed live via API, not just this doc). Dev servers were run
+live this session directly from the primary worktree for Gavi to click
+through changes in real time — port 3000 (backend) and 5173 (client).
+Not confirmed still running at session end; check before assuming either
+is up.
 
 ### What's next, concretely
 1. **G411-44** ("Gavi-initiated request flow — paste content, generate
@@ -90,7 +98,7 @@ up.
    G411-88 (admin nudge button) — both filed, parented under G411-5,
    neither started.
 4. **Epic 5 (Admin Cockpit) itself is still Implementing** — has real
-   Reconciled children now (G411-41, G411-70, G411-71, G411-76, G411-81)
-   plus G411-37 freshly Landed, but several children remain Open
-   (G411-38 through G411-44 except what's listed above, G411-68, 69, 80,
-   87, 88) — not close to Epic-level Reconciled yet.
+   Reconciled children now (G411-37, G411-41, G411-70, G411-71, G411-76,
+   G411-81), but several children remain Open (G411-38 through G411-44
+   except what's listed above, G411-68, 69, 80, 87, 88) — not close to
+   Epic-level Reconciled yet.
