@@ -200,10 +200,27 @@ router.get('/:id/public-keys', requireAuth, async (req, res) => {
 const STATUS_VALUES = Object.values(Status)
 const URGENCY_VALUES = Object.values(Urgency)
 
-// PATCH /:id — route shell only (G411-67): accepts a status/urgency
-// update, validates it's a legal enum value, and writes it. Does NOT
-// implement lifecycle transition rules (cancel/refund, close, reopen,
-// auto-close) — that's G411-30..36's job, built on top of this shell.
+// Legal status transitions (G411-30), per PRD §4.4. Keys are the CURRENT
+// status, values are the set of statuses it may move to directly. Terminal
+// states (CLOSED, CANCELLED, SELF_SOLVED) map to an empty array — reopening
+// a closed request is G411-34's job (a new message, not a status PATCH) and
+// isn't a transition this table needs to know about. Who is allowed to
+// trigger which edge (friend vs admin) is deliberately NOT enforced here —
+// that's G411-31/32/33's job, layered on top of this shell.
+const TRANSITIONS = {
+  IN_QUEUE: [Status.RECEIVED, Status.CANCELLED],
+  RECEIVED: [Status.WORKING_ON_IT, Status.CANCELLED],
+  WORKING_ON_IT: [Status.WAITING_ON_USER, Status.RESOLVED_PENDING_CONFIRMATION, Status.CANCELLED, Status.SELF_SOLVED],
+  WAITING_ON_USER: [Status.WORKING_ON_IT, Status.RESOLVED_PENDING_CONFIRMATION, Status.CANCELLED, Status.SELF_SOLVED],
+  RESOLVED_PENDING_CONFIRMATION: [Status.CLOSED, Status.WORKING_ON_IT],
+  CLOSED: [],
+  CANCELLED: [],
+  SELF_SOLVED: [],
+}
+
+// PATCH /:id — accepts a status/urgency update. Status changes are checked
+// against TRANSITIONS above (G411-30); urgency is still a plain enum-value
+// write (G411-32 will add the "no longer urgent"-only rule on top).
 router.patch('/:id', requireAuth, async (req, res) => {
   const id = Number(req.params.id)
   if (!Number.isInteger(id)) {
@@ -213,11 +230,8 @@ router.patch('/:id', requireAuth, async (req, res) => {
   const { status, urgency } = req.body
   const data = {}
 
-  if (status !== undefined) {
-    if (!STATUS_VALUES.includes(status)) {
-      return res.status(400).json({ error: 'Invalid status value' })
-    }
-    data.status = status
+  if (status !== undefined && !STATUS_VALUES.includes(status)) {
+    return res.status(400).json({ error: 'Invalid status value' })
   }
 
   if (urgency !== undefined) {
@@ -227,7 +241,7 @@ router.patch('/:id', requireAuth, async (req, res) => {
     data.urgency = urgency
   }
 
-  if (Object.keys(data).length === 0) {
+  if (status === undefined && Object.keys(data).length === 0) {
     return res.status(400).json({ error: 'No valid fields to update' })
   }
 
@@ -237,6 +251,15 @@ router.patch('/:id', requireAuth, async (req, res) => {
   }
   if (!canAccessRequest(existing, req.user)) {
     return res.status(404).json({ error: 'Request not found' })
+  }
+
+  if (status !== undefined) {
+    if (!TRANSITIONS[existing.status].includes(status)) {
+      return res.status(400).json({
+        error: `Cannot move from ${existing.status} to ${status}`,
+      })
+    }
+    data.status = status
   }
 
   const updated = await prisma.request.update({ where: { id }, data })

@@ -226,18 +226,18 @@ describe('PATCH /api/requests/:id', () => {
     expect(res.status).toBe(400)
   })
 
-  it('updates status for the owner on a legal enum value', async () => {
+  it('updates status for the owner on a legal transition', async () => {
     currentUserId = OWNER
-    prismaMock.request.findUnique.mockResolvedValue(sampleRequest)
-    prismaMock.request.update.mockResolvedValue({ ...sampleRequest, status: 'CLOSED' })
+    prismaMock.request.findUnique.mockResolvedValue(sampleRequest) // IN_QUEUE
+    prismaMock.request.update.mockResolvedValue({ ...sampleRequest, status: 'RECEIVED' })
 
-    const res = await request(app).patch('/api/requests/1').send({ status: 'CLOSED' })
+    const res = await request(app).patch('/api/requests/1').send({ status: 'RECEIVED' })
 
     expect(res.status).toBe(200)
-    expect(res.body.status).toBe('CLOSED')
+    expect(res.body.status).toBe('RECEIVED')
     expect(prismaMock.request.update).toHaveBeenCalledWith({
       where: { id: 1 },
-      data: { status: 'CLOSED' },
+      data: { status: 'RECEIVED' },
     })
   })
 
@@ -247,6 +247,61 @@ describe('PATCH /api/requests/:id', () => {
     prismaMock.request.update.mockResolvedValue({ ...sampleRequest, urgency: 'HIGH' })
 
     const res = await request(app).patch('/api/requests/1').send({ urgency: 'HIGH' })
+    expect(res.status).toBe(200)
+  })
+
+  // G411-30 — transition enforcement
+  it('400s on an illegal jump (IN_QUEUE -> CLOSED, skipping the graph)', async () => {
+    currentUserId = OWNER
+    prismaMock.request.findUnique.mockResolvedValue(sampleRequest) // IN_QUEUE
+
+    const res = await request(app).patch('/api/requests/1').send({ status: 'CLOSED' })
+    expect(res.status).toBe(400)
+    expect(prismaMock.request.update).not.toHaveBeenCalled()
+  })
+
+  it('400s on any transition out of a terminal status (CLOSED -> WORKING_ON_IT)', async () => {
+    currentUserId = OWNER
+    prismaMock.request.findUnique.mockResolvedValue({ ...sampleRequest, status: 'CLOSED' })
+
+    const res = await request(app).patch('/api/requests/1').send({ status: 'WORKING_ON_IT' })
+    expect(res.status).toBe(400)
+    expect(prismaMock.request.update).not.toHaveBeenCalled()
+  })
+
+  it('walks the full legal chain to CLOSED, one legal edge at a time', async () => {
+    currentUserId = OWNER
+    const chain = [
+      ['IN_QUEUE', 'RECEIVED'],
+      ['RECEIVED', 'WORKING_ON_IT'],
+      ['WORKING_ON_IT', 'WAITING_ON_USER'],
+      ['WAITING_ON_USER', 'RESOLVED_PENDING_CONFIRMATION'],
+      ['RESOLVED_PENDING_CONFIRMATION', 'CLOSED'],
+    ]
+    for (const [from, to] of chain) {
+      prismaMock.request.findUnique.mockResolvedValue({ ...sampleRequest, status: from })
+      prismaMock.request.update.mockResolvedValue({ ...sampleRequest, status: to })
+
+      const res = await request(app).patch('/api/requests/1').send({ status: to })
+      expect(res.status).toBe(200)
+    }
+  })
+
+  it('allows the SELF_SOLVED exit from WORKING_ON_IT', async () => {
+    currentUserId = OWNER
+    prismaMock.request.findUnique.mockResolvedValue({ ...sampleRequest, status: 'WORKING_ON_IT' })
+    prismaMock.request.update.mockResolvedValue({ ...sampleRequest, status: 'SELF_SOLVED' })
+
+    const res = await request(app).patch('/api/requests/1').send({ status: 'SELF_SOLVED' })
+    expect(res.status).toBe(200)
+  })
+
+  it('allows the CANCELLED exit from IN_QUEUE (untouched request)', async () => {
+    currentUserId = OWNER
+    prismaMock.request.findUnique.mockResolvedValue(sampleRequest) // IN_QUEUE
+    prismaMock.request.update.mockResolvedValue({ ...sampleRequest, status: 'CANCELLED' })
+
+    const res = await request(app).patch('/api/requests/1').send({ status: 'CANCELLED' })
     expect(res.status).toBe(200)
   })
 })
