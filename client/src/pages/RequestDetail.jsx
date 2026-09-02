@@ -423,6 +423,34 @@ function RequestDetail({ requestId, onBack, isAdmin }) {
     setPendingStatus(nextStatus);
   }
 
+  // G411-88: admin-only manual nudge for a stale WAITING_ON_USER request.
+  // POST /:id/nudge already existed server-side (G411-36, admin-only,
+  // gated to WAITING_ON_USER) with no caller anywhere in the app until
+  // now — same PR reused for feedback: nudgeStatus drives a plain
+  // inline confirmation/error message next to the button rather than a
+  // full page refetch (the nudge itself doesn't change request.status,
+  // only adds a Message — the thread tab will pick it up on its own next
+  // fetch, nothing here needs to force that).
+  const [nudgeStatus, setNudgeStatus] = useState("idle"); // 'idle' | 'sending' | 'sent' | 'error'
+
+  // Same instance persists across requestId changes (see the notes reset
+  // above) — without this, "Nudge sent" from a previous request would
+  // still show after opening a different one.
+  useEffect(() => {
+    setNudgeStatus("idle");
+  }, [requestId]);
+
+  async function handleNudge() {
+    setNudgeStatus("sending");
+    try {
+      const res = await fetch(`/api/requests/${requestId}/nudge`, { method: "POST" });
+      if (!res.ok) throw new Error("failed");
+      setNudgeStatus("sent");
+    } catch {
+      setNudgeStatus("error");
+    }
+  }
+
   function handleStatusChangeClick() {
     if (!pendingStatus) return;
     if (STATUS_NEEDS_CONFIRM.includes(pendingStatus)) {
@@ -824,12 +852,22 @@ function RequestDetail({ requestId, onBack, isAdmin }) {
                 No longer urgent
               </Button>
             )}
+            {request.status === "WAITING_ON_USER" && (
+              <Button
+                variant="secondary"
+                onClick={handleNudge}
+                disabled={nudgeStatus === "sending"}
+              >
+                {nudgeStatus === "sending" ? "Sending…" : nudgeStatus === "sent" ? "Nudge sent" : "Nudge"}
+              </Button>
+            )}
           </div>
           <button type="button" className="admin-layout-toggle" onClick={() => setSideBySide((v) => !v)}>
             {sideBySide ? "Stack tabs" : "Side by side"}
           </button>
         </div>
         {statusError && <p className="message-send-error" role="alert">{statusError}</p>}
+        {nudgeStatus === "error" && <p className="message-send-error" role="alert">Couldn't send the nudge.</p>}
       </div>
 
       <ConfirmModal
