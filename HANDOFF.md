@@ -12,7 +12,7 @@ accumulated. If something here turns out to matter long-term, promote it to
 
 ---
 
-## Where this session left off (2026-09-02) — Epic 4 in progress: G411-30/31/45/48 Reconciled, G411-32 Landed (awaiting Gavi's Reconciled confirm). Working through Epic 4 in an agreed order, pausing between tickets for possible context handoff.
+## Where this session left off (2026-09-02) — Epic 4 in progress: G411-30/31/32/45/48 all Reconciled. G411-87 filed (friend-facing lifecycle UI gap), not started. Working through Epic 4 in an agreed order, pausing between tickets for possible context handoff.
 
 **G411-30 (status state machine)** — Reconciled. `TRANSITIONS` map added to
 `server/routes/requests.js`'s `PATCH /:id`, enforcing the real lifecycle
@@ -29,15 +29,25 @@ round (TOCTOU double-refund race, dishonest dead-tiering comment,
 duplicated update/response path) — see decision #100 in `gavi411-brain.md`
 for full detail.
 
-**G411-32 (urgent downgrade)** — Landed, awaiting Gavi's Reconciled
-confirm. Real scope correction found live: PRD §4.4 only restricts the
-*friend* side ("friend may downgrade to no longer urgent"), says nothing
-about admin. Gavi pushed back on inheriting that restriction unquestioned
-rather than letting it get implemented as written — resolved as: **admin
-gets free any-direction urgency control, friend keeps the PRD's narrower
-HIGH→NORMAL-only rule.** See decision #101 in `gavi411-brain.md`. PR #44,
-merged `e0f41ed`, Sibling review 0 findings. 180/180 tests passing fresh
-post-merge.
+**G411-32 (urgent downgrade)** — Reconciled. Real scope correction found
+live: PRD §4.4 only restricts the *friend* side ("friend may downgrade to
+no longer urgent"), says nothing about admin. Gavi pushed back on
+inheriting that restriction unquestioned rather than letting it get
+implemented as written — resolved as: **admin gets free any-direction
+urgency control, friend keeps the PRD's narrower HIGH→NORMAL-only rule.**
+See decision #101 in `gavi411-brain.md`. PR #44, merged `e0f41ed`,
+Sibling review 0 findings. 180/180 tests passing fresh post-merge.
+
+**G411-87 filed (new, not started)** — real gap found while checking in
+with Gavi post-G411-32: nothing in Epic 4's backend tickets includes UI
+by design (Parent 4 = rules, Parent 5/Admin Cockpit = where Gavi clicks
+them), but there was no ticket anywhere for the FRIEND-facing side (a
+cancel/self-solved/downgrade button on their own request detail page).
+Filed as G411-87, parent-linked to G411-5 (Admin Cockpit, per Gavi's
+placement call), scoped to `client/src/pages/RequestDetail.jsx` — no new
+backend work, purely wiring G411-30/31/32's already-tested endpoints to
+real UI. Deliberately NOT started — Gavi's call, keep working Epic 4's
+backend order first.
 
 ### Real state, right now
 Primary worktree (`Gavi411`) and all 6 role worktrees (`Gavi411-agent-
@@ -48,9 +58,7 @@ this session too (5 stale merged-PR branches deleted, plus ~20 stale
 local branches with no unique content vs main).
 
 ### What's next, concretely
-1. **G411-32 needs Gavi's explicit Reconciled confirm** (hard-to-reverse-
-   action rule) — currently sitting at Landed.
-2. **Agreed order for the rest of Epic 4** (Gavi's call, pause between
+1. **Agreed order for the rest of Epic 4** (Gavi's call, pause between
    each for a possible context-window handoff):
    - **Next up: G411-33 (close flow) + G411-34 (reopen-on-message)
      together** — natural pair, two sides of the same CLOSED state.
@@ -63,13 +71,13 @@ local branches with no unique content vs main).
    - All 5 remaining tickets confirmed self-contained within Parent 4 —
      no cross-epic dependency found (unlike G411-31, which needed Parent
      6/Credits).
-3. **Real UI gap, still true**: nothing in the live app calls `PATCH
+2. **Real UI gap, now tracked**: nothing in the live app calls `PATCH
    /api/requests/:id` yet — no cancel/self-solved/downgrade button, no
    admin cockpit page. All of Epic 4's work so far is real and tested at
-   the API layer only. The admin cockpit (Parent 5, G411-37/38, not
-   built) and friend-facing action buttons are what will actually wire
-   this up to a real user — confirmed with Gavi this is expected, not a
-   regression.
+   the API layer only, confirmed expected (not a regression) with Gavi.
+   Admin side is Parent 5's existing "Admin detail screen" task
+   (G411-37/38, not built); friend side is the newly-filed **G411-87**
+   (not started).
 
 ### Other loose ends, unchanged from before
 - E2E fully paused per decision #98 — see
