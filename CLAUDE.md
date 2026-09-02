@@ -32,6 +32,7 @@ just a deliverable.
 | `gavi411-task-list-source.md` | Original hour-costed Parent/Child backlog, tagged by owner — the source doc used to populate Jira; Jira itself (see `gavi411-jira-tree.md`) is the live backlog now |
 | `gavi411-jira-tree.md` | Snapshot of the actual G411 Jira Epic → Task structure with issue keys, generated after backlog population |
 | `gavi411-post-deadline-learning-backlog.md` | Agentic work Gavi wants to rebuild/study later — informational only, doesn't affect how you build now |
+| `gavi411-e2e-encryption-plan.md` | Living doc — current status/target architecture/open questions for the E2E messaging encryption reframe (decision #98, 2026-09-02). Read before touching anything messaging/encryption-related; update it as the plan evolves rather than re-deriving from Jira/brain.md each time |
 
 ## Ownership split — historical record only (changed 2026-08-24)
 
