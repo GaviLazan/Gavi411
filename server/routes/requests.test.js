@@ -261,6 +261,61 @@ describe('PATCH /api/requests/:id', () => {
     expect(res.status).toBe(200)
   })
 
+  // G411-32 — urgency-change gating by role
+  describe('urgency change gating (G411-32)', () => {
+    it('allows a friend to downgrade HIGH -> NORMAL', async () => {
+      currentUserId = OWNER
+      prismaMock.request.findUnique.mockResolvedValue({ ...sampleRequest, urgency: 'HIGH' })
+      prismaMock.request.update.mockResolvedValue({ ...sampleRequest, urgency: 'NORMAL' })
+
+      const res = await request(app).patch('/api/requests/1').send({ urgency: 'NORMAL' })
+      expect(res.status).toBe(200)
+    })
+
+    it('400s a friend trying to upgrade NORMAL -> HIGH', async () => {
+      currentUserId = OWNER
+      prismaMock.request.findUnique.mockResolvedValue({ ...sampleRequest, urgency: 'NORMAL' })
+
+      const res = await request(app).patch('/api/requests/1').send({ urgency: 'HIGH' })
+      expect(res.status).toBe(400)
+      expect(prismaMock.request.update).not.toHaveBeenCalled()
+    })
+
+    it('400s a friend trying to set HIGH -> LOW (not the PRD\'s NORMAL target)', async () => {
+      currentUserId = OWNER
+      prismaMock.request.findUnique.mockResolvedValue({ ...sampleRequest, urgency: 'HIGH' })
+
+      const res = await request(app).patch('/api/requests/1').send({ urgency: 'LOW' })
+      expect(res.status).toBe(400)
+    })
+
+    it('400s a friend trying to set LOW -> HIGH', async () => {
+      currentUserId = OWNER
+      prismaMock.request.findUnique.mockResolvedValue({ ...sampleRequest, urgency: 'LOW' })
+
+      const res = await request(app).patch('/api/requests/1').send({ urgency: 'HIGH' })
+      expect(res.status).toBe(400)
+    })
+
+    it('allows an admin to set urgency in any direction, e.g. NORMAL -> LOW', async () => {
+      currentUserId = ADMIN
+      prismaMock.request.findUnique.mockResolvedValue({ ...sampleRequest, urgency: 'NORMAL' })
+      prismaMock.request.update.mockResolvedValue({ ...sampleRequest, urgency: 'LOW' })
+
+      const res = await request(app).patch('/api/requests/1').send({ urgency: 'LOW' })
+      expect(res.status).toBe(200)
+    })
+
+    it('allows an admin to upgrade LOW -> HIGH', async () => {
+      currentUserId = ADMIN
+      prismaMock.request.findUnique.mockResolvedValue({ ...sampleRequest, urgency: 'LOW' })
+      prismaMock.request.update.mockResolvedValue({ ...sampleRequest, urgency: 'HIGH' })
+
+      const res = await request(app).patch('/api/requests/1').send({ urgency: 'HIGH' })
+      expect(res.status).toBe(200)
+    })
+  })
+
   // G411-30 — transition enforcement
   it('400s on an illegal jump (IN_QUEUE -> CLOSED, skipping the graph)', async () => {
     currentUserId = OWNER
