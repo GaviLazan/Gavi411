@@ -304,6 +304,72 @@ function RequestDetail({ requestId, onBack, isAdmin }) {
       .then(setRequest);
   }
 
+  // G411-40: private admin-only notes. Fetched lazily — only once admin
+  // actually opens the Notes tab (or side-by-side view, which always
+  // shows it as a tab too) — not on every detail-page load, since most
+  // admin visits are for the thread, not notes.
+  const [notes, setNotes] = useState([]);
+  const [notesLoading, setNotesLoading] = useState(false);
+  // Tracks WHICH requestId's notes are currently loaded, not just a bare
+  // boolean — a bare "loaded" flag would survive a requestId change (e.g.
+  // admin opens Request A's Notes tab, goes Back, opens Request B) and
+  // silently skip B's fetch, showing A's stale notes under B's page.
+  const [notesLoadedFor, setNotesLoadedFor] = useState(null);
+  const [noteDraft, setNoteDraft] = useState("");
+  const [savingNote, setSavingNote] = useState(false);
+  const [noteError, setNoteError] = useState("");
+
+  useEffect(() => {
+    if (!isAdmin || adminTab !== "notes" || notesLoadedFor === requestId) return;
+    setNotesLoading(true);
+    fetch(`/api/requests/${requestId}/notes`)
+      .then((res) => {
+        if (!res.ok) throw new Error("failed");
+        return res.json();
+      })
+      .then((data) => {
+        setNotes(data);
+        setNotesLoadedFor(requestId);
+      })
+      .catch(() => setNoteError("Couldn't load notes."))
+      .finally(() => setNotesLoading(false));
+  }, [isAdmin, adminTab, notesLoadedFor, requestId]);
+
+  // Same instance persists across requestId changes (App.jsx renders
+  // RequestDetail with no `key`, same as the request-fetch effect above
+  // that explicitly resets on requestId change) — without this, opening
+  // a second request would keep the first request's notes/draft on
+  // screen until the fetch above resolves.
+  useEffect(() => {
+    setNotes([]);
+    setNoteDraft("");
+    setNoteError("");
+  }, [requestId]);
+
+  async function saveNote() {
+    if (!noteDraft.trim()) return;
+    setSavingNote(true);
+    setNoteError("");
+    try {
+      const res = await fetch(`/api/requests/${requestId}/notes`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content: noteDraft }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || "Couldn't save that note.");
+      }
+      const created = await res.json();
+      setNotes((prev) => [...prev, created]);
+      setNoteDraft("");
+    } catch (err) {
+      setNoteError(err.message);
+    } finally {
+      setSavingNote(false);
+    }
+  }
+
   // G411-39: admin status-control state. `pendingStatus` holds a status
   // picked in the dropdown but not yet applied (either awaiting the
   // confirm modal for a disruptive exit, or awaiting the explicit
@@ -610,12 +676,45 @@ function RequestDetail({ requestId, onBack, isAdmin }) {
       </Card>
   );
 
-  // Storage/logic is G411-40's job — this tab is just the shell slot it
-  // plugs into.
+  // G411-40: private admin-only notes, backed by the Note model/routes
+  // (GET/POST /api/requests/:id/notes — admin-only server-side, "visible
+  // only to Gavi" per PRD §6.2, real security boundary not a UI hint).
+  // Textarea + Save button mirrors the message-compose pattern already on
+  // this page rather than inventing a new input shape.
   const notesCard = (
     <Card>
       <h2>Notes</h2>
-      <p className="review-empty">Private notes aren't wired up yet.</p>
+      <p style={{ fontSize: 13, opacity: 0.7 }}>Private — visible only to you.</p>
+      {notesLoading ? (
+        <p className="review-empty">Loading notes…</p>
+      ) : notes.length === 0 ? (
+        <p className="review-empty">No notes yet.</p>
+      ) : (
+        notes.map((n) => (
+          <div className="review-row" key={n.id}>
+            <span className="review-value" dir="auto">{n.content}</span>
+          </div>
+        ))
+      )}
+      {noteError && <p className="message-send-error" role="alert">{noteError}</p>}
+      <div className="message-compose">
+        <textarea
+          className="field-input message-textarea"
+          dir="auto"
+          rows={1}
+          aria-label="Note"
+          value={noteDraft}
+          onChange={(e) => setNoteDraft(e.target.value)}
+          onInput={(e) => {
+            e.target.style.height = "auto";
+            e.target.style.height = `${e.target.scrollHeight}px`;
+          }}
+          placeholder="Add a private note…"
+        />
+        <Button variant="secondary" onClick={saveNote} disabled={!noteDraft.trim() || savingNote}>
+          {savingNote ? "Saving…" : "Save"}
+        </Button>
+      </div>
     </Card>
   );
 

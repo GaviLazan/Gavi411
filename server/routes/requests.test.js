@@ -26,6 +26,10 @@ vi.mock('../middleware/auth.js', () => ({
     req.user = usersByClerkId[currentUserId]
     next()
   },
+  requireAdmin: (req, res, next) => {
+    if (req.user.role !== 'ADMIN') return res.status(404).json({ error: 'Not found' })
+    next()
+  },
 }))
 
 const sampleRequest = {
@@ -47,6 +51,10 @@ const prismaMock = {
   message: {
     create: vi.fn(),
     findFirst: vi.fn(),
+  },
+  note: {
+    create: vi.fn(),
+    findMany: vi.fn(),
   },
   user: {
     findFirst: vi.fn(),
@@ -663,6 +671,88 @@ describe('POST /api/requests/:id/nudge (G411-36)', () => {
     expect(prismaMock.message.create).toHaveBeenCalledWith(
       expect.objectContaining({ data: expect.objectContaining({ requestId: 1, userId: ADMIN }) })
     )
+  })
+})
+
+describe('GET/POST /api/requests/:id/notes (G411-40, admin-only)', () => {
+  it('GET 401s when unauthenticated', async () => {
+    const res = await request(app).get('/api/requests/1/notes')
+    expect(res.status).toBe(401)
+  })
+
+  it('GET 404s for a non-admin, even the request owner (same info-leak-avoidance convention as the rest of this router)', async () => {
+    currentUserId = OWNER
+    const res = await request(app).get('/api/requests/1/notes')
+    expect(res.status).toBe(404)
+    expect(prismaMock.note.findMany).not.toHaveBeenCalled()
+  })
+
+  it('GET 404s when the request does not exist', async () => {
+    currentUserId = ADMIN
+    prismaMock.request.findUnique.mockResolvedValue(null)
+    const res = await request(app).get('/api/requests/999/notes')
+    expect(res.status).toBe(404)
+  })
+
+  it('GET 200s with the request\'s notes, oldest first, for an admin', async () => {
+    currentUserId = ADMIN
+    prismaMock.request.findUnique.mockResolvedValue({ id: 1 })
+    const notes = [{ id: 1, content: 'first', requestId: 1, createdAt: new Date() }]
+    prismaMock.note.findMany.mockResolvedValue(notes)
+
+    const res = await request(app).get('/api/requests/1/notes')
+
+    expect(res.status).toBe(200)
+    expect(res.body).toEqual(JSON.parse(JSON.stringify(notes)))
+    expect(prismaMock.note.findMany).toHaveBeenCalledWith({
+      where: { requestId: 1 },
+      orderBy: { createdAt: 'asc' },
+    })
+  })
+
+  it('POST 401s when unauthenticated', async () => {
+    const res = await request(app).post('/api/requests/1/notes').send({ content: 'x' })
+    expect(res.status).toBe(401)
+  })
+
+  it('POST 404s for a non-admin, even the request owner', async () => {
+    currentUserId = OWNER
+    const res = await request(app).post('/api/requests/1/notes').send({ content: 'x' })
+    expect(res.status).toBe(404)
+    expect(prismaMock.note.create).not.toHaveBeenCalled()
+  })
+
+  it('POST 400s when content is missing', async () => {
+    currentUserId = ADMIN
+    const res = await request(app).post('/api/requests/1/notes').send({})
+    expect(res.status).toBe(400)
+  })
+
+  it('POST 400s when content is whitespace-only', async () => {
+    currentUserId = ADMIN
+    const res = await request(app).post('/api/requests/1/notes').send({ content: '   ' })
+    expect(res.status).toBe(400)
+    expect(prismaMock.note.create).not.toHaveBeenCalled()
+  })
+
+  it('POST 404s when the request does not exist', async () => {
+    currentUserId = ADMIN
+    prismaMock.request.findUnique.mockResolvedValue(null)
+    const res = await request(app).post('/api/requests/999/notes').send({ content: 'x' })
+    expect(res.status).toBe(404)
+  })
+
+  it('POST creates a trimmed note and returns 201 for an admin', async () => {
+    currentUserId = ADMIN
+    prismaMock.request.findUnique.mockResolvedValue({ id: 1 })
+    prismaMock.note.create.mockResolvedValue({ id: 2, content: 'noted', requestId: 1 })
+
+    const res = await request(app).post('/api/requests/1/notes').send({ content: '  noted  ' })
+
+    expect(res.status).toBe(201)
+    expect(prismaMock.note.create).toHaveBeenCalledWith({
+      data: { content: 'noted', requestId: 1 },
+    })
   })
 })
 
