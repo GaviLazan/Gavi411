@@ -89,6 +89,30 @@ describe('requireAuth', () => {
     expect(next).toHaveBeenCalled()
   })
 
+  it('grants the tiered initial credit balance on creation, not 0 (G411-45)', async () => {
+    mockGetAuth.mockReturnValue({ userId: 'user_new' })
+    mockFindUnique.mockResolvedValue(null)
+    mockClaimInvite.mockResolvedValue(true)
+    mockGetUser.mockResolvedValue({
+      firstName: 'Gavi',
+      lastName: 'Lazan',
+      primaryEmailAddressId: 'idn_1',
+      emailAddresses: [{ id: 'idn_1', emailAddress: 'gavriel.lazan@gmail.com' }],
+    })
+    mockCreate.mockResolvedValue({ clerkId: 'user_new' })
+    const req = { headers: { 'x-invite-token': 'tok123' } }
+    const res = mockRes()
+    const next = vi.fn()
+
+    await requireAuth(req, res, next)
+
+    // groupTag isn't collected at signup yet (defaults REGULAR in schema),
+    // so the initial grant should be REGULAR's tier (5), not 0.
+    expect(mockCreate).toHaveBeenCalledWith({
+      data: expect.objectContaining({ creditBalance: 5 }),
+    })
+  })
+
   it('picks the primary email, not just array index 0', async () => {
     mockGetAuth.mockReturnValue({ userId: 'user_multi_email' })
     mockFindUnique.mockResolvedValue(null)

@@ -18,6 +18,7 @@
 import { clerkMiddleware, clerkClient, getAuth } from '@clerk/express'
 import { prisma } from '../lib/prisma.js'
 import { claimInvite, linkClaimedInvite, unclaimInvite } from '../lib/invites.js'
+import { initialCreditFor } from '../lib/credits.js'
 
 // clerkClient — call once per server, mounted globally in server.js.
 // Reads the session cookie / Authorization: Bearer <token> header on every
@@ -149,7 +150,13 @@ export async function requireAuth(req, res, next) {
             // our side, so this is a placeholder until that flow fills
             // it in.
             phoneNumber: `pending-${userId}`,
-            creditBalance: 0,
+            // G411-45: tiered initial grant per PRD §9 (Limited 2, Regular
+            // 5, Close 7), not the old hardcoded 0. groupTag isn't
+            // collected at signup yet, so this reads the schema's own
+            // @default(REGULAR) — initialCreditFor's own REGULAR fallback
+            // would cover that anyway, but naming it here keeps the two
+            // defaults from silently drifting apart if one changes later.
+            creditBalance: initialCreditFor('REGULAR'),
           },
         })
       } catch (err) {

@@ -9,6 +9,7 @@ import { prisma } from '../lib/prisma.js'
 import { validateImage, uploadImage, MAX_IMAGE_BYTES } from '../lib/cloudinary.js'
 import { canAccessRequest } from '../lib/requestAccess.js'
 import { E2E_ENABLED } from '../lib/e2eConfig.js'
+import { deductCredit, refundCredit } from '../lib/credits.js'
 
 const router = express.Router()
 
@@ -262,6 +263,26 @@ router.patch('/:id', requireAuth, async (req, res) => {
     data.status = status
   }
 
+  // G411-31: cancel/self-solved refund 1 credit, but only if no ADMIN-role
+  // user has messaged on this request yet — Gavi's rule, "one message from
+  // me is fine, might just be a clarifying question." Runs status update +
+  // refund in one transaction so a crash mid-way can't leave the status
+  // changed without the refund (or vice versa).
+  const REFUNDABLE_EXITS = [Status.CANCELLED, Status.SELF_SOLVED]
+  if (status !== undefined && REFUNDABLE_EXITS.includes(status)) {
+    const adminMessage = await prisma.message.findFirst({
+      where: { requestId: id, user: { role: 'ADMIN' } },
+    })
+
+    const updated = await prisma.$transaction(async (tx) => {
+      if (!adminMessage) {
+        await refundCredit(tx, existing.userId)
+      }
+      return tx.request.update({ where: { id }, data })
+    })
+    return res.json(updated)
+  }
+
   const updated = await prisma.request.update({ where: { id }, data })
   res.json(updated)
 })
@@ -303,19 +324,12 @@ router.post('/', requireAuth, async (req, res) => {
   try {
     // Balance re-checked fresh inside the tx (not req.user's stale
     // snapshot) so concurrent requests can't double-decrement past zero.
+    // Deduction itself now lives in lib/credits.js (G411-48 extraction —
+    // behavior unchanged, same transaction-safety property).
     const request = await prisma.$transaction(async (tx) => {
-      const user = await tx.user.findUnique({
-        where: { clerkId: req.user.clerkId },
-        select: { creditBalance: true },
-      })
+      await deductCredit(tx, req.user.clerkId)
 
-      if (user.creditBalance < 1) {
-        const err = new Error('Insufficient credit balance')
-        err.statusCode = 402
-        throw err
-      }
-
-      const created = await tx.request.create({
+      return tx.request.create({
         data: {
           freeText,
           type: requestType,
@@ -325,20 +339,6 @@ router.post('/', requireAuth, async (req, res) => {
           userId: req.user.clerkId,
         },
       })
-
-      await tx.user.update({
-        where: { clerkId: req.user.clerkId },
-        data: { creditBalance: { decrement: 1 } },
-      })
-
-      await tx.creditTransaction.create({
-        data: {
-          amount: -1,
-          userId: req.user.clerkId,
-        },
-      })
-
-      return created
     })
 
     res.status(201).json(request)
