@@ -286,6 +286,27 @@ question that costs one turn.**
 
 ## How to work with Gavi
 
+- **Trace real consequences BEFORE presenting a plan, not after Gavi
+  asks the natural next question.** (Added 2026-09-02, real failure —
+  proposed "wipe admin's User row, then have admin self-issue an
+  invite" as a clean fix for the admin-escrow gap, without checking
+  that `POST /api/invites` requires `requireAdmin` — meaning the wipe,
+  done first, would have permanently locked admin out of ever issuing
+  themself an invite at all. The ordering constraint was one grep away
+  and should have been surfaced in the same breath as the proposal, not
+  discovered reactively after Gavi asked "how do we self-issue an
+  invite?" Same root failure as an earlier session's "test by switching
+  users" suggestion that ignored there's no logout button.) Nothing in
+  this system is a silo — every proposed action (delete this, disable
+  that, reorder these two steps) has to be checked against: what else
+  reads/writes this same data or gates on this same state, and does
+  sequencing it this way strand something (a role, a session, a token)
+  with no path back. This is a mandatory step in forming the plan
+  itself, not a follow-up once a gap surfaces — if tracing it requires a
+  grep/read, do that grep/read before presenting the plan, not after
+  being asked. A plan presented as "here's what we'll do" that hasn't
+  had this pass done is unfinished, even if each individual step sounds
+  reasonable in isolation.
 - Agents write by default now (see "Required workflow" above) — build it,
   and explain your reasoning as you go, at a strength proportional to how
   much the decision matters. Don't check a ticket's old tag first.
