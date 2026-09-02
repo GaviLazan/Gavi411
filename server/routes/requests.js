@@ -105,6 +105,24 @@ export function stripEmpty(details) {
 // to a narrow select (firstName/lastName/profilePic) rather than the
 // whole User row — a friend's own list never gets this at all, same
 // admin-only trust boundary as the messages include above.
+//
+// `message` here (G411-37, "time since last activity" column): a cheap
+// one-row include (take: 1, createdAt only) — NOT the same as
+// `?include=messages`'s full ordered message bodies, even though it's
+// the same relation field name (Prisma includes are keyed by relation
+// name, so the response shape is identical either way: `message: [...]`
+// — just 1 narrow row here instead of every full row). Sibling review
+// finding: the admin list screen originally fetched no message data at
+// all, so its "time since last activity" silently always fell back to
+// Request.createdAt (see lib/adminListSort.js's lastActivityAt doc
+// comment) — this gives it the one real timestamp it needs without
+// paying for every message body on every list load. Only used when
+// `?include=messages` is NOT also requested — that path already carries
+// every message ordered ascending, so its last entry IS the last
+// message; no need to also attach this narrower duplicate.
+const LAST_MESSAGE_ONLY_INCLUDE = {
+  message: { orderBy: { createdAt: 'desc' }, take: 1, select: { createdAt: true } },
+}
 router.get('/', requireAuth, async (req, res) => {
   try {
     const isAdmin = req.user.role === 'ADMIN'
@@ -117,7 +135,7 @@ router.get('/', requireAuth, async (req, res) => {
       ...(isAdmin && {
         include: {
           user: { select: { firstName: true, lastName: true, profilePic: true } },
-          ...(includeMessages && MESSAGE_INCLUDE),
+          ...(includeMessages ? MESSAGE_INCLUDE : LAST_MESSAGE_ONLY_INCLUDE),
         },
       }),
     })

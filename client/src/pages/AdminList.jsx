@@ -52,7 +52,7 @@ function Avatar({ user }) {
     justifyContent: "center",
     fontSize: 12,
     fontWeight: 600,
-    background: "var(--surface-2, #e5e5e5)",
+    background: "var(--border)",
     overflow: "hidden",
   };
   if (user?.profilePic) {
@@ -69,7 +69,10 @@ function AdminRequestRow({ request, onClick }) {
       <Card style={{ width: "100%", textAlign: "start", display: "flex", gap: "var(--space-3)", alignItems: "center" }}>
         <Avatar user={user} />
         <div style={{ flex: 1, minWidth: 0 }}>
-          <p style={{ fontWeight: 600 }}>
+          {/* dir="auto" (Sibling review finding): firstName/lastName are
+              freeform Clerk profile fields, same category as freeText
+              below — can contain Hebrew, need correct bidi rendering. */}
+          <p dir="auto" style={{ fontWeight: 600 }}>
             {friendName}
             {request.type ? ` · ${statusLabel(request.type)}` : ""}
           </p>
@@ -118,10 +121,12 @@ function AdminList({ onOpenRequest }) {
     return sortRequests(filterRequests(requests, filter), sort);
   }, [requests, filter, sort]);
 
-  const grouped = useMemo(() => {
-    if (group !== "person") return null;
-    return groupByPerson(sorted);
-  }, [sorted, group]);
+  // One shape either way — a list of groups, ungrouped is just one group
+  // holding everything (Sibling review finding: two near-identical render
+  // blocks, kept in sync by hand, collapsed into a single map below).
+  // groupByPerson over an already-sorted/filtered admin-scale array is
+  // cheap enough not to need its own memo separate from `sorted`.
+  const groups = group === "person" ? groupByPerson(sorted) : [sorted];
 
   if (error) {
     return (
@@ -148,21 +153,15 @@ function AdminList({ onOpenRequest }) {
 
       {sorted.length === 0 && <p>No requests match this filter.</p>}
 
-      {grouped ? (
-        grouped.map((groupRequests) => (
-          <div key={groupRequests[0].userId} style={{ display: "flex", flexDirection: "column", gap: "var(--space-2)" }}>
-            {groupRequests.map((r) => (
-              <AdminRequestRow key={r.id} request={r} onClick={() => onOpenRequest(r.id)} />
-            ))}
-          </div>
-        ))
-      ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-2)" }}>
-          {sorted.map((r) => (
+      {groups.map((groupRequests, i) => (
+        // Ungrouped: one group, key by position (stable, only one ever
+        // exists). Grouped: key by the group's own userId.
+        <div key={group === "person" ? groupRequests[0]?.userId : i} style={{ display: "flex", flexDirection: "column", gap: "var(--space-2)" }}>
+          {groupRequests.map((r) => (
             <AdminRequestRow key={r.id} request={r} onClick={() => onOpenRequest(r.id)} />
           ))}
         </div>
-      )}
+      ))}
     </div>
   );
 }

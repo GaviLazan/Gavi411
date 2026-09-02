@@ -3,8 +3,10 @@
 // convention is lib/ logic gets tested, page components don't (no
 // component-test framework installed here).
 
+import { CLOSED_STATUSES } from "../pages/RequestList";
+
 export const URGENCY_ORDER = { LOW: 0, NORMAL: 1, HIGH: 2 };
-export const CLOSED_STATUSES = ["CLOSED", "CANCELLED", "SELF_SOLVED"];
+export { CLOSED_STATUSES };
 
 // Native Intl, no dependency — "time since last activity" per decision
 // #46 (gavi411-brain.md).

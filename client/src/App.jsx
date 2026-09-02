@@ -170,6 +170,10 @@ function App() {
   // here means Clerk auth succeeded but our own backend never created a
   // User row (see server/middleware/auth.js) — no valid invite.
   const [role, setRole] = useState(null)
+  // Derived once, used everywhere role gates a decision (Sibling review
+  // finding — `role === 'ADMIN'` was independently re-derived at 4
+  // separate call sites in this file with no shared source).
+  const isAdmin = role === 'ADMIN'
   const [unauthorized, setUnauthorized] = useState(false)
   // G411-28 stage 4: a ?recover=<token>#<passphrase> link, stashed by
   // captureRecoveryParamsFromUrl() above the same way the signup token
@@ -241,7 +245,7 @@ function App() {
         {/* G411-41: only entry point to the invite-creation UI — shown to
             admins only, minimal placement per the ticket's own note not
             to wait on the full admin cockpit (G411-37/38). */}
-        {role === 'ADMIN' && (
+        {isAdmin && (
           <button type="button" onClick={() => setView('invite-admin')}>
             Invites
           </button>
@@ -249,7 +253,7 @@ function App() {
         {/* G411-37: the cockpit list replaced RequestList as admin's home
             view, but RequestList's client-side decrypted search (G411-28)
             still needs an access point — this is it. */}
-        {role === 'ADMIN' && (
+        {isAdmin && (
           <button type="button" onClick={() => setView('search')}>
             Search
           </button>
@@ -300,7 +304,7 @@ function App() {
           ) : view === 'invite-admin' ? (
             <InviteAdmin onBack={() => setView('list')} />
           ) : view === 'detail' ? (
-            <RequestDetail requestId={selectedRequestId} onBack={() => setView('list')} isAdmin={role === 'ADMIN'} />
+            <RequestDetail requestId={selectedRequestId} onBack={() => setView('list')} isAdmin={isAdmin} />
           ) : view === 'search' ? (
             // G411-37: admin's cockpit list (below) replaced RequestList as
             // admin's home view, but RequestList's client-side decrypted
@@ -312,7 +316,15 @@ function App() {
               onOpenRequest={(id) => { setSelectedRequestId(id); setView('detail'); }}
               isAdmin={true}
             />
-          ) : role === 'ADMIN' ? (
+          ) : role === null ? (
+            // Sibling review finding: rendering RequestList/AdminList based
+            // on a still-null `role` used to briefly mount RequestList
+            // (isAdmin=false) for an admin, then unmount/remount it as
+            // AdminList the instant role resolved — a visible flash that
+            // also discarded RequestList's in-flight fetch. Waiting for
+            // role to actually resolve avoids ever mounting the wrong one.
+            <p>Loading…</p>
+          ) : isAdmin ? (
             <AdminList onOpenRequest={(id) => { setSelectedRequestId(id); setView('detail'); }} />
           ) : (
             <RequestList

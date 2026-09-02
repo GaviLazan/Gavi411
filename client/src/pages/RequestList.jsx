@@ -19,7 +19,10 @@ import "../components/ReviewSummary.css";
 // paths off the same chain — all three are "not still active," so they
 // group together as "closed" here for the toggle. Flagged for Gavi to
 // confirm; easy to narrow to CLOSED-only later if that's not the intent.
-const CLOSED_STATUSES = ["CLOSED", "CANCELLED", "SELF_SOLVED"];
+// Exported — adminListSort.js (G411-37) reuses this same "what counts as
+// closed" rule for the admin list's open/closed filter, instead of
+// carrying its own separate copy (Sibling review finding).
+export const CLOSED_STATUSES = ["CLOSED", "CANCELLED", "SELF_SOLVED"];
 
 // Exported — RequestDetail.jsx reuses this for the same enum-label
 // formatting instead of duplicating it (Sibling review finding).
