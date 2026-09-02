@@ -1,0 +1,64 @@
+#!/bin/sh
+# pre-push guardrail — tripwire against two real, logged mistakes
+# (gavi411-brain.md decision #105):
+#
+#   1. Pushing a branch under one agent role's name/identity that was
+#      actually written by a different role (e.g. product UI work
+#      branched as agent-frontend/... when it belongs to agent-backend).
+#   2. Pushing straight to `main` from a local git identity that isn't
+#      configured for it (GitHub-side ruleset already blocks this
+#      server-side regardless — this is a faster, local-first check).
+#
+# This is a soft tripwire, not a hard lock: `git push --no-verify`
+# bypasses it, same as any git hook. Install into each worktree with:
+#   git config core.hooksPath .githooks
+# (one-time per worktree/clone — .git/hooks/ itself isn't versioned,
+# which is exactly why this lives in the repo and needs that one-time
+# opt-in rather than working automatically on a fresh clone.)
+
+remote="$1"
+z40=0000000000000000000000000000000000000000
+
+current_email=$(git config user.email)
+current_branch=$(git rev-parse --abbrev-ref HEAD)
+
+# Roles per gavi411-commit-convention.md — keep in sync with that doc.
+role_for_email() {
+  case "$1" in
+    agent-backend@*)  echo "agent-backend" ;;
+    agent-design@*)   echo "agent-design" ;;
+    agent-test@*)     echo "agent-test" ;;
+    agent-e2e@*)      echo "agent-e2e" ;;
+    agent-cicd@*)     echo "agent-cicd" ;;
+    agent-frontend@*) echo "agent-frontend" ;;
+    *)                echo "" ;;
+  esac
+}
+
+while read -r local_ref local_sha remote_ref remote_sha; do
+  branch=$(echo "$remote_ref" | sed 's#refs/heads/##')
+
+  if [ "$branch" = "main" ]; then
+    echo "pre-push: refusing direct push to main (GitHub ruleset also blocks this server-side)." >&2
+    echo "pre-push: branch your change and open a PR instead. Bypass with --no-verify if this is wrong." >&2
+    exit 1
+  fi
+
+  role=$(role_for_email "$current_email")
+  if [ -n "$role" ]; then
+    case "$branch" in
+      "$role"/*) : ;; # matches this worktree's own role — fine
+      you/*|main)
+        echo "pre-push: pushing a '$role' identity commit onto a '$branch' branch — wrong worktree/identity for this branch." >&2
+        exit 1
+        ;;
+      agent-*)
+        echo "pre-push: pushing under '$current_email' ($role) but branch is '$branch' — role/branch prefix mismatch." >&2
+        echo "pre-push: product UI/page work is agent-backend's job, not agent-frontend (infra-only) — check gavi411-commit-convention.md before renaming/bypassing." >&2
+        exit 1
+        ;;
+    esac
+  fi
+done
+
+exit 0

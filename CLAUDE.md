@@ -270,6 +270,18 @@ question that costs one turn.**
 - **Branching**: no direct commits to `main`. One branch per child issue —
   `you/G411-XX-slug` for Gavi's own work, `agent-<role>/G411-XX-slug` for
   agentic — merged back via PR once the child reaches Landed.
+  **Mechanically enforced, not just documented** (decision #106,
+  2026-09-02, after this rule was violated live on G411-38's own wrap-up
+  commit): a GitHub ruleset on `main` (`require-pr-for-main`, no bypass
+  actor — real for everyone, self included) rejects any direct push,
+  server-side, regardless of local git config. A repo-committed
+  `.githooks/pre-push` (installed per-worktree via
+  `git config core.hooksPath .githooks` — one-time, since `.git/hooks/`
+  itself isn't versioned) is a faster local-first tripwire catching the
+  same thing plus the sibling mistake (pushing under one agent role's
+  identity onto another role's branch prefix) — soft, bypassable with
+  `--no-verify`, but installed in all 7 worktrees. Full rationale and
+  both mistakes that motivated this in `gavi411-brain.md` decision #106.
 - **PR review** (updated 2026-08-24, decision #62/#63): every agentic
   child gets a live Sibling review from Claude Code before merge — not
   just load-bearing ones, since agentic is now the default rather than a
