@@ -1,8 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
 import Card from "../components/Card";
 import Select from "../components/Select";
+import Input from "../components/Input";
 import { statusLabel } from "./RequestList";
 import { timeSince, lastActivityAt, filterRequests, sortRequests, groupByPerson } from "../lib/adminListSort";
+import { buildSearchIndex, searchIndex } from "../lib/searchIndex";
+import { loadLinkedConversationKeys } from "../lib/deviceLinking";
+import { seedLinkedConversationKeys } from "../lib/conversationCrypto";
 
 // Admin request-list screen (G411-37). Distinct from the friend-facing
 // RequestList — decision #46 (gavi411-brain.md) specs this as its own
@@ -15,6 +19,14 @@ import { timeSince, lastActivityAt, filterRequests, sortRequests, groupByPerson 
 // admin branch of that route now includes a narrow `user` select
 // (firstName/lastName/profilePic) so this screen has what it needs
 // without a new endpoint (G411-37 backend fix).
+//
+// Search (G411-28) lives directly on this screen, not behind a separate
+// "Search" button/view — Gavi's direct feedback after first review: he
+// expects to search the list he's already looking at, not get bounced to
+// a different page. Fetches ?include=messages (full ordered bodies, same
+// as RequestList's admin search always did) and builds the same
+// client-side decrypted index RequestList used to build — a search in
+// progress filters `sorted`/`groups` in place instead of swapping views.
 //
 // Sort/filter/timeSince logic itself lives in lib/adminListSort.js (real
 // test coverage there — this codebase's convention is lib/ gets tested,
@@ -97,12 +109,15 @@ function AdminList({ onOpenRequest }) {
   const [group, setGroup] = useState("none");
   const [retryToken, setRetryToken] = useState(0);
 
+  // ?include=messages: needed for the search index below (full ordered
+  // message bodies, not the narrow last-message-only shape the plain
+  // route returns) — same fetch RequestList's admin branch always made.
   useEffect(() => {
     let cancelled = false;
     async function load() {
       setError("");
       try {
-        const res = await fetch("/api/requests");
+        const res = await fetch("/api/requests?include=messages");
         if (!res.ok) throw new Error("failed");
         const data = await res.json();
         if (!cancelled) setRequests(data);
@@ -116,17 +131,55 @@ function AdminList({ onOpenRequest }) {
     };
   }, [retryToken]);
 
+  // Same "decrypt all on admin app load" call RequestList made — an
+  // admin session's message volume is small enough that one upfront
+  // decrypt beats piecemeal per-keystroke decryption.
+  useEffect(() => {
+    loadLinkedConversationKeys().then(seedLinkedConversationKeys).catch(() => {});
+  }, []);
+
+  const [searchEntries, setSearchEntries] = useState([]);
+  const [searchQuery, setSearchQuery] = useState("");
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!requests) {
+      setSearchEntries([]);
+      return;
+    }
+    buildSearchIndex(requests)
+      .then((entries) => {
+        if (!cancelled) setSearchEntries(entries);
+      })
+      .catch(() => {
+        if (!cancelled) setSearchEntries([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [requests]);
+
+  const matchingRequestIds = useMemo(() => {
+    if (!searchQuery.trim()) return null; // null = "no search active", not "matched nothing"
+    return new Set(searchIndex(searchEntries, searchQuery).map((e) => e.requestId));
+  }, [searchEntries, searchQuery]);
+
+  // A search in progress bypasses sort/filter/group entirely — search
+  // means "show me every match across the whole list," not "respect
+  // whatever sort/filter/group happens to be set" (same reasoning
+  // RequestList's own search used).
   const sorted = useMemo(() => {
     if (!requests) return [];
-    return sortRequests(filterRequests(requests, filter), sort);
-  }, [requests, filter, sort]);
+    const base = matchingRequestIds ? requests.filter((r) => matchingRequestIds.has(r.id)) : requests;
+    return sortRequests(filterRequests(base, matchingRequestIds ? "all" : filter), sort);
+  }, [requests, filter, sort, matchingRequestIds]);
 
   // One shape either way — a list of groups, ungrouped is just one group
   // holding everything (Sibling review finding: two near-identical render
   // blocks, kept in sync by hand, collapsed into a single map below).
   // groupByPerson over an already-sorted/filtered admin-scale array is
   // cheap enough not to need its own memo separate from `sorted`.
-  const groups = group === "person" ? groupByPerson(sorted) : [sorted];
+  const groups = group === "person" && !matchingRequestIds ? groupByPerson(sorted) : [sorted];
 
   if (error) {
     return (
@@ -143,20 +196,32 @@ function AdminList({ onOpenRequest }) {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-4)", width: "100%", maxWidth: 560 }}>
+      <Input
+        type="search"
+        placeholder="Search conversations…"
+        aria-label="Search conversations"
+        value={searchQuery}
+        onChange={(e) => setSearchQuery(e.target.value)}
+      />
+
       {/* Persistent sort/filter/group row (decision #46) — always visible
-          at top, not tucked behind a toggle. */}
+          at top, not tucked behind a toggle. Disabled during an active
+          search — search shows every match regardless of sort/filter/
+          group, same reasoning RequestList's own search used. */}
       <div style={{ display: "flex", gap: "var(--space-3)", flexWrap: "wrap" }}>
-        <Select id="admin-sort" label="Sort" options={SORT_OPTIONS} value={sort} onChange={(e) => setSort(e.target.value)} />
-        <Select id="admin-filter" label="Filter" options={FILTER_OPTIONS} value={filter} onChange={(e) => setFilter(e.target.value)} />
-        <Select id="admin-group" label="Group" options={GROUP_OPTIONS} value={group} onChange={(e) => setGroup(e.target.value)} />
+        <Select id="admin-sort" label="Sort" options={SORT_OPTIONS} value={sort} onChange={(e) => setSort(e.target.value)} disabled={!!matchingRequestIds} />
+        <Select id="admin-filter" label="Filter" options={FILTER_OPTIONS} value={filter} onChange={(e) => setFilter(e.target.value)} disabled={!!matchingRequestIds} />
+        <Select id="admin-group" label="Group" options={GROUP_OPTIONS} value={group} onChange={(e) => setGroup(e.target.value)} disabled={!!matchingRequestIds} />
       </div>
 
-      {sorted.length === 0 && <p>No requests match this filter.</p>}
+      {sorted.length === 0 && (
+        <p>{matchingRequestIds ? "No matching conversations." : "No requests match this filter."}</p>
+      )}
 
       {groups.map((groupRequests, i) => (
-        // Ungrouped: one group, key by position (stable, only one ever
-        // exists). Grouped: key by the group's own userId.
-        <div key={group === "person" ? groupRequests[0]?.userId : i} style={{ display: "flex", flexDirection: "column", gap: "var(--space-2)" }}>
+        // Ungrouped (or searching): one group, key by position (stable,
+        // only one ever exists). Grouped: key by the group's own userId.
+        <div key={group === "person" && !matchingRequestIds ? groupRequests[0]?.userId : i} style={{ display: "flex", flexDirection: "column", gap: "var(--space-2)" }}>
           {groupRequests.map((r) => (
             <AdminRequestRow key={r.id} request={r} onClick={() => onOpenRequest(r.id)} />
           ))}

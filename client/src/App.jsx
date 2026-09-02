@@ -53,7 +53,7 @@ const THEME_LABEL = { system: 'Auto', light: 'Light', dark: 'Dark' }
 function App() {
   const { isSignedIn, user } = useUser()
   const { signOut } = useClerk()
-  const [view, setView] = useState('list') // 'list' | 'new' | 'install-help' | 'detail' | 'invite-admin' | 'search'
+  const [view, setView] = useState('list') // 'list' | 'new' | 'install-help' | 'detail' | 'invite-admin'
   const [selectedRequestId, setSelectedRequestId] = useState(null)
   const [newRequestHasText, setNewRequestHasText] = useState(false)
   const [showLogoDiscardConfirm, setShowLogoDiscardConfirm] = useState(false)
@@ -250,14 +250,6 @@ function App() {
             Invites
           </button>
         )}
-        {/* G411-37: the cockpit list replaced RequestList as admin's home
-            view, but RequestList's client-side decrypted search (G411-28)
-            still needs an access point — this is it. */}
-        {isAdmin && (
-          <button type="button" onClick={() => setView('search')}>
-            Search
-          </button>
-        )}
         {/* Minimal account indicator + sign-out, until a real account
             menu exists — Gavi's call: keep this, don't strip it, once a
             nicer version is built it replaces this rather than removing
@@ -305,17 +297,6 @@ function App() {
             <InviteAdmin onBack={() => setView('list')} />
           ) : view === 'detail' ? (
             <RequestDetail requestId={selectedRequestId} onBack={() => setView('list')} isAdmin={isAdmin} />
-          ) : view === 'search' ? (
-            // G411-37: admin's cockpit list (below) replaced RequestList as
-            // admin's home view, but RequestList's client-side decrypted
-            // search (G411-28) is still needed — kept reachable here rather
-            // than dropped, same component unchanged.
-            <RequestList
-              onNewRequest={() => setView('new')}
-              onShowInstallHelp={() => setView('install-help')}
-              onOpenRequest={(id) => { setSelectedRequestId(id); setView('detail'); }}
-              isAdmin={true}
-            />
           ) : role === null ? (
             // Sibling review finding: rendering RequestList/AdminList based
             // on a still-null `role` used to briefly mount RequestList
