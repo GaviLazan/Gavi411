@@ -98,15 +98,28 @@ export function stripEmpty(details) {
 // admin's own normal list view, which doesn't pass it) — the regular
 // friend-facing list stays as lean as it's always been; messages are
 // still ciphertext here either way, same trust boundary as GET /:id.
+//
+// `user` (G411-37, admin list screen): unconditional whenever isAdmin —
+// unlike `?include=messages`, every admin list render needs the friend's
+// name/avatar per row, there's no admin scenario where it's skipped. Kept
+// to a narrow select (firstName/lastName/profilePic) rather than the
+// whole User row — a friend's own list never gets this at all, same
+// admin-only trust boundary as the messages include above.
 router.get('/', requireAuth, async (req, res) => {
   try {
-    const where = req.user.role === 'ADMIN' ? {} : { userId: req.user.clerkId }
-    const includeMessages = req.user.role === 'ADMIN' && req.query.include === 'messages'
+    const isAdmin = req.user.role === 'ADMIN'
+    const where = isAdmin ? {} : { userId: req.user.clerkId }
+    const includeMessages = isAdmin && req.query.include === 'messages'
 
     const requests = await prisma.request.findMany({
       where,
       orderBy: { createdAt: 'desc' },
-      ...(includeMessages && { include: MESSAGE_INCLUDE }),
+      ...(isAdmin && {
+        include: {
+          user: { select: { firstName: true, lastName: true, profilePic: true } },
+          ...(includeMessages && MESSAGE_INCLUDE),
+        },
+      }),
     })
 
     res.json(requests)

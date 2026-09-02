@@ -134,7 +134,7 @@ describe('GET /api/requests', () => {
     await request(app).get('/api/requests')
 
     const call = prismaMock.request.findMany.mock.calls[0][0]
-    expect(call.include).toBeUndefined()
+    expect(call.include.message).toBeUndefined()
   })
 
   it('includes messages for an admin when ?include=messages is given', async () => {
@@ -143,9 +143,8 @@ describe('GET /api/requests', () => {
 
     await request(app).get('/api/requests?include=messages')
 
-    expect(prismaMock.request.findMany).toHaveBeenCalledWith(
-      expect.objectContaining({ include: { message: { orderBy: { createdAt: 'asc' } } } })
-    )
+    const call = prismaMock.request.findMany.mock.calls[0][0]
+    expect(call.include.message).toEqual({ orderBy: { createdAt: 'asc' } })
   })
 
   it('ignores ?include=messages for a non-admin', async () => {
@@ -153,6 +152,32 @@ describe('GET /api/requests', () => {
     prismaMock.request.findMany.mockResolvedValue([sampleRequest])
 
     await request(app).get('/api/requests?include=messages')
+
+    const call = prismaMock.request.findMany.mock.calls[0][0]
+    expect(call.include).toBeUndefined()
+  })
+
+  // G411-37 admin list screen: every admin list render needs the friend's
+  // name/avatar per row (unlike ?include=messages, this is unconditional
+  // whenever isAdmin, not a separate opt-in) — narrow select, not the
+  // whole User row.
+  it('includes a narrow user select for an admin', async () => {
+    currentUserId = ADMIN
+    prismaMock.request.findMany.mockResolvedValue([sampleRequest])
+
+    await request(app).get('/api/requests')
+
+    const call = prismaMock.request.findMany.mock.calls[0][0]
+    expect(call.include.user).toEqual({
+      select: { firstName: true, lastName: true, profilePic: true },
+    })
+  })
+
+  it('does not include user for a non-admin', async () => {
+    currentUserId = OWNER
+    prismaMock.request.findMany.mockResolvedValue([sampleRequest])
+
+    await request(app).get('/api/requests')
 
     const call = prismaMock.request.findMany.mock.calls[0][0]
     expect(call.include).toBeUndefined()

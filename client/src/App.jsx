@@ -3,6 +3,7 @@ import { useUser, useClerk, SignIn, SignUp, ClerkLoaded, ClerkLoading } from '@c
 import './App.css'
 import NewRequest from './pages/NewRequest'
 import RequestList from './pages/RequestList'
+import AdminList from './pages/AdminList'
 import RequestDetail from './pages/RequestDetail'
 import InstallHelp from './pages/InstallHelp'
 import InviteAdmin from './pages/InviteAdmin'
@@ -52,7 +53,7 @@ const THEME_LABEL = { system: 'Auto', light: 'Light', dark: 'Dark' }
 function App() {
   const { isSignedIn, user } = useUser()
   const { signOut } = useClerk()
-  const [view, setView] = useState('list') // 'list' | 'new' | 'install-help' | 'detail' | 'invite-admin'
+  const [view, setView] = useState('list') // 'list' | 'new' | 'install-help' | 'detail' | 'invite-admin' | 'search'
   const [selectedRequestId, setSelectedRequestId] = useState(null)
   const [newRequestHasText, setNewRequestHasText] = useState(false)
   const [showLogoDiscardConfirm, setShowLogoDiscardConfirm] = useState(false)
@@ -245,6 +246,14 @@ function App() {
             Invites
           </button>
         )}
+        {/* G411-37: the cockpit list replaced RequestList as admin's home
+            view, but RequestList's client-side decrypted search (G411-28)
+            still needs an access point — this is it. */}
+        {role === 'ADMIN' && (
+          <button type="button" onClick={() => setView('search')}>
+            Search
+          </button>
+        )}
         {/* Minimal account indicator + sign-out, until a real account
             menu exists — Gavi's call: keep this, don't strip it, once a
             nicer version is built it replaces this rather than removing
@@ -292,12 +301,25 @@ function App() {
             <InviteAdmin onBack={() => setView('list')} />
           ) : view === 'detail' ? (
             <RequestDetail requestId={selectedRequestId} onBack={() => setView('list')} isAdmin={role === 'ADMIN'} />
+          ) : view === 'search' ? (
+            // G411-37: admin's cockpit list (below) replaced RequestList as
+            // admin's home view, but RequestList's client-side decrypted
+            // search (G411-28) is still needed — kept reachable here rather
+            // than dropped, same component unchanged.
+            <RequestList
+              onNewRequest={() => setView('new')}
+              onShowInstallHelp={() => setView('install-help')}
+              onOpenRequest={(id) => { setSelectedRequestId(id); setView('detail'); }}
+              isAdmin={true}
+            />
+          ) : role === 'ADMIN' ? (
+            <AdminList onOpenRequest={(id) => { setSelectedRequestId(id); setView('detail'); }} />
           ) : (
             <RequestList
               onNewRequest={() => setView('new')}
               onShowInstallHelp={() => setView('install-help')}
               onOpenRequest={(id) => { setSelectedRequestId(id); setView('detail'); }}
-              isAdmin={role === 'ADMIN'}
+              isAdmin={false}
             />
           )
         ) : inviteTokenState === 'checking' ? (

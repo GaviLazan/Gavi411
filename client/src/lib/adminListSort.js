@@ -1,0 +1,63 @@
+// Pure sort/filter/timeSince logic for the admin list screen (G411-37),
+// pulled out of AdminList.jsx so it has a real test — this codebase's
+// convention is lib/ logic gets tested, page components don't (no
+// component-test framework installed here).
+
+export const URGENCY_ORDER = { LOW: 0, NORMAL: 1, HIGH: 2 };
+export const CLOSED_STATUSES = ["CLOSED", "CANCELLED", "SELF_SOLVED"];
+
+// Native Intl, no dependency — "time since last activity" per decision
+// #46 (gavi411-brain.md).
+const RTF = new Intl.RelativeTimeFormat("en", { numeric: "auto" });
+export function timeSince(dateString, now = Date.now()) {
+  const diffMs = new Date(dateString).getTime() - now;
+  const diffMinutes = Math.round(diffMs / 60000);
+  if (Math.abs(diffMinutes) < 60) return RTF.format(diffMinutes, "minute");
+  const diffHours = Math.round(diffMinutes / 60);
+  if (Math.abs(diffHours) < 24) return RTF.format(diffHours, "hour");
+  const diffDays = Math.round(diffHours / 24);
+  return RTF.format(diffDays, "day");
+}
+
+// Falls back to the request's own createdAt when it has no messages yet —
+// same "last activity" definition server/lib/autoClose.js's inactivity
+// check uses, kept consistent here rather than reinventing it.
+export function lastActivityAt(request) {
+  const messages = request.message;
+  if (Array.isArray(messages) && messages.length > 0) {
+    return messages[messages.length - 1].createdAt;
+  }
+  return request.createdAt;
+}
+
+export function filterRequests(requests, filter) {
+  if (filter === "all") return requests;
+  const isClosed = (r) => CLOSED_STATUSES.includes(r.status);
+  return requests.filter((r) => (filter === "closed" ? isClosed(r) : !isClosed(r)));
+}
+
+// Urgency descending, then createdAt ascending as the tiebreak within
+// each urgency band (decision #46: "urgency oldest-first default").
+export function sortRequests(requests, sort) {
+  const copy = [...requests];
+  if (sort === "urgency") {
+    copy.sort((a, b) => {
+      const urgencyDiff = URGENCY_ORDER[b.urgency] - URGENCY_ORDER[a.urgency];
+      if (urgencyDiff !== 0) return urgencyDiff;
+      return new Date(a.createdAt) - new Date(b.createdAt);
+    });
+  } else {
+    copy.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+  }
+  return copy;
+}
+
+export function groupByPerson(requests) {
+  const map = new Map();
+  for (const r of requests) {
+    const key = r.userId;
+    if (!map.has(key)) map.set(key, []);
+    map.get(key).push(r);
+  }
+  return [...map.values()];
+}
