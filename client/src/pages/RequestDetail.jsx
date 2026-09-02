@@ -152,12 +152,16 @@ function RequestDetail({ requestId, onBack, isAdmin }) {
     }
 
     setDecrypting(true);
-    // Decision #98 pause: skip the whole key-derive/decrypt round trip
-    // while E2E is off — sendMessage() below never sends encrypted:true,
-    // so every row's content is already plaintext (message.encrypted is
-    // false). decryptMessageContent would pass it through unchanged
-    // anyway; this just avoids the unnecessary public-key fetch/derive.
-    (E2E_ENABLED ? getConversationKey(requestId) : Promise.resolve(null))
+    // Decision #98 pause: sendMessage() below never sends encrypted:true
+    // anymore, but rows from BEFORE the pause can still be real encrypted
+    // envelopes (E2E was live, G411-82) — skipping key derivation
+    // unconditionally would render those as "unable to decrypt" even
+    // though the ciphertext and both parties' keys are still intact
+    // (Sibling review finding, PR #38). Only skip the fetch/derive when
+    // every row in this thread is already plaintext — same guard
+    // searchIndex.js uses.
+    const hasEncrypted = request.message.some((m) => m.encrypted);
+    (E2E_ENABLED || hasEncrypted ? getConversationKey(requestId) : Promise.resolve(null))
       .then(async (sharedKey) => {
         const resolved = await Promise.all(
           request.message.map(async (m) => {
