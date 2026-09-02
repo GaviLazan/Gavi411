@@ -48,6 +48,32 @@ Setup-steps step 8) with its identity fixed via `git config --worktree`,
 so it never needs switching mid-session. A local-only address like
 `agent-backend@gavi411.local` works fine.)
 
+**Guardrail, decision #106 (2026-09-02)**: this convention was violated
+live on G411-38 — work branched under the wrong role (`agent-frontend`,
+infra-only, used for product UI which is `agent-backend`'s job) and
+separately committed straight to `main` from the primary worktree. Two
+mechanical guardrails now back this doc up instead of relying on it
+being re-read at the right moment:
+
+- **`main` is protected server-side** — a GitHub ruleset
+  (`require-pr-for-main`) rejects any direct push to `main`, no bypass
+  actor configured, applies to every push including the repo owner's.
+  Every change, including a HANDOFF.md/brain.md-only wrap-up commit,
+  needs a real branch + PR from here on.
+- **A repo-committed pre-push hook** (`.githooks/pre-push`) checks the
+  pushing identity's role against the branch prefix being pushed and
+  refuses a mismatch (e.g. `agent-frontend@...` pushing anything not
+  prefixed `agent-frontend/`), plus refuses `main` outright as a second,
+  faster-than-the-network check. **Install once per worktree/clone** —
+  `.git/hooks/` itself isn't versioned, so a fresh `git worktree add` or
+  clone needs:
+  ```
+  git config core.hooksPath .githooks
+  ```
+  This one is a soft tripwire (`git push --no-verify` bypasses it, same
+  as any git hook) — the GitHub ruleset above is the one with real
+  teeth. Full rationale in `gavi411-brain.md` decision #106.
+
 ## Subagent launch checklist (decided 2026-08-19, gap found and fixed 2026-08-24)
 
 **Real drift found 2026-08-24**: G411-66 ("first agentic-first pilot") was
