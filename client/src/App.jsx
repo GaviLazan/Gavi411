@@ -3,10 +3,12 @@ import { useUser, useClerk, SignIn, SignUp, ClerkLoaded, ClerkLoading } from '@c
 import './App.css'
 import NewRequest from './pages/NewRequest'
 import RequestList from './pages/RequestList'
+import AdminList from './pages/AdminList'
 import RequestDetail from './pages/RequestDetail'
 import InstallHelp from './pages/InstallHelp'
 import InviteAdmin from './pages/InviteAdmin'
 import ConfirmModal from './components/ConfirmModal'
+import Button from './components/Button'
 import { useTheme } from './useTheme'
 import Recover from './pages/Recover'
 import {
@@ -169,24 +171,39 @@ function App() {
   // here means Clerk auth succeeded but our own backend never created a
   // User row (see server/middleware/auth.js) — no valid invite.
   const [role, setRole] = useState(null)
+  // Derived once, used everywhere role gates a decision (Sibling review
+  // finding — `role === 'ADMIN'` was independently re-derived at 3
+  // separate call sites in this file with no shared source).
+  const isAdmin = role === 'ADMIN'
   const [unauthorized, setUnauthorized] = useState(false)
+  // Sibling review finding: a thrown /api/me fetch (network blip, Render
+  // cold-start timeout) used to be silently swallowed by an empty catch,
+  // leaving `role` at null forever — combined with the role===null "wait
+  // for role" gate below (added to fix a remount flash), that stranded
+  // ANY signed-in user on a permanent "Loading…" with no way out. Real
+  // error state + retry instead, same pattern AdminList/RequestList
+  // already use for their own fetch failures.
+  const [roleFetchFailed, setRoleFetchFailed] = useState(false)
+  const [roleRetryToken, setRoleRetryToken] = useState(0)
   // G411-28 stage 4: a ?recover=<token>#<passphrase> link, stashed by
   // captureRecoveryParamsFromUrl() above the same way the signup token
   // is — read once here, doesn't need to react to later URL changes.
   const [recovery, setRecovery] = useState(getStashedRecoveryParams)
   useEffect(() => {
     if (!isSignedIn || !tokenHandoffDone) return
+    setRoleFetchFailed(false)
     fetch('/api/me')
       .then((res) => {
         if (res.status === 403) {
           setUnauthorized(true)
           return null
         }
+        if (!res.ok) throw new Error('failed')
         return res.json()
       })
       .then((data) => data && setRole(data.user?.role ?? null))
-      .catch(() => {})
-  }, [isSignedIn, tokenHandoffDone])
+      .catch(() => setRoleFetchFailed(true))
+  }, [isSignedIn, tokenHandoffDone, roleRetryToken])
 
   // Matan's Sibling review, PR #35, Fix 1a: self-healing sweep, admin
   // side. Only admin's browser ever holds the private key needed to wrap
@@ -240,7 +257,7 @@ function App() {
         {/* G411-41: only entry point to the invite-creation UI — shown to
             admins only, minimal placement per the ticket's own note not
             to wait on the full admin cockpit (G411-37/38). */}
-        {role === 'ADMIN' && (
+        {isAdmin && (
           <button type="button" onClick={() => setView('invite-admin')}>
             Invites
           </button>
@@ -291,13 +308,34 @@ function App() {
           ) : view === 'invite-admin' ? (
             <InviteAdmin onBack={() => setView('list')} />
           ) : view === 'detail' ? (
-            <RequestDetail requestId={selectedRequestId} onBack={() => setView('list')} isAdmin={role === 'ADMIN'} />
+            <RequestDetail requestId={selectedRequestId} onBack={() => setView('list')} isAdmin={isAdmin} />
+          ) : roleFetchFailed ? (
+            // Sibling review finding: the /api/me fetch failing (network
+            // blip, cold-start timeout) used to leave role permanently
+            // null with no visible error and no way out — a real retry
+            // path instead of a silent dead end.
+            <div>
+              <p>Couldn't load your account. Try again?</p>
+              <Button onClick={() => setRoleRetryToken((t) => t + 1)}>Try again</Button>
+            </div>
+          ) : role === null ? (
+            // Sibling review finding: rendering RequestList/AdminList based
+            // on a still-null `role` used to briefly mount RequestList
+            // (isAdmin=false) for an admin, then unmount/remount it as
+            // AdminList the instant role resolved — a visible flash that
+            // also discarded RequestList's in-flight fetch. Waiting for
+            // role to actually resolve avoids ever mounting the wrong one.
+            <p>Loading…</p>
+          ) : isAdmin ? (
+            <AdminList
+              onOpenRequest={(id) => { setSelectedRequestId(id); setView('detail'); }}
+              onNewRequest={() => setView('new')}
+            />
           ) : (
             <RequestList
               onNewRequest={() => setView('new')}
               onShowInstallHelp={() => setView('install-help')}
               onOpenRequest={(id) => { setSelectedRequestId(id); setView('detail'); }}
-              isAdmin={role === 'ADMIN'}
             />
           )
         ) : inviteTokenState === 'checking' ? (

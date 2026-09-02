@@ -127,14 +127,22 @@ describe('GET /api/requests', () => {
   })
 
   // G411-28 admin search index — opt-in bulk messages include.
-  it('does not include messages by default, even for an admin', async () => {
+  // G411-37: by default (no ?include=messages), an admin gets only the
+  // single most recent message's createdAt — not full message bodies —
+  // so the admin list's "time since last activity" column has a real
+  // timestamp without paying for every message on every list load.
+  it('includes only the latest message timestamp by default, not full messages, for an admin', async () => {
     currentUserId = ADMIN
     prismaMock.request.findMany.mockResolvedValue([sampleRequest])
 
     await request(app).get('/api/requests')
 
     const call = prismaMock.request.findMany.mock.calls[0][0]
-    expect(call.include).toBeUndefined()
+    expect(call.include.message).toEqual({
+      orderBy: { createdAt: 'desc' },
+      take: 1,
+      select: { createdAt: true },
+    })
   })
 
   it('includes messages for an admin when ?include=messages is given', async () => {
@@ -143,9 +151,8 @@ describe('GET /api/requests', () => {
 
     await request(app).get('/api/requests?include=messages')
 
-    expect(prismaMock.request.findMany).toHaveBeenCalledWith(
-      expect.objectContaining({ include: { message: { orderBy: { createdAt: 'asc' } } } })
-    )
+    const call = prismaMock.request.findMany.mock.calls[0][0]
+    expect(call.include.message).toEqual({ orderBy: { createdAt: 'asc' } })
   })
 
   it('ignores ?include=messages for a non-admin', async () => {
@@ -153,6 +160,32 @@ describe('GET /api/requests', () => {
     prismaMock.request.findMany.mockResolvedValue([sampleRequest])
 
     await request(app).get('/api/requests?include=messages')
+
+    const call = prismaMock.request.findMany.mock.calls[0][0]
+    expect(call.include).toBeUndefined()
+  })
+
+  // G411-37 admin list screen: every admin list render needs the friend's
+  // name/avatar per row (unlike ?include=messages, this is unconditional
+  // whenever isAdmin, not a separate opt-in) — narrow select, not the
+  // whole User row.
+  it('includes a narrow user select for an admin', async () => {
+    currentUserId = ADMIN
+    prismaMock.request.findMany.mockResolvedValue([sampleRequest])
+
+    await request(app).get('/api/requests')
+
+    const call = prismaMock.request.findMany.mock.calls[0][0]
+    expect(call.include.user).toEqual({
+      select: { firstName: true, lastName: true, profilePic: true },
+    })
+  })
+
+  it('does not include user for a non-admin', async () => {
+    currentUserId = OWNER
+    prismaMock.request.findMany.mockResolvedValue([sampleRequest])
+
+    await request(app).get('/api/requests')
 
     const call = prismaMock.request.findMany.mock.calls[0][0]
     expect(call.include).toBeUndefined()
