@@ -9,6 +9,7 @@ import pushSubscriptionsRouter from './routes/pushSubscriptions.js'
 import cors from 'cors'
 import { clerkMiddleware, requireAuth } from './middleware/auth.js'
 import { prisma } from './lib/prisma.js'
+import { runAutoCloseCheck } from './lib/autoClose.js'
 
 const app = express()
 
@@ -58,3 +59,16 @@ const PORT = process.env.PORT || 3000
 app.listen(PORT, () => {
   console.log(`Server is running on http://localhost:${PORT}`)
 })
+
+// Auto-close job (G411-35) — in-process interval, not a separate cron
+// service. Runs every 6 hours, fine for a 14-day-scale check.
+// ponytail: misses checks while the Render free-tier dyno is asleep
+// (cold-start gap), so a close/warning could land late until the next
+// request wakes it — acceptable at this timescale; upgrade to a Render
+// Cron Job if closures ever need to fire on schedule regardless of
+// traffic. Fire-and-log, not fire-and-crash: a failed pass must never
+// take the whole server down.
+const AUTO_CLOSE_INTERVAL_MS = 6 * 60 * 60 * 1000
+setInterval(() => {
+  runAutoCloseCheck().catch((err) => console.error('Auto-close check failed:', err))
+}, AUTO_CLOSE_INTERVAL_MS)

@@ -10,6 +10,7 @@ import { validateImage, uploadImage, MAX_IMAGE_BYTES } from '../lib/cloudinary.j
 import { canAccessRequest, hasAdminMessaged } from '../lib/requestAccess.js'
 import { E2E_ENABLED } from '../lib/e2eConfig.js'
 import { deductCredit, refundCredit } from '../lib/credits.js'
+import { sendNudge } from '../lib/autoClose.js'
 
 const router = express.Router()
 
@@ -212,6 +213,17 @@ const URGENCY_VALUES = Object.values(Urgency)
 // on top: canSetUrgency (G411-32, urgency field) and canCloseRequest
 // (G411-33, the -> CLOSED edge specifically, friend-only). Check both this
 // table AND those predicates before assuming a transition is unrestricted.
+//
+// WAITING_ON_USER -> CLOSED is deliberately NOT listed here (G411-35):
+// auto-close is a system-actor transition, not something either a friend
+// or admin can trigger through this HTTP route — it's written directly by
+// server/lib/autoClose.js's runAutoCloseCheck, bypassing this table and
+// canCloseRequest on purpose, since neither has a vocabulary for a
+// non-human actor. Adding the edge here would let a FRIEND close their
+// own WAITING_ON_USER request via a plain PATCH, skipping the intended
+// RESOLVED_PENDING_CONFIRMATION "did this resolve it?" confirm step
+// (G411-33) — the auto-close job's own re-check (still WAITING_ON_USER,
+// still stale, inside a transaction) is its sole legitimacy check instead.
 const TRANSITIONS = {
   IN_QUEUE: [Status.RECEIVED, Status.CANCELLED],
   RECEIVED: [Status.WORKING_ON_IT, Status.CANCELLED],
@@ -322,6 +334,40 @@ router.patch('/:id', requireAuth, async (req, res) => {
     return tx.request.update({ where: { id }, data })
   })
   res.json(updated)
+})
+
+// POST /:id/nudge — admin-only manual nudge for a stale WAITING_ON_USER
+// request (G411-36). Sends the same warning message the auto-close job
+// (G411-35) would send on its own, just Gavi-triggered instead of
+// timeout-driven. No new UI yet — backend endpoint only; the admin
+// cockpit button to call this is tracked as a separate ticket (same
+// deferred-UI pattern as G411-87 on the friend side).
+//
+// A non-admin gets 404, not 403 (Sibling review finding) — same
+// information-leak-avoidance convention as every other admin/ownership
+// gate on this router (see GET/PATCH /:id above): a friend probing this
+// route shouldn't be able to tell the endpoint even exists.
+router.post('/:id/nudge', requireAuth, async (req, res) => {
+  const id = Number(req.params.id)
+  if (!Number.isInteger(id)) {
+    return res.status(400).json({ error: 'Invalid request id' })
+  }
+
+  const existing = await prisma.request.findUnique({ where: { id } })
+  if (!existing || req.user.role !== 'ADMIN') {
+    return res.status(404).json({ error: 'Request not found' })
+  }
+  if (existing.status !== Status.WAITING_ON_USER) {
+    return res.status(400).json({ error: 'Can only nudge a request that is waiting on the friend' })
+  }
+
+  try {
+    const message = await sendNudge(id)
+    res.status(201).json(message)
+  } catch (err) {
+    console.error('Failed to send nudge:', err)
+    res.status(500).json({ error: 'Failed to send nudge' })
+  }
 })
 
 // POST /match — keyword-match free text against the Trigger table
