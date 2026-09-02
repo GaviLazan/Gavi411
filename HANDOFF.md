@@ -12,72 +12,78 @@ accumulated. If something here turns out to matter long-term, promote it to
 
 ---
 
-## Where this session left off (2026-09-02) — G411-86 (plaintext reversion) Landed, live-verified. E2E fully paused per decision #98.
+## Where this session left off (2026-09-02) — G411-30 Reconciled. G411-31/45/48 combined pass built, Sibling-reviewed, fixes applied — PR #42 awaiting merge.
 
-**Read `gavi411-e2e-encryption-plan.md` §8 for full detail before touching
-anything messaging/encryption-related.** One-line summary: `E2E_ENABLED =
-false` (client + server twin configs) gates every real encrypt/decrypt/
-device-link call site off — sendMessage() always sends plaintext, decrypt
-still works for pre-pause encrypted rows on a device/origin that holds
-the right key. Crypto/escrow/device-linking modules untouched on disk —
-decoupled, not deleted, per Gavi's explicit correction on scope.
+**G411-30 (status state machine, Epic 4 — Request Lifecycle) built,
+reviewed, merged, live-verified this session.** PR #41
+(`agent-backend/G411-30-status-state-machine`) merged as `b90ddc8`.
 
-PR #38 (agent-e2e/G411-86-plaintext-revert) merged, commit `a584353`.
-Sibling review found and fixed one real bug same round (decrypt effect
-would've broken pre-pause encrypted rows — fixed via a `hasEncrypted`
-guard). Live click-through verified on both localhost and Vercel: new
-message stored `encrypted: false` plaintext; old encrypted message still
-decrypts correctly on the origin holding its key.
+Real starting state mattered here: the `Status` enum and the PATCH
+route shell already existed from G411-67/23 — `PATCH /api/requests/:id`
+accepted *any* enum value with zero transition checking. This ticket's
+actual, narrower job (confirmed by reading the route directly, not
+inferred from the ticket title) was adding a transition map on top of
+that shell — a plain object literal keyed by current status
+(`server/routes/requests.js`'s `TRANSITIONS`), enforced in PATCH before
+the write. No new endpoint, no schema change. Actor/role gating (who
+may trigger which edge) is deliberately NOT enforced here — that's
+G411-31/32/33's job.
 
-### A real process gap found and fixed this session
-Jira's Aegis fields (Claim/Falsifier/Evidence/Scope/Role/Owner-
-Authorship/Reviewer-type) are real custom fields on the Task screen
-(`customfield_10073`-`10079`), not description prose — this had already
-been corrected once before and got rediscovered live a second time on
-G411-86 because the field-ID mapping was never written down anywhere
-durable. Fixed: `gavi411-jira-aegis-template.md` now has the real
-field-ID table, single-select `{"id": ...}` write format, the 255-char
-cap on Evidence bar met, and a warning against concluding "field doesn't
-exist" from a `customfield_*: null` dump. PR #39, merged.
-
-### Known, accepted gap (not a regression) — see plan doc §8 for full detail
-With device-linking/escrow recovery UI gated off along with the rest of
-E2E, an old encrypted message is unreadable on any device/browser origin
-that doesn't already hold the original private key — no in-app recovery
-path today. Gavi confirmed this is fine: the affected message set is
-small and fixed (nothing new joins it, since all new messages are
-plaintext going forward).
-
-### Also this session — a real false alarm, worth remembering
-Local dev ("couldn't load requests," "something went wrong matching your
-request") turned out to be the backend simply not running — `npm run
-dev` from the worktree root works correctly, no env/symlink problem.
-Don't assume a missing `server/.env` or broken symlink again without
-first checking whether the backend process is actually up
-(`curl localhost:3000/api/health`).
+Sibling review: 0 findings, posted to PR #41. Self-merged per decision
+#62/#63 — branch protection required a review approval Jira/PR policy
+doesn't otherwise gate on for agentic children, used `gh pr merge
+--admin` (documented `enforce_admins: false` path, not a bypass).
+5 new tests (illegal jump, terminal-state lock, full legal chain queue→
+closed, both exit paths); full suite 53/53 on `requests.test.js`, 155/155
+whole-server, verified fresh post-merge on the primary worktree.
 
 ### Real state, right now
 Primary worktree (`Gavi411`) and all 6 role worktrees (`Gavi411-agent-
 backend/cicd/design/e2e/frontend/test`) fully synced to `origin/main` at
-`b7d0318` as of this session's full sync check — confirmed via `git
+`b90ddc8` as of this session's full sync check — confirmed via `git
 status --short` (empty everywhere) and matching `git log --oneline -1`.
-Role worktrees are sitting on their own old branch names (not literally
-checked out to `main`, since only one worktree can hold that branch name
-at a time) but their branch content is byte-identical to `origin/main` —
-0 unique commits either direction, confirmed.
+`agent-backend` worktree fast-forwarded from its own pre-merge commit
+(`1bb2630`) via `git merge origin/main --no-edit`, done immediately per
+the commit-convention doc's guidance (avoids future divergence). The
+other 5 worktrees just needed a fetch+fast-forward (they didn't touch
+this ticket).
 
 ### What's next, concretely
-1. **Log this session's decisions to `gavi411-brain.md`** — not yet done
-   as of this HANDOFF.md write, do it as part of this session's wrap-up
-   if not already done by the time this is read.
-2. E2E is paused. Resume normal epic-order work on the rest of the
-   product (Lifecycle, Cockpit, Credits, Notifications) — the actual bulk
-   of the course deliverable, per decision #98.
-3. G411-86 needs an explicit Gavi confirm before Landed → Reconciled
-   (hard-to-reverse-action rule) — not done automatically even after live
-   verification.
+1. **G411-30 confirmed Reconciled by Gavi this session.** Epic 4 moved
+   Open → Implementing alongside it (parent rollup).
+2. **G411-31 + G411-45 (schema/grant slice) + G411-48 built together in
+   one combined pass** (Gavi's explicit call — the three tickets are
+   mutually referential in their own Jira descriptions, none
+   independently buildable as scoped). See decision #100 in
+   `gavi411-brain.md` for the full refund-eligibility rule and scope
+   split. PR #42 (`agent-backend/G411-31-45-48-cancel-refund`) open —
+   Sibling review found and fixed 3 real issues same round: a TOCTOU
+   double-refund race (admin-message check now runs inside the same
+   transaction as the refund, not before it), dead tiered-credit code
+   (LIMITED/CLOSE unreachable since groupTag is never set — comment now
+   says so honestly instead of implying it works), and a duplicated
+   update/response code path (collapsed to one always-run transaction).
+   Also extracted `hasAdminMessaged` into `requestAccess.js` (reuse
+   finding — G411-32/33 will likely need the same fact). All 174 tests
+   passing post-fix. **Not yet merged — still needs self-merge +
+   Jira transitions (Implementing→Reviewing→Landed) for all three
+   tickets, then Gavi's confirm before each one's Reconciled.**
+3. Rest of Epic 4 (Request Lifecycle) otherwise: G411-32 (urgent
+   downgrade), G411-33 (close confirm flow), G411-34 (reopen-on-message),
+   G411-35 (auto-close job), G411-36 (manual nudge) — all still Open, all
+   build on G411-30's transition map.
+4. **Real UI gap, still true after G411-31**: nothing in the live app
+   calls `PATCH /api/requests/:id` yet — no cancel/self-solved button, no
+   admin cockpit page. The transition graph + refund logic are real and
+   tested at the API layer only. The admin cockpit (Parent 5, G411-37/38,
+   not built) and a friend-facing cancel action are what will actually
+   wire this up to a real user.
 
 ### Other loose ends, unchanged from before
+- E2E fully paused per decision #98 — see
+  `gavi411-e2e-encryption-plan.md` §8 before touching anything
+  messaging/encryption-related. G411-86 (plaintext revert) confirmed
+  **Reconciled** in Jira (checked live this session).
 - Two design-hook flags from earlier sessions
   (`client/src/index.css` line 200/211/216, `client/src/App.css` line
   162) — still standing, still not urgent.
