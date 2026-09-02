@@ -225,9 +225,20 @@ const TRANSITIONS = {
 // question).
 const REFUNDABLE_EXITS = [Status.CANCELLED, Status.SELF_SOLVED]
 
+// G411-32: PRD §4.4 only restricts the FRIEND side ("friend may downgrade
+// to no longer urgent") — says nothing about admin. Gavi's explicit call
+// (see gavi411-brain.md decision log): admin gets free any-direction
+// urgency control, matching the free control admin already has elsewhere
+// (canAccessRequest's bypass, status transitions). A non-admin is held to
+// the PRD's original narrower rule — only HIGH -> NORMAL is legal.
+function canSetUrgency(existingUrgency, nextUrgency, user) {
+  if (user.role === 'ADMIN') return true
+  return existingUrgency === Urgency.HIGH && nextUrgency === Urgency.NORMAL
+}
+
 // PATCH /:id — accepts a status/urgency update. Status changes are checked
-// against TRANSITIONS above (G411-30); urgency is still a plain enum-value
-// write (G411-32 will add the "no longer urgent"-only rule on top).
+// against TRANSITIONS above (G411-30); urgency changes are checked against
+// canSetUrgency above (G411-32).
 router.patch('/:id', requireAuth, async (req, res) => {
   const id = Number(req.params.id)
   if (!Number.isInteger(id)) {
@@ -240,15 +251,11 @@ router.patch('/:id', requireAuth, async (req, res) => {
   if (status !== undefined && !STATUS_VALUES.includes(status)) {
     return res.status(400).json({ error: 'Invalid status value' })
   }
-
-  if (urgency !== undefined) {
-    if (!URGENCY_VALUES.includes(urgency)) {
-      return res.status(400).json({ error: 'Invalid urgency value' })
-    }
-    data.urgency = urgency
+  if (urgency !== undefined && !URGENCY_VALUES.includes(urgency)) {
+    return res.status(400).json({ error: 'Invalid urgency value' })
   }
 
-  if (status === undefined && Object.keys(data).length === 0) {
+  if (status === undefined && urgency === undefined) {
     return res.status(400).json({ error: 'No valid fields to update' })
   }
 
@@ -258,6 +265,15 @@ router.patch('/:id', requireAuth, async (req, res) => {
   }
   if (!canAccessRequest(existing, req.user)) {
     return res.status(404).json({ error: 'Request not found' })
+  }
+
+  if (urgency !== undefined) {
+    if (!canSetUrgency(existing.urgency, urgency, req.user)) {
+      return res.status(400).json({
+        error: `Cannot change urgency from ${existing.urgency} to ${urgency}`,
+      })
+    }
+    data.urgency = urgency
   }
 
   if (status !== undefined) {
