@@ -12,58 +12,73 @@ accumulated. If something here turns out to matter long-term, promote it to
 
 ---
 
-## Where this session left off (2026-09-02) — E2E encryption reframed and paused (decision #98). PLANNING ONLY, no code touched. Full detail moved to its own doc.
+## Where this session left off (2026-09-02) — the wipe is DONE and verified. Plaintext-reversion is next, not yet started. Paused by Gavi's explicit call.
 
-**Read `gavi411-e2e-encryption-plan.md` in full before touching anything
-messaging/encryption-related.** That's now the living doc for this
-topic — current status, target architecture (escrow-only, replacing
-device-linking), the wipe plan, what reverting to plaintext actually
-requires, and every open question still unresolved. Don't duplicate that
-content here; update it directly as the plan evolves. `gavi411-brain.md`
-decision #98 has the full reasoning/history of how this was decided, if
-context on *why* is needed beyond the plan doc's current-state summary.
+**Read `gavi411-e2e-encryption-plan.md` §1 and §4 for full detail before
+touching anything messaging/encryption-related.** One-line summary: all
+accounts were wiped (`scripts/wipe-users.js`, reviewable/dry-run-able),
+admin re-signed up through a real self-issued invite, got a genuine
+escrow backup for the first time, and a real message round-trip
+(encrypt → send → decrypt → display) was confirmed working live. `role`
+restored to `ADMIN` via `scripts/promote-admin.js`.
 
-**One-line summary**: after G411-85's findings (real bugs in
-device-linking — decision #97), Gavi and Claude worked through the
-actual architecture live. Conclusion: replace device-linking with a
-single escrow-only mechanism, wipe all accounts (including admin) and
-re-onboard through it, and pause E2E entirely to finish the rest of the
-product first (Lifecycle, Cockpit, Credits, Notifications) — E2E reverts
-to stretch-goal-if-time-remains, matching the PRD's original framing.
-**Nothing has been implemented yet** — Gavi's explicit instruction is to
-keep planning and confirm before any code changes.
+**Not yet done, explicitly paused**: reverting `sendMessage()` to always
+send plaintext (the plan doc's §5). Encryption is still technically live
+in the code. Gavi's explicit instruction: pick this up as its own next
+step, don't touch the E2E/escrow-only architecture question (§2) at all
+right now.
 
-### Also this session, already done and confirmed (unrelated to the reframe, real and shipped)
+### Real correction from tonight, worth remembering
+**Allysa Jeret is a real person — Gavi's cousin — not a test/throwaway
+account.** She was mislabeled as one earlier this session before Gavi
+corrected it directly. Her account was wiped along with everything else;
+she needs a fresh invite + real signup to be re-added. Gavi may also
+reset her Clerk identity separately (outside anything Claude can do, not
+executed this session).
+
+### A new standing rule, added live after a real near-miss
+`CLAUDE.md`'s "How to work with Gavi" section now has: **trace real
+consequences BEFORE presenting a plan, not after Gavi asks the natural
+next question.** Real incident: proposed wiping admin's own `User` row
+without first checking that `POST /api/invites` requires `requireAdmin`
+— which would have permanently locked admin out of self-issuing an
+invite if the wipe had happened first. Caught before it caused damage,
+but only because Gavi asked "how do we self-issue an invite?" — it
+should have been surfaced unprompted. Read the full rule before
+proposing any plan that deletes/disables/reorders something — trace what
+else reads/writes that state first.
+
+### Also this session, unrelated, already done and confirmed
+- **G411-85** filed — 4 real regressions in the (now-being-replaced)
+  device-linking mechanism, found via live testing. Full detail in
+  `gavi411-brain.md` decision #97 and the ticket itself.
 - **A real production bug, fixed**: `CLOUDINARY_URL` was never set on
-  Render (confirmed via Render logs: "Must supply api_key"), pre-dates
-  this session. `render.yaml` now declares it + the three `VAPID_*` vars
-  (commit `e006295`); Gavi added the real values in Render's dashboard
-  and redeployed — confirmed fixed live (image upload succeeded).
-- **G411-29 (Web Push infra)** — Reconciled, merged PR #37 (`42c2501`).
-  Full Sibling review, 7 correctness fixes, doc correction for the
-  admin-channel question (decision #93). Real, confirmed, unaffected by
-  the later architecture reframe.
-- **G411-28 (target E2E's stated scope)** — Reconciled earlier this
-  session; confirmed live via real git history. The infra itself
-  (device-linking, search index) works as built — it's what gets built
-  ON that infra going forward that's now in question, per the reframe.
+  Render — `render.yaml` now declares it + `VAPID_*`; Gavi added the
+  real values and redeployed, confirmed fixed live.
+- **G411-28 and G411-29** both Reconciled earlier this session — real,
+  confirmed, unaffected by the later architecture reframe.
 
 ### Real state, right now
-Primary worktree (`Gavi411`) on `main`. Worktree sync across all 7 not
-re-verified since before tonight's planning conversation — re-check at
-next session start, don't assume clean.
+Primary worktree (`Gavi411`) on `main`, `fe28ed7`. `scripts/wipe-users.js`
+and `scripts/promote-admin.js` both exist and were used successfully
+tonight. Worktree sync across all 7 not re-verified since before
+tonight's wipe — re-check at next session start, don't assume clean
+(the wipe itself only touched the database, not any worktree files, so
+this is a routine check, not an expected problem).
 
 ### What's next, concretely
-1. **Keep planning with Gavi** — see `gavi411-e2e-encryption-plan.md`
-   §2/§4/§5/§6 for the specific open questions. No code until planning
-   is confirmed done.
-2. Once confirmed: likely order is (a) resolve G411-85/G411-83/G411-84's
-   ticket disposition per the plan doc §7, (b) build the wipe +
-   plaintext reversion, (c) resume normal epic-order work on the rest of
-   the product, (d) escrow-only E2E rebuild later if time remains.
-3. The E2E encryption explainer deck — still owed, more relevant now
-   given tonight's real architecture work, but only worth writing once
-   the final shape is known.
+1. **Confirm with Gavi that §5 (plaintext reversion) is still the right
+   next step** before starting — this doc may be read by a fresh
+   session, and Gavi's own priorities may have shifted.
+2. Scope §5's actual code checklist for real, file by file, the way the
+   wipe itself was traced (§5's list in the plan doc is still a guess,
+   not yet verified against the real code the way §4 was before
+   execution).
+3. Do NOT touch the escrow-only/device-linking architecture question
+   (§2) — explicitly out of scope right now per Gavi.
+4. Once §5 lands: resume normal epic-order work on the rest of the
+   product (Lifecycle, Cockpit, Credits, Notifications) — the actual
+   bulk of the course deliverable, per decision #98.
 
 ### Other loose ends, unchanged from before
 - Two design-hook flags from earlier sessions

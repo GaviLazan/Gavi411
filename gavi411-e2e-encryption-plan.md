@@ -21,10 +21,53 @@ plaintext-in-DB. The rest of the product (Lifecycle, Cockpit, Credits,
 Notifications) is being built and finished first. E2E is stretch-goal-
 if-time-remains again, matching the PRD's original framing.
 
-**Nothing has been implemented yet from this plan.** No wipe has
-happened, no escrow-only rebuild has started, no code reverting to
-plaintext has landed. This doc reflects planning, not shipped state,
-until each section below says otherwise.
+**The wipe (§4) has been executed and verified — the plaintext-reversion
+code change (§5) has NOT.** Real sequence, same session:
+1. Gavi self-issued two invites for his own re-signup (labeled "Admin
+   Invite" / "Admin Invite backup") while still admin, BEFORE the wipe —
+   correctly avoiding the lockout hazard traced in CLAUDE.md's "trace
+   consequences" rule (`POST /api/invites` requires `requireAdmin`).
+2. `scripts/wipe-users.js` run for real (not just `--dry-run`) — deleted
+   all `User`/`Request`/`Message`/`Device`/`ConversationDeviceKey`/
+   `PushSubscription`/`CreditTransaction` rows and all `PendingInvite`
+   rows except the two preserved tokens. Verified against real DB state
+   post-run: all target tables at 0 rows, exactly 2 `PendingInvite` rows
+   remaining with correct labels.
+3. Gavi re-signed up through "Admin Invite" — confirmed live: real
+   escrow backup fields populated (`backupSalt`/`backupIv`/
+   `backupCiphertext` all non-null) and `User.publicKey` set. A one-time
+   "couldn't set up message encryption for this device" warning appeared
+   during signup despite the data landing correctly — traced to
+   `escrow.js`'s `uploadPublicKey()` (a plain unwrapped `fetch`, no
+   retry) possibly hitting a transient response-side failure; not
+   confirmed as a real recurring bug, not chased further since the data
+   was correct either way. Worth a note if it recurs for someone else.
+4. `role` manually promoted back to `ADMIN` via `scripts/promote-admin.js`
+   — confirmed live.
+5. **Real messaging round-trip confirmed working**: Gavi opened a
+   request with himself, sent a message, saw it decrypt and display
+   correctly. DB confirms a genuine `{iv, ciphertext}` envelope,
+   `encrypted: true`. This is the first real evidence that a fresh,
+   properly escrowed key (not the old non-escrow admin bootstrap path)
+   works end to end for encrypt+decrypt in this account.
+6. Allysa's account (Gavi's cousin, a real person — NOT a test/throwaway
+   account, corrected live after being mislabeled as one earlier this
+   session) was also wiped. Gavi indicated he may also reset her Clerk
+   identity separately — that's outside anything Claude can do (no Clerk
+   dashboard access) and wasn't executed this session. She'll need a
+   fresh invite + real signup to be re-added, same as anyone.
+7. The second preserved invite ("Admin Invite backup") is still unused —
+   deliberately not spent on a throwaway test account, per Gavi's own
+   call, to avoid risking a second broken-signup + zero-invites-left
+   situation. Still available for a real second-account test whenever
+   needed.
+
+**Not yet done**: §5 (reverting `sendMessage()` to always-plaintext) has
+NOT been implemented. Encryption is still technically live in the code
+right now — tonight's real message (step 5 above) went through the full
+encrypt/decrypt path, which is why it was a genuine test of the fresh
+key, not a no-op. Session paused here, by Gavi's explicit call, before
+starting the plaintext-reversion code change.
 
 **What's actually solid, confirmed, not in question**: the crypto
 primitives themselves — AES-GCM encrypt/decrypt, ECDH shared-secret
@@ -130,34 +173,41 @@ architecture-change vs. need their own fix.
 
 ---
 
-## 4. The wipe — all accounts, including admin
+## 4. The wipe — all accounts, including admin — DONE (2026-09-02)
 
-**Decided (decision #98), not yet executed.** Every current account
-predates a coherent key story:
-- Admin's own key has **zero escrow backup** — generated via the plain
+**Executed and verified.** `scripts/wipe-users.js` (reviewable, dry-run-
+able, safety-checked against a hardcoded preserved-invite-token list)
+ran for real: all `User`/`Request`/`Message`/`Device`/
+`ConversationDeviceKey`/`PushSubscription`/`CreditTransaction` rows and
+all `PendingInvite` rows except two preserved tokens were deleted.
+Verified post-run against real DB state, not just script output — all
+target tables at 0, exactly 2 `PendingInvite` rows remain with correct
+labels.
+
+Original reasoning, still valid as the historical record of why this
+was needed:
+- Admin's own key had **zero escrow backup** — generated via the plain
   non-escrow path (`createAndUploadKeypair()`), since admin never went
-  through real invite-signup. This is the G411-83/decision #86/#87 gap
-  that was never actually closed. Today, right now, if admin's one
-  device were lost with no other device ever linked, there would be
-  **zero recovery path**.
-- Test accounts are mid-experiment from G411-85's live testing (two
+  through real invite-signup. This was the G411-83/decision #86/#87 gap.
+  **Now resolved** — admin re-signed up through a real invite, has a
+  genuine escrow backup, confirmed live (§1).
+- Test accounts were mid-experiment from G411-85's live testing (two
   messages, one permanently unreadable by design, one made unreadable
-  by finding B).
-- One account (`Allysa Jeret`) has no key at all.
+  by finding B) — now cleared.
+- One account, `Allysa Jeret` — **a real person, Gavi's cousin, not a
+  test/throwaway account** (corrected live this session after being
+  mislabeled earlier) — had no key at all. Also wiped; needs a fresh
+  invite + real signup to be re-added. Gavi indicated he may reset her
+  Clerk identity too, separately, outside anything Claude can do.
 
-There's no real user/friend data yet — wiping and re-onboarding through
-whatever the final flow becomes is cheaper and lower-risk than migrating
-broken state forward.
-
-### Not yet planned — needs its own pass before execution
-- Exact mechanism: direct DB delete via a script? Which tables get
-  touched (`User.publicKey`, `Device`, `ConversationDeviceKey`,
-  `Message.encrypted`/content, `PendingInvite` escrow fields)?
-- Exact re-onboarding flow accounts go through afterward — depends on
-  whether escrow-only is built before or after the wipe (see §6).
-- Whether this needs a real migration script (repeatable, safe to run
-  again) or is a one-off manual cleanup given the account count is tiny
-  right now.
+Admin's re-onboarding sequence actually used (works, confirmed): self-
+issue an invite while still admin (BEFORE wiping — `POST /api/invites`
+requires `requireAdmin`, so order matters, see CLAUDE.md's "trace
+consequences" rule) → wipe → sign up through that invite → manually
+promote `role` back to `ADMIN` via `scripts/promote-admin.js`. Same
+sequence applies to re-adding any other account, including Allysa,
+whenever that happens (minus the promote-to-admin step for a regular
+user).
 
 ---
 
@@ -239,8 +289,16 @@ Real open question, needs Gavi's call before implementation starts:
 
 ## 8. Next concrete step
 
-Per Gavi's explicit instruction (2026-09-01 session): **finish planning,
-confirm it, before any code changes.** The open questions in §2, §4, §5,
-and §6 are what's left to resolve. Do not start implementing the wipe,
-escrow-only rebuild, or plaintext reversion without an explicit
-go-ahead that planning is done.
+**The wipe (§4) is done.** Admin's own account is re-onboarded, has a
+real escrow backup, and a genuine encrypt/decrypt round-trip was
+confirmed live. Session paused here (2026-09-02), by Gavi's explicit
+call, before starting §5 (reverting `sendMessage()` to always-plaintext)
+— that's the next real work, not yet started. E2E/escrow-only rebuild
+(§2) stays untouched, deliberately, per Gavi's "don't want to touch E2E
+right now at all" — §5's plaintext-reversion is the only in-scope next
+step, not a return to the architecture question.
+
+Before starting §5: re-confirm with Gavi that's still the right next
+step (this doc may be read by a fresh session), then scope the actual
+code checklist for real (§5's list is still a guess, not yet traced file
+by file the way the wipe was).
