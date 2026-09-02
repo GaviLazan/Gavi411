@@ -601,10 +601,11 @@ describe('POST /api/requests/:id/nudge (G411-36)', () => {
     expect(res.status).toBe(401)
   })
 
-  it('403s for a non-admin', async () => {
+  it('404s for a non-admin (not 403 — same info-leak-avoidance convention as the rest of this router)', async () => {
     currentUserId = OWNER
+    prismaMock.request.findUnique.mockResolvedValue({ ...sampleRequest, status: 'WAITING_ON_USER' })
     const res = await request(app).post('/api/requests/1/nudge')
-    expect(res.status).toBe(403)
+    expect(res.status).toBe(404)
   })
 
   it('400s if the request is not WAITING_ON_USER', async () => {

@@ -12,6 +12,19 @@ export function canAccessRequest(request, user) {
   return request.userId === user.clerkId || user.role === 'ADMIN'
 }
 
+// "The" admin account — same lookup GET /:id/public-keys and GET /my-keys
+// (devices.js) each used to hand-roll independently before this extraction
+// (Sibling review finding, G411-35/36). Ordered by createdAt so the choice
+// is deterministic if a second admin account ever exists (today there's
+// exactly one — G411-76 is single-admin — so this is unreachable in
+// practice, same reasoning as those two call sites).
+export async function getAdminUser(db) {
+  return db.user.findFirst({
+    where: { role: 'ADMIN' },
+    orderBy: { createdAt: 'asc' },
+  })
+}
+
 // True if any ADMIN-role user has sent a Message on this request — G411-31's
 // "untouched" refund-eligibility check, pulled out to its own named export
 // since G411-32/33 (urgent downgrade, close-confirm flow) will likely need
