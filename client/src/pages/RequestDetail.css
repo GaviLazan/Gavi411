@@ -30,18 +30,17 @@
 }
 
 /* Details/Thread side by side — toggled via state (RequestDetail.jsx),
-   defaulted from viewport width but overridable either way. */
+   defaulted from viewport width but overridable at any width (Sibling
+   review finding: a fixed 640px collapse breakpoint didn't match the
+   toggle's own 1025px default, so a manual toggle in between squeezed
+   two cramped columns with no fallback). auto-fit/minmax stacks to one
+   column on its own whenever there isn't room for two ~340px+ columns,
+   no breakpoint to keep in sync with the JS default at all. */
 .admin-detail-columns {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(auto-fit, minmax(min(340px, 100%), 1fr));
   gap: var(--space-4);
   align-items: start;
-}
-
-@media (max-width: 640px) {
-  .admin-detail-columns {
-    grid-template-columns: 1fr;
-  }
 }
 
 .admin-layout-toggle {
