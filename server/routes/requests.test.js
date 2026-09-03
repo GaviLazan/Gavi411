@@ -287,9 +287,13 @@ describe('PATCH /api/requests/:id', () => {
 
     expect(res.status).toBe(200)
     expect(res.body.status).toBe('RECEIVED')
+    // include: messages (Gavi, live testing: a status change used to
+    // silently drop request.message from client state) — this route's
+    // response now always carries the current message list.
     expect(prismaMock.request.update).toHaveBeenCalledWith({
       where: { id: 1 },
       data: { status: 'RECEIVED' },
+      include: { message: { orderBy: { createdAt: 'asc' } } },
     })
   })
 
@@ -311,6 +315,34 @@ describe('PATCH /api/requests/:id', () => {
 
       const res = await request(app).patch('/api/requests/1').send({ urgency: 'NORMAL' })
       expect(res.status).toBe(200)
+    })
+
+    // Gavi, live testing: "I think it would be good for the user to see
+    // in the messages that the urgency was lowered to normal" — a real
+    // Message row, authored by whoever made the change, since the schema
+    // has no system-message concept (same convention as sendNudge).
+    it('creates a visible message when urgency downgrades HIGH -> NORMAL', async () => {
+      currentUserId = OWNER
+      prismaMock.request.findUnique.mockResolvedValue({ ...sampleRequest, urgency: 'HIGH' })
+      prismaMock.request.update.mockResolvedValue({ ...sampleRequest, urgency: 'NORMAL' })
+
+      const res = await request(app).patch('/api/requests/1').send({ urgency: 'NORMAL' })
+
+      expect(res.status).toBe(200)
+      expect(prismaMock.message.create).toHaveBeenCalledWith({
+        data: { content: 'Urgency lowered to normal.', requestId: 1, userId: OWNER },
+      })
+    })
+
+    it('does NOT create a message when admin sets urgency to a non-downgrade value', async () => {
+      currentUserId = ADMIN
+      prismaMock.request.findUnique.mockResolvedValue({ ...sampleRequest, urgency: 'NORMAL' })
+      prismaMock.request.update.mockResolvedValue({ ...sampleRequest, urgency: 'LOW' })
+
+      const res = await request(app).patch('/api/requests/1').send({ urgency: 'LOW' })
+
+      expect(res.status).toBe(200)
+      expect(prismaMock.message.create).not.toHaveBeenCalled()
     })
 
     it('400s a friend trying to upgrade NORMAL -> HIGH', async () => {
@@ -455,6 +487,7 @@ describe('PATCH /api/requests/:id', () => {
       expect(prismaMock.request.update).toHaveBeenCalledWith({
         where: { id: 1 },
         data: { status: 'CANCELLED' },
+        include: { message: { orderBy: { createdAt: 'asc' } } },
       })
     })
 
