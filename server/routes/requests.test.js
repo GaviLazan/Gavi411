@@ -396,7 +396,25 @@ describe('PATCH /api/requests/:id', () => {
 
     const res = await request(app).patch('/api/requests/1').send({ status: 'CLOSED' })
     expect(res.status).toBe(400)
+    expect(res.body.error).toBe("Can't change status from IN_QUEUE to CLOSED right now.")
     expect(prismaMock.request.update).not.toHaveBeenCalled()
+  })
+
+  // Gavi, live testing: a fast double-click on ConfirmModal's "Yes" used
+  // to re-send an already-applied status, hitting the generic illegal-
+  // transition branch with a raw "Cannot move from SELF_SOLVED to
+  // SELF_SOLVED" message — fixed client-side (ConfirmModal's busy prop)
+  // and given a clearer server-side message as a backstop for any other
+  // stale-state path (e.g. two tabs open). Asserting the actual text so
+  // a future refactor that collapses this back to the generic message
+  // fails loudly instead of silently reintroducing the confusing UX.
+  it('gives a "already changed" message specifically for a same-status resubmit', async () => {
+    currentUserId = OWNER
+    prismaMock.request.findUnique.mockResolvedValue({ ...sampleRequest, status: 'SELF_SOLVED' })
+
+    const res = await request(app).patch('/api/requests/1').send({ status: 'SELF_SOLVED' })
+    expect(res.status).toBe(400)
+    expect(res.body.error).toBe("This request's status already changed — refresh the page to see the latest.")
   })
 
   it('400s on any transition out of a terminal status (CLOSED -> WORKING_ON_IT)', async () => {
@@ -405,6 +423,7 @@ describe('PATCH /api/requests/:id', () => {
 
     const res = await request(app).patch('/api/requests/1').send({ status: 'WORKING_ON_IT' })
     expect(res.status).toBe(400)
+    expect(res.body.error).toBe("Can't change status from CLOSED to WORKING_ON_IT right now.")
     expect(prismaMock.request.update).not.toHaveBeenCalled()
   })
 

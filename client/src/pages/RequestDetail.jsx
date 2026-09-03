@@ -99,6 +99,16 @@ const ADMIN_STATUS_OPTIONS = {
 // same convention as the discard-request flow it was built for.
 const STATUS_NEEDS_CONFIRM = ["CANCELLED", "SELF_SOLVED"];
 
+// One shared source for the confirm-modal message, used by both the
+// friend and admin branches below (Sibling review finding — each branch
+// had its own independent ternary, already drifted from each other, no
+// shared spot to fix wording in once).
+function confirmMessage(status) {
+  if (status === "SELF_SOLVED") return "Mark this request as self-solved? This ends the request.";
+  if (status === "CANCELLED") return "Cancel this request?";
+  return `Change status to "${status ? labelize(status) : ""}"? This ends the request.`;
+}
+
 // G411-87: friend-facing lifecycle buttons — a small fixed set (not a
 // general dropdown like ADMIN_STATUS_OPTIONS above), since the ticket's
 // scope is exactly these two named exits, each gated to specific source
@@ -768,9 +778,7 @@ function RequestDetail({ requestId, onBack, isAdmin }) {
         {statusError && <p className="message-send-error" role="alert">{statusError}</p>}
         <ConfirmModal
           open={confirmStatus !== null}
-          message={confirmStatus === "SELF_SOLVED"
-            ? "Mark this request as self-solved? This ends the request."
-            : "Cancel this request?"}
+          message={confirmMessage(confirmStatus)}
           onConfirm={() => applyStatus(confirmStatus)}
           onCancel={() => setConfirmStatus(null)}
           busy={statusSaving}
@@ -785,11 +793,10 @@ function RequestDetail({ requestId, onBack, isAdmin }) {
   // outside/above the tabs, so it stays visible across every tab switch.
   // G411-39: the pill is now a real control surface — a dropdown offering
   // only the transitions ADMIN_STATUS_OPTIONS says are legal from the
-  // current status, an explicit "Change" button (rather than firing on
-  // every select change — a stray click shouldn't silently transition a
-  // real request), a confirm step for the disruptive exits (cancel/
-  // self-solved), and a one-way "No longer urgent" button shown only
-  // when urgency is currently HIGH.
+  // current status, applying immediately on select (no separate "Change"
+  // button — Gavi's live-testing call), a confirm step for the disruptive
+  // exits (cancel/self-solved) via handleStatusSelect, and a one-way
+  // "No longer urgent" button shown only when urgency is currently HIGH.
   //
   // sideBySide (toggle above) puts Details/Thread in two columns and
   // hides their now-redundant tab buttons — nothing to switch between
@@ -834,11 +841,7 @@ function RequestDetail({ requestId, onBack, isAdmin }) {
 
       <ConfirmModal
         open={confirmStatus !== null}
-        message={confirmStatus === "SELF_SOLVED"
-          ? "Mark this request as self-solved? This ends the request."
-          : confirmStatus === "CANCELLED"
-          ? "Cancel this request?"
-          : `Change status to "${confirmStatus ? labelize(confirmStatus) : ""}"? This ends the request.`}
+        message={confirmMessage(confirmStatus)}
         onConfirm={() => applyStatus(confirmStatus)}
         onCancel={() => setConfirmStatus(null)}
         busy={statusSaving}
