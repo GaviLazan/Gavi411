@@ -25,8 +25,13 @@ function MessageThread({ messages }) {
               {m.content}
               {m.imageUrl && <img className="message-image" src={m.imageUrl} alt="Attached image" />}
             </div>
+            {/* en-GB pins dd/mm/yyyy explicitly (Gavi: dates should default
+                to dd/mm/yyyy, not mm/dd/yyyy) — bare toLocaleString() used
+                the browser's own locale, which reads mm/dd/yyyy on a
+                US-configured browser regardless of who's actually using
+                the app. */}
             <span className="message-time">
-              {new Date(m.createdAt).toLocaleString()}
+              {new Date(m.createdAt).toLocaleString("en-GB")}
             </span>
           </div>
         );

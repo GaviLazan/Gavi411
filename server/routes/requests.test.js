@@ -287,9 +287,13 @@ describe('PATCH /api/requests/:id', () => {
 
     expect(res.status).toBe(200)
     expect(res.body.status).toBe('RECEIVED')
+    // include: messages (Gavi, live testing: a status change used to
+    // silently drop request.message from client state) — this route's
+    // response now always carries the current message list.
     expect(prismaMock.request.update).toHaveBeenCalledWith({
       where: { id: 1 },
       data: { status: 'RECEIVED' },
+      include: { message: { orderBy: { createdAt: 'asc' } } },
     })
   })
 
@@ -311,6 +315,34 @@ describe('PATCH /api/requests/:id', () => {
 
       const res = await request(app).patch('/api/requests/1').send({ urgency: 'NORMAL' })
       expect(res.status).toBe(200)
+    })
+
+    // Gavi, live testing: "I think it would be good for the user to see
+    // in the messages that the urgency was lowered to normal" — a real
+    // Message row, authored by whoever made the change, since the schema
+    // has no system-message concept (same convention as sendNudge).
+    it('creates a visible message when urgency downgrades HIGH -> NORMAL', async () => {
+      currentUserId = OWNER
+      prismaMock.request.findUnique.mockResolvedValue({ ...sampleRequest, urgency: 'HIGH' })
+      prismaMock.request.update.mockResolvedValue({ ...sampleRequest, urgency: 'NORMAL' })
+
+      const res = await request(app).patch('/api/requests/1').send({ urgency: 'NORMAL' })
+
+      expect(res.status).toBe(200)
+      expect(prismaMock.message.create).toHaveBeenCalledWith({
+        data: { content: 'Urgency lowered to normal.', requestId: 1, userId: OWNER },
+      })
+    })
+
+    it('does NOT create a message when admin sets urgency to a non-downgrade value', async () => {
+      currentUserId = ADMIN
+      prismaMock.request.findUnique.mockResolvedValue({ ...sampleRequest, urgency: 'NORMAL' })
+      prismaMock.request.update.mockResolvedValue({ ...sampleRequest, urgency: 'LOW' })
+
+      const res = await request(app).patch('/api/requests/1').send({ urgency: 'LOW' })
+
+      expect(res.status).toBe(200)
+      expect(prismaMock.message.create).not.toHaveBeenCalled()
     })
 
     it('400s a friend trying to upgrade NORMAL -> HIGH', async () => {
@@ -364,7 +396,25 @@ describe('PATCH /api/requests/:id', () => {
 
     const res = await request(app).patch('/api/requests/1').send({ status: 'CLOSED' })
     expect(res.status).toBe(400)
+    expect(res.body.error).toBe("Can't change status from IN_QUEUE to CLOSED right now.")
     expect(prismaMock.request.update).not.toHaveBeenCalled()
+  })
+
+  // Gavi, live testing: a fast double-click on ConfirmModal's "Yes" used
+  // to re-send an already-applied status, hitting the generic illegal-
+  // transition branch with a raw "Cannot move from SELF_SOLVED to
+  // SELF_SOLVED" message — fixed client-side (ConfirmModal's busy prop)
+  // and given a clearer server-side message as a backstop for any other
+  // stale-state path (e.g. two tabs open). Asserting the actual text so
+  // a future refactor that collapses this back to the generic message
+  // fails loudly instead of silently reintroducing the confusing UX.
+  it('gives a "already changed" message specifically for a same-status resubmit', async () => {
+    currentUserId = OWNER
+    prismaMock.request.findUnique.mockResolvedValue({ ...sampleRequest, status: 'SELF_SOLVED' })
+
+    const res = await request(app).patch('/api/requests/1').send({ status: 'SELF_SOLVED' })
+    expect(res.status).toBe(400)
+    expect(res.body.error).toBe("This request's status already changed — refresh the page to see the latest.")
   })
 
   it('400s on any transition out of a terminal status (CLOSED -> WORKING_ON_IT)', async () => {
@@ -373,6 +423,7 @@ describe('PATCH /api/requests/:id', () => {
 
     const res = await request(app).patch('/api/requests/1').send({ status: 'WORKING_ON_IT' })
     expect(res.status).toBe(400)
+    expect(res.body.error).toBe("Can't change status from CLOSED to WORKING_ON_IT right now.")
     expect(prismaMock.request.update).not.toHaveBeenCalled()
   })
 
@@ -455,6 +506,7 @@ describe('PATCH /api/requests/:id', () => {
       expect(prismaMock.request.update).toHaveBeenCalledWith({
         where: { id: 1 },
         data: { status: 'CANCELLED' },
+        include: { message: { orderBy: { createdAt: 'asc' } } },
       })
     })
 

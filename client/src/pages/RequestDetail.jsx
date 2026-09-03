@@ -99,6 +99,16 @@ const ADMIN_STATUS_OPTIONS = {
 // same convention as the discard-request flow it was built for.
 const STATUS_NEEDS_CONFIRM = ["CANCELLED", "SELF_SOLVED"];
 
+// One shared source for the confirm-modal message, used by both the
+// friend and admin branches below (Sibling review finding — each branch
+// had its own independent ternary, already drifted from each other, no
+// shared spot to fix wording in once).
+function confirmMessage(status) {
+  if (status === "SELF_SOLVED") return "Mark this request as self-solved? This ends the request.";
+  if (status === "CANCELLED") return "Cancel this request?";
+  return `Change status to "${status ? labelize(status) : ""}"? This ends the request.`;
+}
+
 // G411-87: friend-facing lifecycle buttons — a small fixed set (not a
 // general dropdown like ADMIN_STATUS_OPTIONS above), since the ticket's
 // scope is exactly these two named exits, each gated to specific source
@@ -122,7 +132,7 @@ function RequestDetail({ requestId, onBack, isAdmin }) {
   // Admin-only tab state (G411-38) — friends never see tabs, so this is
   // simply unused/ignored on their path rather than gated behind isAdmin
   // at declaration (cheaper than conditionally calling useState).
-  const [adminTab, setAdminTab] = useState("thread");
+  const [adminTab, setAdminTab] = useState("details");
   // Details/Thread side-by-side toggle — defaults on for a wide viewport
   // (matches the codebase's one existing breakpoint, App.css/index.css),
   // off for narrow, but admin can flip it either way regardless of
@@ -257,7 +267,15 @@ function RequestDetail({ requestId, onBack, isAdmin }) {
     return () => {
       cancelled = true;
     };
-  }, [requestId, request?.message]);
+    // Depends on a stable signature of the message list (ids joined),
+    // not the raw `request.message` array reference — every setRequest()
+    // call (e.g. applyStatus's PATCH response) returns a fresh array even
+    // when the messages themselves didn't change, which used to re-run
+    // this whole decrypt effect on every status/urgency change and
+    // flash "No messages yet." while it re-decrypted identical content
+    // (Gavi, live testing: "changing status hides the messages").
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [requestId, request?.message?.map((m) => m.id).join(",")]);
 
   async function handleGenerateKeypair() {
     setKeypairStatus("working");
@@ -380,13 +398,10 @@ function RequestDetail({ requestId, onBack, isAdmin }) {
     }
   }
 
-  // G411-39: admin status-control state. `pendingStatus` holds a status
-  // picked in the dropdown but not yet applied (either awaiting the
-  // confirm modal for a disruptive exit, or awaiting the explicit
-  // "Change" click) — the select itself is uncontrolled-ish, reset back
-  // to the current status after every apply/cancel so it never drifts
-  // from server-confirmed reality.
-  const [pendingStatus, setPendingStatus] = useState("");
+  // G411-39: admin status-control state. The dropdown itself has no
+  // controlled value beyond the placeholder — selecting an option applies
+  // it immediately (see handleStatusSelect below), so there's nothing to
+  // hold "pending" between select and apply anymore.
   const [statusSaving, setStatusSaving] = useState(false);
   const [statusError, setStatusError] = useState("");
   const [confirmStatus, setConfirmStatus] = useState(null); // status awaiting Yes/No, or null
@@ -414,49 +429,20 @@ function RequestDetail({ requestId, onBack, isAdmin }) {
       setStatusError(err.message);
     } finally {
       setStatusSaving(false);
-      setPendingStatus("");
       setConfirmStatus(null);
     }
   }
 
+  // Selecting a status applies it immediately — no separate "Change"
+  // button (Gavi: "no need to click change"). Disruptive exits still
+  // route through the confirm modal first, same gate this used to apply
+  // directly.
   function handleStatusSelect(nextStatus) {
-    setPendingStatus(nextStatus);
-  }
-
-  // G411-88: admin-only manual nudge for a stale WAITING_ON_USER request.
-  // POST /:id/nudge already existed server-side (G411-36, admin-only,
-  // gated to WAITING_ON_USER) with no caller anywhere in the app until
-  // now — same PR reused for feedback: nudgeStatus drives a plain
-  // inline confirmation/error message next to the button rather than a
-  // full page refetch (the nudge itself doesn't change request.status,
-  // only adds a Message — the thread tab will pick it up on its own next
-  // fetch, nothing here needs to force that).
-  const [nudgeStatus, setNudgeStatus] = useState("idle"); // 'idle' | 'sending' | 'sent' | 'error'
-
-  // Same instance persists across requestId changes (see the notes reset
-  // above) — without this, "Nudge sent" from a previous request would
-  // still show after opening a different one.
-  useEffect(() => {
-    setNudgeStatus("idle");
-  }, [requestId]);
-
-  async function handleNudge() {
-    setNudgeStatus("sending");
-    try {
-      const res = await fetch(`/api/requests/${requestId}/nudge`, { method: "POST" });
-      if (!res.ok) throw new Error("failed");
-      setNudgeStatus("sent");
-    } catch {
-      setNudgeStatus("error");
-    }
-  }
-
-  function handleStatusChangeClick() {
-    if (!pendingStatus) return;
-    if (STATUS_NEEDS_CONFIRM.includes(pendingStatus)) {
-      setConfirmStatus(pendingStatus);
+    if (!nextStatus) return;
+    if (STATUS_NEEDS_CONFIRM.includes(nextStatus)) {
+      setConfirmStatus(nextStatus);
     } else {
-      applyStatus(pendingStatus);
+      applyStatus(nextStatus);
     }
   }
 
@@ -792,11 +778,10 @@ function RequestDetail({ requestId, onBack, isAdmin }) {
         {statusError && <p className="message-send-error" role="alert">{statusError}</p>}
         <ConfirmModal
           open={confirmStatus !== null}
-          message={confirmStatus === "SELF_SOLVED"
-            ? "Mark this request as self-solved? This ends the request."
-            : "Cancel this request?"}
+          message={confirmMessage(confirmStatus)}
           onConfirm={() => applyStatus(confirmStatus)}
           onCancel={() => setConfirmStatus(null)}
+          busy={statusSaving}
         />
         {detailsCard}
         {threadCard}
@@ -808,11 +793,10 @@ function RequestDetail({ requestId, onBack, isAdmin }) {
   // outside/above the tabs, so it stays visible across every tab switch.
   // G411-39: the pill is now a real control surface — a dropdown offering
   // only the transitions ADMIN_STATUS_OPTIONS says are legal from the
-  // current status, an explicit "Change" button (rather than firing on
-  // every select change — a stray click shouldn't silently transition a
-  // real request), a confirm step for the disruptive exits (cancel/
-  // self-solved), and a one-way "No longer urgent" button shown only
-  // when urgency is currently HIGH.
+  // current status, applying immediately on select (no separate "Change"
+  // button — Gavi's live-testing call), a confirm step for the disruptive
+  // exits (cancel/self-solved) via handleStatusSelect, and a one-way
+  // "No longer urgent" button shown only when urgency is currently HIGH.
   //
   // sideBySide (toggle above) puts Details/Thread in two columns and
   // hides their now-redundant tab buttons — nothing to switch between
@@ -827,54 +811,40 @@ function RequestDetail({ requestId, onBack, isAdmin }) {
           <div style={{ display: "flex", alignItems: "center", gap: "var(--space-2)", flexWrap: "wrap" }}>
             <span className="status-pill">{labelize(request.status)}</span>
             {statusOptions.length > 0 && (
-              <>
-                <Select
-                  aria-label="Change status"
-                  value={pendingStatus}
-                  onChange={(e) => handleStatusSelect(e.target.value)}
-                  disabled={statusSaving}
-                  options={[
-                    { value: "", label: "Change to…" },
-                    ...statusOptions.map((s) => ({ value: s, label: labelize(s) })),
-                  ]}
-                />
-                <Button
-                  variant="secondary"
-                  onClick={handleStatusChangeClick}
-                  disabled={!pendingStatus || statusSaving}
-                >
-                  {statusSaving ? "Saving…" : "Change"}
-                </Button>
-              </>
+              <Select
+                aria-label="Change status"
+                value=""
+                onChange={(e) => handleStatusSelect(e.target.value)}
+                disabled={statusSaving}
+                options={[
+                  { value: "", label: statusSaving ? "Saving…" : "Change to…" },
+                  ...statusOptions.map((s) => ({ value: s, label: labelize(s) })),
+                ]}
+              />
             )}
             {request.urgency === "HIGH" && (
               <Button variant="secondary" onClick={handleDowngradeUrgency} disabled={statusSaving}>
                 No longer urgent
               </Button>
             )}
-            {request.status === "WAITING_ON_USER" && (
-              <Button
-                variant="secondary"
-                onClick={handleNudge}
-                disabled={nudgeStatus === "sending"}
-              >
-                {nudgeStatus === "sending" ? "Sending…" : nudgeStatus === "sent" ? "Nudge sent" : "Nudge"}
-              </Button>
-            )}
+            {/* G411-88 Sibling review, Gavi's live testing: nudge has no
+                real UX behind it yet (see gavi411-brain.md decision log) —
+                hidden until that's designed, endpoint stays wired for when
+                it's ready. */}
           </div>
           <button type="button" className="admin-layout-toggle" onClick={() => setSideBySide((v) => !v)}>
             {sideBySide ? "Stack tabs" : "Side by side"}
           </button>
         </div>
         {statusError && <p className="message-send-error" role="alert">{statusError}</p>}
-        {nudgeStatus === "error" && <p className="message-send-error" role="alert">Couldn't send the nudge.</p>}
       </div>
 
       <ConfirmModal
         open={confirmStatus !== null}
-        message={`Change status to "${confirmStatus ? labelize(confirmStatus) : ""}"? This ends the request.`}
+        message={confirmMessage(confirmStatus)}
         onConfirm={() => applyStatus(confirmStatus)}
         onCancel={() => setConfirmStatus(null)}
+        busy={statusSaving}
       />
 
       {/* Side by side already shows Details+Thread together — nothing

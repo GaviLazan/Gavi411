@@ -94,7 +94,11 @@ function AdminRequestRow({ request, onClick }) {
           </p>
         </div>
         <div style={{ textAlign: "end", flexShrink: 0, fontSize: 13 }}>
-          <p style={{ fontWeight: 600 }}>{statusLabel(request.urgency)}</p>
+          {/* Status wasn't shown anywhere in this row — the only way to
+              tell was indirectly, via which side of the Open/Closed
+              filter a request landed on (Gavi, live testing). */}
+          <p style={{ fontWeight: 600 }}>{statusLabel(request.status)}</p>
+          <p style={{ color: "var(--text)" }}>{statusLabel(request.urgency)}</p>
           <p style={{ color: "var(--text)" }}>{timeSince(lastActivityAt(request))}</p>
         </div>
       </Card>

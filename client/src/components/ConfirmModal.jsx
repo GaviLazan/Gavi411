@@ -7,7 +7,7 @@ import "./ConfirmModal.css";
 // browser chrome moment inside an otherwise fully custom-styled flow.
 // Native <dialog> (ponytail: no library needed) — free focus trap,
 // Escape-to-close, and backdrop via ::backdrop.
-function ConfirmModal({ open, message, onConfirm, onCancel }) {
+function ConfirmModal({ open, message, onConfirm, onCancel, busy }) {
   const ref = useRef(null);
 
   useEffect(() => {
@@ -24,14 +24,32 @@ function ConfirmModal({ open, message, onConfirm, onCancel }) {
   // el.close() following a real onConfirm click, which made onConfirm
   // and onCancel both run on every confirmed "Yes" (Sibling review
   // finding) — dropped.
+  //
+  // preventDefault while busy (Sibling review finding): the dialog's own
+  // native "cancel" event isn't gated by the disabled attribute the Yes/No
+  // buttons get — without this, Escape could still dismiss the modal
+  // while onConfirm's request was still in flight, with nothing left open
+  // to show the eventual success/error.
+  function handleNativeCancel(e) {
+    if (busy) {
+      e.preventDefault();
+      return;
+    }
+    onCancel();
+  }
+
   return (
-    <dialog ref={ref} className="confirm-modal" onCancel={onCancel}>
+    <dialog ref={ref} className="confirm-modal" onCancel={handleNativeCancel}>
       <p>{message}</p>
       <div className="step-nav">
-        <Button variant="purple" onClick={onCancel}>
+        <Button variant="purple" onClick={onCancel} disabled={busy}>
           No
         </Button>
-        <Button variant="primary" onClick={onConfirm}>
+        {/* busy guards against a double-click/slow-network double-fire —
+            two rapid "Yes" clicks used to both call onConfirm, the second
+            re-sending an already-applied change the server then rejected
+            as illegal (Gavi, live testing: hit this on self-solve). */}
+        <Button variant="primary" onClick={onConfirm} disabled={busy}>
           Yes
         </Button>
       </div>

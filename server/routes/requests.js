@@ -338,8 +338,15 @@ router.patch('/:id', requireAuth, async (req, res) => {
 
   if (status !== undefined) {
     if (!TRANSITIONS[existing.status].includes(status)) {
+      // Human-readable, not a raw enum-to-enum dump (Gavi, live testing:
+      // hit "Cannot move from SELF_SOLVED to SELF_SOLVED" from a
+      // stale-resubmit double-click, since fixed client-side with a
+      // busy guard on ConfirmModal — this message is the remaining
+      // backstop for any other stale-state path, e.g. two tabs open).
       return res.status(400).json({
-        error: `Cannot move from ${existing.status} to ${status}`,
+        error: existing.status === status
+          ? "This request's status already changed — refresh the page to see the latest."
+          : `Can't change status from ${existing.status} to ${status} right now.`,
       })
     }
     if (!canCloseRequest(status, req.user)) {
@@ -358,11 +365,36 @@ router.patch('/:id', requireAuth, async (req, res) => {
   // that race).
   const isRefundable = status !== undefined && REFUNDABLE_EXITS.includes(status)
 
+  // Gavi, live testing: "I think it would be good for the user to see in
+  // the messages that the urgency was lowered to normal" — same shape as
+  // the existing nudge message (sendNudge in autoClose.js): no schema
+  // concept of a "system message" (Message.userId is required, non-null),
+  // so this is authored as a real message from the admin who triggered
+  // it, same convention. Only fires for the actual downgrade direction
+  // (HIGH -> NORMAL) admin/friend's canSetUrgency already permits —
+  // doesn't fire when admin raises urgency, since that's not what was
+  // asked for and an upgrade is self-evident from the pill, not buried
+  // in a status-change flow the way a downgrade can be.
+  const isUrgencyDowngrade = urgency === Urgency.NORMAL && existing.urgency === Urgency.HIGH
+
   const updated = await prisma.$transaction(async (tx) => {
     if (isRefundable && !(await hasAdminMessaged(tx, id))) {
       await refundCredit(tx, existing.userId)
     }
-    return tx.request.update({ where: { id }, data })
+    if (isUrgencyDowngrade) {
+      await tx.message.create({
+        data: { content: 'Urgency lowered to normal.', requestId: id, userId: req.user.clerkId },
+      })
+    }
+    // include: messages (Gavi, live testing: "changing status hides the
+    // messages") — this route's response feeds straight into the
+    // client's setRequest(updated), and without this, `request.message`
+    // silently dropped out of state on every status/urgency change,
+    // independent of and more serious than the decrypt-effect re-run
+    // flash fixed alongside this in RequestDetail.jsx (that one just
+    // caused a flash; this dropped the messages until the next full
+    // fetch). Same MESSAGE_INCLUDE shape as GET /:id.
+    return tx.request.update({ where: { id }, data, include: MESSAGE_INCLUDE })
   })
   res.json(updated)
 })
