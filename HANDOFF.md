@@ -12,22 +12,24 @@ accumulated. If something here turns out to matter long-term, promote it to
 
 ---
 
-## Where this session left off (2026-09-08) — G411-42 (trigger/keyword admin UI) Reconciled, live-verified.
+## Where this session left off (2026-09-08) — G411-42 and G411-43 both Reconciled, live-verified.
 
 ### What shipped
-- **G411-42** — `/api/triggers` routes (GET/POST/PATCH/DELETE, `requireAdmin`-gated, same pattern as `invites.js`) + `TriggerAdmin.jsx` client page (add/edit-in-place/delete), wired into `App.jsx`'s admin nav next to Invites. Live CRUD over the `Trigger` table that `matchKeywords.js` (G411-19) already reads on every intake match — no redeploy needed.
-- PR #65: Sibling review found 2 real issues, both fixed same session — POST didn't validate `requestType` against the enum before hitting Prisma (an invalid value threw an unhandled 500, no global error handler in `server.js`); client's `loadTriggers()` didn't check `res.ok`, so an error body could get rendered as the triggers list and crash the component. Both fixed, fix pass posted to the PR, merged via regular merge commit `c74c3c3`.
-- **Reconciled against a real live walkthrough**, not just tests — dev servers were started, Gavi added/edited/deleted a real keyword through the running UI, each step verified directly against the DB and `matchKeywords()` in parallel (add → persisted → matched; edit → same row id renamed, old keyword stopped matching, new one matched; delete → row gone, matcher empty). This is the level of evidence the ticket's own Falsifier asked for.
-- 236/236 server tests pass, client `vite build` clean.
+- **G411-42** — Trigger/keyword admin UI (`/api/triggers` CRUD, `TriggerAdmin.jsx`). PR #65.
+- **G411-43** — Manual online/offline presence toggle (PRD §4.5). New singleton `Presence` model, public `GET /api/presence`, `requireAdmin`-gated `PATCH /api/presence`, admin-only "Go offline"/"Go online" button in the top nav, friend-facing offline banner. PR #67.
+- Both Reconciled against real live walkthroughs (dev servers started, DB/API checked directly, not just automated tests) — not just build/test evidence.
+
+### New process this session: Haiku-drafts / Sonnet-reviews split, tried once
+For G411-43, all architectural decisions (schema shape — single singleton row, `id: "singleton"`; endpoint shape — separate public `GET /api/presence` rather than folding into `/api/me`) were made by hand first, confirmed with Gavi via AskUserQuestion, then a fully-specified implementation task was dispatched to a Haiku subagent for the route/test/client scaffolding. Sonnet (this session) then ran a full Sibling review (`/code-review`, which itself fans out into ~7 parallel review angles — correctness, reuse, simplification, efficiency, altitude, cross-file, conventions — each returning as a separate background notification, not a separate "mode" Gavi chose) and fixed the real findings by hand before merge. Worked well for a well-scoped, non-security-boundary-heavy ticket; worth reusing for similarly-shaped tickets, but schema/auth-boundary decisions stay hand-made, not delegated.
 
 ### Real state, right now
-All 7 worktrees (primary `Gavi411` + 6 role worktrees) synced and clean at `c74c3c3` (confirmed via `git status --short` + fast-forward across all 7). Dev servers (backend :3000, client :5173) were started this session for the walkthrough and then killed at session end — not running, start fresh next session if needed. No new brain.md-worthy decision came out of this ticket (routine admin CRUD, no architectural call).
+All 7 worktrees (primary + 6 role worktrees) synced and clean at `fc810a1`. Dev servers (backend :3000, client :5173) were started twice this session for live walkthroughs — check before assuming either is running next session, they may have been left up or killed depending on how this session ended.
 
 ### What's next, concretely
-Epic 5 (Admin Cockpit) still-Open children per the last full check: G411-44, 68, 69, 80, 89, 90, 91, 93 (G411-92 is parented under Epic 3). Of these:
-1. **G411-93** (nudge UX decision) — small, real product call, unblocks re-exposing the hidden G411-88 nudge button.
-2. **G411-90** (reopen + credit re-charge) — most correctness-sensitive, money-adjacent, deserves a focused pass with real tests.
-3. **G411-91** (friend close-confirm UI) — real, small, missing-UI-only gap, same shape as G411-87/88.
-4. **G411-89** (list refetch perf) and **G411-92** (no live sync in RequestDetail) — both real but lower urgency.
+Epic 5 (Admin Cockpit) still-Open children, in strict key order (per project convention — always work Epics in order, no jumping ahead for perceived urgency): **G411-44** is next up. Others still open: G411-68, 69, 80, 89, 90, 91, 93 (G411-92 is parented under Epic 3). Of the non-next-in-order ones, worth flagging when their turn comes:
+- **G411-90** (reopen + credit re-charge) — most correctness-sensitive, money-adjacent.
+- **G411-91** (friend close-confirm UI) — real, small, missing-UI-only gap.
+- **G411-93** (nudge UX decision) — small, unblocks re-exposing the hidden G411-88 button.
+- **G411-89** (list refetch perf) — real but lower urgency.
 
-No task has been explicitly picked up yet for the next session — agree with Gavi which one before touching code, per the session-start ritual.
+No task has been explicitly picked up yet for the next session — agree with Gavi which one before touching code, per the session-start ritual (though per Epic-order convention it should default to G411-44 unless Gavi says otherwise).
