@@ -12,7 +12,20 @@ accumulated. If something here turns out to matter long-term, promote it to
 
 ---
 
-## Where this session left off (2026-09-08) — G411-80, G411-89, G411-90 all Reconciled. CLAUDE.md itself corrected (decision #115); a real credit-design correction logged (decision #116).
+## Where this session left off (2026-09-08) — G411-91 Reconciled (friend close-confirm UI). G411-80, G411-89, G411-90 also Reconciled this session. CLAUDE.md itself corrected (decision #115); a real credit-design correction logged (decision #116).
+
+### What shipped — G411-91 (friend-facing close-confirm UI)
+PR #89, merged. `RequestDetail.jsx`'s friend branch now offers a
+**"Confirm — this is resolved"** button, shown only when
+`request.status === 'RESOLVED_PENDING_CONFIRMATION'`, calling the existing
+`PATCH /api/requests/:id` with `{status: 'CLOSED'}` — no backend changes,
+`canCloseRequest` (G411-33) already enforced this correctly server-side.
+UX call (left open by the ticket): applies directly, no confirm modal —
+`STATUS_NEEDS_CONFIRM` covers transitions that end a request prematurely
+(Cancel/Self-solved); this is the opposite, the friend agreeing an
+already-admin-proposed resolution is correct, not cutting something short.
+Sibling review (high effort) traced the full transition/refund/reopen
+machinery, zero findings. 295 server + 69 client tests pass.
 
 ### What shipped — G411-80 (profile screen + Clerk push-back sync)
 PR #81, 4 review rounds, merged. Read-only profile view (name, username,
@@ -96,16 +109,14 @@ whether this needs a standing answer (e.g. commit attribution changes) so
 it stops needing a bypass every single PR.
 
 ### What's next, concretely
-Epic 5 (Admin Cockpit) still-Open children, in strict key order: G411-91,
-93, 95 (request history, split from G411-80), 96 (account deletion, split
+Epic 5 (Admin Cockpit) still-Open children, in strict key order: G411-93,
+95 (request history, split from G411-80), 96 (account deletion, split
 from G411-80, deliberately deferred). (G411-92 is parented under Epic 3.)
 Epic 6 (Credits) now has its first real child: **G411-97** (full credit
 stress test) — Epic-order convention means Epic 5's remaining children
 come before Epic 6 gets picked up, unless Gavi says otherwise.
-- **G411-91** (friend close-confirm UI) — next in strict order. Real,
-  small, missing-UI-only gap.
-- **G411-93** (nudge UX decision) — small, unblocks re-exposing the hidden
-  G411-88 button.
+- **G411-93** (nudge UX decision) — next in strict order, small, unblocks
+  re-exposing the hidden G411-88 button.
 - **G411-49** (push subscribe flow) — directly relevant now that both
   G411-43 (presence) and G411-44 (admin-create-request notify) have real,
   wired, currently-inert push call sites waiting on it.
@@ -115,4 +126,4 @@ come before Epic 6 gets picked up, unless Gavi says otherwise.
 
 No task has been explicitly picked up yet for the next session — agree
 with Gavi which one before touching code, per the session-start ritual
-(default: G411-91, lowest-numbered still-Open child in Epic 5).
+(default: G411-93, lowest-numbered still-Open child in Epic 5).
