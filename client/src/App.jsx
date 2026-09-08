@@ -380,6 +380,40 @@ function App() {
       )}
       <ClerkLoading>Loading…</ClerkLoading>
       <ClerkLoaded>
+        {/* G411-89: keep list component mounted at all times once role
+            resolves, hidden instead of unmounted on view change. Prevents
+            list-data loss (in-flight fetches discarded) and state loss
+            (sort/filter/group/search UI in AdminList) when navigating away
+            and back. Rendered here as a sibling of the main view-switch
+            below (not inside it), shown/hidden via the hidden attribute.
+            Sibling review finding: this originally sat as a sibling of
+            <ClerkLoaded> itself, gated only by role !== null — role can in
+            practice only be non-null after Clerk has finished loading (it's
+            set from an /api/me fetch that itself waits on isSignedIn), so
+            it wasn't an active bug, but it was correct by coincidence, not
+            by construction. Moved inside <ClerkLoaded> so the guarantee is
+            structural, matching how every other view already behaves. */}
+        {role !== null && (
+          <div hidden={view !== 'list'}>
+            {isAdmin ? (
+              <AdminList
+                onOpenRequest={(id) => { setSelectedRequestId(id); setView('detail'); }}
+                // G411-44, per Gavi's direct correction: admin doesn't open
+                // requests for themself — this button now opens the
+                // on-behalf-of-a-friend flow, not the old self-service
+                // NewRequest form. That form (view('new')) is friend-only
+                // now, reachable only via RequestList below.
+                onNewRequest={() => setView('admin-create-request')}
+              />
+            ) : (
+              <RequestList
+                onNewRequest={() => setView('new')}
+                onShowInstallHelp={() => setView('install-help')}
+                onOpenRequest={(id) => { setSelectedRequestId(id); setView('detail'); }}
+              />
+            )}
+          </div>
+        )}
         {isSignedIn && !tokenHandoffDone ? (
           <p>Loading…</p>
         ) : isSignedIn && unauthorized ? (
@@ -454,22 +488,12 @@ function App() {
             // also discarded RequestList's in-flight fetch. Waiting for
             // role to actually resolve avoids ever mounting the wrong one.
             <p>Loading…</p>
-          ) : isAdmin ? (
-            <AdminList
-              onOpenRequest={(id) => { setSelectedRequestId(id); setView('detail'); }}
-              // G411-44, per Gavi's direct correction: admin doesn't open
-              // requests for themself — this button now opens the
-              // on-behalf-of-a-friend flow, not the old self-service
-              // NewRequest form. That form (view('new')) is friend-only
-              // now, reachable only via RequestList below.
-              onNewRequest={() => setView('admin-create-request')}
-            />
+          ) : view === 'list' ? (
+            null
           ) : (
-            <RequestList
-              onNewRequest={() => setView('new')}
-              onShowInstallHelp={() => setView('install-help')}
-              onOpenRequest={(id) => { setSelectedRequestId(id); setView('detail'); }}
-            />
+            // Fallback for any unmapped view state (shouldn't occur, but
+            // preserves existing behavior for safety)
+            null
           )
         ) : inviteTokenState === 'checking' ? (
           <p>Loading…</p>
