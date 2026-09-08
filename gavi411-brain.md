@@ -526,6 +526,14 @@ Picking up G411-69, its description carried an `Owner: [You]` tag from before th
 
 **Going forward**: when a ticket carries a stale `[You]`/`[Agentic]`/`[Collab]` tag, mention it in one line while continuing to work agentically in the same turn — never a separate question, never a pause waiting for confirmation. This is now the second real incident of this exact mistake (G411-67, then G411-69) — if it happens a third time, that itself is worth a harder look at why the rule isn't sticking.
 
+### Decision #114 — Real mistake, same session: Aegis fields (Claim/Falsifier) were written on G411-69 AFTER the code already existed, not at pickup as decision #50 requires (2026-09-08)
+
+Picking up G411-69, the actual sequence was: investigate the codebase → write the Haiku task spec → dispatch → review the diff → THEN write Claim/Falsifier/Scope on the Jira ticket and transition Open → Implementing. Gavi's correction, direct, quoting the exact moment: "'Aegis fields set, moved to Implementing' — this is supposed to happen BEFORE coding, not after." Decision #50 already states this explicitly ("Claim/Falsifier/Evidence are written at pickup time, against real system state — not pre-drafted in bulk against a codebase that doesn't exist yet") and the wrap-up/pickup ritual in CLAUDE.md says the same. The rule was already correct and already known; it just wasn't followed in the moment.
+
+**Root cause**: investigating the codebase (reading `requireAuth`, checking Clerk's types, confirming the schema) felt like "pickup," so Aegis fields got deferred until after that investigation produced a concrete plan — but by the time the fields were actually written, a Haiku subagent had already been dispatched and had already written real code. "At pickup" means before implementation starts, not merely before the ticket is marked Reconciled — investigation/spec-writing is part of pickup, but dispatching code is not.
+
+**Going forward**: the moment a ticket is picked up — right after scope is confirmed and any real investigation needed to write an honest Claim/Falsifier is done, but strictly BEFORE any code is written or any implementation subagent is dispatched — write Claim/Falsifier/Scope and make the Open → Implementing transition. This is a hard ordering constraint, not just a preference: investigate → write Aegis fields → transition → THEN write/dispatch code. Never the reverse.
+
 ## 7. Not Yet Discussed
  
 - Data model, architecture, tech decisions (schema itself not yet drafted — first task on deck).
