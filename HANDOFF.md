@@ -90,7 +90,9 @@ charge decision, not the mechanism making it).
   is the real hard-to-reverse action. But `CLAUDE.md`'s own "Wrap it up"
   checklist text was never actually edited to match that decision, so the
   wrong instruction survived and kept getting followed every session
-  since. **Fixed this session** — CLAUDE.md's step 5 rewritten in place.
+  since. **Fixed this session** — CLAUDE.md's wrap-up Jira-transition
+  step rewritten in place (it was step 5 at the time; the checklist has
+  since been reordered into real execution order).
 
 ### Also cleaned up this session
 13 stale, fully-merged-into-main GitHub branches deleted.

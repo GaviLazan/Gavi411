@@ -5,6 +5,12 @@ repo. Read it before touching any code. It's a working index, not a full
 copy of project context — the source docs it points to are the actual
 authority.
 
+**If you read only one section, read "The four stops" below.** Work here
+is not one unbroken chain from instruction to merged-and-Reconciled;
+there are four points where it stops and Gavi sees something first. Then
+the session-start ritual (under "How to work with Gavi") — it runs even
+when the session opens with a short, concrete instruction.
+
 ## What this is
 
 Gavi411 digitizes an informal concierge/assistance service Gavi already
@@ -43,27 +49,26 @@ to **agentic-first**: agents write tickets by default, full stop. The
 actually built, and explain past commit-convention choices (per-role git
 identities, worktrees, the old session-boundary rule), but **do not gate
 who writes a ticket going forward.** Do not check a tag before starting
-work. If you need the old tag definitions for historical context, they're
-preserved in git history for this file (this section, pre-2026-08-24) and
-in `gavi411-brain.md`'s decisions #31–#63.
+work. They're not fake history — they're just not the regime we're in
+anymore. If you need the old tag definitions, they're preserved in git
+history for this file (this section, pre-2026-08-24) and in
+`gavi411-brain.md`'s decisions #31–#63.
+
+Finding a stale tag on a ticket, or a HANDOFF.md/ticket mismatch, is
+worth **one line of mention while work continues agentically in the same
+turn** — never a stop-and-ask, via `AskUserQuestion` or otherwise. That
+would reopen a decision already made project-wide. This exact mistake has
+now happened twice (G411-67 → decision #66; G411-69 → decision #113); a
+third time is a signal something structural is wrong, not just another
+correction to log.
 
 The only exception is per-ticket and explicit: if Gavi says "I want to
 write this one myself" (e.g. to hit the course's per-component learning
 requirement), that ticket stays manual for that session — call it out
-when it happens, don't infer it from anything else.
-
-This is a standing default for the current agentic-first period, not a
-per-ticket approval gate. The `[You]`/`[Agentic]` tags were real signals
-back when work was actually being split by owner — they're not fake
-history, they're just not the regime we're in anymore. Finding one on a
-ticket, or a HANDOFF.md/ticket mismatch, is worth one line of mention,
-but it is not grounds to stop and ask which mode to use (via
-AskUserQuestion or otherwise) — that reopens a decision that's already
-made project-wide for now. Note the conflict and proceed agentic.
-(Corrected 2026-08-24 after doing exactly this on G411-67.) If the
-project ever moves back to a split-ownership regime, this default
-reverts and tags become load-bearing again — that would be a new,
-explicit decision in `gavi411-brain.md`, not something to infer.
+when it happens, don't infer it from anything else. If the project ever
+moves back to a split-ownership regime, this default reverts and tags
+become load-bearing again — that would be a new, explicit decision in
+`gavi411-brain.md`, not something to infer.
 
 Two things from the old regime carry forward unchanged:
 - **`[Agentic]`-era comment-stub scaffolds** (decision #52) are still a
@@ -76,6 +81,69 @@ Two things from the old regime carry forward unchanged:
   the reverse. Same underlying reason as before (interleaved transcripts
   become unreadable); see `gavi411-commit-convention.md`'s "Where to
   launch from" section for the full mechanics.
+
+## The four stops — a ticket is not one unbroken chain
+
+**A single instruction like "pick up G411-XX" authorizes exactly one
+thing: starting that ticket.** It is not advance approval for the whole
+arc through to Reconciled. There are four points where work stops and
+Gavi sees something before the next step runs. Read these first, before
+anything else in this file — everything below assumes they hold.
+
+**STOP 1 — At pickup, before any code exists.** State the ticket's
+actual scope in plain terms (so Gavi has it in front of him instead of
+scrolling back). Make the Jira **Open → Implementing** transition and
+write Claim/Falsifier/Evidence-required *now* — investigate → transition
+→ Aegis fields → *then* write or dispatch code, never the reverse
+(decision #114: "Implementing" asserts a fact about the present moment;
+backfilling it after the code exists makes the field lie). Not optional
+busywork deferred until someone asks where the ticket stands
+(decision #104).
+
+**STOP 2 — Mid-flight, on any real ambiguity.** If a decision comes up
+that isn't yours to make (scope, ownership, architecture, a judgment
+call the ticket itself doesn't answer) — stop and bring it to Gavi
+*before* acting on it. Don't resolve it and mention it after the fact.
+
+*How to stop, concretely (2026-08-24, real failure):* a question buried
+mid-paragraph while work keeps moving is not a stop — by the time Gavi
+reads and answers it, tool calls have already run past it, so his answer
+lands as an after-the-fact confirmation of something already done
+instead of a real go/no-go. Caught live on G411-67: the build agent hit
+"what counts as 'closed'?" (a genuine spec ambiguity), picked the
+broader reading itself, and only documented the choice in the PR/Jira
+for later review — Gavi answered it correctly once he spotted it, but
+the code was already written by then. The fix: use `AskUserQuestion` — a
+real blocking pause, no further tool calls on that thread of work — not
+a note-and-continue, and not "pick the defensible option and flag it in
+the final report." This applies even to unattended background agents: if
+the dispatched agent itself can't call `AskUserQuestion`, it must stop
+and hand the question back to the orchestrating session to ask, not
+resolve it unilaterally and move on.
+
+*The mirror-image failure, equally real* (decision #109): once Gavi has
+answered a question, that answer is final for that batch. Re-asking it
+in different words manufactures false ambiguity out of a plain
+instruction. This stop exists for genuinely unresolved questions, not
+for re-confirming answers already given. Likewise, a stale
+`[You]`/`[Agentic]` tag on a ticket is **not** an ambiguity — it gets
+one line of mention while work continues agentically in the same turn,
+never a question (decisions #66, #113 — this exact mistake has already
+happened twice).
+
+**STOP 3 — End-of-ticket rundown, before/alongside the Sibling review.**
+Give Gavi an actual explanation of what was built and how it works — not
+just a diff, not just "done." He needs to be able to explain everything
+submitted (course requirement).
+
+**STOP 4 — Go/no-go before the next ticket.** A clean Sibling review
+does not imply "proceed to the next ticket automatically." Report the
+outcome and let Gavi decide whether to continue, even if nothing looks
+wrong. **Never auto-advance through a queue of tickets.**
+
+When in doubt about scope, ownership, or whether something needs Gavi's
+sign-off — ask. A wrong guess that quietly ships is worse than a
+question that costs one turn.
 
 ## Required workflow — read this every session, not just once
 
@@ -93,19 +161,34 @@ this repo now). A file you read five turns ago may already be stale.
 Before stating what "the current plan" or "current state" is, re-read
 the relevant doc rather than recall it — especially `HANDOFF.md`
 (perishable, changes constantly) and any file a system-reminder says
-changed on disk since you last read it.
+changed on disk since you last read it. **This is the first thing that
+happens in a session, not something to skip because the request sounded
+simple** — see the session-start ritual under "How to work with Gavi."
 
-**2. Log a real decision to `gavi411-brain.md` when it's made, not just
+**2. Don't assert how a tool behaves, or what a doc/ticket/earlier
+message said — check first.** Claims like "this will run unattended,"
+"this chains into the next step automatically," or "this enforces X"
+must be verified against the tool's real description (`ToolSearch`, its
+documented behavior) before being said out loud. This project has
+already hit real instances: an agentic "pilot" was described as
+self-orchestrating when the actual tools only provide background
+dispatch + notification; a ticket was reported as "Reviewing" from
+memory when it was actually still Open (decision #104); a past message
+was claimed to have surfaced an open item when re-reading showed it
+hadn't. If you haven't checked, say so and check, rather than presenting
+a guess as settled fact.
+
+**3. Log a real decision to `gavi411-brain.md` when it's made, not just
 at ticket wrap-up.** (Added 2026-08-31, real gap found live — several
 sessions' worth of genuine standing decisions from a single ticket
 [G411-81, 2026-08-30] sat only in `HANDOFF.md` for over a day and were
 never promoted; they'd have been lost for good the next time
 `HANDOFF.md` got overwritten, since nothing forced the check until that
 ticket's own wrap-up, which itself never happened as a distinct step.)
-The "wrap it up" checklist's step 7 is the backstop, not the primary
-mechanism — waiting until wrap-up is too late if wrap-up gets skipped,
-delayed, or the ticket sprawls across a session boundary first. The
-moment a real standing decision actually gets made mid-session — an
+The "wrap it up" checklist's brain.md step is the backstop, not the
+primary mechanism — waiting until wrap-up is too late if wrap-up gets
+skipped, delayed, or the ticket sprawls across a session boundary first.
+The moment a real standing decision actually gets made mid-session — an
 architectural call, a corrected assumption, a mechanism worth
 remembering next time something similar comes up, anything that should
 outlive this ticket and this HANDOFF.md cycle — add the numbered entry
@@ -116,16 +199,13 @@ When genuinely unsure which a given item is, log it in `gavi411-
 brain.md` — an over-logged status note there is mildly redundant, a
 missed decision is easy to lose for good.
 
-**3. Don't assert how a tool behaves — check its actual spec first.**
-Claims like "this will run unattended," "this chains into the next
-step automatically," or "this enforces X" must be verified against the
-tool's real description (`ToolSearch`, its documented behavior) before
-being said out loud. If you haven't checked, say so and check, rather
-than presenting a guess as settled fact. This project has already hit
-one real instance of this: an agentic "pilot" was described as
-self-orchestrating when the actual tools only provide background
-dispatch + notification — every chaining/review/go-ahead step still
-needs a human or a live session to act on it.
+**If the decision *corrects* a standing instruction written somewhere
+else, edit that instruction too, in the same pass** (decision #115) — a
+correct decision sitting in `gavi411-brain.md` does nothing if the
+checklist in `CLAUDE.md` that sessions actually follow still says the
+opposite. That exact divergence survived from decision #109 (2026-09-03)
+until Gavi had to correct the same mistake "for the 10th time." Logging
+it is not equivalent to fixing it.
 
 **4. Before running `git commit`, verify the file list matches the
 message — never trust stated intent as evidence of the actual diff.**
@@ -142,48 +222,21 @@ actually staged.) Before every commit, run `git status` and/or
 message describes — no more, no fewer. This applies doubly to small,
 low-ceremony commits (a decision-log entry, a doc fix, a one-line nit) —
 those are precisely the ones most likely to skip a deliberate review
-step because they don't feel like they need one.
+step because they don't feel like they need one. **Docs-only commits are
+not an exception to the no-direct-commits-to-`main` rule either**
+(decision #105) — HANDOFF.md/brain.md updates go through a `you/`-prefixed
+branch and PR like everything else.
 
-**5. Three checkpoints per ticket, non-negotiable, regardless of who's
-writing the code** (decision #60's guardrails, restated as concrete
-gates so they can't be silently compressed into one step):
-   - **Mid-flight**: if a real decision comes up that isn't yours to
-     make (scope, ownership, architecture, a judgment call the ticket
-     itself doesn't answer) — stop and bring it to Gavi before acting on
-     it. Don't resolve it and mention it after the fact.
-   - **How to stop, concretely (added 2026-08-24, real failure)**: a
-     question buried mid-paragraph while work keeps moving is not a
-     stop — by the time Gavi reads and answers it, tool calls have
-     already run past it, so his answer lands as an after-the-fact
-     confirmation of something already done instead of a real go/no-go.
-     Caught live on G411-67: the build agent hit "what counts as
-     'closed'?" (a genuine spec ambiguity), picked the broader reading
-     itself, and only documented the choice in the PR/Jira for later
-     review — Gavi answered it correctly once he spotted it, but the
-     code was already written by then. The fix: when a subagent (or the
-     orchestrating session itself) hits this kind of ambiguity, it uses
-     `AskUserQuestion` — a real blocking pause, no further tool calls on
-     that thread of work — not a note-and-continue, and not "pick the
-     defensible option and flag it in the final report." This applies
-     even to unattended background agents: if the dispatched agent
-     itself can't call `AskUserQuestion`, it must stop and hand the
-     question back to the orchestrating session to ask, not resolve it
-     unilaterally and move on.
-   - **End-of-ticket rundown**: before/alongside the Sibling review,
-     give Gavi an actual explanation of what was built and how it
-     works — not just a diff, not just "done." He needs to be able to
-     explain everything submitted (course requirement).
-   - **Go/no-go on the next ticket**: a clean Sibling review does not
-     imply "proceed to the next ticket automatically." Report the
-     outcome and let Gavi decide whether to continue, even if nothing
-     looks wrong. Never auto-advance through a queue of tickets.
-
-**6. Sibling review is mandatory on every agentic child, self-merge only
+**5. Sibling review is mandatory on every agentic child, self-merge only
 after it passes** (decision #62/#63) — checks tests exist and pass, docs/
 `HANDOFF.md` are actually updated, Aegis fields are actually written,
 Jira is actually transitioned. No outside human approval is required or
 expected (decision #63) — but skipping the review itself, or treating a
 green build as sufficient evidence the review happened, is not allowed.
+Read the diff directly; don't just trust the review skill's output.
+Merging is the genuinely hard-to-reverse step in the whole workflow —
+see the "Wrap it up" checklist for how that ranks against the cheap,
+reversible steps around it.
 
 **Post the review conversation as real PR comments, not just chat**
 (added 2026-08-31) — every Sibling review pass gets posted as a PR
@@ -194,22 +247,21 @@ counts). The PR should read as an actual back-and-forth conversation
 between the review and the fix — a full record anyone can read later —
 not something that only exists in a chat transcript. Applies to every
 review/fix cycle on every PR, not just the first one; a PR with 3 rounds
-of review gets 3 rounds of comments.
+of review gets 3 rounds of comments. After any `/code-review ... --comment`
+run, spot-check at least one posted comment's real body via `gh api` —
+the tool has posted local scratch-file paths instead of finding text
+before, and its own "N comments posted" summary doesn't catch it
+(decision #94).
 
-**7. When in doubt about scope, ownership, or whether something needs
-Gavi's sign-off — ask. A wrong guess that quietly ships is worse than a
-question that costs one turn.**
-
-**8. Model split for coding work — Sonnet defines, Haiku codes, Sonnet
+**6. Model split for coding work — Sonnet defines, Haiku codes, Sonnet
 reviews** (decision #110, 2026-09-08, confirmed default after a live
 trial on G411-43): this is the default execution model for every coding
 task now, not just large or mechanical ones.
 - **Sonnet writes the definition first** — actually resolves the hard
   calls (schema/data-model shape, endpoint/API shape, auth/security
   boundaries, which existing pattern in the codebase to follow) and
-  settles any genuinely ambiguous scope question with Gavi via
-  `AskUserQuestion` before dispatch — same mid-flight-stop rule as
-  always, unchanged. The task handed off must be fully specified: exact
+  settles any genuinely ambiguous scope question with Gavi at STOP 2
+  before dispatch. The task handed off must be fully specified: exact
   files, exact route/behavior, exact test cases, and an explicit
   instruction to make the most conservative choice and report rather
   than ask if something remains ambiguous once dispatched.
@@ -219,17 +271,26 @@ task now, not just large or mechanical ones.
   tests, and runs its own build/test pass, but makes no architectural
   calls of its own.
 - **Sonnet does the Sibling review** — unchanged and non-negotiable
-  (see item 6 above); if anything it matters more for Haiku-authored
-  code, especially anywhere near an auth/security boundary. Read the
-  diff directly, don't just trust the review skill's output.
+  (see item 5 above); if anything it matters more for Haiku-authored
+  code, especially anywhere near an auth/security boundary.
 - **Opus escalation is confirm-first, not automatic** — if Sonnet hits a
   specific, pinpointed problem genuinely too hard to resolve alone (a
   subtle bug, an unresolved design tradeoff), ask Gavi before invoking
   Opus for that sub-problem. Never a default fallback.
 - This changes who writes the first draft of the code, nothing else —
-  every other rule in this file (three checkpoints, mandatory Sibling
+  every other rule in this file (the four stops, mandatory Sibling
   review, Aegis fields, Jira transitions, the wrap-up checklist) still
   applies exactly as written.
+
+**7. When a rule keeps getting broken despite already being written
+down, the fix is a mechanism, not another paragraph** (decision #106,
+Gavi's framing: *"they are already both well documented, so what's the
+fix? more documentation isn't it."*). Ask whether the wrong action can
+be made mechanically impossible or immediately loud — a server-side
+rule, a git hook, a lint check — rather than relying on a re-read
+landing at the right second. This is why `main`'s `require-pr-for-main`
+ruleset and `.githooks/pre-push` exist (see Process & discipline →
+Branching).
 
 ## Tech stack
 
@@ -313,12 +374,19 @@ task now, not just large or mechanical ones.
   identity onto another role's branch prefix) — soft, bypassable with
   `--no-verify`, but installed in all 7 worktrees. Full rationale and
   both mistakes that motivated this in `gavi411-brain.md` decision #106.
-- **PR review** (updated 2026-08-24, decision #62/#63): every agentic
-  child gets a live Sibling review from Claude Code before merge — not
-  just load-bearing ones, since agentic is now the default rather than a
-  special case. Self-merge once it passes; no outside human approval
-  required or expected. See "Required workflow" above and full policy in
-  `gavi411-commit-convention.md`.
+- **PR review**: see Required workflow §5 — that's the single statement
+  of the policy. Mechanics (merge strategy, `--admin`, branch cleanup,
+  worktree resync) live in `gavi411-commit-convention.md`. Two mechanical
+  facts worth knowing before you try to merge: every PR merges with a
+  regular merge commit, never `--squash` (decision #68), and a bare
+  `gh pr merge` fails here — `main`'s pre-existing branch protection
+  requires an approving review, so agentic self-merges need
+  `gh pr merge --merge --admin` (decision #103). From an agent-worktree
+  dispatch, `gh pr merge` also fails outright because the primary
+  worktree holds `main` checked out; use the REST form instead —
+  `gh api repos/<owner>/<repo>/pulls/<n>/merge -X PUT -f merge_method=merge`
+  (decision #107). Always use `gh`, never the `github` MCP connector —
+  full stop, not just when it's down (decision #90).
 - **Impeccable** (design skill): do **not** run `/impeccable document`
   before real styled components exist. Correct sequence is: show reference
   screenshots from the inspo board (the image files themselves, not the
@@ -350,22 +418,16 @@ task now, not just large or mechanical ones.
   being asked. A plan presented as "here's what we'll do" that hasn't
   had this pass done is unfinished, even if each individual step sounds
   reasonable in isolation.
-- Agents write by default now (see "Required workflow" above) — build it,
-  and explain your reasoning as you go, at a strength proportional to how
-  much the decision matters. Don't check a ticket's old tag first.
-- If Gavi explicitly says he wants to write a specific ticket himself:
-  brainstorm, explain, review, unstick — don't hand him a finished
-  implementation for that one. He wants to submit work he actually did.
-- Be opinionated but show your reasoning — don't just assert a choice.
-- Async workflow: Gavi does a step, comes back with a result (success or
-  a specific failure), then asks for the next step. Don't assume a
-  previous suggestion was tried unless he says so.
-- **Starting any Jira task**: before diving in, state what the Jira task
-  actually includes (scope, in plain terms) so Gavi has it in front of him
-  instead of having to scroll back through fast-moving turns to find it.
-- **Session-start ritual** (decided together, Setup-steps step 10): at the
-  start of each work session, before touching any code, run these three in
-  order —
+- **Session-start ritual** (decided together, Setup-steps step 10). Run
+  these in order at the start of each work session, **before touching any
+  code — including when the session opens with a short, concrete-sounding
+  instruction like "pick up G411-XX."** A simple request is not a reason
+  to skip the ritual; it's the case where skipping is most tempting and
+  most costly, because a session that skipped the recap has no idea what
+  the last one left half-finished.
+  0. **Read the docs, don't recall them**: `HANDOFF.md`, this file, and
+     `gavi411-brain.md` (Required workflow §1). Other sessions edit all
+     three between your turns.
   1. **Recap**: check `Setup-steps.md`, the Jira backlog, and `git status`/
      `git log` across the main worktree; give Gavi a short (3-5 line)
      "here's where we left off, here's what's next" summary.
@@ -374,65 +436,97 @@ task now, not just large or mechanical ones.
      background subagents — what's in progress, what's done and needs
      review/merge, what's stalled or needs a decision.
   3. **Pick the task**: agree explicitly with Gavi which Jira task he's
-     picking up this session before any code gets touched. If it's a Task
-     moving into Implementing, this is also when its Claim/Falsifier/
-     Evidence-required field get written (decision #50 — at pickup time,
-     against real state, not pre-drafted). Also re-check the task's
-     Description field against `gavi411-prd.md` and
-     `gavi411-task-list-source.md` for staleness (2026-08-19: descriptions
-     were batch-populated from these sources — if the PRD or source doc
-     changed since, the ticket's description may be out of date; fix it
-     before starting work, don't silently work against a stale one).
-- **"Wrap it up"** — codeword. Run every step below, every time, in order.
-  This replaces the old prose version of this instruction — that version
-  is why G411-11's Jira ticket sat at Open for multiple sessions after
-  "wrap it up" was said twice: the habitual steps (commit, HANDOFF.md)
-  ran, the one requiring a separate tool call (Jira transition) silently
-  didn't, and nothing surfaced the gap. The fix is step 8 — a mandatory
-  itemized report, not a summary — so a skipped step is visible in the
-  same turn instead of discovered days later.
+     picking up this session before any code gets touched. Work the
+     lowest-numbered Open child of the Epic already in progress — Epics
+     go in strict order, and a ticket being "crucial" never jumps it
+     ahead of the queue. Re-check the task's Description field against
+     `gavi411-prd.md` and `gavi411-task-list-source.md` for staleness
+     (2026-08-19: descriptions were batch-populated from these sources —
+     if the PRD or source doc changed since, the ticket's description may
+     be out of date; fix it before starting work, don't silently work
+     against a stale one). Then proceed to **STOP 1** — state the scope,
+     transition Open → Implementing, write the Aegis fields, and only
+     then write code.
+- **Filing a new ticket**: set the real parent field at creation (not just
+  the parent's name in the description text), and check the candidate
+  parent Epic is **not already Reconciled** — "this is where the related
+  code lives" isn't sufficient if that epic has closed (decision #108).
+  Pick whichever currently-open epic is the next-best fit. If the ticket's
+  own nature implies an ordering constraint within its epic (a stress test
+  needs a built system to stress-test), state that explicitly at filing
+  time rather than leaving it implicit (decision #116).
+- Agents write by default (see "Ownership split" above) — build it, and
+  explain your reasoning as you go, at a strength proportional to how much
+  the decision matters. If Gavi explicitly says he wants to write a
+  specific ticket himself: brainstorm, explain, review, unstick — don't
+  hand him a finished implementation for that one. He wants to submit work
+  he actually did.
+- Be opinionated but show your reasoning — don't just assert a choice.
+- Async workflow: Gavi does a step, comes back with a result (success or
+  a specific failure), then asks for the next step. Don't assume a
+  previous suggestion was tried unless he says so.
+- **"Wrap it up"** — codeword. Run every step below, every time, in the
+  order given — this is now real execution order (merge *before* the
+  status that claims the code is merged), not the order they were
+  historically written in. This replaces the old prose version of this
+  instruction — that version is why G411-11's Jira ticket sat at Open
+  for multiple sessions after "wrap it up" was said twice: the habitual
+  steps (commit, HANDOFF.md) ran, the one requiring a separate tool call
+  (Jira transition) silently didn't, and nothing surfaced the gap. The
+  fix is the final step — a mandatory itemized report, not a summary —
+  so a skipped step is visible in the same turn instead of discovered
+  days later.
+
+  Each step needs its own tool call. None of them happens as a side
+  effect of any other.
+
   1. **Scope check** — re-read the task's actual Jira scope, confirm what
-     was done matches it (not more, not less).
+     was done matches it (not more, not less). If the scope grew after
+     the ticket first reached Landed, re-verify what's *actually* merged
+     before trusting any later status (decision #57).
   2. **Falsifier** — confirm or re-confirm it against real system state,
      not memory of what should be true.
-  3. **Aegis fields** — write/update Claim, Falsifier, Evidence on the
-     Jira child.
-  4. **Evidence bar** — actually run the check (curl, test, build) fresh,
+  3. **Evidence bar** — actually run the check (curl, test, build) fresh,
      right now — not "it passed earlier."
-  5. **Jira transition** — move the ticket's status field explicitly,
-     using the named transitions ("Reviewing → Landed" once code is
-     actually merged/live, then "Landed → Reconciled" once acceptance
-     criteria are re-checked against that landed state, per spec §5.5).
-     These are two separate transitions, not one — don't collapse them.
-     **Landed → Reconciled is NOT the hard-to-reverse action and does
-     NOT need a confirm-first pause** (corrected 2026-09-08, decision
-     #115 — this line previously said the opposite and Gavi had to
-     correct it live multiple times, "for the 10th time" on the most
-     recent one; a Jira status field is cheap and reversible). The
-     actual hard-to-reverse action in this checklist is **merging**
-     (step 6) — that's still self-merge-if-routine per the existing
-     Sibling-review policy, not an extra gate on top of it, but it's the
-     step that's genuinely hard to undo, not this one. Do the Landed →
-     Reconciled transition directly, same as every other step in this
-     list — it does not happen as a side effect of steps 1-4, it still
-     needs its own tool call, every time, just not a pause for approval.
-  6. **Commit** — self-merge if routine, flag for a live Sibling review
-     first if load-bearing (see `gavi411-commit-convention.md`).
-  7. **HANDOFF.md** — update with current state. **Also check
-     `gavi411-brain.md`** (added 2026-08-31, real gap found live —
-     several sessions' worth of genuine standing decisions accumulated
-     only in HANDOFF.md and were never promoted, going stale/lost once
-     HANDOFF.md's own perishable content got overwritten): if this
-     ticket produced a decision that should outlive this ticket and this
-     HANDOFF.md cycle — a real architectural/process call, a corrected
-     assumption, a mechanism worth remembering the next time something
-     similar comes up — add it to brain.md's numbered decision log now,
-     not "later." A one-line status update belongs in HANDOFF.md only; a
-     decision belongs in brain.md too. When genuinely unsure which a
-     given item is, err toward logging it in brain.md — HANDOFF.md gets
-     overwritten and a missed decision is easy to lose for good, while an
-     over-logged status note in brain.md is just mildly redundant.
-  8. **Full sync check, every worktree** (added 2026-08-25, real gap
+  4. **Aegis fields** — write/update Claim, Falsifier, Evidence on the
+     Jira child. These are real Jira **custom fields**
+     (`customfield_10073`–`10079`), not description prose or a comment —
+     the field-ID table lives in `gavi411-jira-aegis-template.md`
+     (decision #99).
+  5. **Merge** — the one genuinely hard-to-reverse action in this list.
+     Self-merge if routine, once the Sibling review has passed (see
+     Required workflow §5); flag for a live review first if load-bearing.
+     See `gavi411-commit-convention.md` for identity/branch/worktree
+     mechanics.
+  6. **Jira transition** — now that code is actually merged/live, move
+     the status field explicitly using the named transitions: "Reviewing
+     → Landed", then "Landed → Reconciled" once acceptance criteria are
+     re-checked against that landed state (spec §5.5). Two separate
+     transitions, not one — don't collapse them.
+     **Landed → Reconciled is NOT hard-to-reverse and does NOT need a
+     confirm-first pause** (decision #115 — this line previously said the
+     opposite and Gavi had to correct it live repeatedly, "for the 10th
+     time" on the most recent; a Jira status field is cheap and trivially
+     reversible). Do it directly, same as every other step here. But a
+     wrap-up report must never show a ticket sitting at Landed with a
+     transition checkmark and no mention of the open Reconcile question —
+     Landed is not a done state (decision #104).
+  7. **HANDOFF.md** — update with current state.
+  8. **`gavi411-brain.md`** — its own step, not a sub-clause of
+     HANDOFF.md (added 2026-08-31, real gap found live: several sessions'
+     worth of genuine standing decisions accumulated only in HANDOFF.md
+     and were never promoted, going stale/lost once HANDOFF.md's own
+     perishable content got overwritten). If this ticket produced a
+     decision that should outlive it — a real architectural/process call,
+     a corrected assumption, a mechanism worth remembering next time —
+     add it to the numbered log now, not "later." A one-line status
+     update belongs in HANDOFF.md only; a decision belongs here too. When
+     genuinely unsure which a given item is, err toward brain.md — an
+     over-logged status note there is mildly redundant, a missed decision
+     is easy to lose for good. And if the decision corrects a standing
+     instruction elsewhere, edit that instruction in the same pass
+     (Required workflow §3).
+  9. **Full sync check, every worktree** (added 2026-08-25, real gap
      found live — "sync git" was reported done while the primary
      worktree still had two uncommitted files sitting in it, and
      separately a role worktree had silently diverged from `main`).
@@ -448,11 +542,12 @@ task now, not just large or mechanical ones.
      (`git diff origin/main HEAD --stat`) to confirm the branch has
      nothing unique `main` lacks, per `gavi411-commit-convention.md`'s
      "Resync the role worktree right after its own PR merges" section.
-  9. **Report back** — one line per step above, ✓ or ✗, so a skipped step
-     is visible immediately. Example: "Scope ✓ · Falsifier ✓ · Aegis
-     fields ✓ · Evidence ✓ · Jira → Reconciled ✓ · Committed ✓ ·
+  10. **Report back** — one line per step above, ✓ or ✗, so a skipped
+     step is visible immediately. Example: "Scope ✓ · Falsifier ✓ ·
+     Evidence ✓ · Aegis fields ✓ · Merged ✓ · Jira → Reconciled ✓ ·
      HANDOFF.md ✓ · brain.md ✓ (or N/A if nothing decision-worthy) ·
-     Worktrees synced ✓." Then say what's next on the spine.
+     Worktrees synced ✓." Then say what's next on the spine — and stop
+     there (STOP 4), don't start it.
 - **Context-window handoff** (decided 2026-08-18): there's no verified way
   for Claude Code to read its own exact context-usage % — don't trust
   claims of a `CLAUDE_CONTEXT_TOKEN_COUNT`-style env var or similar; none
@@ -470,34 +565,24 @@ task now, not just large or mechanical ones.
 
 ## Current state
 
-**G411-1 (Foundation epic) Reconciled** — all 8 children (G411-10 through
-G411-17: DB schema, Express skeleton, React setup, Clerk OAuth, bidi text
-rendering, PWA baseline, deploy pipeline, design system foundation) are
-Reconciled in Jira. `prisma/schema.prisma` written/validated/formatted;
-`server/` scaffolded (`package.json` ES modules, Express/Prisma 6/dotenv,
-comment-stubbed `server.js`/`routes/requests.js`/`lib/prisma.js`); `client/`
-scaffolded. Parent 2 (Requests/Intake) is well underway — G411-18 through
-23, G411-65, G411-66, G411-67, G411-63, and G411-73 all Reconciled.
-Friends now hit a real Clerk sign-in screen (G411-66), have a request
-list/home screen with backing `GET`/`PATCH` routes (G411-67), keyword
-matching is word-boundary-aware not naive substring (G411-63), and a
-manual dark/light/system theme toggle exists on top of the auto
-`prefers-color-scheme` behavior that shipped silently with G411-17
-(G411-73). A live-state gap analysis (2026-08-24) found and fixed two
-real issues beyond doc-level scope: the deployed Vercel frontend had no
-working backend connection at all (fixed, `client/vercel.json`, part of
-G411-16's correction) and three intake-path bugs (G411-72, Reconciled —
-unauthenticated `/match` route, a duplicate seeded keyword, a missing DB
-uniqueness constraint). Parent 2 (Requests/Intake) is now fully
-Reconciled, including G411-64/74 (intake flow visual redesign/content
-regroup). Work has moved into Parent 3 (Messaging/E2E) and Parent 5
-(Admin Cockpit) — G411-76 (Clerk sync + admin role) is Reconciled;
-G411-28 (target E2E), G411-41 (invite mechanism + admin UI), and
-G411-81 (invite-gating decision) are active as of 2026-08-30. Real-time
-status/next task always lives in `HANDOFF.md`, not here — check that
-file, not this stale-prone summary, for what's actually next.
+**Real-time status and the next task live in `HANDOFF.md` — read that,
+not a summary here.** This section previously carried a hand-maintained
+narrative of which Epics/children were Reconciled; it went stale
+repeatedly (it still described work as "active as of 2026-08-30" long
+after encryption was paused per decision #98 and later epics were
+underway), which is exactly the failure Required workflow §1 exists to
+prevent. Removed deliberately rather than re-written, so there is one
+authority for current state instead of two that can disagree.
 
-Folder naming: **`server/`** and **`client/`**, not `backend`/`frontend`.
+Standing structural facts that don't go stale:
+- Folder naming is **`server/`** and **`client/`**, not
+  `backend`/`frontend`.
+- Epics are worked in strict order; Foundation (G411-1) and
+  Requests/Intake (G411-2) are long since Reconciled.
+- E2E messaging encryption is **paused** and explicitly optional/stretch
+  (decision #98) — the rest of the product finishes first. Message
+  content is plaintext-in-DB in the meantime. Read
+  `gavi411-e2e-encryption-plan.md` before touching anything in that area.
 
 ## Future doc structure (not yet)
 

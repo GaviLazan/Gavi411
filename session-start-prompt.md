@@ -1,7 +1,7 @@
 # Gavi411 session-start prompt
 
 Pick up where we left off, per HANDOFF.md and CLAUDE.md. Follow CLAUDE.md's
-Required workflow section in full — including the three checkpoints and the
+"The four stops" and Required workflow sections in full — including the
 mandatory Sibling review before self-merge. Use ScheduleWakeup to check in on
 any dispatched agent instead of waiting on me to prompt you.
 
