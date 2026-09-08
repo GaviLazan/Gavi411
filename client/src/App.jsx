@@ -10,6 +10,7 @@ import InviteAdmin from './pages/InviteAdmin'
 import TriggerAdmin from './pages/TriggerAdmin'
 import AdminCreateRequest from './pages/AdminCreateRequest'
 import CompleteProfile from './pages/CompleteProfile'
+import ProfilePage from './pages/ProfilePage'
 import ConfirmModal from './components/ConfirmModal'
 import Button from './components/Button'
 import { useTheme } from './useTheme'
@@ -57,7 +58,7 @@ const THEME_LABEL = { system: 'Auto', light: 'Light', dark: 'Dark' }
 function App() {
   const { isSignedIn, user } = useUser()
   const { signOut } = useClerk()
-  const [view, setView] = useState('list') // 'list' | 'new' | 'install-help' | 'detail' | 'invite-admin' | 'trigger-admin' | 'admin-create-request'
+  const [view, setView] = useState('list') // 'list' | 'new' | 'install-help' | 'detail' | 'invite-admin' | 'trigger-admin' | 'admin-create-request' | 'profile'
   const [selectedRequestId, setSelectedRequestId] = useState(null)
   const [newRequestHasText, setNewRequestHasText] = useState(false)
   const [showLogoDiscardConfirm, setShowLogoDiscardConfirm] = useState(false)
@@ -196,6 +197,8 @@ function App() {
   const isAdmin = role === 'ADMIN'
   const [needsProfileCompletion, setNeedsProfileCompletion] = useState(false)
   const [userProfilePic, setUserProfilePic] = useState(null)
+  // G411-80: store the full user object from /api/me for the ProfilePage
+  const [fetchedUser, setFetchedUser] = useState(null)
   const [unauthorized, setUnauthorized] = useState(false)
   // Sibling review finding: a thrown /api/me fetch (network blip, Render
   // cold-start timeout) used to be silently swallowed by an empty catch,
@@ -229,6 +232,8 @@ function App() {
           const phoneNumber = data.user?.phoneNumber
           setNeedsProfileCompletion(phoneNumber?.startsWith('pending-') ?? false)
           setUserProfilePic(data.user?.profilePic ?? null)
+          // G411-80: store the full user object for ProfilePage access
+          setFetchedUser(data.user)
         }
       })
       .catch(() => setRoleFetchFailed(true))
@@ -280,10 +285,18 @@ function App() {
         {/* Minimal account indicator + sign-out, until a real account
             menu exists — Gavi's call: keep this, don't strip it, once a
             nicer version is built it replaces this rather than removing
-            it outright. */}
+            it outright. G411-80: profile text is clickable to open the
+            profile editor, Sign out button stays separate. */}
         {isSignedIn && (
           <span className="account-indicator">
-            {user?.primaryEmailAddress?.emailAddress || user?.id}{' '}
+            <button
+              type="button"
+              className="account-indicator-trigger"
+              onClick={() => setView('profile')}
+            >
+              {fetchedUser?.username || user?.primaryEmailAddress?.emailAddress || user?.id}
+            </button>
+            {' '}
             <button type="button" onClick={() => signOut()}>Sign out</button>
           </span>
         )}
@@ -412,6 +425,16 @@ function App() {
             <TriggerAdmin onBack={() => setView('list')} />
           ) : view === 'admin-create-request' ? (
             <AdminCreateRequest onBack={() => setView('list')} />
+          ) : view === 'profile' ? (
+            <ProfilePage
+              user={fetchedUser}
+              onBack={() => setView('list')}
+              onUpdated={(updatedUser) => {
+                // Update locally cached user fields
+                setFetchedUser(updatedUser)
+                setUserProfilePic(updatedUser?.profilePic ?? null)
+              }}
+            />
           ) : view === 'detail' ? (
             <RequestDetail requestId={selectedRequestId} onBack={() => setView('list')} isAdmin={isAdmin} />
           ) : roleFetchFailed ? (

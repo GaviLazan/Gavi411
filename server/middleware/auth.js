@@ -154,6 +154,9 @@ export async function requireAuth(req, res, next) {
             // (Google/email sign-in) if available. For email-only signup
             // (no OAuth photo), leave as null (schema default).
             ...(clerkUser.hasImage ? { profilePic: clerkUser.imageUrl } : {}),
+            // G411-80: pull username from Clerk at signup (nullable like
+            // Clerk's own username field — some accounts don't have one).
+            username: clerkUser.username ?? null,
             // G411-45: initial grant is no longer hardcoded 0 (real bug —
             // new users couldn't submit even one request until manually
             // topped up). NOT yet tiered by group in practice: groupTag
