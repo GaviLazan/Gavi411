@@ -88,6 +88,32 @@ function ProfilePage({ user, onBack, onUpdated }) {
     return dialCode + withoutLeadingZero
   }
 
+  // G411-80: our DB only pulls username/name/email from Clerk once, at
+  // first-login signup — an edit made in Clerk's native account modal
+  // (the "Update account info" button below) never reaches Prisma on its
+  // own, not even after a sign-out/sign-in (found live — sign-in only
+  // re-finds the existing row, it never re-creates it). Real fix is a
+  // Clerk webhook (needs Gavi's dashboard access, out of scope here).
+  // Cheaper stopgap: sync on the way out of this screen — the one place
+  // in the app that sends someone to Clerk's modal — so a same-session
+  // edit is caught without waiting for a reload. The server diffs
+  // against Prisma and only writes what actually changed.
+  async function handleBack() {
+    try {
+      const res = await fetch('/api/me/sync-from-clerk', { method: 'POST' })
+      if (res.ok) {
+        const data = await res.json()
+        if (data.changed) {
+          onUpdated(data.user)
+          await clerkUser?.reload()
+        }
+      }
+    } catch {
+      // Best-effort — a failed sync shouldn't block navigating back.
+    }
+    onBack()
+  }
+
   function startEditingPhone() {
     setError(null)
     setEditingPhone(true)
@@ -187,7 +213,7 @@ function ProfilePage({ user, onBack, onUpdated }) {
             <button type="button" onClick={startEditingPhone}>
               Update phone number
             </button>
-            <button type="button" onClick={onBack}>
+            <button type="button" onClick={handleBack}>
               Back
             </button>
           </div>

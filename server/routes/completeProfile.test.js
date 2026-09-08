@@ -10,11 +10,21 @@ const USER = 'user_regular'
 const ADMIN = 'user_admin'
 
 const usersByClerkId = {
-  [USER]: { clerkId: USER, role: 'USER' },
-  [ADMIN]: { clerkId: ADMIN, role: 'ADMIN' },
+  [USER]: { clerkId: USER, role: 'USER', username: null, firstName: 'John', lastName: 'Doe', email: 'john@example.com' },
+  [ADMIN]: { clerkId: ADMIN, role: 'ADMIN', username: null, firstName: 'Admin', lastName: 'User', email: 'admin@example.com' },
 }
 
 let currentUserId = null
+
+const clerkClientMock = {
+  users: {
+    getUser: vi.fn(),
+  },
+}
+
+vi.mock('@clerk/express', () => ({
+  clerkClient: clerkClientMock,
+}))
 
 vi.mock('../middleware/auth.js', () => ({
   requireAuth: (req, res, next) => {
@@ -268,5 +278,66 @@ describe('PATCH /api/me/profile', () => {
       .send({ phoneNumber: '050-1234567' })
     expect(res.status).toBe(404)
     expect(res.body.error).toBe('Account not found')
+  })
+})
+
+describe('POST /api/me/sync-from-clerk', () => {
+  it('401s when signed out', async () => {
+    const res = await request(app).post('/api/me/sync-from-clerk')
+    expect(res.status).toBe(401)
+  })
+
+  it('writes only the fields that changed (username backfill, name/email untouched)', async () => {
+    currentUserId = USER
+    clerkClientMock.users.getUser.mockResolvedValue({
+      username: 'johnny',
+      firstName: 'John',
+      lastName: 'Doe',
+      emailAddresses: [{ id: 'em_1', emailAddress: 'john@example.com' }],
+      primaryEmailAddressId: 'em_1',
+    })
+    prismaMock.user.update.mockResolvedValue({ ...usersByClerkId[USER], username: 'johnny' })
+    const res = await request(app).post('/api/me/sync-from-clerk')
+    expect(res.status).toBe(200)
+    expect(res.body.changed).toBe(true)
+    const callArgs = prismaMock.user.update.mock.calls[0][0]
+    expect(callArgs.data).toEqual({ username: 'johnny' })
+  })
+
+  it('reports changed: false and skips the write when nothing drifted', async () => {
+    currentUserId = USER
+    clerkClientMock.users.getUser.mockResolvedValue({
+      username: null,
+      firstName: 'John',
+      lastName: 'Doe',
+      emailAddresses: [{ id: 'em_1', emailAddress: 'john@example.com' }],
+      primaryEmailAddressId: 'em_1',
+    })
+    const res = await request(app).post('/api/me/sync-from-clerk')
+    expect(res.status).toBe(200)
+    expect(res.body.changed).toBe(false)
+    expect(prismaMock.user.update).not.toHaveBeenCalled()
+  })
+
+  it('502s if the Clerk fetch fails', async () => {
+    currentUserId = USER
+    clerkClientMock.users.getUser.mockRejectedValue(new Error('Clerk API error'))
+    const res = await request(app).post('/api/me/sync-from-clerk')
+    expect(res.status).toBe(502)
+    expect(prismaMock.user.update).not.toHaveBeenCalled()
+  })
+
+  it('409s if the synced value now conflicts with another account', async () => {
+    currentUserId = USER
+    clerkClientMock.users.getUser.mockResolvedValue({
+      username: 'taken',
+      firstName: 'John',
+      lastName: 'Doe',
+      emailAddresses: [{ id: 'em_1', emailAddress: 'john@example.com' }],
+      primaryEmailAddressId: 'em_1',
+    })
+    prismaMock.user.update.mockRejectedValue(uniqueViolation())
+    const res = await request(app).post('/api/me/sync-from-clerk')
+    expect(res.status).toBe(409)
   })
 })
