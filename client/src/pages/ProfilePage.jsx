@@ -143,6 +143,17 @@ function ProfilePage({ user, onBack, onUpdated }) {
       }
 
       const data = await res.json()
+      // Bug found live (Gavi): the header's account-indicator reads from
+      // Clerk's own client-side useUser() object, not our /api/me-backed
+      // state — onUpdated only refreshes the latter. Our PATCH changes
+      // Clerk's record via the server's secret key, which the browser's
+      // already-loaded Clerk SDK has no way to know about on its own, so
+      // the indicator kept showing the old name/email until a full page
+      // reload re-fetched it. Explicitly reload the client-side Clerk
+      // user so it's fresh before the account-indicator re-renders.
+      if (firstName !== initialValues.firstName || lastName !== initialValues.lastName || email !== initialValues.email) {
+        await clerkUser?.reload()
+      }
       onUpdated(data.user)
       onBack()
     } catch (err) {
