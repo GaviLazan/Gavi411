@@ -89,6 +89,53 @@ describe('requireAuth', () => {
     expect(next).toHaveBeenCalled()
   })
 
+  it('saves the OAuth profile photo on creation when Clerk has one (G411-69)', async () => {
+    mockGetAuth.mockReturnValue({ userId: 'user_new' })
+    mockFindUnique.mockResolvedValue(null)
+    mockClaimInvite.mockResolvedValue(true)
+    mockGetUser.mockResolvedValue({
+      firstName: 'Gavi',
+      lastName: 'Lazan',
+      primaryEmailAddressId: 'idn_1',
+      emailAddresses: [{ id: 'idn_1', emailAddress: 'gavriel.lazan@gmail.com' }],
+      hasImage: true,
+      imageUrl: 'https://img.clerk.com/real-photo.jpg',
+    })
+    mockCreate.mockResolvedValue({ clerkId: 'user_new' })
+    const req = { headers: { 'x-invite-token': 'tok123' } }
+    const res = mockRes()
+    const next = vi.fn()
+
+    await requireAuth(req, res, next)
+
+    expect(mockCreate).toHaveBeenCalledWith({
+      data: expect.objectContaining({ profilePic: 'https://img.clerk.com/real-photo.jpg' }),
+    })
+  })
+
+  it('does not set a fake profilePic when Clerk has no OAuth photo (email signup, G411-69)', async () => {
+    mockGetAuth.mockReturnValue({ userId: 'user_new' })
+    mockFindUnique.mockResolvedValue(null)
+    mockClaimInvite.mockResolvedValue(true)
+    mockGetUser.mockResolvedValue({
+      firstName: 'Gavi',
+      lastName: 'Lazan',
+      primaryEmailAddressId: 'idn_1',
+      emailAddresses: [{ id: 'idn_1', emailAddress: 'gavriel.lazan@gmail.com' }],
+      hasImage: false,
+      imageUrl: 'https://img.clerk.com/generated-default.jpg',
+    })
+    mockCreate.mockResolvedValue({ clerkId: 'user_new' })
+    const req = { headers: { 'x-invite-token': 'tok123' } }
+    const res = mockRes()
+    const next = vi.fn()
+
+    await requireAuth(req, res, next)
+
+    const createArgs = mockCreate.mock.calls[0][0]
+    expect(createArgs.data).not.toHaveProperty('profilePic')
+  })
+
   it('grants the tiered initial credit balance on creation, not 0 (G411-45)', async () => {
     mockGetAuth.mockReturnValue({ userId: 'user_new' })
     mockFindUnique.mockResolvedValue(null)

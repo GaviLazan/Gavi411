@@ -8,6 +8,7 @@ import devicesRouter from './routes/devices.js'
 import pushSubscriptionsRouter from './routes/pushSubscriptions.js'
 import triggersRouter from './routes/triggers.js'
 import presenceRouter from './routes/presence.js'
+import completeProfileRouter from './routes/completeProfile.js'
 import cors from 'cors'
 import { clerkMiddleware, requireAuth } from './middleware/auth.js'
 import { prisma } from './lib/prisma.js'
@@ -29,6 +30,7 @@ app.use('/api/devices', devicesRouter)
 app.use('/api/push', pushSubscriptionsRouter)
 app.use('/api/triggers', triggersRouter)
 app.use('/api/presence', presenceRouter)
+app.use('/api/me', completeProfileRouter)
 
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok' })

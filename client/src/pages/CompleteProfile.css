@@ -1,0 +1,50 @@
+/* G411-69 — Complete profile page. Fields stack one per line, same
+   pattern as AdminCreateRequest.css. Sibling review finding: the first
+   draft invented its own button/select styling (literal 4px radii,
+   1rem/0.9rem font-sizes) with no source in index.css's actual design
+   tokens (--radius-sm/md/lg, no bare 4px anywhere) — stripped back to
+   layout-only rules, letting bare <button>/<select>/<input> render with
+   the app's real global styles, same as every other minimal page this
+   session (InviteAdmin/TriggerAdmin/AdminCreateRequest). */
+.complete-profile form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  max-width: 420px;
+}
+
+.complete-profile label {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.phone-input-group {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.phone-input-group select {
+  flex: 0 0 auto;
+}
+
+.phone-input-group input {
+  flex: 1;
+  min-width: 0;
+}
+
+.complete-profile select,
+.complete-profile input {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.photo-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.photo-section h3 {
+  margin: 0;
+}
