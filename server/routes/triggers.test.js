@@ -110,6 +110,13 @@ describe('POST /api/triggers', () => {
     expect(res.status).toBe(400)
   })
 
+  it('400s on an invalid requestType instead of reaching Prisma (Sibling review finding)', async () => {
+    currentUserId = ADMIN
+    const res = await request(app).post('/api/triggers').send({ keyword: 'flight', requestType: 'BOGUS' })
+    expect(res.status).toBe(400)
+    expect(prismaMock.trigger.create).not.toHaveBeenCalled()
+  })
+
   it('trims the keyword and creates it', async () => {
     currentUserId = ADMIN
     prismaMock.trigger.create.mockImplementation(({ data }) => ({ id: 1, ...data }))

@@ -17,7 +17,10 @@ function TriggerAdmin({ onBack }) {
 
   function loadTriggers() {
     fetch('/api/triggers')
-      .then((res) => res.json())
+      .then((res) => {
+        if (!res.ok) throw new Error('Failed to load')
+        return res.json()
+      })
       .then(setTriggers)
       .catch(() => setError('Could not load triggers.'))
   }

@@ -5,11 +5,12 @@
 // keyword, per PRD §6.2. Seed data (G411-20) populates the initial rows;
 // this is just the admin-editable layer on top.
 import express from 'express'
-import { Prisma } from '@prisma/client'
+import { Prisma, RequestType } from '@prisma/client'
 import { requireAuth, requireAdmin } from '../middleware/auth.js'
 import { prisma } from '../lib/prisma.js'
 
 const router = express.Router()
+const VALID_REQUEST_TYPES = Object.values(RequestType)
 
 // GET / — list all triggers, grouped implicitly by requestType via sort
 // (client groups for display). Admin-only: friends never see or need
@@ -26,6 +27,15 @@ router.post('/', requireAuth, requireAdmin, async (req, res) => {
   const { keyword, requestType } = req.body
   if (!keyword?.trim() || !requestType) {
     return res.status(400).json({ error: 'keyword and requestType are required' })
+  }
+  // Sibling review finding: an invalid requestType used to reach Prisma
+  // and throw a PrismaClientValidationError, which isn't a
+  // PrismaClientKnownRequestError — the catch below's instanceof checks
+  // missed it, and with no global error handler in server.js it surfaced
+  // as a raw unhandled 500. Reject it here instead, same as the missing-
+  // field check above.
+  if (!VALID_REQUEST_TYPES.includes(requestType)) {
+    return res.status(400).json({ error: 'requestType is not a valid RequestType' })
   }
   try {
     const trigger = await prisma.trigger.create({
