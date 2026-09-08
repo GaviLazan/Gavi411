@@ -596,6 +596,8 @@ Both paths land at net −1 lifetime cost for "one round of help," which is the 
 
 **Also decided in this same conversation**: filed G411-97 (parented under G411-6/Credits epic, not G411-5) — the credit system's individual mechanisms (creation deduction, refund-on-exit, now reopen-recharge) each have route-level unit tests, but nothing exercises the full multi-cycle lifecycle, concurrency/race safety on the charge itself, or a drift-detection check that `CreditTransaction`'s running sum always matches `User.creditBalance`. Gavi's explicit call, not build-time scope creep on G411-90 itself.
 
+**G411-97 is necessarily the LAST child of Epic 6 (Credits), not just "somewhere in Epic 6"** — this is a direct logical consequence of what the ticket is (a stress test needs a built system to stress-test), not a separate preference Gavi stated and this session needed to be told to log. Missed drawing that conclusion live when G411-97 was filed; Gavi caught it after the fact ("It's also 1st grade logic: You can't stress test a system if you don't have a system to test"). When a ticket's own nature implies an ordering constraint within its epic (a test needs its subject built first, a migration needs its source built first, etc.), that constraint should be stated explicitly at filing time, in the ticket description or right there in conversation — not left implicit for Gavi to have to point out later.
+
 ## 7. Not Yet Discussed
  
 - Data model, architecture, tech decisions (schema itself not yet drafted — first task on deck).
