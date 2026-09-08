@@ -62,6 +62,11 @@ function App() {
   const { theme, cycleTheme } = useTheme()
   const [isOnline, setIsOnline] = useState(true)
   const [presenceToggling, setPresenceToggling] = useState(false)
+  // Sibling review finding: a failed PATCH (network blip, cold-start
+  // timeout) used to silently re-enable the button with the stale label
+  // and zero feedback — same silent-failure class already fixed for
+  // roleFetchFailed/escrowBackupFailed elsewhere in this file.
+  const [presenceToggleError, setPresenceToggleError] = useState(false)
 
   // G411-43: fetch and display current presence status on mount
   // (every signed-in user should see whether Gavi is online)
@@ -283,12 +288,15 @@ function App() {
           </button>
         )}
         {/* G411-43: admin presence toggle (online/offline status) — friends
-            see the status via the banner below, only admin can change it. */}
+            see the status via the banner below, only admin can change it.
+            disabled={presenceToggling} also blocks a fast double-click from
+            firing two PATCHes off the same stale isOnline value. */}
         {isAdmin && (
           <button
             type="button"
             onClick={async () => {
               setPresenceToggling(true)
+              setPresenceToggleError(false)
               try {
                 const res = await fetch('/api/presence', {
                   method: 'PATCH',
@@ -298,9 +306,11 @@ function App() {
                 if (res.ok) {
                   const data = await res.json()
                   setIsOnline(data.isOnline)
+                } else {
+                  setPresenceToggleError(true)
                 }
-              } catch (err) {
-                console.error('Failed to toggle presence:', err)
+              } catch {
+                setPresenceToggleError(true)
               } finally {
                 setPresenceToggling(false)
               }
@@ -310,6 +320,7 @@ function App() {
             {presenceToggling ? '…' : isOnline ? 'Go offline' : 'Go online'}
           </button>
         )}
+        {presenceToggleError && ' Failed to update — try again.'}
         {/* Minimal account indicator + sign-out, until a real account
             menu exists — Gavi's call: keep this, don't strip it, once a
             nicer version is built it replaces this rather than removing

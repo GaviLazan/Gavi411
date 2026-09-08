@@ -18,9 +18,11 @@ router.get('/', async (req, res) => {
   const presence = await prisma.presence.findUnique({
     where: { id: 'singleton' },
   })
-  // Defensive: if the row doesn't exist (shouldn't happen post-migration,
-  // but be graceful), default to online rather than erroring out and
-  // blocking the entire app.
+  // This branch IS reachable, not just defensive dead code: the migration
+  // only creates the table, it never seeds a row, and seed.js has no
+  // Presence insert either — so any fresh/newly-migrated DB has no row
+  // until the first admin PATCH. Default to online rather than erroring
+  // out and blocking the entire app in that window.
   if (!presence) {
     return res.json({ isOnline: true })
   }
