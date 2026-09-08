@@ -575,6 +575,27 @@ decision is a correction to existing written guidance, check whether that
 guidance needs a direct edit as part of landing the decision — don't treat
 "it's in brain.md now" as equivalent to "the wrong instruction is gone."
 
+### Decision #116 — Reopen-after-refund is asymmetric by design: a no-refund exit reopens free, a refunded exit recharges — NOT the same net cost arrived at two ways (2026-09-08, G411-90)
+
+Designing G411-90 (reopen must re-charge a credit when the request it's reopening was refunded on exit), the first proposed mechanism was a nullable `Request.refundedAt` timestamp — set when `refundCredit` fires on exit, checked and cleared at reopen time to decide whether to charge. Explaining it back to Gavi, this session initially over-complicated the "why," then — when pushed on it — flipped to the opposite, also-wrong simplification: **"just always charge 1 credit on reopen, unconditionally, no `refundedAt` needed — the numbers work out the same either way."** Walked through both cases to justify this:
+
+- Case A (exit WITHOUT a refund, e.g. admin already messaged so `hasAdminMessaged` blocked it): create −1, no refund, reopen −1 (if unconditional) = net −2.
+- Case B (exit WITH a refund): create −1, refund +1, reopen −1 = net −1.
+
+These are NOT the same number — −2 vs. −1 — and reasoning past that mismatch to "the numbers work out the same" was a real, catchable error, not just an alternate valid design. Gavi caught it directly: *"I actually... for case a, don't necessarily want to charge a second time... case a almost seems like a situation where they should not get charged. Definitely not a second time."*
+
+**The actual, confirmed rule — asymmetric on purpose:**
+- **No refund on exit → reopen is FREE.** The user already paid once (at creation) and never got that credit back — charging again on reopen would be a genuine double-charge for the same underlying request, with nothing given back in between to justify a second charge.
+- **Refund on exit → reopen RECHARGES.** The user got a credit back when the request closed; reopening the same request means they're using the service again, so that credit is reclaimed.
+
+Both paths land at net −1 lifetime cost for "one round of help," which is the *coincidental* similarity that made "just always charge" sound plausible — but the mechanism that gets there matters: Case A never has a refund-then-recharge cycle at all (one charge, ever), while Case B explicitly does (charge, refund, recharge). Collapsing them into "always charge on reopen" would be correct only for Case B and a straight-up bug for Case A.
+
+**Second correction, on describing the mechanism itself** (not the rule — the rule was right, the explanation of *why* `refundedAt` gets cleared was confusing): initially described clearing `refundedAt` to null on reopen as "the mechanism that decides whether to charge," which Gavi correctly flagged as backwards — clearing it is bookkeeping *after* the charge-or-not decision has already been made by checking whether it was set *before* touching anything. If it's set (Case B), the recharge fires and THEN it's cleared, marking the debt as settled. If it's null already (Case A), there's nothing to clear, and no charge fires. The check (is it currently set, right now) is the decision; the clear afterward is just cleanup for the one case where it mattered.
+
+**General principle worth carrying forward**: when re-deriving a design's economics from first principles mid-conversation, computing the actual net numbers per case (not just asserting "it balances") would have caught the −2-vs−1 mismatch immediately, before proposing the wrong simplification out loud. "Two paths end up costing the same" is a claim that needs the arithmetic shown, not asserted — especially on a money-adjacent feature, where costing the same in each individual case is not automatically what "balances" actually requires; the mechanism has to distinguish the cases, or it silently produces wrong numbers for one of them.
+
+**Also decided in this same conversation**: filed G411-97 (parented under G411-6/Credits epic, not G411-5) — the credit system's individual mechanisms (creation deduction, refund-on-exit, now reopen-recharge) each have route-level unit tests, but nothing exercises the full multi-cycle lifecycle, concurrency/race safety on the charge itself, or a drift-detection check that `CreditTransaction`'s running sum always matches `User.creditBalance`. Gavi's explicit call, not build-time scope creep on G411-90 itself.
+
 ## 7. Not Yet Discussed
  
 - Data model, architecture, tech decisions (schema itself not yet drafted — first task on deck).
