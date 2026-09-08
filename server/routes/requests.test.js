@@ -1127,6 +1127,7 @@ describe('GET /api/requests/users (G411-44, admin dropdown)', () => {
     expect(res.status).toBe(200)
     expect(res.body).toEqual(mockUsers)
     expect(prismaMock.user.findMany).toHaveBeenCalledWith({
+      where: { role: { not: 'ADMIN' } },
       select: { clerkId: true, firstName: true, lastName: true },
       orderBy: [{ firstName: 'asc' }, { lastName: 'asc' }],
     })
@@ -1177,6 +1178,41 @@ describe('POST /api/requests/admin-create (G411-44)', () => {
 
     expect(res.status).toBe(404)
     expect(res.body.error).toBe('User not found')
+  })
+
+  it('400s when the target user IS the admin (Sibling review finding — self-target was unguarded)', async () => {
+    currentUserId = ADMIN
+    prismaMock.user.findUnique.mockResolvedValue({ clerkId: ADMIN, role: 'ADMIN' })
+
+    const res = await request(app)
+      .post('/api/requests/admin-create')
+      .send({ userId: ADMIN, freeText: 'help' })
+
+    expect(res.status).toBe(400)
+    expect(prismaMock.request.create).not.toHaveBeenCalled()
+  })
+
+  it('does not charge a credit when chargeCredit is a truthy non-boolean (e.g. the string "false")', async () => {
+    currentUserId = ADMIN
+    prismaMock.user.findUnique.mockResolvedValue({ clerkId: OTHER, role: 'USER' })
+    prismaMock.request.create.mockResolvedValue({
+      id: 8,
+      userId: OTHER,
+      freeText: 'help',
+      type: null,
+      status: 'IN_QUEUE',
+    })
+
+    const credits = await import('../lib/credits.js')
+    const deductSpy = vi.spyOn(credits, 'deductCredit')
+
+    const res = await request(app)
+      .post('/api/requests/admin-create')
+      .send({ userId: OTHER, freeText: 'help', chargeCredit: 'false' })
+
+    expect(res.status).toBe(201)
+    expect(deductSpy).not.toHaveBeenCalled()
+    deductSpy.mockRestore()
   })
 
   it('creates a request for the selected user, not the admin', async () => {

@@ -288,12 +288,6 @@ function App() {
             Triggers
           </button>
         )}
-        {/* G411-44: admin creates request on behalf of existing user */}
-        {isAdmin && (
-          <button type="button" onClick={() => setView('admin-create-request')}>
-            New request
-          </button>
-        )}
         {/* G411-43: admin presence toggle (online/offline status) — friends
             see the status via the banner below, only admin can change it.
             disabled={presenceToggling} also blocks a fast double-click from
@@ -406,7 +400,12 @@ function App() {
           ) : isAdmin ? (
             <AdminList
               onOpenRequest={(id) => { setSelectedRequestId(id); setView('detail'); }}
-              onNewRequest={() => setView('new')}
+              // G411-44, per Gavi's direct correction: admin doesn't open
+              // requests for themself — this button now opens the
+              // on-behalf-of-a-friend flow, not the old self-service
+              // NewRequest form. That form (view('new')) is friend-only
+              // now, reachable only via RequestList below.
+              onNewRequest={() => setView('admin-create-request')}
             />
           ) : (
             <RequestList
