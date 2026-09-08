@@ -266,6 +266,22 @@ function App() {
             Gavi411
           </button>
         )}
+        {/* Minimal account indicator + sign-out, until a real account
+            menu exists — Gavi's call: keep this, don't strip it, once a
+            nicer version is built it replaces this rather than removing
+            it outright. */}
+        {isSignedIn && (
+          <span className="account-indicator">
+            {user?.primaryEmailAddress?.emailAddress || user?.id}{' '}
+            <button type="button" onClick={() => signOut()}>Sign out</button>
+          </span>
+        )}
+      </div>
+      {/* Second row, per Gavi's call: the logo/account row stays a single
+          line, every toggle/admin-nav button lives below it instead of
+          all competing for space in one row (which overflowed
+          unusably on mobile). */}
+      <div className="toolbar-row">
         {/* G411-73: cycles system -> light -> dark -> system. Text label
             (not just an icon) so the current state is unambiguous without
             needing a tooltip. */}
@@ -322,16 +338,6 @@ function App() {
           </button>
         )}
         {presenceToggleError && ' Failed to update — try again.'}
-        {/* Minimal account indicator + sign-out, until a real account
-            menu exists — Gavi's call: keep this, don't strip it, once a
-            nicer version is built it replaces this rather than removing
-            it outright. */}
-        {isSignedIn && (
-          <span className="account-indicator">
-            {user?.primaryEmailAddress?.emailAddress || user?.id}{' '}
-            <button type="button" onClick={() => signOut()}>Sign out</button>
-          </span>
-        )}
       </div>
       {escrowBackupFailed && (
         <p role="alert" className="escrow-backup-warning">

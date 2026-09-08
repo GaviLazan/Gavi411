@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
+import './AdminCreateRequest.css'
 
-// Admin creates a request on behalf of an existing user (G411-44) — same
-// minimal, unstyled pattern as InviteAdmin.jsx and TriggerAdmin.jsx.
+// Admin creates a request on behalf of an existing user (G411-44).
 function AdminCreateRequest({ onBack }) {
   const [users, setUsers] = useState([])
   const [selectedUserId, setSelectedUserId] = useState('')
