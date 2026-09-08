@@ -386,6 +386,11 @@ router.patch('/:id', requireAuth, async (req, res) => {
   // that race).
   const isRefundable = status !== undefined && REFUNDABLE_EXITS.includes(status)
 
+  // G411-90: track whether a refund actually happened on this request
+  // so we can set refundedAt only when the refund truly fires (both
+  // isRefundable AND no admin has messaged).
+  let refundHappened = false
+
   // Gavi, live testing: "I think it would be good for the user to see in
   // the messages that the urgency was lowered to normal" — same shape as
   // the existing nudge message (sendNudge in autoClose.js): no schema
@@ -401,6 +406,7 @@ router.patch('/:id', requireAuth, async (req, res) => {
   const updated = await prisma.$transaction(async (tx) => {
     if (isRefundable && !(await hasAdminMessaged(tx, id))) {
       await refundCredit(tx, existing.userId)
+      refundHappened = true
     }
     if (isUrgencyDowngrade) {
       await tx.message.create({
@@ -415,7 +421,12 @@ router.patch('/:id', requireAuth, async (req, res) => {
     // flash fixed alongside this in RequestDetail.jsx (that one just
     // caused a flash; this dropped the messages until the next full
     // fetch). Same MESSAGE_INCLUDE shape as GET /:id.
-    return tx.request.update({ where: { id }, data, include: MESSAGE_INCLUDE })
+    // G411-90: set refundedAt when the refund actually happened.
+    return tx.request.update({
+      where: { id },
+      data: { ...data, ...(refundHappened ? { refundedAt: new Date() } : {}) },
+      include: MESSAGE_INCLUDE,
+    })
   })
   res.json(updated)
 })
@@ -730,15 +741,19 @@ router.post('/:id/messages', requireAuth, uploadImageField, async (req, res) => 
     // ball's back in the friend's court (WAITING_ON_USER), symmetric
     // with the existing WORKING_ON_IT<->WAITING_ON_USER pattern.
     //
-    // Only enters a transaction on the CLOSED path (Sibling review finding
-    // — the plain case, an ordinary message on a non-CLOSED request, has
-    // nothing to make atomic and shouldn't pay for one). Status is
-    // re-checked FRESH inside the transaction, not trusted from the
+    // G411-90: now also reopens CANCELLED and SELF_SOLVED, and charges
+    // 1 credit if the request was previously refunded on exit (fresh
+    // refundedAt read inside the transaction).
+    //
+    // Only enters a transaction on any reopenable status path (Sibling review
+    // finding — the plain case, an ordinary message on a non-reopenable
+    // status, has nothing to make atomic and shouldn't pay for one). Status
+    // is re-checked FRESH inside the transaction, not trusted from the
     // pre-transaction `existing` read above (also a Sibling review
     // finding — two near-simultaneous messages could otherwise both see
-    // CLOSED from their own stale snapshot and both write a reopen,
-    // racing on which reopenTarget wins by commit order instead of real
-    // message order).
+    // the reopenable status from their own stale snapshot and both write a
+    // reopen, racing on which reopenTarget wins by commit order instead of
+    // real message order).
     const messageData = {
       content: hasText ? content : '',
       encrypted: isEncrypted,
@@ -747,14 +762,25 @@ router.post('/:id/messages', requireAuth, uploadImageField, async (req, res) => 
       userId: req.user.clerkId,
     }
 
+    const REOPENABLE_STATUSES = [Status.CLOSED, Status.CANCELLED, Status.SELF_SOLVED]
     let message
-    if (existing.status === Status.CLOSED) {
+    if (REOPENABLE_STATUSES.includes(existing.status)) {
       const reopenTarget = req.user.role === 'ADMIN' ? Status.WAITING_ON_USER : Status.IN_QUEUE
       message = await prisma.$transaction(async (tx) => {
         const created = await tx.message.create({ data: messageData })
-        const fresh = await tx.request.findUnique({ where: { id }, select: { status: true } })
-        if (fresh.status === Status.CLOSED) {
-          await tx.request.update({ where: { id }, data: { status: reopenTarget } })
+        const fresh = await tx.request.findUnique({
+          where: { id },
+          select: { status: true, refundedAt: true },
+        })
+        if (REOPENABLE_STATUSES.includes(fresh.status)) {
+          const updateData = { status: reopenTarget }
+          // G411-90: if refundedAt is set (request was refunded on exit),
+          // charge 1 credit and clear it back to null on reopen.
+          if (fresh.refundedAt !== null) {
+            await deductCredit(tx, existing.userId)
+            updateData.refundedAt = null
+          }
+          await tx.request.update({ where: { id }, data: updateData })
         }
         return created
       })
@@ -764,6 +790,9 @@ router.post('/:id/messages', requireAuth, uploadImageField, async (req, res) => 
 
     res.status(201).json(message)
   } catch (err) {
+    if (err.statusCode) {
+      return res.status(err.statusCode).json({ error: err.message })
+    }
     console.error('Failed to create message:', err)
     res.status(500).json({ error: 'Failed to create message' })
   }
