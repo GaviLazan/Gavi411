@@ -404,10 +404,18 @@ task now, not just large or mechanical ones.
      actually merged/live, then "Landed → Reconciled" once acceptance
      criteria are re-checked against that landed state, per spec §5.5).
      These are two separate transitions, not one — don't collapse them.
-     Per the hard-to-reverse-action rule, confirm with Gavi before the
-     final Landed → Reconciled move rather than doing it unprompted.
-     This step does not happen as a side effect of steps 1-4 — it needs
-     its own tool call, every time.
+     **Landed → Reconciled is NOT the hard-to-reverse action and does
+     NOT need a confirm-first pause** (corrected 2026-09-08, decision
+     #115 — this line previously said the opposite and Gavi had to
+     correct it live multiple times, "for the 10th time" on the most
+     recent one; a Jira status field is cheap and reversible). The
+     actual hard-to-reverse action in this checklist is **merging**
+     (step 6) — that's still self-merge-if-routine per the existing
+     Sibling-review policy, not an extra gate on top of it, but it's the
+     step that's genuinely hard to undo, not this one. Do the Landed →
+     Reconciled transition directly, same as every other step in this
+     list — it does not happen as a side effect of steps 1-4, it still
+     needs its own tool call, every time, just not a pause for approval.
   6. **Commit** — self-merge if routine, flag for a live Sibling review
      first if load-bearing (see `gavi411-commit-convention.md`).
   7. **HANDOFF.md** — update with current state. **Also check
