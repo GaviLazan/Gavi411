@@ -7,6 +7,7 @@ import AdminList from './pages/AdminList'
 import RequestDetail from './pages/RequestDetail'
 import InstallHelp from './pages/InstallHelp'
 import InviteAdmin from './pages/InviteAdmin'
+import TriggerAdmin from './pages/TriggerAdmin'
 import ConfirmModal from './components/ConfirmModal'
 import Button from './components/Button'
 import { useTheme } from './useTheme'
@@ -54,7 +55,7 @@ const THEME_LABEL = { system: 'Auto', light: 'Light', dark: 'Dark' }
 function App() {
   const { isSignedIn, user } = useUser()
   const { signOut } = useClerk()
-  const [view, setView] = useState('list') // 'list' | 'new' | 'install-help' | 'detail' | 'invite-admin'
+  const [view, setView] = useState('list') // 'list' | 'new' | 'install-help' | 'detail' | 'invite-admin' | 'trigger-admin'
   const [selectedRequestId, setSelectedRequestId] = useState(null)
   const [newRequestHasText, setNewRequestHasText] = useState(false)
   const [showLogoDiscardConfirm, setShowLogoDiscardConfirm] = useState(false)
@@ -262,6 +263,14 @@ function App() {
             Invites
           </button>
         )}
+        {/* G411-42: live trigger/keyword admin, same minimal top-nav
+            placement as Invites above — not waiting on the full admin
+            cockpit either. */}
+        {isAdmin && (
+          <button type="button" onClick={() => setView('trigger-admin')}>
+            Triggers
+          </button>
+        )}
         {/* Minimal account indicator + sign-out, until a real account
             menu exists — Gavi's call: keep this, don't strip it, once a
             nicer version is built it replaces this rather than removing
@@ -307,6 +316,8 @@ function App() {
             <InstallHelp onBack={() => setView('list')} />
           ) : view === 'invite-admin' ? (
             <InviteAdmin onBack={() => setView('list')} />
+          ) : view === 'trigger-admin' ? (
+            <TriggerAdmin onBack={() => setView('list')} />
           ) : view === 'detail' ? (
             <RequestDetail requestId={selectedRequestId} onBack={() => setView('list')} isAdmin={isAdmin} />
           ) : roleFetchFailed ? (
