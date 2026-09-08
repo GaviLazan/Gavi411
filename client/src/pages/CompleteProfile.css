@@ -24,20 +24,24 @@
   gap: var(--space-2);
 }
 
+/* Caught live: the dial-code select's flex:0 0 auto had NO width cap at
+   all, so the browser sized it to its longest option text unconstrained
+   — nothing to do with which country names are long or short, the
+   select just had no ceiling. flex:1 + min-width:0 on the input then
+   legitimately shrank to 0px next to it. Fixed width on the select
+   (enough for the longest real label, "United Kingdom (+44)"), and a
+   real floor on the input (~10 digits) so it can't collapse regardless
+   of what the select does. */
 .phone-input-group select {
   flex: 0 0 auto;
+  width: 14em;
 }
 
 .phone-input-group input {
   flex: 1;
-  min-width: 0;
+  min-width: 12em;
 }
 
-.complete-profile select,
-.complete-profile input {
-  width: 100%;
-  box-sizing: border-box;
-}
 
 .photo-section {
   display: flex;

@@ -21,7 +21,8 @@ function CompleteProfile({ currentProfilePic, onComplete }) {
 
   const dialCodeOptions = [
     { code: '+972', country: 'Israel' },
-    { code: '+1', country: 'United States/Canada' },
+    { code: '+1', country: 'United States' },
+    { code: '+1', country: 'Canada' },
     { code: '+44', country: 'United Kingdom' },
     { code: '+33', country: 'France' },
     { code: '+49', country: 'Germany' },
@@ -134,7 +135,7 @@ function CompleteProfile({ currentProfilePic, onComplete }) {
                 onChange={(e) => setDialCode(e.target.value)}
               >
                 {dialCodeOptions.map((opt) => (
-                  <option key={opt.code} value={opt.code}>
+                  <option key={opt.country} value={opt.code}>
                     {opt.country} ({opt.code})
                   </option>
                 ))}
