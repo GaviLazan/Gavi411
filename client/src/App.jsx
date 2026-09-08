@@ -380,7 +380,16 @@ function App() {
               setRecovery({ token: null, passphrase: null })
             }}
           />
-        ) : isSignedIn && needsProfileCompletion ? (
+        ) : isSignedIn && needsProfileCompletion && !isAdmin ? (
+          // Sibling review finding: an admin promoted via
+          // scripts/promote-admin.js only gets role flipped, never
+          // phoneNumber — a freshly-promoted admin whose phone is still
+          // 'pending-<clerkId>' would otherwise be stuck behind this
+          // friend-facing gate with zero admin UI reachable. Consistent
+          // with decision #111 (admin never routes through friend-only
+          // self-service flows) — role and needsProfileCompletion both
+          // resolve from the same /api/me fetch, so isAdmin is reliable
+          // here, not a race.
           <CompleteProfile
             currentProfilePic={userProfilePic}
             onComplete={() => {

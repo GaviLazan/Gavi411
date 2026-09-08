@@ -49,6 +49,13 @@ function uniqueViolation() {
   })
 }
 
+function recordNotFound() {
+  return new Prisma.PrismaClientKnownRequestError('Record to update not found', {
+    code: 'P2025',
+    clientVersion: 'test',
+  })
+}
+
 beforeEach(() => {
   currentUserId = null
   vi.clearAllMocks()
@@ -89,6 +96,15 @@ describe('PATCH /api/me/complete-profile', () => {
       .send({ phoneNumber: 'abc' })
     expect(res.status).toBe(400)
     expect(res.body.error).toBe('Please enter a valid phone number')
+    expect(prismaMock.user.update).not.toHaveBeenCalled()
+  })
+
+  it('400s a 7-digit number the client would never send (Sibling review finding — server floor was lower than the client\'s)', async () => {
+    currentUserId = USER
+    const res = await request(app)
+      .patch('/api/me/complete-profile')
+      .send({ phoneNumber: '1234567' })
+    expect(res.status).toBe(400)
     expect(prismaMock.user.update).not.toHaveBeenCalled()
   })
 
@@ -170,5 +186,14 @@ describe('PATCH /api/me/complete-profile', () => {
       .send({ phoneNumber: '050-1234567' })
     expect(res.status).toBe(409)
     expect(res.body.error).toBe('That phone number is already registered to another account')
+  })
+
+  it('404s cleanly (not an unhandled 500) if the user row is gone (Sibling review finding)', async () => {
+    currentUserId = USER
+    prismaMock.user.update.mockRejectedValue(recordNotFound())
+    const res = await request(app)
+      .patch('/api/me/complete-profile')
+      .send({ phoneNumber: '050-1234567' })
+    expect(res.status).toBe(404)
   })
 })

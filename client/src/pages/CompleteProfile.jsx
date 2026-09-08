@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useUser } from '@clerk/react'
 import './CompleteProfile.css'
 
@@ -11,6 +11,11 @@ function CompleteProfile({ currentProfilePic, onComplete }) {
   const [localNumber, setLocalNumber] = useState('')
   const [selectedPhotoUrl, setSelectedPhotoUrl] = useState(currentProfilePic || null)
   const [photoError, setPhotoError] = useState(null)
+  // Sibling review finding: the submit button was only disabled by
+  // `submitting`, not by an in-flight photo upload — clicking Continue
+  // while a Clerk upload was still pending submitted before
+  // selectedPhotoUrl updated, silently dropping the photo with no error.
+  const [uploadingPhoto, setUploadingPhoto] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState(null)
 
@@ -34,6 +39,7 @@ function CompleteProfile({ currentProfilePic, onComplete }) {
     if (!file) return
 
     setPhotoError(null)
+    setUploadingPhoto(true)
     try {
       // Upload to Clerk and get the image URL. Sibling review finding:
       // ImageResource's real field is `publicUrl`, not `url` — the
@@ -41,10 +47,18 @@ function CompleteProfile({ currentProfilePic, onComplete }) {
       // would upload to Clerk successfully but silently never get saved
       // to our own profilePic (submitting `profilePic: undefined` just
       // gets dropped by the PATCH's own spread-if-present logic).
+      // publicUrl is typed nullable by Clerk itself — guard it so a rare
+      // null doesn't silently overwrite an existing photo with nothing.
       const imageResource = await user.setProfileImage({ file })
-      setSelectedPhotoUrl(imageResource.publicUrl)
+      if (imageResource.publicUrl) {
+        setSelectedPhotoUrl(imageResource.publicUrl)
+      } else {
+        setPhotoError('Upload succeeded but no photo URL was returned — try again.')
+      }
     } catch (err) {
       setPhotoError('Could not upload photo — try again.')
+    } finally {
+      setUploadingPhoto(false)
     }
   }
 
@@ -156,8 +170,8 @@ function CompleteProfile({ currentProfilePic, onComplete }) {
 
         {error && <p role="alert">{error}</p>}
 
-        <button type="submit" disabled={submitting}>
-          {submitting ? 'Continuing…' : 'Continue'}
+        <button type="submit" disabled={submitting || uploadingPhoto}>
+          {submitting ? 'Continuing…' : uploadingPhoto ? 'Uploading photo…' : 'Continue'}
         </button>
       </form>
     </div>
