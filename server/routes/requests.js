@@ -11,6 +11,7 @@ import { canAccessRequest, hasAdminMessaged } from '../lib/requestAccess.js'
 import { E2E_ENABLED } from '../lib/e2eConfig.js'
 import { deductCredit, refundCredit } from '../lib/credits.js'
 import { sendNudge } from '../lib/autoClose.js'
+import { sendPushToUser } from '../lib/webPush.js'
 
 const router = express.Router()
 
@@ -144,6 +145,20 @@ router.get('/', requireAuth, async (req, res) => {
   } catch (err) {
     console.error('Failed to load requests:', err)
     res.status(500).json({ error: 'Failed to load requests' })
+  }
+})
+
+// GET /users — list all users for admin's dropdown (G411-44)
+router.get('/users', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const users = await prisma.user.findMany({
+      select: { clerkId: true, firstName: true, lastName: true },
+      orderBy: [{ firstName: 'asc' }, { lastName: 'asc' }],
+    })
+    res.json(users)
+  } catch (err) {
+    console.error('Failed to load users:', err)
+    res.status(500).json({ error: 'Failed to load users' })
   }
 })
 
@@ -537,6 +552,80 @@ router.post('/', requireAuth, async (req, res) => {
           userId: req.user.clerkId,
         },
       })
+    })
+
+    res.status(201).json(request)
+  } catch (err) {
+    if (err.statusCode) {
+      return res.status(err.statusCode).json({ error: err.message })
+    }
+    console.error('Failed to create request:', err)
+    res.status(500).json({ error: 'Failed to create request' })
+  }
+})
+
+// POST /admin-create — admin creates a request on behalf of an existing user (G411-44).
+// Distinct from POST / which always creates for the caller's own userId.
+router.post('/admin-create', requireAuth, requireAdmin, async (req, res) => {
+  const { userId, freeText, type, urgency, additionalInfo, typeDetails, chargeCredit } = req.body
+
+  if (!userId) {
+    return res.status(400).json({ error: 'userId is required' })
+  }
+  if (!freeText) {
+    return res.status(400).json({ error: 'freeText is required' })
+  }
+
+  // Validate the target user exists
+  const targetUser = await prisma.user.findUnique({ where: { clerkId: userId } })
+  if (!targetUser) {
+    return res.status(404).json({ error: 'User not found' })
+  }
+
+  // Same type sentinel and typeDetails cleanup as POST /
+  const requestType = type === 'NONE' ? null : type
+  const cleanedTypeDetails = stripEmpty(typeDetails)
+
+  try {
+    let request
+
+    if (chargeCredit) {
+      // Charge a credit: deduct within a transaction to be atomic
+      request = await prisma.$transaction(async (tx) => {
+        await deductCredit(tx, userId)
+
+        return tx.request.create({
+          data: {
+            freeText,
+            type: requestType,
+            urgency,
+            additionalInfo: additionalInfo || null,
+            typeDetails: cleanedTypeDetails,
+            userId,
+          },
+        })
+      })
+    } else {
+      // No charge: just create the request
+      request = await prisma.request.create({
+        data: {
+          freeText,
+          type: requestType,
+          urgency,
+          additionalInfo: additionalInfo || null,
+          typeDetails: cleanedTypeDetails,
+          userId,
+        },
+      })
+    }
+
+    // Send Web Push notification to the target user, but don't fail the
+    // request if this fails (push delivery is best-effort, not critical-path).
+    sendPushToUser(userId, {
+      title: 'New request opened for you',
+      body: 'Gavi opened a new request on your behalf — take a look.',
+    }).catch((err) => {
+      console.error('Failed to send admin-create notification:', err.message)
     })
 
     res.status(201).json(request)

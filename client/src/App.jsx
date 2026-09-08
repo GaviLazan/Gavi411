@@ -8,6 +8,7 @@ import RequestDetail from './pages/RequestDetail'
 import InstallHelp from './pages/InstallHelp'
 import InviteAdmin from './pages/InviteAdmin'
 import TriggerAdmin from './pages/TriggerAdmin'
+import AdminCreateRequest from './pages/AdminCreateRequest'
 import ConfirmModal from './components/ConfirmModal'
 import Button from './components/Button'
 import { useTheme } from './useTheme'
@@ -55,7 +56,7 @@ const THEME_LABEL = { system: 'Auto', light: 'Light', dark: 'Dark' }
 function App() {
   const { isSignedIn, user } = useUser()
   const { signOut } = useClerk()
-  const [view, setView] = useState('list') // 'list' | 'new' | 'install-help' | 'detail' | 'invite-admin' | 'trigger-admin'
+  const [view, setView] = useState('list') // 'list' | 'new' | 'install-help' | 'detail' | 'invite-admin' | 'trigger-admin' | 'admin-create-request'
   const [selectedRequestId, setSelectedRequestId] = useState(null)
   const [newRequestHasText, setNewRequestHasText] = useState(false)
   const [showLogoDiscardConfirm, setShowLogoDiscardConfirm] = useState(false)
@@ -287,6 +288,12 @@ function App() {
             Triggers
           </button>
         )}
+        {/* G411-44: admin creates request on behalf of existing user */}
+        {isAdmin && (
+          <button type="button" onClick={() => setView('admin-create-request')}>
+            New request
+          </button>
+        )}
         {/* G411-43: admin presence toggle (online/offline status) — friends
             see the status via the banner below, only admin can change it.
             disabled={presenceToggling} also blocks a fast double-click from
@@ -375,6 +382,8 @@ function App() {
             <InviteAdmin onBack={() => setView('list')} />
           ) : view === 'trigger-admin' ? (
             <TriggerAdmin onBack={() => setView('list')} />
+          ) : view === 'admin-create-request' ? (
+            <AdminCreateRequest onBack={() => setView('list')} />
           ) : view === 'detail' ? (
             <RequestDetail requestId={selectedRequestId} onBack={() => setView('list')} isAdmin={isAdmin} />
           ) : roleFetchFailed ? (

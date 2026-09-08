@@ -59,6 +59,7 @@ const prismaMock = {
   user: {
     findFirst: vi.fn(),
     findUnique: vi.fn(),
+    findMany: vi.fn(),
     update: vi.fn(),
   },
   creditTransaction: {
@@ -79,6 +80,20 @@ vi.mock('../lib/cloudinary.js', async () => {
   const actual = await vi.importActual('../lib/cloudinary.js')
   return { ...actual, uploadImage: (...args) => uploadImageMock(...args) }
 })
+
+// Real implementation by default (it operates on prismaMock as its `tx`
+// arg, so existing tests asserting user.update/creditTransaction.create
+// side effects still pass) — G411-44's tests spy on it per-test instead
+// of replacing it wholesale, which broke every pre-existing deduction/
+// refund assertion in this file (Sibling review finding).
+vi.mock('../lib/credits.js', async () => {
+  const actual = await vi.importActual('../lib/credits.js')
+  return { ...actual }
+})
+
+vi.mock('../lib/webPush.js', () => ({
+  sendPushToUser: vi.fn(async () => undefined),
+}))
 
 const { default: requestsRouter } = await import('./requests.js')
 
@@ -1084,6 +1099,216 @@ describe('POST /api/requests/:id/messages — image upload (G411-26)', () => {
     const res = await request(app).post('/api/requests/1/messages').send({})
     expect(res.status).toBe(400)
     expect(uploadImageMock).not.toHaveBeenCalled()
+  })
+})
+
+describe('GET /api/requests/users (G411-44, admin dropdown)', () => {
+  it('401s when unauthenticated', async () => {
+    const res = await request(app).get('/api/requests/users')
+    expect(res.status).toBe(401)
+  })
+
+  it('404s for a non-admin', async () => {
+    currentUserId = OWNER
+    const res = await request(app).get('/api/requests/users')
+    expect(res.status).toBe(404)
+  })
+
+  it('returns a sorted list of users for an admin', async () => {
+    currentUserId = ADMIN
+    const mockUsers = [
+      { clerkId: 'alice', firstName: 'Alice', lastName: 'Smith' },
+      { clerkId: 'bob', firstName: 'Bob', lastName: 'Jones' },
+    ]
+    prismaMock.user.findMany.mockResolvedValue(mockUsers)
+
+    const res = await request(app).get('/api/requests/users')
+
+    expect(res.status).toBe(200)
+    expect(res.body).toEqual(mockUsers)
+    expect(prismaMock.user.findMany).toHaveBeenCalledWith({
+      select: { clerkId: true, firstName: true, lastName: true },
+      orderBy: [{ firstName: 'asc' }, { lastName: 'asc' }],
+    })
+  })
+})
+
+describe('POST /api/requests/admin-create (G411-44)', () => {
+  it('401s when unauthenticated', async () => {
+    const res = await request(app)
+      .post('/api/requests/admin-create')
+      .send({ userId: OTHER, freeText: 'help' })
+    expect(res.status).toBe(401)
+  })
+
+  it('404s for a non-admin', async () => {
+    currentUserId = OWNER
+    const res = await request(app)
+      .post('/api/requests/admin-create')
+      .send({ userId: OTHER, freeText: 'help' })
+    expect(res.status).toBe(404)
+  })
+
+  it('400s when userId is missing', async () => {
+    currentUserId = ADMIN
+    const res = await request(app)
+      .post('/api/requests/admin-create')
+      .send({ freeText: 'help' })
+    expect(res.status).toBe(400)
+    expect(res.body.error).toMatch(/userId/i)
+  })
+
+  it('400s when freeText is missing', async () => {
+    currentUserId = ADMIN
+    const res = await request(app)
+      .post('/api/requests/admin-create')
+      .send({ userId: OTHER })
+    expect(res.status).toBe(400)
+    expect(res.body.error).toMatch(/freeText/i)
+  })
+
+  it('404s when the target user does not exist', async () => {
+    currentUserId = ADMIN
+    prismaMock.user.findUnique.mockResolvedValue(null)
+
+    const res = await request(app)
+      .post('/api/requests/admin-create')
+      .send({ userId: 'nonexistent', freeText: 'help' })
+
+    expect(res.status).toBe(404)
+    expect(res.body.error).toBe('User not found')
+  })
+
+  it('creates a request for the selected user, not the admin', async () => {
+    currentUserId = ADMIN
+    prismaMock.user.findUnique.mockResolvedValue({ clerkId: OTHER, role: 'USER' })
+    prismaMock.request.create.mockResolvedValue({
+      id: 5,
+      userId: OTHER,
+      freeText: 'help',
+      type: null,
+      status: 'IN_QUEUE',
+    })
+
+    const res = await request(app)
+      .post('/api/requests/admin-create')
+      .send({ userId: OTHER, freeText: 'help' })
+
+    expect(res.status).toBe(201)
+    expect(res.body.userId).toBe(OTHER)
+    // Verify the request.create was called with the OTHER user's ID, not ADMIN's
+    expect(prismaMock.request.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ userId: OTHER }),
+      })
+    )
+  })
+
+  it('does NOT call deductCredit when chargeCredit is false', async () => {
+    currentUserId = ADMIN
+    prismaMock.user.findUnique.mockResolvedValue({ clerkId: OTHER, role: 'USER' })
+    prismaMock.request.create.mockResolvedValue({
+      id: 6,
+      userId: OTHER,
+      freeText: 'help',
+      type: null,
+      status: 'IN_QUEUE',
+    })
+
+    const credits = await import('../lib/credits.js')
+    const deductSpy = vi.spyOn(credits, 'deductCredit')
+
+    const res = await request(app)
+      .post('/api/requests/admin-create')
+      .send({ userId: OTHER, freeText: 'help', chargeCredit: false })
+
+    expect(res.status).toBe(201)
+    expect(deductSpy).not.toHaveBeenCalled()
+    deductSpy.mockRestore()
+  })
+
+  it('calls deductCredit when chargeCredit is true', async () => {
+    currentUserId = ADMIN
+    prismaMock.user.findUnique.mockResolvedValue({ clerkId: OTHER, role: 'USER', creditBalance: 5 })
+    prismaMock.request.create.mockResolvedValue({
+      id: 7,
+      userId: OTHER,
+      freeText: 'help',
+      type: null,
+      status: 'IN_QUEUE',
+    })
+
+    const credits = await import('../lib/credits.js')
+    const deductSpy = vi.spyOn(credits, 'deductCredit')
+
+    const res = await request(app)
+      .post('/api/requests/admin-create')
+      .send({ userId: OTHER, freeText: 'help', chargeCredit: true })
+
+    expect(res.status).toBe(201)
+    expect(deductSpy).toHaveBeenCalledWith(expect.anything(), OTHER)
+    deductSpy.mockRestore()
+  })
+
+  it('returns 402 when the target user has insufficient balance and chargeCredit is true', async () => {
+    currentUserId = ADMIN
+    prismaMock.user.findUnique.mockResolvedValue({ clerkId: OTHER, role: 'USER', creditBalance: 0 })
+
+    const res = await request(app)
+      .post('/api/requests/admin-create')
+      .send({ userId: OTHER, freeText: 'help', chargeCredit: true })
+
+    expect(res.status).toBe(402)
+    expect(prismaMock.request.create).not.toHaveBeenCalled()
+  })
+
+  it('calls sendPushToUser after successful creation', async () => {
+    currentUserId = ADMIN
+    prismaMock.user.findUnique.mockResolvedValue({ clerkId: OTHER, role: 'USER' })
+    prismaMock.request.create.mockResolvedValue({
+      id: 8,
+      userId: OTHER,
+      freeText: 'help',
+      type: null,
+      status: 'IN_QUEUE',
+    })
+
+    const { sendPushToUser } = await import('../lib/webPush.js')
+
+    const res = await request(app)
+      .post('/api/requests/admin-create')
+      .send({ userId: OTHER, freeText: 'help', chargeCredit: false })
+
+    expect(res.status).toBe(201)
+    expect(sendPushToUser).toHaveBeenCalledWith(
+      OTHER,
+      expect.objectContaining({
+        title: 'New request opened for you',
+        body: expect.stringContaining('Gavi opened'),
+      })
+    )
+  })
+
+  it('still returns 201 even if sendPushToUser fails', async () => {
+    currentUserId = ADMIN
+    prismaMock.user.findUnique.mockResolvedValue({ clerkId: OTHER, role: 'USER' })
+    prismaMock.request.create.mockResolvedValue({
+      id: 9,
+      userId: OTHER,
+      freeText: 'help',
+      type: null,
+      status: 'IN_QUEUE',
+    })
+
+    const { sendPushToUser } = await import('../lib/webPush.js')
+    sendPushToUser.mockRejectedValue(new Error('Push service down'))
+
+    const res = await request(app)
+      .post('/api/requests/admin-create')
+      .send({ userId: OTHER, freeText: 'help', chargeCredit: false })
+
+    expect(res.status).toBe(201)
+    expect(res.body.id).toBe(9)
   })
 })
 
