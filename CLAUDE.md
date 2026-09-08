@@ -200,6 +200,37 @@ of review gets 3 rounds of comments.
 Gavi's sign-off — ask. A wrong guess that quietly ships is worse than a
 question that costs one turn.**
 
+**8. Model split for coding work — Sonnet defines, Haiku codes, Sonnet
+reviews** (decision #110, 2026-09-08, confirmed default after a live
+trial on G411-43): this is the default execution model for every coding
+task now, not just large or mechanical ones.
+- **Sonnet writes the definition first** — actually resolves the hard
+  calls (schema/data-model shape, endpoint/API shape, auth/security
+  boundaries, which existing pattern in the codebase to follow) and
+  settles any genuinely ambiguous scope question with Gavi via
+  `AskUserQuestion` before dispatch — same mid-flight-stop rule as
+  always, unchanged. The task handed off must be fully specified: exact
+  files, exact route/behavior, exact test cases, and an explicit
+  instruction to make the most conservative choice and report rather
+  than ask if something remains ambiguous once dispatched.
+- **Haiku does the coding** — dispatched via the Agent tool with
+  `model: "haiku"`, foregrounded (`run_in_background: false`) since the
+  next step (review) depends on its output. It implements, writes
+  tests, and runs its own build/test pass, but makes no architectural
+  calls of its own.
+- **Sonnet does the Sibling review** — unchanged and non-negotiable
+  (see item 6 above); if anything it matters more for Haiku-authored
+  code, especially anywhere near an auth/security boundary. Read the
+  diff directly, don't just trust the review skill's output.
+- **Opus escalation is confirm-first, not automatic** — if Sonnet hits a
+  specific, pinpointed problem genuinely too hard to resolve alone (a
+  subtle bug, an unresolved design tradeoff), ask Gavi before invoking
+  Opus for that sub-problem. Never a default fallback.
+- This changes who writes the first draft of the code, nothing else —
+  every other rule in this file (three checkpoints, mandatory Sibling
+  review, Aegis fields, Jira transitions, the wrap-up checklist) still
+  applies exactly as written.
+
 ## Tech stack
 
 - Frontend: React (Vite), **JavaScript only — no TypeScript**
