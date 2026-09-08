@@ -119,6 +119,14 @@ function confirmMessage(status) {
 const FRIEND_CANCELLABLE_FROM = ["IN_QUEUE", "RECEIVED"];
 const FRIEND_SELF_SOLVABLE_FROM = ["WORKING_ON_IT", "WAITING_ON_USER"];
 
+// G411-91: friend-facing close-confirm. Deliberately NOT added to
+// STATUS_NEEDS_CONFIRM/confirmMessage — that set means "ends the request
+// prematurely," which this isn't: admin already proposed the request is
+// resolved (RESOLVED_PENDING_CONFIRMATION), so this is agreeing, not
+// cutting something short. Applies directly via applyStatus, same as any
+// other non-disruptive move.
+const FRIEND_CLOSABLE_FROM = ["RESOLVED_PENDING_CONFIRMATION"];
+
 // G411-38: admin's three tabs. Friends only ever see one view (below),
 // no tab state needed for them.
 const ADMIN_TABS = [
@@ -752,12 +760,18 @@ function RequestDetail({ requestId, onBack, isAdmin }) {
     // just as worth double-checking as an admin doing it.
     const canCancel = FRIEND_CANCELLABLE_FROM.includes(request.status);
     const canSelfSolve = FRIEND_SELF_SOLVABLE_FROM.includes(request.status);
+    const canClose = FRIEND_CLOSABLE_FROM.includes(request.status);
     const canDowngradeUrgency = request.urgency === "HIGH";
     return (
       <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-4)", width: "100%", maxWidth: 420 }}>
         <Button variant="secondary" onClick={onBack}>← Back</Button>
-        {(canCancel || canSelfSolve || canDowngradeUrgency) && (
+        {(canCancel || canSelfSolve || canClose || canDowngradeUrgency) && (
           <div style={{ display: "flex", flexWrap: "wrap", gap: "var(--space-2)" }}>
+            {canClose && (
+              <Button onClick={() => applyStatus("CLOSED")} disabled={statusSaving}>
+                Confirm — this is resolved
+              </Button>
+            )}
             {canCancel && (
               <Button variant="secondary" onClick={() => setConfirmStatus("CANCELLED")} disabled={statusSaving}>
                 Cancel request
