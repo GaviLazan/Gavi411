@@ -194,6 +194,16 @@ model Request {
   typeDetails    Json?
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
+  // G411-90: set (to the moment refundCredit fires) when this request
+  // exits into a refunded status (CANCELLED/SELF_SOLVED, no admin had
+  // messaged); cleared back to null when a reopen re-charges that credit.
+  // Answers "does reopening THIS request right now owe a credit back?"
+  // without needing to re-derive history or link CreditTransaction rows
+  // to a request. Confirmed with Gavi: a request that exited WITHOUT a
+  // refund (e.g. admin already messaged, hasAdminMessaged blocked the
+  // refund) must reopen for free — it was already paid for once and
+  // never refunded, so charging again would be a real double-charge.
+  refundedAt     DateTime?
 
   userId String
   user   User   @relation(fields: [userId], references: [clerkId])

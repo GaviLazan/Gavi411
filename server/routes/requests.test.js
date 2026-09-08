@@ -545,6 +545,59 @@ describe('PATCH /api/requests/:id', () => {
       expect(prismaMock.message.findFirst).not.toHaveBeenCalled()
       expect(prismaMock.creditTransaction.create).not.toHaveBeenCalled()
     })
+
+    // G411-90 — track refundedAt timestamp when refund occurs
+    it('sets refundedAt to current time when a CANCELLED refund happens (no admin message yet)', async () => {
+      currentUserId = OWNER
+      prismaMock.request.findUnique.mockResolvedValue(sampleRequest)
+      prismaMock.message.findFirst.mockResolvedValue(null)
+      prismaMock.user.findUnique.mockResolvedValue({ creditBalance: 3 })
+      prismaMock.request.update.mockResolvedValue({ ...sampleRequest, status: 'CANCELLED' })
+
+      const res = await request(app).patch('/api/requests/1').send({ status: 'CANCELLED' })
+
+      expect(res.status).toBe(200)
+      // Verify the update includes refundedAt
+      expect(prismaMock.request.update).toHaveBeenCalledWith({
+        where: { id: 1 },
+        data: expect.objectContaining({ status: 'CANCELLED', refundedAt: expect.any(Date) }),
+        include: { message: { orderBy: { createdAt: 'asc' } } },
+      })
+    })
+
+    it('sets refundedAt on a SELF_SOLVED refund too', async () => {
+      currentUserId = OWNER
+      prismaMock.request.findUnique.mockResolvedValue({ ...sampleRequest, status: 'WORKING_ON_IT' })
+      prismaMock.message.findFirst.mockResolvedValue(null)
+      prismaMock.user.findUnique.mockResolvedValue({ creditBalance: 3 })
+      prismaMock.request.update.mockResolvedValue({ ...sampleRequest, status: 'SELF_SOLVED' })
+
+      const res = await request(app).patch('/api/requests/1').send({ status: 'SELF_SOLVED' })
+
+      expect(res.status).toBe(200)
+      expect(prismaMock.request.update).toHaveBeenCalledWith({
+        where: { id: 1 },
+        data: expect.objectContaining({ status: 'SELF_SOLVED', refundedAt: expect.any(Date) }),
+        include: { message: { orderBy: { createdAt: 'asc' } } },
+      })
+    })
+
+    it('does NOT set refundedAt when admin has already messaged (refund blocked)', async () => {
+      currentUserId = OWNER
+      prismaMock.request.findUnique.mockResolvedValue(sampleRequest)
+      prismaMock.message.findFirst.mockResolvedValue({ id: 99, userId: ADMIN })
+      prismaMock.request.update.mockResolvedValue({ ...sampleRequest, status: 'CANCELLED' })
+
+      const res = await request(app).patch('/api/requests/1').send({ status: 'CANCELLED' })
+
+      expect(res.status).toBe(200)
+      // Verify the update does NOT include refundedAt (no refund happened)
+      expect(prismaMock.request.update).toHaveBeenCalledWith({
+        where: { id: 1 },
+        data: { status: 'CANCELLED' },
+        include: { message: { orderBy: { createdAt: 'asc' } } },
+      })
+    })
   })
 
   // G411-33 — close is friend-only
@@ -826,7 +879,8 @@ describe('GET/POST /api/requests/:id/notes (G411-40, admin-only)', () => {
 describe('POST /api/requests/:id/messages — reopen-on-message (G411-34)', () => {
   it('a friend message on a CLOSED request reopens it to IN_QUEUE', async () => {
     currentUserId = OWNER
-    prismaMock.request.findUnique.mockResolvedValue({ ...sampleRequest, status: 'CLOSED' })
+    // G411-90: mock must include refundedAt (null for CLOSED, which was never refundable)
+    prismaMock.request.findUnique.mockResolvedValue({ ...sampleRequest, status: 'CLOSED', refundedAt: null })
     prismaMock.message.create.mockResolvedValue({ id: 7, content: 'still need help', requestId: 1, userId: OWNER })
 
     const res = await request(app).post('/api/requests/1/messages').send({ content: 'still need help' })
@@ -840,7 +894,8 @@ describe('POST /api/requests/:id/messages — reopen-on-message (G411-34)', () =
 
   it('an admin message on a CLOSED request reopens it to WAITING_ON_USER', async () => {
     currentUserId = ADMIN
-    prismaMock.request.findUnique.mockResolvedValue({ ...sampleRequest, status: 'CLOSED' })
+    // G411-90: mock must include refundedAt (null for CLOSED)
+    prismaMock.request.findUnique.mockResolvedValue({ ...sampleRequest, status: 'CLOSED', refundedAt: null })
     prismaMock.message.create.mockResolvedValue({ id: 8, content: 'one more thing', requestId: 1, userId: ADMIN })
 
     const res = await request(app).post('/api/requests/1/messages').send({ content: 'one more thing' })
@@ -868,15 +923,160 @@ describe('POST /api/requests/:id/messages — reopen-on-message (G411-34)', () =
     // Pre-transaction read sees CLOSED (stale); the in-tx fresh re-read
     // sees it's already been reopened by a concurrent write — the second
     // reopen must not fire.
+    // G411-90: both mocks must include refundedAt field
     prismaMock.request.findUnique
-      .mockResolvedValueOnce({ ...sampleRequest, status: 'CLOSED' })
-      .mockResolvedValueOnce({ status: 'WAITING_ON_USER' })
+      .mockResolvedValueOnce({ ...sampleRequest, status: 'CLOSED', refundedAt: null })
+      .mockResolvedValueOnce({ status: 'WAITING_ON_USER', refundedAt: null })
     prismaMock.message.create.mockResolvedValue({ id: 10, content: 'hi again', requestId: 1, userId: OWNER })
 
     const res = await request(app).post('/api/requests/1/messages').send({ content: 'hi again' })
 
     expect(res.status).toBe(201)
     expect(prismaMock.request.update).not.toHaveBeenCalled()
+  })
+})
+
+// G411-90 — reopen and recharge when refundedAt is set
+describe('POST /api/requests/:id/messages — reopen with refund recharge (G411-90)', () => {
+  it('reopens a CANCELLED request and charges 1 credit when it was refunded (refundedAt is set)', async () => {
+    currentUserId = OWNER
+    const now = new Date()
+    prismaMock.request.findUnique.mockResolvedValue({
+      ...sampleRequest,
+      status: 'CANCELLED',
+      refundedAt: now,
+      userId: OWNER,
+    })
+    prismaMock.message.create.mockResolvedValue({ id: 20, content: 'come back', requestId: 1, userId: OWNER })
+    prismaMock.user.findUnique.mockResolvedValue({ creditBalance: 3 })
+
+    const res = await request(app).post('/api/requests/1/messages').send({ content: 'come back' })
+
+    expect(res.status).toBe(201)
+    // Verify the update was called with status AND refundedAt cleared
+    expect(prismaMock.request.update).toHaveBeenCalledWith({
+      where: { id: 1 },
+      data: { status: 'IN_QUEUE', refundedAt: null },
+    })
+    // Verify credit was deducted
+    expect(prismaMock.user.update).toHaveBeenCalledWith({
+      where: { clerkId: OWNER },
+      data: { creditBalance: { decrement: 1 } },
+    })
+    expect(prismaMock.creditTransaction.create).toHaveBeenCalledWith({
+      data: { amount: -1, userId: OWNER },
+    })
+  })
+
+  it('reopens a SELF_SOLVED request and charges 1 credit when it was refunded', async () => {
+    currentUserId = OWNER
+    const now = new Date()
+    prismaMock.request.findUnique.mockResolvedValue({
+      ...sampleRequest,
+      status: 'SELF_SOLVED',
+      refundedAt: now,
+      userId: OWNER,
+    })
+    prismaMock.message.create.mockResolvedValue({ id: 21, content: 'update', requestId: 1, userId: OWNER })
+    prismaMock.user.findUnique.mockResolvedValue({ creditBalance: 3 })
+
+    const res = await request(app).post('/api/requests/1/messages').send({ content: 'update' })
+
+    expect(res.status).toBe(201)
+    expect(prismaMock.request.update).toHaveBeenCalledWith({
+      where: { id: 1 },
+      data: { status: 'IN_QUEUE', refundedAt: null },
+    })
+    expect(prismaMock.creditTransaction.create).toHaveBeenCalledWith({
+      data: { amount: -1, userId: OWNER },
+    })
+  })
+
+  it('reopens a CANCELLED request WITHOUT charging when it was NOT refunded (refundedAt is null)', async () => {
+    currentUserId = OWNER
+    prismaMock.request.findUnique.mockResolvedValue({
+      ...sampleRequest,
+      status: 'CANCELLED',
+      refundedAt: null, // not refunded because admin had messaged
+      userId: OWNER,
+    })
+    prismaMock.message.create.mockResolvedValue({ id: 22, content: 'nevermind', requestId: 1, userId: OWNER })
+
+    const res = await request(app).post('/api/requests/1/messages').send({ content: 'nevermind' })
+
+    expect(res.status).toBe(201)
+    // Status changes, but no refundedAt update (it's already null)
+    expect(prismaMock.request.update).toHaveBeenCalledWith({
+      where: { id: 1 },
+      data: { status: 'IN_QUEUE' },
+    })
+    // No credit deduction happened
+    expect(prismaMock.creditTransaction.create).not.toHaveBeenCalled()
+  })
+
+  it('reopens a CLOSED request and does NOT charge (CLOSED was never refundable, refundedAt stays null)', async () => {
+    currentUserId = OWNER
+    prismaMock.request.findUnique.mockResolvedValue({
+      ...sampleRequest,
+      status: 'CLOSED',
+      refundedAt: null,
+      userId: OWNER,
+    })
+    prismaMock.message.create.mockResolvedValue({ id: 23, content: 'back to this', requestId: 1, userId: OWNER })
+
+    const res = await request(app).post('/api/requests/1/messages').send({ content: 'back to this' })
+
+    expect(res.status).toBe(201)
+    expect(prismaMock.request.update).toHaveBeenCalledWith({
+      where: { id: 1 },
+      data: { status: 'IN_QUEUE' },
+    })
+    expect(prismaMock.creditTransaction.create).not.toHaveBeenCalled()
+  })
+
+  it('402s when reopening would charge but balance is 0 (insufficient funds)', async () => {
+    currentUserId = OWNER
+    const now = new Date()
+    prismaMock.request.findUnique.mockResolvedValue({
+      ...sampleRequest,
+      status: 'SELF_SOLVED',
+      refundedAt: now,
+      userId: OWNER,
+    })
+    prismaMock.message.create.mockResolvedValue({ id: 24, content: 'try again', requestId: 1, userId: OWNER })
+    prismaMock.user.findUnique.mockResolvedValue({ creditBalance: 0 })
+
+    const res = await request(app).post('/api/requests/1/messages').send({ content: 'try again' })
+
+    expect(res.status).toBe(402)
+    expect(res.body.error).toBe('Insufficient credit balance')
+    // Verify the status and refundedAt were NOT changed (transaction rolled back)
+    expect(prismaMock.request.update).not.toHaveBeenCalled()
+  })
+
+  it('admin message on refunded CANCELLED reopens to WAITING_ON_USER and charges 1 credit', async () => {
+    currentUserId = ADMIN
+    const now = new Date()
+    prismaMock.request.findUnique.mockResolvedValue({
+      ...sampleRequest,
+      status: 'CANCELLED',
+      refundedAt: now,
+      userId: OWNER,
+    })
+    prismaMock.message.create.mockResolvedValue({ id: 25, content: 'hi', requestId: 1, userId: ADMIN })
+    prismaMock.user.findUnique.mockResolvedValue({ creditBalance: 2 })
+
+    const res = await request(app).post('/api/requests/1/messages').send({ content: 'hi' })
+
+    expect(res.status).toBe(201)
+    // Admin reopens to WAITING_ON_USER
+    expect(prismaMock.request.update).toHaveBeenCalledWith({
+      where: { id: 1 },
+      data: { status: 'WAITING_ON_USER', refundedAt: null },
+    })
+    expect(prismaMock.creditTransaction.create).toHaveBeenCalledWith({
+      data: { amount: -1, userId: OWNER },
+    })
   })
 })
 
