@@ -534,6 +534,47 @@ Picking up G411-69, the actual sequence was: investigate the codebase → write 
 
 **Going forward**: the moment a ticket is picked up — right after scope is confirmed and any real investigation needed to write an honest Claim/Falsifier is done, but strictly BEFORE any code is written or any implementation subagent is dispatched — make the Open → Implementing transition AND write Claim/Falsifier/Scope. This is a hard ordering constraint, not just a preference: investigate → transition to Implementing (because that's the true, real-time state at that moment) → write Aegis fields → THEN write/dispatch code. Never the reverse — and never treat the status transition as just paperwork alongside the Aegis fields; it's the one making a claim about right now.
 
+### Decision #115 — Decision #109 was correct and already on record, but CLAUDE.md's own "Wrap it up" checklist text was never actually fixed to match it — the wrong instruction kept surviving in the doc that actually gets followed each session (2026-09-08)
+
+Wrapping up G411-80, this session asked Gavi to confirm before the Landed →
+Reconciled Jira transition — the exact mistake decision #109 (2026-09-03)
+already identified and corrected once: merging is the real hard-to-reverse
+action, a Jira status field is cheap and trivially reversible. Gavi's
+correction this time, verbatim: **"for the 10th time, moving Landed →
+Reconciled is NOT a hard-to-reverse-action. merging is. moving to
+reconciled is EASY... even though that, too, is supposed to be clearly
+stated in documentation."**
+
+**Root cause, different from #109's**: decision #109 itself was sound and
+already logged — the actual gap is that `CLAUDE.md`'s own numbered "Wrap it
+up" checklist (step 5, the doc every session actually reads and follows
+turn to turn) still said, verbatim, "confirm with Gavi before the final
+Landed → Reconciled move" — the literal opposite of decision #109's
+conclusion. A correct decision sitting in `gavi411-brain.md` does nothing
+if the operational checklist in `CLAUDE.md` was never actually edited to
+match it. This is the same class of gap the "log a decision live, not just
+at wrap-up" rule (CLAUDE.md's Required Workflow §2) exists to catch — but
+here the decision WAS logged live, at the time (#109); what didn't happen
+was propagating that decision into the actual instruction text that
+governs behavior every single session afterward. A decision log entry and
+the checklist that's supposed to encode it can silently diverge, and nothing
+before now caught that divergence except Gavi noticing the same mistake
+recur "10 times."
+
+**Fixed this session**: `CLAUDE.md`'s "Wrap it up" step 5 rewritten in
+place to state plainly that Landed → Reconciled needs no confirm-first
+pause, and that merging (step 6) is the actual hard-to-reverse action.
+
+**General principle worth carrying forward**: when a decision genuinely
+corrects a standing instruction elsewhere in the docs (not just adds new
+information), logging the decision alone is not sufficient — the
+instruction it corrects has to actually be edited too, in the same pass,
+or the old wrong text keeps winning every time someone follows the
+checklist instead of cross-referencing the full decision log. If a
+decision is a correction to existing written guidance, check whether that
+guidance needs a direct edit as part of landing the decision — don't treat
+"it's in brain.md now" as equivalent to "the wrong instruction is gone."
+
 ## 7. Not Yet Discussed
  
 - Data model, architecture, tech decisions (schema itself not yet drafted — first task on deck).
