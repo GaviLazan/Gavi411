@@ -60,6 +60,17 @@ function App() {
   const [newRequestHasText, setNewRequestHasText] = useState(false)
   const [showLogoDiscardConfirm, setShowLogoDiscardConfirm] = useState(false)
   const { theme, cycleTheme } = useTheme()
+  const [isOnline, setIsOnline] = useState(true)
+  const [presenceToggling, setPresenceToggling] = useState(false)
+
+  // G411-43: fetch and display current presence status on mount
+  // (every signed-in user should see whether Gavi is online)
+  useEffect(() => {
+    fetch('/api/presence')
+      .then((res) => res.ok ? res.json() : null)
+      .then((data) => data && setIsOnline(data.isOnline))
+      .catch(() => {}) // silently default to true on network error
+  }, [])
 
   // Sibling review finding: a stashed token's mere PRESENCE isn't the
   // same as it being valid — a stale/already-used invite link used to
@@ -271,6 +282,34 @@ function App() {
             Triggers
           </button>
         )}
+        {/* G411-43: admin presence toggle (online/offline status) — friends
+            see the status via the banner below, only admin can change it. */}
+        {isAdmin && (
+          <button
+            type="button"
+            onClick={async () => {
+              setPresenceToggling(true)
+              try {
+                const res = await fetch('/api/presence', {
+                  method: 'PATCH',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ isOnline: !isOnline }),
+                })
+                if (res.ok) {
+                  const data = await res.json()
+                  setIsOnline(data.isOnline)
+                }
+              } catch (err) {
+                console.error('Failed to toggle presence:', err)
+              } finally {
+                setPresenceToggling(false)
+              }
+            }}
+            disabled={presenceToggling}
+          >
+            {presenceToggling ? '…' : isOnline ? 'Go offline' : 'Go online'}
+          </button>
+        )}
         {/* Minimal account indicator + sign-out, until a real account
             menu exists — Gavi's call: keep this, don't strip it, once a
             nicer version is built it replaces this rather than removing
@@ -288,6 +327,13 @@ function App() {
           your messages may not be end-to-end encrypted, and if you lose this device you may not
           be able to recover them. Contact Gavi if this keeps happening.{' '}
           <button type="button" onClick={() => setEscrowBackupFailed(false)}>Dismiss</button>
+        </p>
+      )}
+      {/* G411-43: presence status banner for all signed-in users — shows
+          whether Gavi is currently available to respond. */}
+      {isSignedIn && !isOnline && (
+        <p role="status" className="presence-offline-notice">
+          Offline — replies may be delayed
         </p>
       )}
       <ClerkLoading>Loading…</ClerkLoading>

@@ -245,3 +245,13 @@ model Trigger {
   // no idempotency guard and could double-insert rows on a rerun.
   @@unique([keyword, requestType])
 }
+
+// Presence (G411-43) — single global row, id fixed to "singleton" so
+// there's exactly one and it's trivial to upsert without a race. There's
+// one Gavi, not one row per admin — no reason to model this per-user.
+// Offline still accepts requests (PRD §4.5); this flag only changes what
+// friends are shown, never gates any route.
+model Presence {
+  id       String  @id @default("singleton")
+  isOnline Boolean @default(true)
+}
