@@ -87,6 +87,10 @@ model User {
   firstName     String
   lastName      String
   email         String?  @unique
+  // G411-80: Clerk's own username field — nullable, existing users have
+  // none until they set one; Clerk enforces its own uniqueness too, but
+  // this @unique guards our side independently (same reasoning as email).
+  username      String?  @unique
   phoneNumber   String   @unique
   profilePic    String?
   groupTag      GroupTag @default(REGULAR)

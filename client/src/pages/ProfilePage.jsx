@@ -1,91 +1,76 @@
 import { useState, useEffect } from 'react'
-import { useUser } from '@clerk/react'
+import { useUser, useClerk } from '@clerk/react'
 import './CompleteProfile.css'
 
-// Profile page (G411-80) — allows friends to view and edit their profile
-// at any time (not just on first login). Reachable by clicking the account
-// indicator in the header.
+// Profile page (G411-80) — lets a friend view their account and update the
+// one field Clerk can't manage: phone number (Clerk doesn't support Israeli
+// numbers, see G411-69). Everything else Clerk already handles well in its
+// own native, well-designed account modal (name, username, email, photo,
+// password, connected accounts, sign-out-other-devices) — Gavi's call: we
+// don't rebuild any of that, "Update account info" opens Clerk's own UI for
+// it. Only phone gets its own small edit flow, right here.
 function ProfilePage({ user, onBack, onUpdated }) {
   const { user: clerkUser } = useUser()
-  const [firstName, setFirstName] = useState(user?.firstName ?? '')
-  const [lastName, setLastName] = useState(user?.lastName ?? '')
-  const [email, setEmail] = useState(user?.email ?? '')
+  const { openUserProfile } = useClerk()
+  const [editingPhone, setEditingPhone] = useState(false)
   const [dialCode, setDialCode] = useState('+972')
   const [localNumber, setLocalNumber] = useState('')
-  const [selectedPhotoUrl, setSelectedPhotoUrl] = useState(user?.profilePic ?? null)
-  const [photoError, setPhotoError] = useState(null)
-  const [uploadingPhoto, setUploadingPhoto] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState(null)
 
-  // Store initial values to detect changes
-  const [initialValues, setInitialValues] = useState({
-    firstName: user?.firstName ?? '',
-    lastName: user?.lastName ?? '',
-    email: user?.email ?? '',
-    phoneNumber: user?.phoneNumber ?? '',
-    profilePic: user?.profilePic ?? null,
-  })
-
+  // Real per-country grouping conventions, not guessed — dial code decides
+  // which grouping applies. Israel's stored value already has its leading
+  // 0 dropped (normalizePhoneNumber's job), so its prefix group is 2
+  // digits, not 3 — a bug caught live (Gavi) in an earlier version of this
+  // formatter that sliced 3 and produced "+972544-284668" instead of the
+  // correct "+972 54-4284668".
   const dialCodeOptions = [
-    { code: '+972', country: 'Israel' },
-    { code: '+1', country: 'United States' },
-    { code: '+1', country: 'Canada' },
-    { code: '+44', country: 'United Kingdom' },
-    { code: '+33', country: 'France' },
-    { code: '+49', country: 'Germany' },
-    { code: '+61', country: 'Australia' },
+    { code: '+972', country: 'Israel', group: (d) => d.length > 2 ? [d.slice(0, 2), d.slice(2)].join('-') : d },
+    { code: '+1', country: 'United States', group: groupNanp },
+    { code: '+1', country: 'Canada', group: groupNanp },
+    { code: '+44', country: 'United Kingdom', group: (d) => d.length > 4 ? [d.slice(0, 4), d.slice(4)].join(' ') : d },
+    { code: '+33', country: 'France', group: (d) => d.match(/.{1,2}/g)?.join(' ') ?? d },
+    { code: '+49', country: 'Germany', group: (d) => d.length > 3 ? [d.slice(0, 3), d.slice(3)].join(' ') : d },
+    { code: '+61', country: 'Australia', group: (d) => d.match(/.{1,3}/g)?.join(' ') ?? d },
   ]
 
-  // Parse the stored phone number into dial code and local number on mount.
-  // Bug found in review: a greedy `/^(\+\d+)(.*)$/` swallows the whole
-  // digit string into the dial-code group, leaving localNumber empty and
-  // dialCode matching none of dialCodeOptions — every load showed a blank
-  // phone field, and normalizePhoneNumber() would silently prepend
-  // whatever got typed with the full original number. Match against the
-  // known dial codes instead (longest first, so '+1' doesn't shadow a
-  // longer prefix) since that's the only alphabet normalizePhoneNumber()
-  // ever writes.
+  // NANP (US/Canada): XXX-XXX-XXXX.
+  function groupNanp(d) {
+    if (d.length !== 10) return d
+    return `${d.slice(0, 3)}-${d.slice(3, 6)}-${d.slice(6)}`
+  }
+
+  function matchDialCode(phoneNumber) {
+    return [...dialCodeOptions]
+      .sort((a, b) => b.code.length - a.code.length)
+      .find((opt) => phoneNumber.startsWith(opt.code))
+  }
+
+  // Parse the stored phone number into dial code + local number whenever
+  // the phone edit form opens, or the underlying user prop changes.
   useEffect(() => {
-    if (user?.phoneNumber) {
-      const phoneNumber = user.phoneNumber
-      const knownCode = [...dialCodeOptions]
-        .sort((a, b) => b.code.length - a.code.length)
-        .find((opt) => phoneNumber.startsWith(opt.code))
-      if (knownCode) {
-        setDialCode(knownCode.code)
-        setLocalNumber(phoneNumber.slice(knownCode.code.length))
-      } else {
-        // Fallback for local-only format like '050-1234567'
-        setLocalNumber(phoneNumber)
-      }
+    if (!user?.phoneNumber) return
+    const knownCode = matchDialCode(user.phoneNumber)
+    if (knownCode) {
+      setDialCode(knownCode.code)
+      setLocalNumber(user.phoneNumber.slice(knownCode.code.length))
+    } else {
+      // Fallback for an unrecognized/local-only stored format.
+      setLocalNumber(user.phoneNumber)
     }
   }, [user?.phoneNumber])
+
+  function formatPhoneNumber(phoneNumber) {
+    if (!phoneNumber) return ''
+    const knownCode = matchDialCode(phoneNumber)
+    if (!knownCode) return phoneNumber
+    const localPart = phoneNumber.slice(knownCode.code.length)
+    return `${knownCode.code} ${knownCode.group(localPart)}`
+  }
 
   function getPlaceholder() {
     if (dialCode === '+972') return 'e.g. 050-1234567'
     return 'Phone number'
-  }
-
-  async function handlePhotoUpload(e) {
-    const file = e.target.files?.[0]
-    if (!file) return
-
-    setPhotoError(null)
-    setUploadingPhoto(true)
-    try {
-      // Upload to Clerk and get the image URL
-      const imageResource = await clerkUser.setProfileImage({ file })
-      if (imageResource.publicUrl) {
-        setSelectedPhotoUrl(imageResource.publicUrl)
-      } else {
-        setPhotoError('Upload succeeded but no photo URL was returned — try again.')
-      }
-    } catch (err) {
-      setPhotoError('Could not upload photo — try again.')
-    } finally {
-      setUploadingPhoto(false)
-    }
   }
 
   function validatePhoneNumber() {
@@ -103,29 +88,37 @@ function ProfilePage({ user, onBack, onUpdated }) {
     return dialCode + withoutLeadingZero
   }
 
+  function startEditingPhone() {
+    setError(null)
+    setEditingPhone(true)
+  }
+
+  function cancelEditingPhone() {
+    setError(null)
+    // Re-parse from the last-saved value, discarding any in-progress edit.
+    if (user?.phoneNumber) {
+      const knownCode = matchDialCode(user.phoneNumber)
+      if (knownCode) {
+        setDialCode(knownCode.code)
+        setLocalNumber(user.phoneNumber.slice(knownCode.code.length))
+      } else {
+        setLocalNumber(user.phoneNumber)
+      }
+    }
+    setEditingPhone(false)
+  }
+
   async function handleSubmit(e) {
     e.preventDefault()
     setError(null)
 
-    // If phone number is changed, validate it
     const normalizedPhone = normalizePhoneNumber()
-    const phoneChanged = normalizedPhone !== initialValues.phoneNumber
-    if (phoneChanged && !validatePhoneNumber()) {
-      setError('Please enter a valid phone number')
+    if (normalizedPhone === user?.phoneNumber) {
+      setEditingPhone(false)
       return
     }
-
-    // Build the update payload with only changed fields
-    const updateData = {}
-    if (firstName !== initialValues.firstName) updateData.firstName = firstName
-    if (lastName !== initialValues.lastName) updateData.lastName = lastName
-    if (email !== initialValues.email) updateData.email = email
-    if (phoneChanged) updateData.phoneNumber = normalizedPhone
-    if (selectedPhotoUrl !== initialValues.profilePic) updateData.profilePic = selectedPhotoUrl
-
-    // If nothing changed, just call onBack
-    if (Object.keys(updateData).length === 0) {
-      onBack()
+    if (!validatePhoneNumber()) {
+      setError('Please enter a valid phone number')
       return
     }
 
@@ -134,28 +127,17 @@ function ProfilePage({ user, onBack, onUpdated }) {
       const res = await fetch('/api/me/profile', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(updateData),
+        body: JSON.stringify({ phoneNumber: normalizedPhone }),
       })
 
       if (!res.ok) {
         const data = await res.json().catch(() => ({}))
-        throw new Error(data.error || 'Failed to update profile')
+        throw new Error(data.error || 'Failed to update phone number')
       }
 
       const data = await res.json()
-      // Bug found live (Gavi): the header's account-indicator reads from
-      // Clerk's own client-side useUser() object, not our /api/me-backed
-      // state — onUpdated only refreshes the latter. Our PATCH changes
-      // Clerk's record via the server's secret key, which the browser's
-      // already-loaded Clerk SDK has no way to know about on its own, so
-      // the indicator kept showing the old name/email until a full page
-      // reload re-fetched it. Explicitly reload the client-side Clerk
-      // user so it's fresh before the account-indicator re-renders.
-      if (firstName !== initialValues.firstName || lastName !== initialValues.lastName || email !== initialValues.email) {
-        await clerkUser?.reload()
-      }
       onUpdated(data.user)
-      onBack()
+      setEditingPhone(false)
     } catch (err) {
       setError(err.message)
     } finally {
@@ -165,91 +147,89 @@ function ProfilePage({ user, onBack, onUpdated }) {
 
   return (
     <div className="complete-profile">
-      <h1>Edit profile</h1>
+      <h1>Profile</h1>
 
-      <form onSubmit={handleSubmit}>
-        <div>
-          <label>
-            First name
-            <input
-              type="text"
-              value={firstName}
-              onChange={(e) => setFirstName(e.target.value)}
-            />
-          </label>
+      <div style={{ marginBottom: 'var(--space-3)' }}>
+        <div style={{ marginBottom: 'var(--space-1)' }}>
+          <strong>Name:</strong> {[user?.firstName, user?.lastName].filter(Boolean).join(' ') || '(not set)'}
         </div>
-
-        <div>
-          <label>
-            Last name
-            <input
-              type="text"
-              value={lastName}
-              onChange={(e) => setLastName(e.target.value)}
-            />
-          </label>
+        <div style={{ marginBottom: 'var(--space-1)' }}>
+          <strong>Username:</strong> {user?.username || '(not set)'}
         </div>
-
-        <div>
-          <label>
-            Email
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-            />
-          </label>
+        <div style={{ marginBottom: 'var(--space-1)' }}>
+          <strong>Email:</strong> {user?.email || '(not set)'}
         </div>
-
-        <div className="phone-section">
-          <label>
-            Phone number
-            <div className="phone-input-group">
-              <select
-                value={dialCode}
-                onChange={(e) => setDialCode(e.target.value)}
-              >
-                {dialCodeOptions.map((opt) => (
-                  <option key={opt.country} value={opt.code}>
-                    {opt.country} ({opt.code})
-                  </option>
-                ))}
-              </select>
-              <input
-                type="tel"
-                value={localNumber}
-                onChange={(e) => setLocalNumber(e.target.value)}
-                placeholder={getPlaceholder()}
-              />
-            </div>
-          </label>
-        </div>
-
-        <div className="photo-section">
-          <h3>Profile picture</h3>
-          {selectedPhotoUrl ? (
-            <img src={selectedPhotoUrl} alt="Profile" style={{ width: 80, height: 80, borderRadius: '50%', objectFit: 'cover' }} />
+        <div style={{ marginBottom: 'var(--space-1)' }}>
+          <strong>Profile picture:</strong>
+          {user?.profilePic ? (
+            <img src={user.profilePic} alt="Profile" style={{ width: 80, height: 80, borderRadius: '50%', objectFit: 'cover', marginLeft: 'var(--space-1)' }} />
           ) : (
-            <p>No photo set</p>
+            <span style={{ marginLeft: 'var(--space-1)' }}>Not set</span>
           )}
-          <label>
-            Choose photo
-            <input type="file" accept="image/*" onChange={handlePhotoUpload} />
-          </label>
-          {photoError && <p role="alert">{photoError}</p>}
         </div>
+      </div>
 
-        {error && <p role="alert">{error}</p>}
+      {!editingPhone ? (
+        <>
+          <div style={{ marginBottom: 'var(--space-3)' }}>
+            <strong>Phone:</strong> {formatPhoneNumber(user?.phoneNumber) || '(not set)'}
+          </div>
 
-        <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
-          <button type="submit" disabled={submitting || uploadingPhoto}>
-            {submitting ? 'Saving…' : uploadingPhoto ? 'Uploading photo…' : 'Save'}
-          </button>
-          <button type="button" onClick={onBack} disabled={submitting || uploadingPhoto}>
-            Cancel
-          </button>
-        </div>
-      </form>
+          <div style={{ display: 'flex', gap: 'var(--space-2)', flexWrap: 'wrap' }}>
+            {/* Name/username/email/photo/password/connected-accounts/
+                device-sign-out all live in Clerk's own account modal —
+                Gavi's call: no need to duplicate a UI Clerk already does
+                well. Only phone (Clerk-unsupported for Israeli numbers)
+                gets a custom edit flow, below. */}
+            <button type="button" onClick={() => openUserProfile()}>
+              Update account info
+            </button>
+            <button type="button" onClick={startEditingPhone}>
+              Update phone number
+            </button>
+            <button type="button" onClick={onBack}>
+              Back
+            </button>
+          </div>
+        </>
+      ) : (
+        <form onSubmit={handleSubmit}>
+          <div className="phone-section">
+            <label>
+              Phone number
+              <div className="phone-input-group">
+                <select
+                  value={dialCode}
+                  onChange={(e) => setDialCode(e.target.value)}
+                >
+                  {dialCodeOptions.map((opt) => (
+                    <option key={opt.country} value={opt.code}>
+                      {opt.country} ({opt.code})
+                    </option>
+                  ))}
+                </select>
+                <input
+                  type="tel"
+                  value={localNumber}
+                  onChange={(e) => setLocalNumber(e.target.value)}
+                  placeholder={getPlaceholder()}
+                />
+              </div>
+            </label>
+          </div>
+
+          {error && <p role="alert">{error}</p>}
+
+          <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
+            <button type="submit" disabled={submitting}>
+              {submitting ? 'Saving…' : 'Save'}
+            </button>
+            <button type="button" onClick={cancelEditingPhone} disabled={submitting}>
+              Cancel
+            </button>
+          </div>
+        </form>
+      )}
     </div>
   )
 }

@@ -294,7 +294,7 @@ function App() {
               className="account-indicator-trigger"
               onClick={() => setView('profile')}
             >
-              {user?.primaryEmailAddress?.emailAddress || user?.id}
+              {fetchedUser?.username || user?.primaryEmailAddress?.emailAddress || user?.id}
             </button>
             {' '}
             <button type="button" onClick={() => signOut()}>Sign out</button>
