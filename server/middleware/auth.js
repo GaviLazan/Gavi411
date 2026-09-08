@@ -150,6 +150,10 @@ export async function requireAuth(req, res, next) {
             // our side, so this is a placeholder until that flow fills
             // it in.
             phoneNumber: `pending-${userId}`,
+            // G411-69: capture profile photo from Clerk's OAuth provider
+            // (Google/email sign-in) if available. For email-only signup
+            // (no OAuth photo), leave as null (schema default).
+            ...(clerkUser.hasImage ? { profilePic: clerkUser.imageUrl } : {}),
             // G411-45: initial grant is no longer hardcoded 0 (real bug —
             // new users couldn't submit even one request until manually
             // topped up). NOT yet tiered by group in practice: groupTag

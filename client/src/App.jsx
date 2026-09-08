@@ -9,6 +9,7 @@ import InstallHelp from './pages/InstallHelp'
 import InviteAdmin from './pages/InviteAdmin'
 import TriggerAdmin from './pages/TriggerAdmin'
 import AdminCreateRequest from './pages/AdminCreateRequest'
+import CompleteProfile from './pages/CompleteProfile'
 import ConfirmModal from './components/ConfirmModal'
 import Button from './components/Button'
 import { useTheme } from './useTheme'
@@ -193,6 +194,8 @@ function App() {
   // finding — `role === 'ADMIN'` was independently re-derived at 3
   // separate call sites in this file with no shared source).
   const isAdmin = role === 'ADMIN'
+  const [needsProfileCompletion, setNeedsProfileCompletion] = useState(false)
+  const [userProfilePic, setUserProfilePic] = useState(null)
   const [unauthorized, setUnauthorized] = useState(false)
   // Sibling review finding: a thrown /api/me fetch (network blip, Render
   // cold-start timeout) used to be silently swallowed by an empty catch,
@@ -219,7 +222,15 @@ function App() {
         if (!res.ok) throw new Error('failed')
         return res.json()
       })
-      .then((data) => data && setRole(data.user?.role ?? null))
+      .then((data) => {
+        if (data) {
+          setRole(data.user?.role ?? null)
+          // G411-69: check if user needs to complete profile (phone still pending)
+          const phoneNumber = data.user?.phoneNumber
+          setNeedsProfileCompletion(phoneNumber?.startsWith('pending-') ?? false)
+          setUserProfilePic(data.user?.profilePic ?? null)
+        }
+      })
       .catch(() => setRoleFetchFailed(true))
   }, [isSignedIn, tokenHandoffDone, roleRetryToken])
 
@@ -367,6 +378,14 @@ function App() {
             onDone={() => {
               clearStashedRecoveryParams()
               setRecovery({ token: null, passphrase: null })
+            }}
+          />
+        ) : isSignedIn && needsProfileCompletion ? (
+          <CompleteProfile
+            currentProfilePic={userProfilePic}
+            onComplete={() => {
+              setNeedsProfileCompletion(false)
+              setRoleRetryToken((t) => t + 1)
             }}
           />
         ) : isSignedIn ? (
