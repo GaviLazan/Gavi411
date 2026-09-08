@@ -8,6 +8,7 @@ import RequestDetail from './pages/RequestDetail'
 import InstallHelp from './pages/InstallHelp'
 import InviteAdmin from './pages/InviteAdmin'
 import TriggerAdmin from './pages/TriggerAdmin'
+import AdminCreateRequest from './pages/AdminCreateRequest'
 import ConfirmModal from './components/ConfirmModal'
 import Button from './components/Button'
 import { useTheme } from './useTheme'
@@ -55,7 +56,7 @@ const THEME_LABEL = { system: 'Auto', light: 'Light', dark: 'Dark' }
 function App() {
   const { isSignedIn, user } = useUser()
   const { signOut } = useClerk()
-  const [view, setView] = useState('list') // 'list' | 'new' | 'install-help' | 'detail' | 'invite-admin' | 'trigger-admin'
+  const [view, setView] = useState('list') // 'list' | 'new' | 'install-help' | 'detail' | 'invite-admin' | 'trigger-admin' | 'admin-create-request'
   const [selectedRequestId, setSelectedRequestId] = useState(null)
   const [newRequestHasText, setNewRequestHasText] = useState(false)
   const [showLogoDiscardConfirm, setShowLogoDiscardConfirm] = useState(false)
@@ -375,6 +376,8 @@ function App() {
             <InviteAdmin onBack={() => setView('list')} />
           ) : view === 'trigger-admin' ? (
             <TriggerAdmin onBack={() => setView('list')} />
+          ) : view === 'admin-create-request' ? (
+            <AdminCreateRequest onBack={() => setView('list')} />
           ) : view === 'detail' ? (
             <RequestDetail requestId={selectedRequestId} onBack={() => setView('list')} isAdmin={isAdmin} />
           ) : roleFetchFailed ? (
@@ -397,7 +400,12 @@ function App() {
           ) : isAdmin ? (
             <AdminList
               onOpenRequest={(id) => { setSelectedRequestId(id); setView('detail'); }}
-              onNewRequest={() => setView('new')}
+              // G411-44, per Gavi's direct correction: admin doesn't open
+              // requests for themself — this button now opens the
+              // on-behalf-of-a-friend flow, not the old self-service
+              // NewRequest form. That form (view('new')) is friend-only
+              // now, reachable only via RequestList below.
+              onNewRequest={() => setView('admin-create-request')}
             />
           ) : (
             <RequestList

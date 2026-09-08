@@ -11,6 +11,7 @@ import { canAccessRequest, hasAdminMessaged } from '../lib/requestAccess.js'
 import { E2E_ENABLED } from '../lib/e2eConfig.js'
 import { deductCredit, refundCredit } from '../lib/credits.js'
 import { sendNudge } from '../lib/autoClose.js'
+import { sendPushToUser } from '../lib/webPush.js'
 
 const router = express.Router()
 
@@ -144,6 +145,26 @@ router.get('/', requireAuth, async (req, res) => {
   } catch (err) {
     console.error('Failed to load requests:', err)
     res.status(500).json({ error: 'Failed to load requests' })
+  }
+})
+
+// GET /users — list all users for admin's dropdown (G411-44)
+router.get('/users', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const users = await prisma.user.findMany({
+      // Sibling review finding: excludes ADMIN — this list feeds the
+      // "create a request ON BEHALF OF someone else" dropdown
+      // (admin-create below), so admin's own account has no business
+      // appearing in it. Without this, admin could select themselves,
+      // charge their own account a credit, and push-notify themselves.
+      where: { role: { not: 'ADMIN' } },
+      select: { clerkId: true, firstName: true, lastName: true },
+      orderBy: [{ firstName: 'asc' }, { lastName: 'asc' }],
+    })
+    res.json(users)
+  } catch (err) {
+    console.error('Failed to load users:', err)
+    res.status(500).json({ error: 'Failed to load users' })
   }
 })
 
@@ -537,6 +558,79 @@ router.post('/', requireAuth, async (req, res) => {
           userId: req.user.clerkId,
         },
       })
+    })
+
+    res.status(201).json(request)
+  } catch (err) {
+    if (err.statusCode) {
+      return res.status(err.statusCode).json({ error: err.message })
+    }
+    console.error('Failed to create request:', err)
+    res.status(500).json({ error: 'Failed to create request' })
+  }
+})
+
+// POST /admin-create — admin creates a request on behalf of an existing user (G411-44).
+// Distinct from POST / which always creates for the caller's own userId.
+router.post('/admin-create', requireAuth, requireAdmin, async (req, res) => {
+  const { userId, freeText, type, urgency, additionalInfo, typeDetails, chargeCredit } = req.body
+
+  if (!userId) {
+    return res.status(400).json({ error: 'userId is required' })
+  }
+  if (!freeText) {
+    return res.status(400).json({ error: 'freeText is required' })
+  }
+
+  // Validate the target user exists and isn't the admin themself — this
+  // route's whole purpose is "on behalf of someone else." GET /users
+  // already excludes admin from the dropdown; this is the server-side
+  // backstop for a direct API call bypassing that UI (Sibling review
+  // finding — self-target was previously unguarded).
+  const targetUser = await prisma.user.findUnique({ where: { clerkId: userId } })
+  if (!targetUser) {
+    return res.status(404).json({ error: 'User not found' })
+  }
+  if (targetUser.role === 'ADMIN') {
+    return res.status(400).json({ error: 'Cannot create a request on behalf of an admin' })
+  }
+
+  // Same type sentinel and typeDetails cleanup as POST /
+  const requestType = type === 'NONE' ? null : type
+  const cleanedTypeDetails = stripEmpty(typeDetails)
+  // Sibling review finding: plain truthiness would treat a stray string
+  // like "false" (from a non-React caller) as chargeCredit === true.
+  // Strict === true means only a real boolean true opts in to charging.
+  const shouldCharge = chargeCredit === true
+
+  try {
+    // Sibling review finding: this used to duplicate the whole `data`
+    // object and branch between $transaction/plain create depending on
+    // chargeCredit — two copies of the same create call to keep in sync.
+    // Always transacting costs nothing for a single write; deductCredit
+    // itself is the only thing conditional now.
+    const request = await prisma.$transaction(async (tx) => {
+      if (shouldCharge) await deductCredit(tx, userId)
+
+      return tx.request.create({
+        data: {
+          freeText,
+          type: requestType,
+          urgency,
+          additionalInfo: additionalInfo || null,
+          typeDetails: cleanedTypeDetails,
+          userId,
+        },
+      })
+    })
+
+    // Send Web Push notification to the target user, but don't fail the
+    // request if this fails (push delivery is best-effort, not critical-path).
+    sendPushToUser(userId, {
+      title: 'New request opened for you',
+      body: 'Gavi opened a new request on your behalf — take a look.',
+    }).catch((err) => {
+      console.error('Failed to send admin-create notification:', err.message)
     })
 
     res.status(201).json(request)
