@@ -864,16 +864,21 @@ function RequestDetail({ requestId, onBack, isAdmin }) {
                 No longer urgent
               </Button>
             )}
-            {request.status === 'WAITING_ON_USER' && (
-              <Button
-                variant="secondary"
-                onClick={handleNudge}
-                disabled={statusSaving || request.nudgedAt != null}
-                title={request.nudgedAt ? `Nudged on ${new Date(request.nudgedAt).toLocaleDateString('en-GB')}` : undefined}
-              >
-                {request.nudgedAt ? `Nudged on ${new Date(request.nudgedAt).toLocaleDateString('en-GB')}` : 'Nudge'}
-              </Button>
-            )}
+            {request.status === 'WAITING_ON_USER' && (() => {
+              const nudgedLabel = request.nudgedAt
+                ? `Nudged on ${new Date(request.nudgedAt).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit' })}`
+                : null
+              return (
+                <Button
+                  variant="secondary"
+                  onClick={handleNudge}
+                  disabled={statusSaving || request.nudgedAt != null}
+                  title={nudgedLabel ?? undefined}
+                >
+                  {nudgedLabel ?? 'Nudge'}
+                </Button>
+              )
+            })()}
           </div>
           <button type="button" className="admin-layout-toggle" onClick={() => setSideBySide((v) => !v)}>
             {sideBySide ? "Stack tabs" : "Side by side"}
