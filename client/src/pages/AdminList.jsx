@@ -106,11 +106,11 @@ function AdminRequestRow({ request, onClick }) {
   );
 }
 
-function AdminList({ onOpenRequest, onNewRequest }) {
+function AdminList({ onOpenRequest, onNewRequest, initialFilter }) {
   const [requests, setRequests] = useState(null);
   const [error, setError] = useState("");
   const [sort, setSort] = useState("urgency");
-  const [filter, setFilter] = useState("open");
+  const [filter, setFilter] = useState(initialFilter ?? "open");
   const [group, setGroup] = useState("none");
   const [retryToken, setRetryToken] = useState(0);
 

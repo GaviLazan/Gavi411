@@ -1,6 +1,7 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import Card from "../components/Card";
 import Button from "../components/Button";
+import { useRequests } from "../lib/useRequests";
 
 // Statuses that read as "done" for the open/closed toggle (G411-67).
 // PRD/brain.md's lifecycle only names a single terminal "closed" state
@@ -58,38 +59,12 @@ export function RequestCard({ request, onClick }) {
 // open requests, a toggle to reveal closed ones, and a fallback to the
 // most recent closed request when there are no open ones at all.
 function RequestList({ onNewRequest, onShowInstallHelp, onOpenRequest }) {
-  const [requests, setRequests] = useState(null);
-  const [error, setError] = useState("");
+  const { requests, error, retry } = useRequests();
   const [showClosed, setShowClosed] = useState(false);
   // G411-75: starts collapsed, no persistence across visits (ticket
   // left this as a pickup-time call — always-collapsed is the simplest
   // reading of "starts collapsed by default" and needs no storage).
   const [openExpanded, setOpenExpanded] = useState(false);
-
-  const [retryToken, setRetryToken] = useState(0);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    async function load() {
-      setError("");
-      try {
-        // Cookie-based Clerk session, same as NewRequest.jsx's fetches —
-        // no manual Authorization header needed.
-        const res = await fetch("/api/requests");
-        if (!res.ok) throw new Error("failed");
-        const data = await res.json();
-        if (!cancelled) setRequests(data);
-      } catch {
-        if (!cancelled) setError("Couldn't load your requests. Try again?");
-      }
-    }
-
-    load();
-    return () => {
-      cancelled = true;
-    };
-  }, [retryToken]);
 
   // "+ New request" doesn't depend on the list loading successfully —
   // creating a request has nothing to do with whether the existing list
@@ -105,7 +80,7 @@ function RequestList({ onNewRequest, onShowInstallHelp, onOpenRequest }) {
         </Button>
         <Card>
           <p>{error}</p>
-          <Button onClick={() => setRetryToken((t) => t + 1)}>Try again</Button>
+          <Button onClick={retry}>Try again</Button>
         </Card>
       </div>
     );

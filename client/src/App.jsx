@@ -66,6 +66,7 @@ function App() {
   const [newRequestHasText, setNewRequestHasText] = useState(false)
   const [showLogoDiscardConfirm, setShowLogoDiscardConfirm] = useState(false)
   const [hamburgerOpen, setHamburgerOpen] = useState(false)
+  const [previousView, setPreviousView] = useState('list')
   const { theme, cycleTheme } = useTheme()
   const [isOnline, setIsOnline] = useState(true)
   const [presenceToggling, setPresenceToggling] = useState(false)
@@ -74,6 +75,8 @@ function App() {
   // and zero feedback — same silent-failure class already fixed for
   // roleFetchFailed/escrowBackupFailed elsewhere in this file.
   const [presenceToggleError, setPresenceToggleError] = useState(false)
+  const [adminOpenCount, setAdminOpenCount] = useState(null)
+  const [adminCountLoading, setAdminCountLoading] = useState(false)
 
   // G411-43: fetch and display current presence status on mount
   // (every signed-in user should see whether Gavi is online)
@@ -257,6 +260,22 @@ function App() {
     })
   }, [role])
 
+  // Load admin's open request count for home screen display
+  useEffect(() => {
+    if (!isAdmin) return
+    setAdminCountLoading(true)
+    fetch('/api/requests')
+      .then((res) => res.ok ? res.json() : null)
+      .then((data) => {
+        if (data) {
+          const openCount = data.filter((r) => !['CLOSED', 'CANCELLED', 'SELF_SOLVED'].includes(r.status)).length
+          setAdminOpenCount(openCount)
+        }
+        setAdminCountLoading(false)
+      })
+      .catch(() => setAdminCountLoading(false))
+  }, [isAdmin])
+
   return (
     <div className="design-preview">
       {/* G411-95: hamburger-menu navigation redesign. Header now shows:
@@ -343,20 +362,23 @@ function App() {
         {role !== null && (
           <div hidden={view !== 'list'}>
             {isAdmin ? (
-              <AdminList
-                onOpenRequest={(id) => { setSelectedRequestId(id); setView('detail'); }}
-                // G411-44, per Gavi's direct correction: admin doesn't open
-                // requests for themself — this button now opens the
-                // on-behalf-of-a-friend flow, not the old self-service
-                // NewRequest form. That form (view('new')) is friend-only
-                // now, reachable only via RequestList below.
-                onNewRequest={() => setView('admin-create-request')}
-              />
+              <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-3)", width: "100%", maxWidth: 560 }}>
+                <Button variant="primary" onClick={() => setView('admin-create-request')}>
+                  + New request
+                </Button>
+                {adminCountLoading ? (
+                  <Button disabled>Loading…</Button>
+                ) : (
+                  <Button onClick={() => { setPreviousView('list'); setView('open-requests'); }}>
+                    {adminOpenCount ?? 0} open requests
+                  </Button>
+                )}
+              </div>
             ) : (
               <RequestList
                 onNewRequest={() => setView('new')}
                 onShowInstallHelp={() => setView('install-help')}
-                onOpenRequest={(id) => { setSelectedRequestId(id); setView('detail'); }}
+                onOpenRequest={(id) => { setSelectedRequestId(id); setPreviousView('list'); setView('detail'); }}
               />
             )}
           </div>
@@ -417,15 +439,31 @@ function App() {
               }}
             />
           ) : view === 'detail' ? (
-            <RequestDetail requestId={selectedRequestId} onBack={() => setView('list')} isAdmin={isAdmin} />
+            <RequestDetail requestId={selectedRequestId} onBack={() => setView(previousView)} isAdmin={isAdmin} />
           ) : view === 'open-requests' ? (
-            <OpenRequestsList
-              onOpenRequest={(id) => { setSelectedRequestId(id); setView('detail'); }}
-            />
+            isAdmin ? (
+              <AdminList
+                initialFilter="open"
+                onOpenRequest={(id) => { setSelectedRequestId(id); setPreviousView('open-requests'); setView('detail'); }}
+                onNewRequest={() => setView('admin-create-request')}
+              />
+            ) : (
+              <OpenRequestsList
+                onOpenRequest={(id) => { setSelectedRequestId(id); setPreviousView('open-requests'); setView('detail'); }}
+              />
+            )
           ) : view === 'closed-requests' ? (
-            <ClosedRequestsList
-              onOpenRequest={(id) => { setSelectedRequestId(id); setView('detail'); }}
-            />
+            isAdmin ? (
+              <AdminList
+                initialFilter="closed"
+                onOpenRequest={(id) => { setSelectedRequestId(id); setPreviousView('closed-requests'); setView('detail'); }}
+                onNewRequest={() => setView('admin-create-request')}
+              />
+            ) : (
+              <ClosedRequestsList
+                onOpenRequest={(id) => { setSelectedRequestId(id); setPreviousView('closed-requests'); setView('detail'); }}
+              />
+            )
           ) : roleFetchFailed ? (
             // Sibling review finding: the /api/me fetch failing (network
             // blip, cold-start timeout) used to leave role permanently
@@ -476,24 +514,36 @@ function App() {
               Profile
             </button>
 
-            {/* Open requests */}
+            {/* Open requests — route to AdminList for admin, OpenRequestsList for friends */}
             <button
               type="button"
               className="hamburger-menu-item"
               onClick={() => {
-                setView('open-requests')
+                if (isAdmin) {
+                  setPreviousView('list')
+                  setView('open-requests')
+                } else {
+                  setPreviousView('list')
+                  setView('open-requests')
+                }
                 setHamburgerOpen(false)
               }}
             >
               Open requests
             </button>
 
-            {/* Closed requests */}
+            {/* Closed requests — route to AdminList for admin, ClosedRequestsList for friends */}
             <button
               type="button"
               className="hamburger-menu-item"
               onClick={() => {
-                setView('closed-requests')
+                if (isAdmin) {
+                  setPreviousView('list')
+                  setView('closed-requests')
+                } else {
+                  setPreviousView('list')
+                  setView('closed-requests')
+                }
                 setHamburgerOpen(false)
               }}
             >
@@ -506,34 +556,41 @@ function App() {
                 <div className="hamburger-menu-divider" />
 
                 {/* Presence toggle */}
-                <button
-                  type="button"
-                  className="hamburger-menu-presence-toggle"
-                  onClick={async () => {
-                    setPresenceToggling(true)
-                    setPresenceToggleError(false)
-                    try {
-                      const res = await fetch('/api/presence', {
-                        method: 'PATCH',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ isOnline: !isOnline }),
-                      })
-                      if (res.ok) {
-                        const data = await res.json()
-                        setIsOnline(data.isOnline)
-                      } else {
+                <div>
+                  <button
+                    type="button"
+                    className="hamburger-menu-presence-toggle"
+                    onClick={async () => {
+                      setPresenceToggling(true)
+                      setPresenceToggleError(false)
+                      try {
+                        const res = await fetch('/api/presence', {
+                          method: 'PATCH',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ isOnline: !isOnline }),
+                        })
+                        if (res.ok) {
+                          const data = await res.json()
+                          setIsOnline(data.isOnline)
+                        } else {
+                          setPresenceToggleError(true)
+                        }
+                      } catch {
                         setPresenceToggleError(true)
+                      } finally {
+                        setPresenceToggling(false)
                       }
-                    } catch {
-                      setPresenceToggleError(true)
-                    } finally {
-                      setPresenceToggling(false)
-                    }
-                  }}
-                  disabled={presenceToggling}
-                >
-                  {presenceToggling ? '…' : isOnline ? 'Go offline' : 'Go online'}
-                </button>
+                    }}
+                    disabled={presenceToggling}
+                  >
+                    {presenceToggling ? '…' : isOnline ? 'Go offline' : 'Go online'}
+                  </button>
+                  {presenceToggleError && (
+                    <p style={{ fontSize: 13, color: 'var(--text)', marginTop: 'var(--space-1)' }}>
+                      Failed to update — try again.
+                    </p>
+                  )}
+                </div>
 
                 {/* Invites */}
                 <button

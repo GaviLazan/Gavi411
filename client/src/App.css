@@ -15,12 +15,28 @@
    the same 420px column the card already uses, via a wrapper in
    App.jsx, not by resizing every child indiscriminately. */
 .header-row {
-  display: flex;
-  justify-content: space-between;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
   align-items: center;
   width: 100%;
   max-width: 420px;
   margin-bottom: var(--space-2);
+}
+
+.header-row > .wordmark,
+.header-row > .wordmark-button {
+  grid-column: 1 / -1;
+  justify-self: center;
+}
+
+.header-row > .hamburger-button {
+  grid-column: 1;
+  justify-self: start;
+}
+
+.header-row > .account-indicator {
+  grid-column: 3;
+  justify-self: end;
 }
 
 /* Every toggle/admin-nav button (theme, Invites, Triggers, presence)
