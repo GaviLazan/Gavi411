@@ -1,3 +1,5 @@
+import Card from "../components/Card";
+
 // Statuses that read as "done" for the open/closed toggle (G411-67).
 // PRD/brain.md's lifecycle only names a single terminal "closed" state
 // explicitly, but describes CANCELLED/SELF_SOLVED as separate exit

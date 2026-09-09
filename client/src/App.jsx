@@ -17,6 +17,7 @@ import { useTheme } from './useTheme'
 import Recover from './pages/Recover'
 import OpenRequestsList from './pages/OpenRequestsList'
 import ClosedRequestsList from './pages/ClosedRequestsList'
+import { CLOSED_STATUSES } from './pages/RequestList'
 import {
   captureInviteTokenFromUrl,
   getStashedInviteToken,
@@ -259,20 +260,25 @@ function App() {
     })
   }, [role])
 
-  // Load admin's open request count for home screen display
+  // Load admin's open request count for home screen display. Cancelled
+  // flag matches useRequests.js's own guard (same class of race: role
+  // flips or unmount while the fetch is in flight).
   useEffect(() => {
     if (!isAdmin) return
+    let cancelled = false
     setAdminCountLoading(true)
     fetch('/api/requests')
       .then((res) => res.ok ? res.json() : null)
       .then((data) => {
+        if (cancelled) return
         if (data) {
-          const openCount = data.filter((r) => !['CLOSED', 'CANCELLED', 'SELF_SOLVED'].includes(r.status)).length
+          const openCount = data.filter((r) => !CLOSED_STATUSES.includes(r.status)).length
           setAdminOpenCount(openCount)
         }
         setAdminCountLoading(false)
       })
-      .catch(() => setAdminCountLoading(false))
+      .catch(() => { if (!cancelled) setAdminCountLoading(false) })
+    return () => { cancelled = true }
   }, [isAdmin])
 
   return (
@@ -362,7 +368,7 @@ function App() {
           <div hidden={view !== 'list'}>
             {isAdmin ? (
               <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-3)", width: "100%", maxWidth: 560 }}>
-                <Button variant="primary" onClick={() => setView('admin-create-request')}>
+                <Button variant="primary" onClick={() => { setPreviousView('list'); setView('admin-create-request') }}>
                   + New request
                 </Button>
                 {adminCountLoading ? (
@@ -426,7 +432,7 @@ function App() {
           ) : view === 'trigger-admin' ? (
             <TriggerAdmin onBack={() => setView('list')} />
           ) : view === 'admin-create-request' ? (
-            <AdminCreateRequest onBack={() => setView('list')} />
+            <AdminCreateRequest onBack={() => setView(previousView)} />
           ) : view === 'profile' ? (
             <ProfilePage
               user={fetchedUser}
@@ -444,7 +450,7 @@ function App() {
               <AdminList
                 initialFilter="open"
                 onOpenRequest={(id) => { setSelectedRequestId(id); setPreviousView('open-requests'); setView('detail'); }}
-                onNewRequest={() => setView('admin-create-request')}
+                onNewRequest={() => { setPreviousView('open-requests'); setView('admin-create-request') }}
               />
             ) : (
               <OpenRequestsList
@@ -456,7 +462,7 @@ function App() {
               <AdminList
                 initialFilter="closed"
                 onOpenRequest={(id) => { setSelectedRequestId(id); setPreviousView('closed-requests'); setView('detail'); }}
-                onNewRequest={() => setView('admin-create-request')}
+                onNewRequest={() => { setPreviousView('closed-requests'); setView('admin-create-request') }}
               />
             ) : (
               <ClosedRequestsList
@@ -513,36 +519,29 @@ function App() {
               Profile
             </button>
 
-            {/* Open requests — route to AdminList for admin, OpenRequestsList for friends */}
+            {/* Open requests — routes to AdminList for admin, OpenRequestsList
+                for friends (branches on isAdmin at render time below, not
+                here — both roles navigate the same way). */}
             <button
               type="button"
               className="hamburger-menu-item"
               onClick={() => {
-                if (isAdmin) {
-                  setPreviousView('list')
-                  setView('open-requests')
-                } else {
-                  setPreviousView('list')
-                  setView('open-requests')
-                }
+                setPreviousView('list')
+                setView('open-requests')
                 setHamburgerOpen(false)
               }}
             >
               Open requests
             </button>
 
-            {/* Closed requests — route to AdminList for admin, ClosedRequestsList for friends */}
+            {/* Closed requests — same split as above, AdminList vs
+                ClosedRequestsList decided at render time. */}
             <button
               type="button"
               className="hamburger-menu-item"
               onClick={() => {
-                if (isAdmin) {
-                  setPreviousView('list')
-                  setView('closed-requests')
-                } else {
-                  setPreviousView('list')
-                  setView('closed-requests')
-                }
+                setPreviousView('list')
+                setView('closed-requests')
                 setHamburgerOpen(false)
               }}
             >
