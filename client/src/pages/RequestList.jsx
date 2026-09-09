@@ -28,7 +28,9 @@ export function statusLabel(status) {
 // for free — same "reset UA chrome, keep the visual" pattern App.jsx's
 // wordmark-button already uses. Card itself stays a plain div (no new
 // "as" prop) since this is the only caller that needs it clickable.
-function RequestCard({ request, onClick }) {
+// Exported (G411-95) — OpenRequestsList/ClosedRequestsList reuse this
+// to avoid duplicating the card rendering logic.
+export function RequestCard({ request, onClick }) {
   return (
     <button type="button" className="request-card-button" onClick={onClick}>
       <Card style={{ width: "100%", textAlign: "start" }}>
