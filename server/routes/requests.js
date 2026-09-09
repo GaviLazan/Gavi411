@@ -442,6 +442,9 @@ router.patch('/:id', requireAuth, async (req, res) => {
 // information-leak-avoidance convention as every other admin/ownership
 // gate on this router (see GET/PATCH /:id above): a friend probing this
 // route shouldn't be able to tell the endpoint even exists.
+// G411-93: nudge #1 only, manual. Rejects if request is already nudged
+// (nudgedAt not null) — can only nudge once per cycle. Friend replies reset
+// nudgedAt to null, allowing another nudge.
 router.post('/:id/nudge', requireAuth, async (req, res) => {
   const id = Number(req.params.id)
   if (!Number.isInteger(id)) {
@@ -455,10 +458,13 @@ router.post('/:id/nudge', requireAuth, async (req, res) => {
   if (existing.status !== Status.WAITING_ON_USER) {
     return res.status(400).json({ error: 'Can only nudge a request that is waiting on the friend' })
   }
+  if (existing.nudgedAt !== null) {
+    return res.status(400).json({ error: 'This request is already nudged — can only nudge once per cycle' })
+  }
 
   try {
-    const message = await sendNudge(id)
-    res.status(201).json(message)
+    const request = await sendNudge(id)
+    res.status(201).json(request)
   } catch (err) {
     console.error('Failed to send nudge:', err)
     res.status(500).json({ error: 'Failed to send nudge' })
@@ -786,6 +792,15 @@ router.post('/:id/messages', requireAuth, uploadImageField, async (req, res) => 
       })
     } else {
       message = await prisma.message.create({ data: messageData })
+      // G411-93: if a FRIEND (not admin) messages, clear nudgedAt to reset the
+      // escalation sequence (nudges were waiting on them, they responded).
+      // Do this regardless of whether status changed, for any friend reply.
+      if (req.user.role !== 'ADMIN') {
+        await prisma.request.update({
+          where: { id },
+          data: { nudgedAt: null },
+        })
+      }
     }
 
     res.status(201).json(message)

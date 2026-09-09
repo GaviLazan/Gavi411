@@ -1,9 +1,8 @@
-// Tests for G411-35's auto-close logic. Mocks Prisma — no real DB touched.
-// Covers: send warning, close after warning + 14 days, do-nothing (not
-// stale enough / friend already replied), the false-positive fix (an
-// ordinary admin reply must NOT count as "already warned"), the
-// fresh-recheck-inside-transaction skip (Sibling review TOCTOU fix), and
-// the no-admin-account early return.
+// Tests for G411-93's nudge-driven escalation system. Mocks Prisma — no
+// real DB touched. Covers: nudge #1 (manual only), nudge #2 (auto-fired at 7+ days),
+// auto-close (at 14+ days after nudge #2), no re-sends, skip if nudgedAt null,
+// friend reply resets nudgedAt, request defends against double-nudge, and
+// hasAdminMessaged excludes system messages.
 
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
@@ -20,7 +19,7 @@ const prismaMock = {
 
 vi.mock('./prisma.js', () => ({ prisma: prismaMock }))
 
-const { runAutoCloseCheck, sendNudge, AUTO_CLOSE_WARNING_TEXT } = await import('./autoClose.js')
+const { runAutoCloseCheck, sendNudge } = await import('./autoClose.js')
 
 beforeEach(() => {
   vi.clearAllMocks()
@@ -32,9 +31,13 @@ beforeEach(() => {
 })
 
 describe('runAutoCloseCheck', () => {
-  it('does nothing for a request inactive less than the warning window', async () => {
-    prismaMock.request.findMany.mockResolvedValue([{ id: 1, createdAt: new Date(Date.now() - 1 * DAY_MS) }])
-    prismaMock.message.findFirst.mockResolvedValue(null)
+  // Helper to setup findMany mock for nudged requests
+  function setUpNudgedRequest(id, nudgedAt) {
+    return { id, nudgedAt, createdAt: new Date(nudgedAt.getTime() - 30 * DAY_MS) }
+  }
+
+  it('skips requests where nudgedAt is null', async () => {
+    prismaMock.request.findMany.mockResolvedValue([]) // No nudged requests
 
     await runAutoCloseCheck()
 
@@ -42,83 +45,82 @@ describe('runAutoCloseCheck', () => {
     expect(prismaMock.request.update).not.toHaveBeenCalled()
   })
 
-  it('sends the warning once inactive 12+ days with no prior warning', async () => {
-    prismaMock.request.findMany.mockResolvedValue([{ id: 1, createdAt: new Date(Date.now() - 13 * DAY_MS) }])
-    prismaMock.message.findFirst.mockResolvedValue({ userId: FRIEND.clerkId, createdAt: new Date(Date.now() - 13 * DAY_MS) })
+  it('sends nudge #2 at 7+ days since nudge #1 if not already sent', async () => {
+    const nudgedAt = new Date(Date.now() - 8 * DAY_MS)
+    prismaMock.request.findMany.mockResolvedValue([setUpNudgedRequest(1, nudgedAt)])
+    prismaMock.message.findFirst.mockResolvedValueOnce(null) // No last message (uses request.createdAt)
+    prismaMock.message.findFirst.mockResolvedValueOnce(null) // Nudge #2 not sent yet
 
     await runAutoCloseCheck()
 
     expect(prismaMock.message.create).toHaveBeenCalledWith({
-      data: { content: AUTO_CLOSE_WARNING_TEXT, requestId: 1, userId: ADMIN.clerkId },
+      data: {
+        content: 'Still haven\'t heard back — if I don\'t hear from you soon I\'ll likely go ahead and close this request.',
+        requestId: 1,
+        userId: ADMIN.clerkId,
+        isSystem: true,
+      },
     })
-    expect(prismaMock.request.update).not.toHaveBeenCalled()
   })
 
-  it('closes once 14+ days inactive since an already-sent warning', async () => {
-    prismaMock.request.findMany.mockResolvedValue([{ id: 1, createdAt: new Date(Date.now() - 20 * DAY_MS) }])
-    prismaMock.message.findFirst.mockResolvedValue({
-      userId: ADMIN.clerkId,
-      content: AUTO_CLOSE_WARNING_TEXT,
-      createdAt: new Date(Date.now() - 14 * DAY_MS),
-    })
+  it('does NOT resend nudge #2 if already sent and not yet 14 days', async () => {
+    // 9 days since nudge #1, nudge #2 already sent, but not yet 14 days to close
+    const nudgedAt = new Date(Date.now() - 9 * DAY_MS)
+    const lastMessageAt = new Date(Date.now() - 8 * DAY_MS) // Friend replied recently
+    prismaMock.request.findMany.mockResolvedValue([setUpNudgedRequest(1, nudgedAt)])
+    prismaMock.message.findFirst.mockResolvedValueOnce({ userId: 'friend', createdAt: lastMessageAt })
+    prismaMock.message.findFirst.mockResolvedValueOnce({ isSystem: true }) // Nudge #2 already sent
 
     await runAutoCloseCheck()
 
-    expect(prismaMock.request.update).toHaveBeenCalledWith({ where: { id: 1 }, data: { status: 'CLOSED' } })
     expect(prismaMock.message.create).not.toHaveBeenCalled()
+    expect(prismaMock.request.update).not.toHaveBeenCalled()
   })
 
-  it('restarts the clock if the friend replied after the warning', async () => {
-    prismaMock.request.findMany.mockResolvedValue([{ id: 1, createdAt: new Date(Date.now() - 20 * DAY_MS) }])
-    // Friend's reply is the LAST message, one day ago — clock restarts from there.
-    prismaMock.message.findFirst.mockResolvedValue({ userId: FRIEND.clerkId, createdAt: new Date(Date.now() - 1 * DAY_MS) })
+  it('closes at 14+ days since nudge #1 if nudge #2 was sent and no friend reply', async () => {
+    const nudgedAt = new Date(Date.now() - 15 * DAY_MS)
+    prismaMock.request.findMany.mockResolvedValue([setUpNudgedRequest(1, nudgedAt)])
+    prismaMock.message.findFirst.mockResolvedValueOnce(null) // No last message
+    prismaMock.message.findFirst.mockResolvedValueOnce({ isSystem: true }) // Nudge #2 was sent
+    prismaMock.request.findUnique.mockResolvedValue({ status: 'WAITING_ON_USER' }) // Fresh read confirms status
 
     await runAutoCloseCheck()
 
-    expect(prismaMock.request.update).not.toHaveBeenCalled()
-    expect(prismaMock.message.create).not.toHaveBeenCalled()
-  })
-
-  // Sibling review finding: an ordinary admin reply (not the warning
-  // text) must not be mistaken for "already warned" — otherwise a request
-  // can auto-close with no warning ever having been sent.
-  it('does NOT treat an ordinary admin reply as an already-sent warning', async () => {
-    prismaMock.request.findMany.mockResolvedValue([{ id: 1, createdAt: new Date(Date.now() - 20 * DAY_MS) }])
-    prismaMock.message.findFirst.mockResolvedValue({
-      userId: ADMIN.clerkId,
-      content: 'checking on this, give me a day',
-      createdAt: new Date(Date.now() - 14 * DAY_MS),
-    })
-
-    await runAutoCloseCheck()
-
-    // Not "already warned" — the real warning gets sent instead of closing outright.
-    expect(prismaMock.request.update).not.toHaveBeenCalled()
-    expect(prismaMock.message.create).toHaveBeenCalledWith({
-      data: { content: AUTO_CLOSE_WARNING_TEXT, requestId: 1, userId: ADMIN.clerkId },
+    expect(prismaMock.request.update).toHaveBeenCalledWith({
+      where: { id: 1 },
+      data: { status: 'CLOSED' },
     })
   })
 
-  // Sibling review finding (TOCTOU): a concurrent write moved the request
-  // off WAITING_ON_USER between the top-level findMany and this request's
-  // turn in the loop — the fresh in-transaction re-read must block the close.
-  it('skips the close if a fresh re-read shows the request left WAITING_ON_USER', async () => {
-    prismaMock.request.findMany.mockResolvedValue([{ id: 1, createdAt: new Date(Date.now() - 20 * DAY_MS) }])
-    prismaMock.message.findFirst.mockResolvedValue({
-      userId: ADMIN.clerkId,
-      content: AUTO_CLOSE_WARNING_TEXT,
-      createdAt: new Date(Date.now() - 14 * DAY_MS),
-    })
-    prismaMock.request.findUnique.mockResolvedValue({ status: 'WORKING_ON_IT' })
+  it('does NOT close if friend replied after nudge #1', async () => {
+    const nudgedAt = new Date(Date.now() - 15 * DAY_MS)
+    const friendReplyAt = new Date(Date.now() - 1 * DAY_MS)
+    prismaMock.request.findMany.mockResolvedValue([setUpNudgedRequest(1, nudgedAt)])
+    // Friend's last message is recent — clock hasn't progressed enough
+    prismaMock.message.findFirst.mockResolvedValueOnce({ userId: FRIEND.clerkId, createdAt: friendReplyAt })
+    // Nudge #2 was sent, but friend replied after so inactiveMs < CLOSE_AFTER_MS
+    prismaMock.message.findFirst.mockResolvedValueOnce({ isSystem: true })
 
     await runAutoCloseCheck()
 
     expect(prismaMock.request.update).not.toHaveBeenCalled()
   })
 
-  it('does nothing (no crash) if no admin account exists', async () => {
+  it('skips close if fresh re-read shows request no longer WAITING_ON_USER', async () => {
+    const nudgedAt = new Date(Date.now() - 15 * DAY_MS)
+    prismaMock.request.findMany.mockResolvedValue([setUpNudgedRequest(1, nudgedAt)])
+    prismaMock.message.findFirst.mockResolvedValueOnce(null)
+    prismaMock.message.findFirst.mockResolvedValueOnce({ isSystem: true })
+    prismaMock.request.findUnique.mockResolvedValue({ status: 'CLOSED' }) // Already closed by concurrent write
+
+    await runAutoCloseCheck()
+
+    expect(prismaMock.request.update).not.toHaveBeenCalled()
+  })
+
+  it('does nothing if no admin account exists', async () => {
     prismaMock.user.findFirst.mockResolvedValue(null)
-    prismaMock.request.findMany.mockResolvedValue([{ id: 1, createdAt: new Date(Date.now() - 20 * DAY_MS) }])
+    prismaMock.request.findMany.mockResolvedValue([setUpNudgedRequest(1, new Date(Date.now() - 8 * DAY_MS))])
 
     await runAutoCloseCheck()
 
@@ -128,26 +130,42 @@ describe('runAutoCloseCheck', () => {
 })
 
 describe('sendNudge', () => {
-  it('creates a message authored as the admin account', async () => {
+  const NUDGE_ONE_TEXT = 'Hey, Gavi is waiting for your response'
+
+  it('creates nudge #1 message and stamps nudgedAt', async () => {
+    prismaMock.request.findUnique.mockResolvedValue({ nudgedAt: null })
+    prismaMock.$transaction.mockImplementation(async (cb) => cb(prismaMock))
     prismaMock.message.create.mockResolvedValue({ id: 1 })
+    prismaMock.request.update.mockResolvedValue({ id: 5, nudgedAt: new Date() })
 
     await sendNudge(5)
 
     expect(prismaMock.message.create).toHaveBeenCalledWith({
-      data: { content: AUTO_CLOSE_WARNING_TEXT, requestId: 5, userId: ADMIN.clerkId },
+      data: { content: NUDGE_ONE_TEXT, requestId: 5, userId: ADMIN.clerkId, isSystem: true },
+    })
+    expect(prismaMock.request.update).toHaveBeenCalledWith({
+      where: { id: 5 },
+      data: { nudgedAt: expect.any(Date) },
     })
   })
 
   it('uses a passed-in admin instead of looking one up again', async () => {
-    prismaMock.message.create.mockResolvedValue({ id: 1 })
+    prismaMock.request.findUnique.mockResolvedValue({ nudgedAt: null })
+    prismaMock.$transaction.mockImplementation(async (cb) => cb(prismaMock))
     const otherAdmin = { clerkId: 'user_admin2' }
 
     await sendNudge(5, otherAdmin)
 
     expect(prismaMock.user.findFirst).not.toHaveBeenCalled()
     expect(prismaMock.message.create).toHaveBeenCalledWith({
-      data: { content: AUTO_CLOSE_WARNING_TEXT, requestId: 5, userId: otherAdmin.clerkId },
+      data: { content: NUDGE_ONE_TEXT, requestId: 5, userId: otherAdmin.clerkId, isSystem: true },
     })
+  })
+
+  it('throws if request is already nudged (nudgedAt not null)', async () => {
+    prismaMock.request.findUnique.mockResolvedValue({ nudgedAt: new Date() })
+
+    await expect(sendNudge(5)).rejects.toThrow('already nudged')
   })
 
   it('throws if no admin account exists', async () => {

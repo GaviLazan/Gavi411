@@ -40,16 +40,16 @@ export const AUTO_CLOSE_WARNING_TEXT =
 // Takes a Prisma client (or transaction client `tx`) so callers can run it
 // inside their own transaction.
 //
-// Excludes the auto-close job's own automated warning/nudge message
-// (Sibling review finding, G411-35/36) — that message is authored as the
-// admin account (no system-message concept exists in this schema) but
-// isn't a real admin reply. Without this exclusion, a friend who only
-// ever got an automated nudge (never a genuine admin response) and then
-// cancels/self-solves would be wrongly denied their G411-31 refund, since
-// the nudge alone would make hasAdminMessaged report true.
+// Excludes system messages (isSystem: true, G411-93 nudges #1 and #2)
+// (Sibling review finding, G411-35/36) — those messages are authored as the
+// admin account but aren't real admin replies. Without this exclusion, a
+// friend who only ever got an automated nudge (never a genuine admin response)
+// and then cancels/self-solves would be wrongly denied their G411-31 refund,
+// since the nudge alone would make hasAdminMessaged report true. The isSystem
+// flag covers both nudge #1 and nudge #2 copy without matching exact text.
 export async function hasAdminMessaged(db, requestId) {
   const adminMessage = await db.message.findFirst({
-    where: { requestId, user: { role: 'ADMIN' }, content: { not: AUTO_CLOSE_WARNING_TEXT } },
+    where: { requestId, user: { role: 'ADMIN' }, isSystem: false },
   })
   return adminMessage !== null
 }

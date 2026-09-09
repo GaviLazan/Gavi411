@@ -19,6 +19,20 @@ function MessageThread({ messages }) {
     <div className="message-thread">
       {messages.map((m) => {
         const isOwn = m.userId === user?.id;
+        // G411-93: system messages (nudges) are rendered centered and
+        // visually distinct from real chat messages
+        if (m.isSystem) {
+          return (
+            <div className="message-row message-system" key={m.id}>
+              <div className="message-system-content" dir="auto">
+                {m.content}
+              </div>
+              <span className="message-time">
+                {new Date(m.createdAt).toLocaleString("en-GB")}
+              </span>
+            </div>
+          );
+        }
         return (
           <div className={`message-row ${isOwn ? "message-own" : "message-other"}`} key={m.id}>
             <div className="message-bubble" dir="auto">
