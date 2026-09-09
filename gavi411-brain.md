@@ -646,6 +646,42 @@ Both paths land at net −1 lifetime cost for "one round of help," which is the 
 
 **G411-97 is necessarily the LAST child of Epic 6 (Credits), not just "somewhere in Epic 6"** — this is a direct logical consequence of what the ticket is (a stress test needs a built system to stress-test), not a separate preference Gavi stated and this session needed to be told to log. Missed drawing that conclusion live when G411-97 was filed; Gavi caught it after the fact ("It's also 1st grade logic: You can't stress test a system if you don't have a system to test"). When a ticket's own nature implies an ordering constraint within its epic (a test needs its subject built first, a migration needs its source built first, etc.), that constraint should be stated explicitly at filing time, in the ticket description or right there in conversation — not left implicit for Gavi to have to point out later.
 
+### Decision #117 — Folded the Karpathy CLAUDE.md guidelines into existing rules rather than adding a separate redundant section (2026-09-09)
+
+Gavi asked to add the four Karpathy-derived guidelines
+(github.com/multica-ai/andrej-karpathy-skills — Think Before Coding,
+Simplicity First, Surgical Changes, Goal-Driven Execution) to `CLAUDE.md`.
+Two of the four already had a real, stronger Gavi411 equivalent
+(Simplicity First → Ponytail; Think Before Coding's "don't silently
+assume" → STOP 2's ambiguity rule), so a naive bolt-on section would have
+created two sources of truth for the same behavior. Gavi's explicit call
+when asked: fold all four in as real edits to the existing rules, not a
+separate block.
+
+**Landed as:**
+- STOP 2 (`CLAUDE.md`) extended: silently picking one interpretation
+  when a request supports several, or when a simpler approach exists
+  than the one implied, now explicitly counts as the ambiguity that
+  stops work — not just scope/ownership/architecture calls.
+- Ponytail bullet (`CLAUDE.md` Coding conventions) extended: named
+  concrete anti-patterns (unrequested config, impossible-case error
+  handling, single-use abstraction) and the "5x shorter → rewrite it"
+  test, rather than leaving it purely a cross-reference to the Ponytail
+  skill.
+- New bullet, same section: **Surgical changes only** — don't reformat,
+  re-comment, or "improve" adjacent code while fixing something else;
+  clean up only orphans your own change created; a pre-existing orphan
+  gets mentioned, not deleted. No prior Gavi411 rule covered this.
+- New step in Required Workflow: multi-step work states a numbered plan
+  with a verification check per step before executing, not just at the
+  Aegis Falsifier/Evidence stage — the same instinct applied earlier,
+  before code exists.
+
+Source guideline files fetched and read in full (CLAUDE.md, EXAMPLES.md,
+README.md at multica-ai/andrej-karpathy-skills) before drafting the
+fold-in, so overlap vs. gap was based on the actual text, not the repo
+description.
+
 ## 7. Not Yet Discussed
  
 - Data model, architecture, tech decisions (schema itself not yet drafted — first task on deck).

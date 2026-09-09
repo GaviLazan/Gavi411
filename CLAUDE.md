@@ -25,7 +25,10 @@ later makes the field lie; #104).
 **STOP 2 — Mid-flight, on any real ambiguity.** A decision that isn't
 yours to make (scope, ownership, architecture, a judgment call the
 ticket doesn't answer) stops work and goes to Gavi *before* you act on
-it.
+it. Don't silently pick an interpretation and run with it (#117) — if a
+request supports more than one reading, or a simpler approach exists
+than the one implied, that's the ambiguity: state the readings (or the
+simpler option) and let Gavi choose, rather than assuming and proceeding.
 
 Use `AskUserQuestion` — a real blocking pause, no further tool calls on
 that thread. A question buried mid-paragraph while work continues is not
@@ -165,7 +168,15 @@ in the same turn instead of days later.
    - This changes who writes the first draft. Nothing else in this file
      changes.
 
-7. **When a rule keeps getting broken despite being written down, the fix
+7. **Multi-step work states a verification plan before executing it**
+   (#117) — turn "fix the bug" into "write a test that reproduces it,
+   then make it pass"; "add X" into a short numbered plan where each
+   step names its own check. This is the same instinct as the Aegis
+   Falsifier/Evidence bar, applied before code exists, not just at
+   wrap-up — loose success criteria ("make it work") is what forces
+   Gavi to keep re-clarifying mid-task.
+
+8. **When a rule keeps getting broken despite being written down, the fix
    is a mechanism, not another paragraph** (#106 — Gavi: *"they are
    already both well documented, so what's the fix? more documentation
    isn't it."*). Ask whether the wrong action can be made mechanically
@@ -264,7 +275,17 @@ Two things carry forward from the old regime:
 
 - **Ponytail** (YAGNI) is active — least code that works, stdlib/native
   before dependencies, no speculative abstractions. Don't fight it with
-  over-engineered suggestions.
+  over-engineered suggestions. No unrequested flexibility/config, no
+  error handling for impossible scenarios, no abstraction for a single
+  use site (#117) — if a diff could be 5x shorter, that's the sign to
+  rewrite it, not to defend the longer version.
+- **Surgical changes only** (#117): editing existing code touches only
+  what the task requires. Don't reformat, re-comment, add types/docs, or
+  "improve" adjacent code while fixing something else — match the
+  existing style even when you'd choose differently. Clean up only the
+  dead code your own change orphaned; a pre-existing orphan gets
+  mentioned, not deleted, unless asked. Every changed line should trace
+  to the request.
 - UI chrome is English-only, LTR — no page mirroring, no logical-CSS
   sweep. But Hebrew appears in *any* freeform text field, friend- or
   admin-facing, whoever's typing: those need correct bidi rendering via
