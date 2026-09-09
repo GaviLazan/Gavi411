@@ -115,7 +115,7 @@ subagent into a role worktree:
 
 This is a manual pre-flight (and post-flight check), not automated — same
 "no enforcement layer, just a checklist that has to actually be followed"
-situation as the wrap-it-up checklist in `CLAUDE.md`.
+situation as the wrap-up checklist in `CLAUDE.md`.
 
 **Same staleness risk applies on merge-back, not just launch**: merging
 an agent branch into `main` brings in `package.json` changes, but

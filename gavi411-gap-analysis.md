@@ -24,8 +24,8 @@ when you check the actual mechanics against the PRD's specific wording, and
 
 ## Methodology
 
-- Read `CLAUDE.md`, `gavi411-prd.md` (full), `gavi411-brain.md` (full, all 54
-  decisions), `gavi411-task-list-source.md`, `gavi411-jira-tree.md`,
+- Read `CLAUDE.md`, `gavi411-prd.md` (full), `gavi411-brain.md` (full),
+  `gavi411-task-list-source.md`, `gavi411-jira-tree.md`,
   `HANDOFF.md` in full before analysis.
 - Pulled **live** Jira state via `searchJiraIssuesUsingJql` for all 10 Epics
   and all 52+ Tasks (G411-1 through G411-66, including G411-63/64/65/66 which

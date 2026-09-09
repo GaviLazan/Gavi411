@@ -35,11 +35,11 @@ A few things I want kept from how this went well last time:
 - **Short, itemized status updates — not long paragraphs.** Use the same
   ✓/✗ checklist style for the final wrap-up *and* for progress updates
   mid-ticket. I lose track of long prose; I don't lose track of a list.
-- **Full wrap-it-up sequence, every ticket**: scope check, Falsifier
-  re-confirmed live, Aegis fields written, evidence bar actually run fresh,
-  Jira transitioned (Reviewing→Landed and Landed→Reconciled are separate,
-  confirm the second with me first), commit, HANDOFF.md updated, itemized
-  report. Don't auto-advance to the next ticket after — report and wait.
+- **Full wrap-up sequence, every ticket** (per CLAUDE.md's "Wrap it up"
+  section): all 9 steps, in order, each with its own tool call. Scope check,
+  Falsifier, Evidence bar, Aegis fields, Jira→Landed, HANDOFF.md/brain.md,
+  ask for merge approval + execute merge + Jira→Reconciled, full sync check,
+  itemized report. Don't auto-advance to the next ticket after — report and wait.
 - **Push as you go, not just at session end.** Commit and push doc/code
   changes on their own branch as they happen rather than letting local `main`
   drift ahead of `origin` for the whole session — don't let it pile up into
