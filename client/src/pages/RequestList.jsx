@@ -1,8 +1,3 @@
-import { useState } from "react";
-import Card from "../components/Card";
-import Button from "../components/Button";
-import { useRequests } from "../lib/useRequests";
-
 // Statuses that read as "done" for the open/closed toggle (G411-67).
 // PRD/brain.md's lifecycle only names a single terminal "closed" state
 // explicitly, but describes CANCELLED/SELF_SOLVED as separate exit
@@ -47,127 +42,12 @@ export function RequestCard({ request, onClick }) {
   );
 }
 
-// Request list / home screen (G411-67). Friend-only — G411-37 replaced
-// this as admin's home view with the cockpit-shaped AdminList, and
-// G411-37's follow-up folded search directly into AdminList too, so the
-// admin branch this component used to carry (isAdmin prop, ?include=
-// messages fetch, client-side decrypted search) is gone rather than left
-// as dead code (Sibling review finding — it was unreachable once App.jsx
-// stopped ever passing isAdmin={true} here, and a ~90-line unreachable
-// branch is exactly the kind of stale-assumption trap that costs the
-// next reader real time to rule out). Shows the signed-in friend's own
-// open requests, a toggle to reveal closed ones, and a fallback to the
-// most recent closed request when there are no open ones at all.
-function RequestList({ onNewRequest, onShowInstallHelp, onOpenRequest }) {
-  const { requests, error, retry } = useRequests();
-  const [showClosed, setShowClosed] = useState(false);
-  // G411-75: starts collapsed, no persistence across visits (ticket
-  // left this as a pickup-time call — always-collapsed is the simplest
-  // reading of "starts collapsed by default" and needs no storage).
-  const [openExpanded, setOpenExpanded] = useState(false);
-
-  // "+ New request" doesn't depend on the list loading successfully —
-  // creating a request has nothing to do with whether the existing list
-  // could be fetched (Gavi's live catch, 2026-08-30: a transient list-load
-  // failure used to block the New request button entirely, which made no
-  // sense — the two are unrelated). Error/loading states now only replace
-  // the list section below, not the whole screen.
-  if (error) {
-    return (
-      <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-4)", width: "100%", maxWidth: 420 }}>
-        <Button variant="primary" onClick={onNewRequest}>
-          + New request
-        </Button>
-        <Card>
-          <p>{error}</p>
-          <Button onClick={retry}>Try again</Button>
-        </Card>
-      </div>
-    );
-  }
-
-  if (requests === null) {
-    return (
-      <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-4)", width: "100%", maxWidth: 420 }}>
-        <Button variant="primary" onClick={onNewRequest}>
-          + New request
-        </Button>
-        <Card>Loading…</Card>
-      </div>
-    );
-  }
-
-  const openRequests = requests.filter((r) => !CLOSED_STATUSES.includes(r.status));
-  const closedRequests = requests.filter((r) => CLOSED_STATUSES.includes(r.status));
-  const allClosed = requests.length > 0 && openRequests.length === 0;
-
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-4)", width: "100%", maxWidth: 420 }}>
-      <Button variant="primary" onClick={onNewRequest}>
-        + New request
-      </Button>
-
-      {openRequests.length > 0 && (
-        <div>
-          <button
-            type="button"
-            className="collapsible-header"
-            aria-expanded={openExpanded}
-            aria-controls="open-requests-body"
-            onClick={() => setOpenExpanded((v) => !v)}
-          >
-            <h2>Open requests</h2>
-            <span className={`collapsible-arrow${openExpanded ? " expanded" : ""}`}>▾</span>
-          </button>
-          {/* inert (native, no JS focus-trap needed) pulls the collapsed
-              cards out of both tab order and the AT tree — Sibling review
-              finding: max-height:0/overflow:hidden alone still leaves
-              them focusable and screen-reader-visible. */}
-          <div
-            id="open-requests-body"
-            className={`collapsible-body${openExpanded ? " expanded" : ""}`}
-            inert={openExpanded ? undefined : true}
-          >
-            <div className="collapsible-body-inner">
-              {openRequests.map((r) => (
-                <RequestCard key={r.id} request={r} onClick={() => onOpenRequest(r.id)} />
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {allClosed && !showClosed && (
-        <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-3)" }}>
-          <h2>Most recent request</h2>
-          <RequestCard request={closedRequests[0]} onClick={() => onOpenRequest(closedRequests[0].id)} />
-        </div>
-      )}
-
-      {requests.length === 0 && <p>No requests yet — start one above.</p>}
-
-      {closedRequests.length > 0 && (
-        <>
-          <Button variant="secondary" onClick={() => setShowClosed((v) => !v)}>
-            {showClosed ? "Hide closed requests" : "Show closed requests"}
-          </Button>
-          {showClosed && (
-            <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-3)" }}>
-              {closedRequests.map((r) => (
-                <RequestCard key={r.id} request={r} onClick={() => onOpenRequest(r.id)} />
-              ))}
-            </div>
-          )}
-        </>
-      )}
-
-      <p style={{ fontSize: 13 }}>
-        <a href="#" onClick={(e) => { e.preventDefault(); onShowInstallHelp(); }}>
-          Installing on iPhone
-        </a>
-      </p>
-    </div>
-  );
-}
-
-export default RequestList;
+// The RequestList component itself (friend home-screen open/closed
+// toggle) is gone as of G411-95 — the friend home screen now renders
+// only "+ New request" (App.jsx), and Open/Closed requests are reached
+// via the hamburger menu's OpenRequestsList/ClosedRequestsList instead.
+// This file stays only for the shared exports above (CLOSED_STATUSES,
+// statusLabel, RequestCard), still used by AdminList.jsx, RequestDetail.jsx,
+// adminListSort.js, OpenRequestsList.jsx, and ClosedRequestsList.jsx —
+// same reasoning as this file's own G411-37 precedent of removing a
+// component's body once unreachable while keeping its live exports.

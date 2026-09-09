@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react'
 import { useUser, useClerk, SignIn, SignUp, ClerkLoaded, ClerkLoading } from '@clerk/react'
 import './App.css'
 import NewRequest from './pages/NewRequest'
-import RequestList from './pages/RequestList'
 import AdminList from './pages/AdminList'
 import RequestDetail from './pages/RequestDetail'
 import InstallHelp from './pages/InstallHelp'
@@ -375,11 +374,11 @@ function App() {
                 )}
               </div>
             ) : (
-              <RequestList
-                onNewRequest={() => setView('new')}
-                onShowInstallHelp={() => setView('install-help')}
-                onOpenRequest={(id) => { setSelectedRequestId(id); setPreviousView('list'); setView('detail'); }}
-              />
+              <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-3)", width: "100%", maxWidth: 420 }}>
+                <Button variant="primary" onClick={() => setView('new')}>
+                  + New request
+                </Button>
+              </div>
             )}
           </div>
         )}
@@ -617,6 +616,22 @@ function App() {
                 </button>
               </>
             )}
+
+            {/* Installing on iPhone — was RequestList's own link before
+                G411-95 removed RequestList from the friend home screen;
+                moved here so it stays reachable rather than becoming
+                dead routing (view === 'install-help' had no caller left
+                otherwise). Shown to everyone, same as before. */}
+            <button
+              type="button"
+              className="hamburger-menu-item"
+              onClick={() => {
+                setView('install-help')
+                setHamburgerOpen(false)
+              }}
+            >
+              Installing on iPhone
+            </button>
 
             {/* Theme toggle — shown to everyone */}
             <div className="hamburger-menu-divider" />
