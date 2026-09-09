@@ -210,6 +210,10 @@ model Request {
   // and to drive the auto-escalation timeline (nudge #2 at +7 days,
   // auto-close at +14 days).
   nudgedAt       DateTime?
+  // G411-93: timestamp when nudge #2 was sent. Null means nudge #2 not sent
+  // yet in this cycle, or nudge sequence was reset by a friend reply.
+  // Replaces fragile text-matching detection (checking message.content).
+  nudgeTwoSentAt DateTime?
 
   userId String
   user   User   @relation(fields: [userId], references: [clerkId])

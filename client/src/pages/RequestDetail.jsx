@@ -868,7 +868,7 @@ function RequestDetail({ requestId, onBack, isAdmin }) {
               <Button
                 variant="secondary"
                 onClick={handleNudge}
-                disabled={statusSaving}
+                disabled={statusSaving || request.nudgedAt != null}
                 title={request.nudgedAt ? `Nudged on ${new Date(request.nudgedAt).toLocaleDateString('en-GB')}` : undefined}
               >
                 {request.nudgedAt ? `Nudged on ${new Date(request.nudgedAt).toLocaleDateString('en-GB')}` : 'Nudge'}

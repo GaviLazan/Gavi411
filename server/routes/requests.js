@@ -10,15 +10,10 @@ import { validateImage, uploadImage, MAX_IMAGE_BYTES } from '../lib/cloudinary.j
 import { canAccessRequest, hasAdminMessaged } from '../lib/requestAccess.js'
 import { E2E_ENABLED } from '../lib/e2eConfig.js'
 import { deductCredit, refundCredit } from '../lib/credits.js'
-import { sendNudge } from '../lib/autoClose.js'
+import { sendNudge, MESSAGE_INCLUDE } from '../lib/autoClose.js'
 import { sendPushToUser } from '../lib/webPush.js'
 
 const router = express.Router()
-
-// Shared by GET / (admin's opt-in ?include=messages) and GET /:id — both
-// want a request's messages in the same order, so one literal instead of
-// two independently-maintained copies (Sibling review finding, PR #36).
-const MESSAGE_INCLUDE = { message: { orderBy: { createdAt: 'asc' } } }
 
 // memoryStorage — files stay in RAM as a Buffer just long enough to
 // forward to Cloudinary, never written to disk. Fine at a 10MB cap on a
@@ -786,19 +781,28 @@ router.post('/:id/messages', requireAuth, uploadImageField, async (req, res) => 
             await deductCredit(tx, existing.userId)
             updateData.refundedAt = null
           }
+          // G411-93: if a FRIEND (not admin) messages on a reopenable status,
+          // clear nudgedAt and nudgeTwoSentAt to reset the escalation sequence.
+          // Same as the else branch below — both paths that handle friend
+          // replies must clear these together.
+          if (req.user.role !== 'ADMIN') {
+            updateData.nudgedAt = null
+            updateData.nudgeTwoSentAt = null
+          }
           await tx.request.update({ where: { id }, data: updateData })
         }
         return created
       })
     } else {
       message = await prisma.message.create({ data: messageData })
-      // G411-93: if a FRIEND (not admin) messages, clear nudgedAt to reset the
-      // escalation sequence (nudges were waiting on them, they responded).
-      // Do this regardless of whether status changed, for any friend reply.
+      // G411-93: if a FRIEND (not admin) messages, clear nudgedAt and
+      // nudgeTwoSentAt to reset the escalation sequence (nudges were waiting
+      // on them, they responded). Do this regardless of whether status
+      // changed, for any friend reply.
       if (req.user.role !== 'ADMIN') {
         await prisma.request.update({
           where: { id },
-          data: { nudgedAt: null },
+          data: { nudgedAt: null, nudgeTwoSentAt: null },
         })
       }
     }

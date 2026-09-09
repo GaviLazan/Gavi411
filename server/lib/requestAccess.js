@@ -25,14 +25,6 @@ export async function getAdminUser(db) {
   })
 }
 
-// The auto-close job's automated warning/nudge text (G411-35/36) — lives
-// here, not autoClose.js, so hasAdminMessaged below can exclude it without
-// a circular import (autoClose.js already imports getAdminUser from this
-// file). autoClose.js re-exports/imports this same constant rather than
-// defining its own copy.
-export const AUTO_CLOSE_WARNING_TEXT =
-  "This request has been quiet for a while — if we don't hear back in the next couple of days, we'll go ahead and close it. Just reply here to keep it open."
-
 // True if any ADMIN-role user has sent a REAL Message on this request —
 // G411-31's "untouched" refund-eligibility check, pulled out to its own
 // named export since G411-32/33 (urgent downgrade, close-confirm flow)

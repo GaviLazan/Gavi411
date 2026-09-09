@@ -11,6 +11,8 @@ const OWNER = 'user_owner'
 const OTHER = 'user_other'
 const ADMIN = 'user_admin'
 
+const DAY_MS = 24 * 60 * 60 * 1000
+
 const usersByClerkId = {
   [OWNER]: { clerkId: OWNER, role: 'USER', publicKey: 'owner-pubkey' },
   [OTHER]: { clerkId: OTHER, role: 'USER', publicKey: 'other-pubkey' },
@@ -46,6 +48,7 @@ const prismaMock = {
     findMany: vi.fn(),
     findUnique: vi.fn(),
     update: vi.fn(),
+    updateMany: vi.fn(),
     create: vi.fn(),
   },
   message: {
@@ -790,11 +793,15 @@ describe('POST /api/requests/:id/nudge (G411-93)', () => {
 
   it('sends nudge #1 and stamps nudgedAt for a fresh WAITING_ON_USER request', async () => {
     currentUserId = ADMIN
-    prismaMock.request.findUnique.mockResolvedValue({ ...sampleRequest, status: 'WAITING_ON_USER', nudgedAt: null })
+    // First findUnique (route's pre-check) returns status WAITING_ON_USER and nudgedAt null
+    // Second findUnique (sendNudge's in-tx read after updateMany) returns full request with messages
+    prismaMock.request.findUnique
+      .mockResolvedValueOnce({ ...sampleRequest, status: 'WAITING_ON_USER', nudgedAt: null })
+      .mockResolvedValueOnce({ ...sampleRequest, nudgedAt: new Date(), message: [] })
     prismaMock.user.findFirst.mockResolvedValue({ clerkId: ADMIN, role: 'ADMIN' })
     prismaMock.$transaction.mockImplementation(async (cb) => cb(prismaMock))
+    prismaMock.request.updateMany.mockResolvedValue({ count: 1 })
     prismaMock.message.create.mockResolvedValue({ id: 11, requestId: 1, userId: ADMIN, isSystem: true })
-    prismaMock.request.update.mockResolvedValue({ ...sampleRequest, nudgedAt: new Date() })
 
     const res = await request(app).post('/api/requests/1/nudge')
 
@@ -888,7 +895,8 @@ describe('POST /api/requests/:id/messages — reopen-on-message (G411-34)', () =
   it('a friend message on a CLOSED request reopens it to IN_QUEUE', async () => {
     currentUserId = OWNER
     // G411-90: mock must include refundedAt (null for CLOSED, which was never refundable)
-    prismaMock.request.findUnique.mockResolvedValue({ ...sampleRequest, status: 'CLOSED', refundedAt: null })
+    // G411-93: also include nudgedAt and nudgeTwoSentAt (cleared when friend replies on reopenable)
+    prismaMock.request.findUnique.mockResolvedValue({ ...sampleRequest, status: 'CLOSED', refundedAt: null, nudgedAt: null, nudgeTwoSentAt: null })
     prismaMock.message.create.mockResolvedValue({ id: 7, content: 'still need help', requestId: 1, userId: OWNER })
 
     const res = await request(app).post('/api/requests/1/messages').send({ content: 'still need help' })
@@ -896,7 +904,7 @@ describe('POST /api/requests/:id/messages — reopen-on-message (G411-34)', () =
     expect(res.status).toBe(201)
     expect(prismaMock.request.update).toHaveBeenCalledWith({
       where: { id: 1 },
-      data: { status: 'IN_QUEUE' },
+      data: { status: 'IN_QUEUE', nudgedAt: null, nudgeTwoSentAt: null },
     })
   })
 
@@ -915,7 +923,7 @@ describe('POST /api/requests/:id/messages — reopen-on-message (G411-34)', () =
     })
   })
 
-  it('a message on a non-reopenable request does not change status but clears nudgedAt if friend messaged (G411-93)', async () => {
+  it('a message on a non-reopenable request does not change status but clears nudgedAt and nudgeTwoSentAt if friend messaged (G411-93)', async () => {
     currentUserId = OWNER
     prismaMock.request.findUnique.mockResolvedValue({ ...sampleRequest, status: 'WORKING_ON_IT' })
     prismaMock.message.create.mockResolvedValue({ id: 9, content: 'update', requestId: 1, userId: OWNER })
@@ -923,10 +931,10 @@ describe('POST /api/requests/:id/messages — reopen-on-message (G411-34)', () =
     const res = await request(app).post('/api/requests/1/messages').send({ content: 'update' })
 
     expect(res.status).toBe(201)
-    // Status should not change, but nudgedAt is cleared by friend message (G411-93)
+    // Status should not change, but nudgedAt and nudgeTwoSentAt are cleared by friend message (G411-93)
     expect(prismaMock.request.update).toHaveBeenCalledWith({
       where: { id: 1 },
-      data: { nudgedAt: null },
+      data: { nudgedAt: null, nudgeTwoSentAt: null },
     })
   })
 
@@ -946,6 +954,26 @@ describe('POST /api/requests/:id/messages — reopen-on-message (G411-34)', () =
     expect(res.status).toBe(201)
     expect(prismaMock.request.update).not.toHaveBeenCalled()
   })
+
+  it('a friend message on a reopenable request (CLOSED/CANCELLED/SELF_SOLVED) that had nudgedAt set clears it (G411-93)', async () => {
+    // When a friend reopens a request that was previously in an
+    // escalation cycle (nudgedAt was set), the reply should clear
+    // nudgedAt to reset the cycle, same as replying to non-reopenable.
+    currentUserId = OWNER
+    const nudgedAt = new Date(Date.now() - 3 * DAY_MS)
+    prismaMock.request.findUnique
+      .mockResolvedValueOnce({ ...sampleRequest, status: 'CLOSED', refundedAt: null, nudgedAt })
+      .mockResolvedValueOnce({ status: 'CLOSED', refundedAt: null })
+    prismaMock.message.create.mockResolvedValue({ id: 11, content: 'need to reopen', requestId: 1, userId: OWNER })
+
+    const res = await request(app).post('/api/requests/1/messages').send({ content: 'need to reopen' })
+
+    expect(res.status).toBe(201)
+    expect(prismaMock.request.update).toHaveBeenCalledWith({
+      where: { id: 1 },
+      data: { status: 'IN_QUEUE', nudgedAt: null, nudgeTwoSentAt: null },
+    })
+  })
 })
 
 // G411-90 — reopen and recharge when refundedAt is set
@@ -958,6 +986,8 @@ describe('POST /api/requests/:id/messages — reopen with refund recharge (G411-
       status: 'CANCELLED',
       refundedAt: now,
       userId: OWNER,
+      nudgedAt: null,
+      nudgeTwoSentAt: null,
     })
     prismaMock.message.create.mockResolvedValue({ id: 20, content: 'come back', requestId: 1, userId: OWNER })
     prismaMock.user.findUnique.mockResolvedValue({ creditBalance: 3 })
@@ -965,10 +995,10 @@ describe('POST /api/requests/:id/messages — reopen with refund recharge (G411-
     const res = await request(app).post('/api/requests/1/messages').send({ content: 'come back' })
 
     expect(res.status).toBe(201)
-    // Verify the update was called with status AND refundedAt cleared
+    // Verify the update was called with status, refundedAt, and nudge fields cleared
     expect(prismaMock.request.update).toHaveBeenCalledWith({
       where: { id: 1 },
-      data: { status: 'IN_QUEUE', refundedAt: null },
+      data: { status: 'IN_QUEUE', refundedAt: null, nudgedAt: null, nudgeTwoSentAt: null },
     })
     // Verify credit was deducted
     expect(prismaMock.user.update).toHaveBeenCalledWith({
@@ -988,6 +1018,8 @@ describe('POST /api/requests/:id/messages — reopen with refund recharge (G411-
       status: 'SELF_SOLVED',
       refundedAt: now,
       userId: OWNER,
+      nudgedAt: null,
+      nudgeTwoSentAt: null,
     })
     prismaMock.message.create.mockResolvedValue({ id: 21, content: 'update', requestId: 1, userId: OWNER })
     prismaMock.user.findUnique.mockResolvedValue({ creditBalance: 3 })
@@ -997,7 +1029,7 @@ describe('POST /api/requests/:id/messages — reopen with refund recharge (G411-
     expect(res.status).toBe(201)
     expect(prismaMock.request.update).toHaveBeenCalledWith({
       where: { id: 1 },
-      data: { status: 'IN_QUEUE', refundedAt: null },
+      data: { status: 'IN_QUEUE', refundedAt: null, nudgedAt: null, nudgeTwoSentAt: null },
     })
     expect(prismaMock.creditTransaction.create).toHaveBeenCalledWith({
       data: { amount: -1, userId: OWNER },
@@ -1011,16 +1043,18 @@ describe('POST /api/requests/:id/messages — reopen with refund recharge (G411-
       status: 'CANCELLED',
       refundedAt: null, // not refunded because admin had messaged
       userId: OWNER,
+      nudgedAt: null,
+      nudgeTwoSentAt: null,
     })
     prismaMock.message.create.mockResolvedValue({ id: 22, content: 'nevermind', requestId: 1, userId: OWNER })
 
     const res = await request(app).post('/api/requests/1/messages').send({ content: 'nevermind' })
 
     expect(res.status).toBe(201)
-    // Status changes, but no refundedAt update (it's already null)
+    // Status changes, nudge fields cleared, no refundedAt update (it's already null)
     expect(prismaMock.request.update).toHaveBeenCalledWith({
       where: { id: 1 },
-      data: { status: 'IN_QUEUE' },
+      data: { status: 'IN_QUEUE', nudgedAt: null, nudgeTwoSentAt: null },
     })
     // No credit deduction happened
     expect(prismaMock.creditTransaction.create).not.toHaveBeenCalled()
@@ -1033,6 +1067,8 @@ describe('POST /api/requests/:id/messages — reopen with refund recharge (G411-
       status: 'CLOSED',
       refundedAt: null,
       userId: OWNER,
+      nudgedAt: null,
+      nudgeTwoSentAt: null,
     })
     prismaMock.message.create.mockResolvedValue({ id: 23, content: 'back to this', requestId: 1, userId: OWNER })
 
@@ -1041,7 +1077,7 @@ describe('POST /api/requests/:id/messages — reopen with refund recharge (G411-
     expect(res.status).toBe(201)
     expect(prismaMock.request.update).toHaveBeenCalledWith({
       where: { id: 1 },
-      data: { status: 'IN_QUEUE' },
+      data: { status: 'IN_QUEUE', nudgedAt: null, nudgeTwoSentAt: null },
     })
     expect(prismaMock.creditTransaction.create).not.toHaveBeenCalled()
   })
