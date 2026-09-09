@@ -115,7 +115,7 @@ subagent into a role worktree:
 
 This is a manual pre-flight (and post-flight check), not automated — same
 "no enforcement layer, just a checklist that has to actually be followed"
-situation as the wrap-it-up checklist in `CLAUDE.md`.
+situation as the wrap-up checklist in `CLAUDE.md`.
 
 **Same staleness risk applies on merge-back, not just launch**: merging
 an agent branch into `main` brings in `package.json` changes, but
@@ -333,7 +333,7 @@ one-off download/resolve per session.
   review explicitly checks: tests exist and pass, `HANDOFF.md`/docs are
   actually updated, Aegis fields are actually written, Jira is actually
   transitioned — not just "does the diff look reasonable." This is in
-  addition to each agent self-running the 8-step "wrap it up" checklist
+  addition to each agent self-running the "wrap it up" checklist
   (`CLAUDE.md`) before reporting done; neither step alone is trusted to
   catch a silently-dropped one. **Once it passes: self-merge** — no
   outside human approval required or waited on (decision #63).

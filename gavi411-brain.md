@@ -77,9 +77,9 @@ A webapp digitizing the informal concierge/info-booth/assistance service Gavi al
 - **Home screen (user):** list of open requests; button to reveal closed ones; if everything is closed, surface the most recent closed request (info may still be relevant). Prominent "new request" button.
 - **Terminology:** the word "ticket" must never appear user-facing. Working term: "request." Better term TBD.
 - **Conversations:** live fully in-app. The whole point is consolidation — no bouncing back to WhatsApp.
-- **Notifications:**
-  - Users: Web Push (PWA notifications) — works on Android/desktop; on iOS only for installed PWAs (16.4+).
-  - Gavi: Telegram bot pinging on new requests/messages with a deep link into the admin view. (Telegram Bot API is free and simple — a single POST to send a message.) **Telegram is Gavi-only** — many friends don't have Telegram, so it's never used for user-facing notifications, only Gavi's own alerts.
+- **Notifications:** ~~Users: Web Push. Gavi: Telegram bot.~~ Corrected by decision #93 — that phrasing read as an exclusive split, which was never the intent. **Web Push is the primary channel for everyone, friends and admin alike**; Telegram is a secondary/supplementary channel for Gavi specifically, deprioritized behind Web Push (decision #45).
+  - Web Push (PWA notifications) — works on Android/desktop; on iOS only for installed PWAs (16.4+).
+  - Telegram bot pinging Gavi on new requests/messages with a deep link into the admin view. (Telegram Bot API is free and simple — a single POST to send a message.) Still Gavi-only in the sense that it's never used for *user-facing* notifications — many friends don't have Telegram.
 - **Language/RTL:** ~~UI framework must support RTL + Hebrew from day one (layout direction, text alignment).~~ Corrected by decision #22: UI chrome stays English/LTR only; any freeform text field (input or display, friend-facing or Gavi/admin-facing — request text, messages, notes) needs correct bidi text rendering, not page-layout mirroring.
 - **Branding:** no mascot. Logo deferred.
 - **Tone:** friendly, almost informal — the app should feel like the service already feels.
@@ -93,7 +93,20 @@ Purely wording/phrasing items, decoupled from logic — batched into one pass la
 - Disambiguation prompt wording (draft "This sounds like it could be: X · Y. Which fits best?" rejected as not friendly enough)
 - General tone pass across all user-facing copy (friendly/informal per brand direction)
 ## 3. Decisions Log
- 
+
+Chronological and append-only. **Superseded entries are marked in place,
+never deleted or rewritten** — this project's own norm (decisions #64,
+#68): merged history and past reasoning stay as they were, and
+corrections move forward as new entries. A struck-through or
+"Corrected by #X" note on an entry means read the correction, not that
+the entry was wrong to make at the time.
+
+Format note: entries #1–#90 are table rows; #91 onward are prose sections
+below the table (they outgrew a table cell). Known numbering
+irregularities, all real and none hiding missing content: **#22 appears
+twice** (the second is relabeled 22b), and **#72–#76 and #88 were never
+assigned**.
+
 | # | Timestamp | Decision |
 |---|-----------|----------|
 | 1 | 2026-08-07 ~AM | Chatbot = smart intake/triage, not answer-serving. |
@@ -118,7 +131,7 @@ Purely wording/phrasing items, decoupled from logic — batched into one pass la
 | 20 | 2026-08-08 | Service online/offline presence state (auto-Shabbat or manual), not official hours. |
 | 21 | 2026-08-09 | Tech support confirmed as its own request type. |
 | 22 | 2026-08-19 | Correction to #14: UI itself stays English/LTR only — no page-layout mirroring, no logical-CSS sweep of app chrome. Hebrew can appear in *any* freeform text field, input or display, on either side of the app — friend-facing (request text, messages) or Gavi/admin-facing (notes, replies) alike; whoever's typing, not just friends. Those fields need correct bidi text rendering (mixed Hebrew/English/numbers in one string — `dir="auto"` or `unicode-bidi: plain-text` scoped to that field), not the whole page. |
-| 22 | 2026-08-09 | Intake trigger config is DB-backed and admin-editable (not hardcoded), for live keyword tuning. |
+| 22b | 2026-08-09 | _(Numbering note: two different decisions were both logged as #22. This one is the earlier of the two by date; the RTL/bidi correction above also carries #22 and is the one other docs cite as "decision #22." Left renumbered as 22b rather than reassigned, since neither number can be changed without breaking existing cross-references.)_ Intake trigger config is DB-backed and admin-editable (not hardcoded), for live keyword tuning. |
 | 23 | 2026-08-09 | Disambiguation UI = multi-select chips. |
 | 24 | 2026-08-09 | User group tag added: drives credit tier + admin sort/filter. |
 | 25 | 2026-08-09 | Copywriting is a dedicated later dev pass, not decided inline during feature work. |
@@ -182,10 +195,18 @@ Purely wording/phrasing items, decoupled from logic — batched into one pass la
 | 89 | 2026-09-01 | **Matan's real Sibling review on PR #35 (G411-28) found two High-severity correctness bugs neither Gavi nor the automated review round caught — walked through live with Gavi via a flowchart of the actual mechanism, fix plan decided together.** (1) A linked device's conversation keys are wrapped only once, in a batch, at approval time — any Request created afterward has no wrap, so `getConversationKey()`'s ECDH fallback silently derives a valid-but-wrong key (the linked device's own keypair was never exchanged with the other party), corrupting that conversation permanently with zero error surfaced. Fix: both (a) and (b) together, not either alone — (b) `getConversationKey()` returns `null` instead of the wrong key when a linked device has no seeded wrap for a request (fails loud via the existing `needsKeypair` path); (a) a sweep re-wraps missing conversations, triggered on **every app load/mount** (not "on sign-in" — a PWA install may never re-trigger that event in practice) plus on admin opening a specific Request's detail page (covers a long-lived open tab). (2) The "request access" recovery button conflates two different causes of `needsKeypair` (this device has no key vs. the other party has no key) and always destructively overwrites this device's private key regardless of which is true — fix is to distinguish the two causes and only offer/trigger the destructive path for the first. **Deferred, filed as G411-84**: a genuinely real-time version of (a) using Web Push to wake admin's PWA's Service Worker and do the wrap in the background, even while admin is offline/asleep — confirmed against real platform constraints (iOS/Android both require a push to show a visible notification, true silent push isn't permitted, but the actual background work can still run independent of whether admin taps it) — not buildable until G411-29's Web Push infra exists, and the Service-Worker-can-safely-run-this-crypto question needs real testing, not assumed. G411-28's own sweep-based fix doesn't block on G411-84 ever landing. |
 | 90 | 2026-09-01 | **Standing rule: always use `gh` for GitHub operations, never the `github` MCP connector — full stop, not just when it happens to be down.** Real gap caught live on PR #35: the required Sibling-review-findings-as-PR-comments step (rule 5, `CLAUDE.md`) was skipped in favor of only printing findings in chat, because the `github` MCP connector had failed to connect and `gh` — already authenticated, already the tool every merge/branch-cleanup step in `gavi411-commit-convention.md` already uses — was never tried as the obvious fallback. Gavi's direct correction: this project's repeated "GitHub problems" trace back to retrying the MCP instead of just using `gh`, which has never actually failed here. Documented in `gavi411-commit-convention.md`'s PR-review section so it's not just a private habit — don't even attempt the MCP first "to check," go straight to `gh` for every GitHub op in this project. |
  
-## 3a. Known critical gaps — not yet fixed, must be
+## 3a. Known critical gaps — RESOLVED (kept as the original flag's record)
+
+> **Status: closed.** This section's single item was filed as **G411-76**
+> and has since been built and Reconciled — admin role and Clerk↔Prisma
+> sync are live, and later decisions (#100, #111) build directly on a
+> working `role === 'ADMIN'` and a real admin cockpit. The writeup below
+> is the original flag as written 2026-08-25; kept because the code-level
+> analysis explains *why* the sync is shaped the way it is, not because
+> the gap is still open. Do not read the header's "must be" as current.
 
 **Clerk↔Prisma user sync + admin role, flagged crucial by Gavi (2026-08-25).**
-Not investigated or fixed yet — this is a flag, not a decision. Gavi's own
+The flag as originally written (a flag, not a decision). Gavi's own
 words: "I don't think clerk and the db is the right implementation, or if
 it is, we didn't do it right. I feel like we have two user lists we are
 trying to sync and the data we need from clerk isn't passing into prisma.
@@ -228,15 +249,20 @@ here. Flagged here and in `HANDOFF.md` so it isn't lost — Gavi called this
 crucial, not a someday-nice-to-have.
 
 ## 4. Open Questions
- 
-- User-facing term to replace "ticket"/"request" — brainstorm later.
-- Notification stack: Web Push for users (+ iOS caveats), Telegram bot for Gavi — confirm in planning.
-- Chatbot: LLM-powered (Claude API pay-as-you-go) vs rule-based semi-smart triage vs hybrid. See §7 cost notes.
-- PWA: in MVP or stretch goal? (Very low effort — see §7.)
-- Image handling: storage approach (DB vs object storage e.g. Cloudinary free tier) — for planning phase.
-- Jira + GitHub workflow structure — Parent/Child template now defined (see §3 #34); Jira project itself not yet created.
-- What "CI/CD" needs to mean for this project — now reclassified as collaborative (decision #33); Gavi still needs the conceptual explainer during that work.
-- PRODUCT.md (Impeccable) — confirmed staying deferred to `/impeccable init` inside Claude Code once repo exists (decision #36). No PRODUCT.md draft exists or should exist from this planning chat — any earlier kickoff-doc instruction to pre-draft it is superseded.
+
+Still genuinely open:
+
+- User-facing term to replace "ticket"/"request" — brainstorm later, part of the copywriting pass.
+- What "CI/CD" needs to mean for this project — reclassified as collaborative (decision #33); Gavi still needs the conceptual explainer during that work.
+
+Resolved since this list was written, kept for traceability:
+
+- ~~Notification stack~~ — settled by decisions #45 and #93: Web Push primary for everyone, Telegram secondary for Gavi.
+- ~~Chatbot: LLM vs rule-based vs hybrid~~ — settled: no LLM in triage at all (see "Triage approach — DECIDED" in §6). Deterministic keyword matching only.
+- ~~PWA: MVP or stretch?~~ — settled by decision #45: Must, and it shipped (G411-15).
+- ~~Image handling storage approach~~ — settled by decision #47: Cloudinary free tier, DB stores the URL only.
+- ~~Jira + GitHub workflow structure~~ — settled by decisions #34/#44; the Jira project exists and is the live backlog (`gavi411-jira-tree.md`).
+- ~~PRODUCT.md (Impeccable)~~ — settled by decision #36: generated by `/impeccable init` inside Claude Code, never pre-drafted.
 ## 5. Parking Lot (ideas mentioned, not yet explored)
  
 - Gavi has more feature ideas not yet written out.
@@ -246,9 +272,21 @@ crucial, not a someday-nice-to-have.
 ### Real-time chat vs. message thread (2026-08-13)
 - Teacher raised "real-time chat" as something to scope carefully.
 - DECIDED: not a real-time system (no WebSockets) — free Render tier can't hold persistent connections well (same spin-down issue as elsewhere), and it's not needed.
-- What's actually built: a message thread per request — fetch on load, POST to send, notifications (Web Push for friends, Telegram for Gavi) tell people to come check. This satisfies "I respond, they reply" without real-time infrastructure. Frame this explicitly to the teacher as the scope boundary.
+- What's actually built: a message thread per request — fetch on load, POST to send, notifications (Web Push for everyone including admin, plus Telegram as a secondary channel for Gavi — see decision #93, which corrected the earlier "Web Push for friends, Telegram for Gavi" shorthand) tell people to come check. This satisfies "I respond, they reply" without real-time infrastructure. Frame this explicitly to the teacher as the scope boundary.
 - WhatsApp integration for real-time: ruled out — same reasoning as WhatsApp OTP earlier (official API needs Meta approval + per-message cost; unofficial libs are ban-risk). Not pursuing.
 ### Message encryption (2026-08-13) — DECIDED: conversation-scoped E2E, admin-side client search, off-server escrow
+
+> **SUPERSEDED IN PART by decision #98 (2026-09-02) — read that first.**
+> The crypto primitives below (Web Crypto keypairs, ECDH, AES-GCM,
+> admin-side client search, and escrow itself) all still stand and were
+> confirmed working. What changed: the **admin-approved device-linking**
+> mechanism described in the next section was removed entirely in favor
+> of **escrow-only** as the single key-acquisition path, and E2E as a
+> whole is **paused** — message content is plaintext-in-DB while the rest
+> of the product finishes. Current status, target architecture and open
+> questions live in `gavi411-e2e-encryption-plan.md`, not here. Kept
+> below as the historical design record.
+
 - Target design (stretch, agentically implemented; Gavi needs to understand/explain it, not hand-write it):
   - Each user (friends + Gavi) generates an asymmetric keypair client-side via the browser's Web Crypto API on first use. Private key stays in the browser (IndexedDB); public key stored openly on the server.
   - Each 1:1 conversation (always exactly friend + Gavi — no group-chat complexity) derives a shared secret via **ECDH** from the two parties' keys. Messages encrypted client-side with **AES-GCM** using that secret before ever reaching the server. Images get the same treatment (encrypt before upload, decrypt on display).
@@ -267,6 +305,16 @@ crucial, not a someday-nice-to-have.
     - **Escrowed E2E (target)**: DB-only leak AND full server compromise both stay protected (attacker would need to separately compromise Gavi's password manager); full admin search preserved via legitimate client-side decryption; friend data-loss solved via off-server recovery link. Cost: meaningfully more moving parts (keypairs, ECDH, escrow flow, recovery mechanism, local search index) than EaR.
   - Plan: attempt escrowed E2E once the core app works; encryption-at-rest is the guaranteed v1 fallback if time runs out.
 ### Multi-device model (2026-08-13, refinement of E2E design)
+
+> **SUPERSEDED by decision #98 (2026-09-02).** The admin-approved
+> device-linking flow described here was built (G411-28), found broken in
+> four distinct ways under live testing (decision #97, G411-85), and then
+> removed as a mechanism entirely — replaced by escrow-only, where any
+> device becomes live by supplying the account's escrow passphrase and
+> there is no second party who "approves" a device. Escrow's own role
+> (below, and in the previous section) is unchanged and reaffirmed.
+> Retained as the historical record of what was designed and why.
+
 - New device (or new browser/PWA context) has no local key — this is expected, not broken. Login (OAuth) always works regardless; it's identity/access/the public-key registry, separate from per-device message-decryption ability.
 - **Primary recovery path: admin-approved device linking.** Friend opens Gavi411 on a new device, logs in, sees "request access to your message history." Gavi gets notified, approves via admin panel. Gavi's admin session already holds decrypted content for that conversation (Gavi is a party to it) and re-encrypts/shares what's needed to the new device's public key. Server only ever relays ciphertext. Modeled on WhatsApp's QR device-linking handshake, adapted since Gavi (not another user device) is the one who can approve.
 - **Escrow (see above) = last resort**, for when there's no already-approved device left at all (e.g. lost every device) — no live device to approve from, so the off-server recovery-key/link flow is the only remaining path.
@@ -597,6 +645,42 @@ Both paths land at net −1 lifetime cost for "one round of help," which is the 
 **Also decided in this same conversation**: filed G411-97 (parented under G411-6/Credits epic, not G411-5) — the credit system's individual mechanisms (creation deduction, refund-on-exit, now reopen-recharge) each have route-level unit tests, but nothing exercises the full multi-cycle lifecycle, concurrency/race safety on the charge itself, or a drift-detection check that `CreditTransaction`'s running sum always matches `User.creditBalance`. Gavi's explicit call, not build-time scope creep on G411-90 itself.
 
 **G411-97 is necessarily the LAST child of Epic 6 (Credits), not just "somewhere in Epic 6"** — this is a direct logical consequence of what the ticket is (a stress test needs a built system to stress-test), not a separate preference Gavi stated and this session needed to be told to log. Missed drawing that conclusion live when G411-97 was filed; Gavi caught it after the fact ("It's also 1st grade logic: You can't stress test a system if you don't have a system to test"). When a ticket's own nature implies an ordering constraint within its epic (a test needs its subject built first, a migration needs its source built first, etc.), that constraint should be stated explicitly at filing time, in the ticket description or right there in conversation — not left implicit for Gavi to have to point out later.
+
+### Decision #117 — Folded the Karpathy CLAUDE.md guidelines into existing rules rather than adding a separate redundant section (2026-09-09)
+
+Gavi asked to add the four Karpathy-derived guidelines
+(github.com/multica-ai/andrej-karpathy-skills — Think Before Coding,
+Simplicity First, Surgical Changes, Goal-Driven Execution) to `CLAUDE.md`.
+Two of the four already had a real, stronger Gavi411 equivalent
+(Simplicity First → Ponytail; Think Before Coding's "don't silently
+assume" → STOP 2's ambiguity rule), so a naive bolt-on section would have
+created two sources of truth for the same behavior. Gavi's explicit call
+when asked: fold all four in as real edits to the existing rules, not a
+separate block.
+
+**Landed as:**
+- STOP 2 (`CLAUDE.md`) extended: silently picking one interpretation
+  when a request supports several, or when a simpler approach exists
+  than the one implied, now explicitly counts as the ambiguity that
+  stops work — not just scope/ownership/architecture calls.
+- Ponytail bullet (`CLAUDE.md` Coding conventions) extended: named
+  concrete anti-patterns (unrequested config, impossible-case error
+  handling, single-use abstraction) and the "5x shorter → rewrite it"
+  test, rather than leaving it purely a cross-reference to the Ponytail
+  skill.
+- New bullet, same section: **Surgical changes only** — don't reformat,
+  re-comment, or "improve" adjacent code while fixing something else;
+  clean up only orphans your own change created; a pre-existing orphan
+  gets mentioned, not deleted. No prior Gavi411 rule covered this.
+- New step in Required Workflow: multi-step work states a numbered plan
+  with a verification check per step before executing, not just at the
+  Aegis Falsifier/Evidence stage — the same instinct applied earlier,
+  before code exists.
+
+Source guideline files fetched and read in full (CLAUDE.md, EXAMPLES.md,
+README.md at multica-ai/andrej-karpathy-skills) before drafting the
+fold-in, so overlap vs. gap was based on the actual text, not the repo
+description.
 
 ## 7. Not Yet Discussed
  
