@@ -12,7 +12,7 @@ accumulated. If something here turns out to matter long-term, promote it to
 
 ---
 
-## Where this session left off (2026-09-09) — CLAUDE.md and gavi411-brain.md cleanup, wrap-up checklist restructured, working on improving doc efficiency and clarity. G411-91 Reconciled (friend close-confirm UI) from the prior session. Pending PR #92 (doc restructuring) is still open for review.
+## Where this session left off (2026-09-09) — PR #92 (CLAUDE.md/brain.md doc restructuring, plus a same-branch follow-up folding in the Karpathy CLAUDE.md guidelines) merged to `main`. Branch deleted, all worktrees clean and synced. No ticket picked up yet for the next session.
 
 ### What shipped — G411-91 (friend-facing close-confirm UI)
 PR #89, merged. `RequestDetail.jsx`'s friend branch now offers a
@@ -98,26 +98,32 @@ charge decision, not the mechanism making it).
 13 stale, fully-merged-into-main GitHub branches deleted.
 
 ### Real state, right now
-Working tree clean on `you/claude-brain-doc-cleanup` branch (the doc
-restructuring PR). Primary `main` is up to date with `origin/main`. One
-backend dev server (`node --watch server/server.js`) and one Vite dev
-server (port 5177) are running, single clean instance of each.
+Primary worktree on `main`, up to date with `origin/main`
+(`f69a17e`). All 6 agent worktrees checked clean, nothing uncommitted.
+`you/claude-brain-doc-cleanup` branch deleted both locally and on
+GitHub after merge. One backend dev server (`node --watch
+server/server.js`) and one Vite dev server (port 5177) are running,
+single clean instance of each.
 
-**Pending PR #92** (open, awaiting review before merge):
-- CLAUDE.md restructured: 572 → 357 lines (−30% by replacing inline
-  rule-histories with #N citations to gavi411-brain.md)
-- Reordered by session needs: four stops → wrap-up checklist → required
-  workflow → how to work with Gavi → reference material
-- Wrap-up checklist is now 9 steps in real execution order (confirmed
-  with Gavi): scope → falsifier → evidence → Aegis fields → Jira
-  Reviewing→Landed → HANDOFF.md+brain.md on same branch → ask to merge
-  AND Reconcile (merge happens here) → worktree sync → report
-- Cross-references updated in session-start-prompt.md,
-  gavi411-commit-convention.md, gavi411-gap-analysis.md
-- Stop 1 (at pickup) edited; Stop 4 (next ticket) clarified to reflect
-  that merge has its own go-ahead now
-- All 28 #N citations verified against brain.md
-- Pending for your review before merge
+### What shipped — PR #92 (doc restructuring + Karpathy guideline fold-in)
+Merged via regular merge commit (`gh pr merge --merge --admin`,
+branch protection required an approving review). Two pieces on one
+branch:
+- **Doc restructuring**: CLAUDE.md 572 → 357 lines (−30%, inline
+  rule-histories replaced with #N citations to gavi411-brain.md).
+  Reordered by session needs: four stops → wrap-up checklist →
+  required workflow → how to work with Gavi → reference material.
+  Wrap-up checklist is 9 steps in real execution order. Cross-references
+  updated in session-start-prompt.md, gavi411-commit-convention.md,
+  gavi411-gap-analysis.md. All #N citations verified against brain.md.
+- **Karpathy guideline fold-in** (decision #117): Gavi asked to add the
+  four guidelines from github.com/multica-ai/andrej-karpathy-skills.
+  Folded into existing rules rather than a redundant new section (Gavi's
+  explicit call after being asked): STOP 2 extended to cover silently
+  picking one interpretation among several; Ponytail bullet got concrete
+  anti-patterns; new **Surgical changes only** bullet (no prior Gavi411
+  equivalent); new Required Workflow step requiring a stated
+  verification plan before multi-step work.
 
 ### What's next, concretely
 Epic 5 (Admin Cockpit) still-Open children, in strict key order: G411-93,
