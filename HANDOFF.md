@@ -12,7 +12,7 @@ accumulated. If something here turns out to matter long-term, promote it to
 
 ---
 
-## Where this session left off (2026-09-08) — G411-91 Reconciled (friend close-confirm UI). G411-80, G411-89, G411-90 also Reconciled this session. CLAUDE.md itself corrected (decision #115); a real credit-design correction logged (decision #116).
+## Where this session left off (2026-09-09) — CLAUDE.md and gavi411-brain.md cleanup, wrap-up checklist restructured, working on improving doc efficiency and clarity. G411-91 Reconciled (friend close-confirm UI) from the prior session. Pending PR #92 (doc restructuring) is still open for review.
 
 ### What shipped — G411-91 (friend-facing close-confirm UI)
 PR #89, merged. `RequestDetail.jsx`'s friend branch now offers a
@@ -98,17 +98,26 @@ charge decision, not the mechanism making it).
 13 stale, fully-merged-into-main GitHub branches deleted.
 
 ### Real state, right now
-Working tree clean on `main`, up to date with `origin/main`. One backend
-dev server (`node --watch server/server.js`) and one Vite dev server
-(port 5177) are running, single clean instance of each — check `ps aux`
-before starting new ones.
+Working tree clean on `you/claude-brain-doc-cleanup` branch (the doc
+restructuring PR). Primary `main` is up to date with `origin/main`. One
+backend dev server (`node --watch server/server.js`) and one Vite dev
+server (port 5177) are running, single clean instance of each.
 
-**Note on merging**: G411-80/89/90's wrap-up and feature PRs all needed
-`gh pr merge --admin` to bypass a branch ruleset
-(`require_extra_approval_for_unattributed_changes`) — Gavi explicitly
-authorized this each time. Still flagged, not resolved: worth deciding
-whether this needs a standing answer (e.g. commit attribution changes) so
-it stops needing a bypass every single PR.
+**Pending PR #92** (open, awaiting review before merge):
+- CLAUDE.md restructured: 572 → 357 lines (−30% by replacing inline
+  rule-histories with #N citations to gavi411-brain.md)
+- Reordered by session needs: four stops → wrap-up checklist → required
+  workflow → how to work with Gavi → reference material
+- Wrap-up checklist is now 9 steps in real execution order (confirmed
+  with Gavi): scope → falsifier → evidence → Aegis fields → Jira
+  Reviewing→Landed → HANDOFF.md+brain.md on same branch → ask to merge
+  AND Reconcile (merge happens here) → worktree sync → report
+- Cross-references updated in session-start-prompt.md,
+  gavi411-commit-convention.md, gavi411-gap-analysis.md
+- Stop 1 (at pickup) edited; Stop 4 (next ticket) clarified to reflect
+  that merge has its own go-ahead now
+- All 28 #N citations verified against brain.md
+- Pending for your review before merge
 
 ### What's next, concretely
 Epic 5 (Admin Cockpit) still-Open children, in strict key order: G411-93,
