@@ -12,7 +12,61 @@ accumulated. If something here turns out to matter long-term, promote it to
 
 ---
 
-## Where this session left off (2026-09-09) — PR #92 (CLAUDE.md/brain.md doc restructuring, plus a same-branch follow-up folding in the Karpathy CLAUDE.md guidelines) merged to `main`. Branch deleted, all worktrees clean and synced. No ticket picked up yet for the next session.
+## Where this session left off (2026-09-09) — G411-93 (nudge-driven escalation) Landed, on branch `agent-backend/G411-93-nudge-escalation`, awaiting merge go-ahead. PR #92 (doc restructuring + Karpathy fold-in) merged earlier this session.
+
+### What shipped — G411-93 (nudge-driven escalation, replaces old auto-close job)
+Branch `agent-backend/G411-93-nudge-escalation` (worktree
+`Gavi411-agent-backend`), not yet merged. Unifies manual nudge and the old
+independent 12-day-idle auto-close job into one sequence, all anchored to
+`Request.nudgedAt`:
+- **Nudge #1** (manual, admin-clicked): stamps `nudgedAt`, creates an
+  `isSystem: true` Message ("Hey, Gavi is waiting for your response" —
+  placeholder copy, real pass later). Atomic guard via `updateMany`
+  (fixes a TOCTOU double-nudge race found in review).
+- **Nudge #2** (auto, +7 days from `nudgedAt`, independent of any message
+  createdAt): stamps new `Request.nudgeTwoSentAt` column, sends distinct
+  "I'll likely close this" copy.
+- **Auto-close** (+14 days from `nudgedAt`, independent of nudge #2's
+  timestamp — both offsets anchor to `nudgedAt` directly, not chained).
+- **Any friend reply clears `nudgedAt`/`nudgeTwoSentAt`** to null,
+  regardless of whether it changes status — including the reopen-on-
+  message path (a review-found gap, now fixed).
+- **Requests never manually nudged get zero automated action** — this is
+  a deliberate, Gavi-confirmed scope narrowing vs. the old system (which
+  auto-closed ANY stale `WAITING_ON_USER` request unconditionally). See
+  decision #118.
+- `Message.isSystem` replaces `hasAdminMessaged`'s old exact-text-match
+  exclusion (fixes the refund-eligibility gate for both nudge texts, not
+  just one hardcoded string) — no real backfill risk since Gavi confirmed
+  no auto-close messages exist yet pre-launch wipe.
+- Nudge button re-added to `RequestDetail.jsx` admin controls: disabled +
+  "Nudged on DD/MM" once fired.
+- System messages render centered, no bubble, distinct weight/color.
+
+**Sibling review (high effort, 6 parallel angles) found 10 real issues**,
+all fixed in a second pass: the auto-close timing bug (was actually 21
+days not 14, since it measured from the last Message not `nudgedAt`),
+the reopen-nudgedAt-not-cleared gap, the TOCTOU race, a client bug where
+the nudge response wiped the visible message thread (missing
+`MESSAGE_INCLUDE`), fragile content-text matching for nudge #2 detection
+(fixed with the new `nudgeTwoSentAt` column), a dead-code cleanup, the
+button staying clickable after being nudged, and a missing test. Full
+detail in decision #118.
+
+**Live-tested by Gavi**: nudge sent, message thread stayed intact,
+button correctly disabled with "Nudged on DD/MM" (a `DD/MM/YYYY` format
+bug was caught and fixed in this same pass), system-message styling
+confirmed distinct. One real deploy gotcha hit and fixed during testing:
+the `nudgeTwoSentAt` migration had been marked applied in
+`_prisma_migrations` with `applied_steps_count: 0` — its `ALTER TABLE`
+never actually ran against the dev DB, so every request-list call 500'd
+until the bad history row was deleted and `migrate deploy` re-run for
+real.
+
+**368/368 tests pass.** Jira: Landed, Aegis fields written. **Not yet
+merged** — awaiting Gavi's merge go-ahead.
+
+### What shipped — PR #92 (doc restructuring + Karpathy guideline fold-in)
 
 ### What shipped — G411-91 (friend-facing close-confirm UI)
 PR #89, merged. `RequestDetail.jsx`'s friend branch now offers a
@@ -126,14 +180,13 @@ branch:
   verification plan before multi-step work.
 
 ### What's next, concretely
-Epic 5 (Admin Cockpit) still-Open children, in strict key order: G411-93,
-95 (request history, split from G411-80), 96 (account deletion, split
+G411-93 Landed, awaiting merge (see above) — once merged and Reconciled,
+Epic 5 (Admin Cockpit) still-Open children in strict key order: G411-95
+(request history, split from G411-80), G411-96 (account deletion, split
 from G411-80, deliberately deferred). (G411-92 is parented under Epic 3.)
-Epic 6 (Credits) now has its first real child: **G411-97** (full credit
+Epic 6 (Credits) has its first real child, **G411-97** (full credit
 stress test) — Epic-order convention means Epic 5's remaining children
 come before Epic 6 gets picked up, unless Gavi says otherwise.
-- **G411-93** (nudge UX decision) — next in strict order, small, unblocks
-  re-exposing the hidden G411-88 button.
 - **G411-49** (push subscribe flow) — directly relevant now that both
   G411-43 (presence) and G411-44 (admin-create-request notify) have real,
   wired, currently-inert push call sites waiting on it.
@@ -141,6 +194,7 @@ come before Epic 6 gets picked up, unless Gavi says otherwise.
   revisiting before Epic 6 proper starts, given decision #116's live
   reminder that credit-path reasoning is easy to get subtly wrong.
 
-No task has been explicitly picked up yet for the next session — agree
-with Gavi which one before touching code, per the session-start ritual
-(default: G411-93, lowest-numbered still-Open child in Epic 5).
+No task has been explicitly picked up yet beyond finishing G411-93's
+merge/Reconcile — agree with Gavi which one before touching code, per the
+session-start ritual (default: G411-95, lowest-numbered still-Open child
+in Epic 5, once Epic 5's queue resumes).

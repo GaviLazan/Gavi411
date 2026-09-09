@@ -1,70 +1,90 @@
-// Auto-close job (G411-35) — a WAITING_ON_USER request that's been
-// inactive for 14 days auto-closes, with a warning message sent 2 days
-// before that (PRD §4.4). Also backs the manual nudge endpoint (G411-36),
-// which sends the same warning content on demand.
+// G411-93: Nudge-driven escalation system (unified manual nudge + auto-close).
+// Replaces the old 12-day-warn/14-day-close logic with a two-nudge sequence:
+// (1) Manual nudge #1 only: admin must explicitly nudge once per cycle.
+// (2) Auto-escalation, triggered only if nudged:
+//     - Nudge #2 at +7 days (auto-fired if no friend reply since nudge #1)
+//     - Auto-close at +14 days (if nudge #2 sent and still no friend reply)
+// (3) Friend reply resets: any friend message clears nudgedAt, ending the
+//     escalation sequence until admin nudges again.
 //
 // "Inactivity" is measured from the LAST MESSAGE's createdAt (or the
-// request's own createdAt if it has no messages yet) — NOT
-// Request.updatedAt. A status/urgency PATCH bumps updatedAt via Prisma's
-// @updatedAt but a new Message never touches the Request row, so
-// updatedAt would go stale the moment the friend actually replies without
-// also changing status. See prisma/schema.prisma's Request/Message models.
+// request's own createdAt if it has no messages yet) — NOT Request.updatedAt.
+// A status/urgency PATCH bumps updatedAt via Prisma's @updatedAt but a new
+// Message never touches the Request row, so updatedAt would go stale the
+// moment the friend actually replies without also changing status. See
+// prisma/schema.prisma's Request/Message models.
 //
-// "Already warned, still no reply" is read off existing data rather than
-// a new column: the warning IS a Message with EXACT content
-// AUTO_CLOSE_WARNING_TEXT, authored by an admin (no system-message
-// concept exists in this schema — Gavi's call). Checking exact warning
-// content, not just "last message is from an admin" (Sibling review
-// finding — the earlier version treated ANY admin reply as an implicit
-// warning, so a normal conversational admin message could silently skip
-// the mandated warning and let a request auto-close with no warning ever
-// sent, violating PRD §4.4's "warning sent first" contract).
+// System messages (nudge #1, nudge #2, marked with isSystem: true) are
+// authored as the admin account but not "admin replies" for refund purposes —
+// hasAdminMessaged() excludes them (G411-31/93).
 
 import { Status } from '@prisma/client'
 import { prisma } from './prisma.js'
-import { getAdminUser, AUTO_CLOSE_WARNING_TEXT } from './requestAccess.js'
+import { getAdminUser } from './requestAccess.js'
+
+// Shared by sendNudge and requests.js routes — both need a request's
+// messages in the same order, so one literal instead of
+// independently-maintained copies.
+export const MESSAGE_INCLUDE = { message: { orderBy: { createdAt: 'asc' } } }
 
 const DAY_MS = 24 * 60 * 60 * 1000
+const NUDGE_TWO_AFTER_MS = 7 * DAY_MS
 const CLOSE_AFTER_MS = 14 * DAY_MS
-const WARNING_LEAD_MS = 2 * DAY_MS
 
-// Re-exported so existing importers of AUTO_CLOSE_WARNING_TEXT from this
-// module (the nudge route, tests) don't need to change their import path
-// — the constant itself now lives in requestAccess.js so hasAdminMessaged
-// can exclude it without a circular import (see that file's comment).
-export { AUTO_CLOSE_WARNING_TEXT }
+// Nudge copy strings (G411-93)
+const NUDGE_ONE_TEXT = 'Hey, Gavi is waiting for your response'
+const NUDGE_TWO_TEXT = 'Still haven\'t heard back — if I don\'t hear from you soon I\'ll likely go ahead and close this request.'
 
-// Sends the warning/nudge message, authored as the admin account. Used by
-// both the auto-close job and the manual nudge endpoint. `admin` can be
-// passed in by a caller that already has it (runAutoCloseCheck, avoiding
-// a redundant lookup per nudge sent — Sibling review finding); looked up
-// fresh otherwise (e.g. the standalone POST /:id/nudge route). Throws if
-// no admin account exists (shouldn't happen post-G411-76, but fail loud
-// rather than silently no-op).
+// Sends nudge #1 message, authored as the admin account. Manual only —
+// called by the POST /:id/nudge route. Defensive: throws if request is
+// already nudged (nudgedAt not null) or if no admin exists. Sets both the
+// Message (isSystem: true) and Request.nudgedAt atomically.
 export async function sendNudge(requestId, admin = null) {
   const resolvedAdmin = admin ?? (await getAdminUser(prisma))
   if (!resolvedAdmin) {
-    throw new Error('No admin account found — cannot send nudge/warning message')
+    throw new Error('No admin account found — cannot send nudge')
   }
-  return prisma.message.create({
-    data: { content: AUTO_CLOSE_WARNING_TEXT, requestId, userId: resolvedAdmin.clerkId },
+
+  return prisma.$transaction(async (tx) => {
+    // Atomic check-and-set: only proceed if nudgedAt is currently null.
+    // If 0 rows updated, someone else already nudged this request first.
+    const updated = await tx.request.updateMany({
+      where: { id: requestId, nudgedAt: null },
+      data: { nudgedAt: new Date() },
+    })
+    if (updated.count === 0) {
+      throw new Error('Request is already nudged — can only nudge once per cycle')
+    }
+
+    await tx.message.create({
+      data: { content: NUDGE_ONE_TEXT, requestId, userId: resolvedAdmin.clerkId, isSystem: true },
+    })
+
+    return tx.request.findUnique({
+      where: { id: requestId },
+      include: MESSAGE_INCLUDE,
+    })
   })
 }
 
 // Runs one pass of the auto-close check over every WAITING_ON_USER
-// request. For each: closes it if inactive 14+ days AND the last message
-// was already the admin's warning (i.e. the friend never replied to it);
-// otherwise sends the warning if inactive 12+ days and hasn't been warned
-// yet. One request gets at most one action per pass.
+// request where nudgedAt is NOT null (i.e., admin has already nudged).
+// For each:
+// - If 7+ days since nudgedAt and nudge #2 hasn't been sent yet: send nudge #2
+// - If 14+ days since nudgedAt and nudge #2 was already sent and no friend
+//   reply since: close the request
+// - Requests with nudgedAt null are skipped entirely — no automated action
+//   fires until admin has manually nudged once.
+//
+// Nudge #2 is detected by checking for an isSystem message with NUDGE_TWO_TEXT
+// created after the request's nudgedAt timestamp.
+//
+// Friend replies reset nudgedAt to null, ending the escalation sequence until
+// admin nudges again (see requests.js's POST /:id/messages route).
 //
 // ponytail: no lock/dedup between this scheduled pass and a concurrent
-// manual POST /:id/nudge on the same request — an admin nudging right as
-// the 6-hourly job also decides to warn the same request can produce two
-// warning messages back-to-back. Low-probability (needs both to land in
-// the same tiny window) and low-severity (a duplicate friendly message,
-// not data loss or a wrong close) — upgrade to a per-request advisory
-// lock or a "skip if warned in the last hour" check if this ever proves
-// to actually happen.
+// manual POST /:id/nudge on the same request — both could land in the same
+// window. Low-probability and low-severity (a duplicate system message).
 //
 // The CLOSED write happens inside a transaction that re-reads the
 // request's status FRESH immediately before writing (Sibling review
@@ -76,34 +96,41 @@ export async function sendNudge(requestId, admin = null) {
 // fresh read shows the request is no longer WAITING_ON_USER, the close is
 // skipped — someone else already acted on it.
 export async function runAutoCloseCheck() {
-  const staleRequests = await prisma.request.findMany({
-    where: { status: Status.WAITING_ON_USER },
-    select: { id: true, createdAt: true },
+  const nudgedRequests = await prisma.request.findMany({
+    where: { status: Status.WAITING_ON_USER, nudgedAt: { not: null } },
+    select: { id: true, nudgedAt: true, nudgeTwoSentAt: true },
   })
 
   const now = Date.now()
   const admin = await getAdminUser(prisma)
-  if (!admin) return // nothing to author a warning/close as — nothing to do this pass
+  if (!admin) return // nothing to author a nudge/close as — nothing to do this pass
 
-  for (const req of staleRequests) {
-    const lastMessage = await prisma.message.findFirst({
-      where: { requestId: req.id },
-      orderBy: { createdAt: 'desc' },
-    })
-    const lastActivityAt = lastMessage ? lastMessage.createdAt : req.createdAt
-    const inactiveMs = now - lastActivityAt.getTime()
-    const alreadyWarned =
-      lastMessage && lastMessage.userId === admin.clerkId && lastMessage.content === AUTO_CLOSE_WARNING_TEXT
+  for (const req of nudgedRequests) {
+    const nudgedAtMs = req.nudgedAt.getTime()
+    const timeSinceNudgeMs = now - nudgedAtMs
 
-    if (alreadyWarned && inactiveMs >= CLOSE_AFTER_MS) {
+    // Check if nudge #2 has already been sent this cycle (nudgeTwoSentAt is set)
+    const nudgeTwoSent = req.nudgeTwoSentAt !== null
+
+    if (nudgeTwoSent && timeSinceNudgeMs >= CLOSE_AFTER_MS) {
+      // Nudge #2 already sent, 14+ days since nudge #1, and still no friend reply
       await prisma.$transaction(async (tx) => {
         const fresh = await tx.request.findUnique({ where: { id: req.id }, select: { status: true } })
         if (fresh?.status === Status.WAITING_ON_USER) {
           await tx.request.update({ where: { id: req.id }, data: { status: Status.CLOSED } })
         }
       })
-    } else if (!alreadyWarned && inactiveMs >= CLOSE_AFTER_MS - WARNING_LEAD_MS) {
-      await sendNudge(req.id, admin)
+    } else if (!nudgeTwoSent && timeSinceNudgeMs >= NUDGE_TWO_AFTER_MS) {
+      // Nudge #2 not sent yet, 7+ days since nudge #1, and no friend reply: send nudge #2
+      await prisma.$transaction(async (tx) => {
+        await tx.message.create({
+          data: { content: NUDGE_TWO_TEXT, requestId: req.id, userId: admin.clerkId, isSystem: true },
+        })
+        await tx.request.update({
+          where: { id: req.id },
+          data: { nudgeTwoSentAt: new Date() },
+        })
+      })
     }
   }
 }

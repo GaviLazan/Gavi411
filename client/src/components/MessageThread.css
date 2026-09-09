@@ -42,6 +42,22 @@
   word-break: break-word;
 }
 
+/* G411-93: system messages (nudges) are centered, no bubble, visually
+   distinct to signal automation not a real chat message. */
+.message-system {
+  align-self: center;
+  width: 100%;
+  text-align: center;
+}
+
+.message-system-content {
+  font-weight: 500;
+  font-size: 14px;
+  color: var(--text);
+  opacity: 0.8;
+  padding: var(--space-2);
+}
+
 .message-image {
   display: block;
   max-width: 100%;

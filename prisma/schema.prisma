@@ -204,6 +204,16 @@ model Request {
   // refund) must reopen for free — it was already paid for once and
   // never refunded, so charging again would be a real double-charge.
   refundedAt     DateTime?
+  // G411-93: timestamp of the most recent manual nudge #1 on this request.
+  // Null means never nudged, or nudge sequence was reset by a friend reply.
+  // Used to gate the manual nudge endpoint (can only nudge once per cycle)
+  // and to drive the auto-escalation timeline (nudge #2 at +7 days,
+  // auto-close at +14 days).
+  nudgedAt       DateTime?
+  // G411-93: timestamp when nudge #2 was sent. Null means nudge #2 not sent
+  // yet in this cycle, or nudge sequence was reset by a friend reply.
+  // Replaces fragile text-matching detection (checking message.content).
+  nudgeTwoSentAt DateTime?
 
   userId String
   user   User   @relation(fields: [userId], references: [clerkId])
@@ -224,6 +234,11 @@ model Message {
   content   String
   encrypted Boolean  @default(false)
   imageUrl  String?
+  // G411-93: system messages (nudges #1, #2) authored by admin but not
+  // real chat messages. Used to exclude these from refund eligibility checks
+  // (hasAdminMessaged) without matching exact text. Even though these are
+  // authored as admin, they're not "admin replied" for refund/access purposes.
+  isSystem  Boolean  @default(false)
   createdAt DateTime @default(now())
 
   requestId Int

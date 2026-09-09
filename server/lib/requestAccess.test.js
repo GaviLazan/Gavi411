@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
-import { canAccessRequest, hasAdminMessaged, AUTO_CLOSE_WARNING_TEXT } from './requestAccess.js'
+import { canAccessRequest, hasAdminMessaged } from './requestAccess.js'
 
 describe('canAccessRequest', () => {
   it('allows the owner', () => {
@@ -15,12 +15,12 @@ describe('canAccessRequest', () => {
   })
 })
 
-describe('hasAdminMessaged (G411-31)', () => {
+describe('hasAdminMessaged (G411-31, G411-93)', () => {
   it('true when a REAL ADMIN-role message exists on the request', async () => {
     const db = { message: { findFirst: vi.fn().mockResolvedValue({ id: 1 }) } }
     expect(await hasAdminMessaged(db, 42)).toBe(true)
     expect(db.message.findFirst).toHaveBeenCalledWith({
-      where: { requestId: 42, user: { role: 'ADMIN' }, content: { not: AUTO_CLOSE_WARNING_TEXT } },
+      where: { requestId: 42, user: { role: 'ADMIN' }, isSystem: false },
     })
   })
 
@@ -29,14 +29,23 @@ describe('hasAdminMessaged (G411-31)', () => {
     expect(await hasAdminMessaged(db, 42)).toBe(false)
   })
 
-  // Sibling review finding (G411-35/36): the auto-close job's automated
-  // warning message is authored as admin but must NOT count as a real
-  // admin reply for refund-eligibility purposes — a friend who only got
-  // an automated nudge should still get their G411-31 refund on cancel.
-  it('excludes the auto-close job\'s automated warning message from the check', async () => {
+  // G411-93 (and earlier G411-35/36): system messages (nudges #1 and #2,
+  // marked with isSystem: true) are authored as admin but must NOT count as
+  // real admin replies for refund-eligibility purposes — a friend who only
+  // got automated nudges should still get their G411-31 refund on cancel.
+  it('excludes system messages (nudges) from the check', async () => {
     const db = { message: { findFirst: vi.fn() } }
     await hasAdminMessaged(db, 42)
     const where = db.message.findFirst.mock.calls[0][0].where
-    expect(where.content).toEqual({ not: AUTO_CLOSE_WARNING_TEXT })
+    expect(where.isSystem).toBe(false)
+  })
+
+  it('returns false if only system messages exist (friend only got nudges, no real admin reply)', async () => {
+    const db = {
+      message: {
+        findFirst: vi.fn().mockResolvedValue(null), // No non-system admin messages
+      },
+    }
+    expect(await hasAdminMessaged(db, 42)).toBe(false)
   })
 })

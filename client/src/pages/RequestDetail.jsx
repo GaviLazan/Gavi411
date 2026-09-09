@@ -481,6 +481,29 @@ function RequestDetail({ requestId, onBack, isAdmin }) {
     }
   }
 
+  // G411-93: send nudge #1 (manual nudge, can only nudge once per cycle).
+  // Clears nudgedAt on friend reply, allowing another nudge.
+  async function handleNudge() {
+    setStatusSaving(true);
+    setStatusError("");
+    try {
+      const res = await fetch(`/api/requests/${requestId}/nudge`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || "Couldn't send the nudge.");
+      }
+      const updated = await res.json();
+      setRequest(updated);
+    } catch (err) {
+      setStatusError(err.message);
+    } finally {
+      setStatusSaving(false);
+    }
+  }
+
   // G411-82: text is encrypted client-side before it ever reaches the
   // server, via the shared key derived from the other party's public
   // key. A sender with no keypair yet (see prisma/schema.prisma's
@@ -841,10 +864,21 @@ function RequestDetail({ requestId, onBack, isAdmin }) {
                 No longer urgent
               </Button>
             )}
-            {/* G411-88 Sibling review, Gavi's live testing: nudge has no
-                real UX behind it yet (see gavi411-brain.md decision log) —
-                hidden until that's designed, endpoint stays wired for when
-                it's ready. */}
+            {request.status === 'WAITING_ON_USER' && (() => {
+              const nudgedLabel = request.nudgedAt
+                ? `Nudged on ${new Date(request.nudgedAt).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit' })}`
+                : null
+              return (
+                <Button
+                  variant="secondary"
+                  onClick={handleNudge}
+                  disabled={statusSaving || request.nudgedAt != null}
+                  title={nudgedLabel ?? undefined}
+                >
+                  {nudgedLabel ?? 'Nudge'}
+                </Button>
+              )
+            })()}
           </div>
           <button type="button" className="admin-layout-toggle" onClick={() => setSideBySide((v) => !v)}>
             {sideBySide ? "Stack tabs" : "Side by side"}
