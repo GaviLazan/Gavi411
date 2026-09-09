@@ -12,11 +12,96 @@ accumulated. If something here turns out to matter long-term, promote it to
 
 ---
 
-## Where this session left off (2026-09-09) — G411-93 (nudge-driven escalation) Landed, on branch `agent-backend/G411-93-nudge-escalation`, awaiting merge go-ahead. PR #92 (doc restructuring + Karpathy fold-in) merged earlier this session.
+## Where this session left off (2026-09-09) — G411-93 (nudge escalation) and G411-95 (hamburger-menu nav redesign) both Landed this session; G411-93 already merged and Reconciled. G411-95 on branch `agent-frontend/G411-95-hamburger-nav`, awaiting merge go-ahead. G411-56 (copy pass) updated with a specific known item. PR #92 (doc restructuring + Karpathy fold-in) merged earlier this session.
+
+### What shipped — G411-95 (hamburger-menu navigation redesign)
+Branch `agent-frontend/G411-95-hamburger-nav` (worktree
+`Gavi411-agent-frontend`), not yet merged. Redefined mid-pickup from a
+narrow "request history" ask into a full nav overhaul for both roles —
+decision and rationale not yet logged to brain.md as its own numbered
+item (folding into this HANDOFF entry given how much of it was iterative
+live-testing fixes rather than a single design decision):
+
+- **Header**: hamburger (left) — logo (center) — sign in/out (right,
+  unchanged). **Home screen**: friend gets just "+ New request"; admin
+  gets "+ New request", "N open requests", "Invite", presence toggle
+  (moved here from the menu per Gavi's live revision).
+- **Hamburger menu**: Profile, Triggers (admin-only), Open requests,
+  Closed requests, Theme (now 2-state light/dark only, "system" removed
+  entirely, new users default light — Gavi's explicit call, "never
+  wanted system to begin with"). Friend-only: "Installing on iPhone"
+  (moved here from the old home-screen `RequestList`, which no longer
+  exists as a rendered component — friend home screen has nothing to
+  keep it mounted, per Gavi's own catch mid-session).
+- **New standalone `Closed requests` view** (`ClosedRequestsList.jsx`)
+  for friends — previously only a toggle inside the now-removed
+  `RequestList`. `OpenRequestsList.jsx` is its open-only sibling. Both
+  reuse `RequestCard`/`statusLabel`/`CLOSED_STATUSES`, now exported from
+  `RequestList.jsx` even though that file's own component body is dead
+  (kept only for those shared exports, per its own comment).
+- **Admin's Open/Closed requests route through the existing `AdminList`**
+  (not the friend-only components) — fixes a real data-exposure bug a
+  Sibling review caught (admin would otherwise see every friend's
+  requests mixed together, no attribution).
+
+**Three real, serious bugs found and fixed during live testing, beyond
+the Sibling review's own 10 findings** (full blow-by-blow belongs in a
+brain.md decision, not written yet — flag for next session or do it now
+if picking this back up):
+1. **Menu CSS bug** — `.hamburger-menu` had unconditional `display:
+   flex`, overriding the browser's own `dialog:not([open]) {display:
+   none}` default. The closed dialog stayed laid out full-viewport and
+   ate every click on the page underneath it — explained "menu always
+   open," "no button anywhere works," "can't reach the homepage," all
+   from one root cause. Fixed by scoping to `.hamburger-menu[open]`.
+2. **`AdminList` reused across Open↔Closed instead of remounting** —
+   `view === 'open-requests'` and `view === 'closed-requests'` render
+   the same `AdminList` component type at what React treats as
+   reusable positions in a ternary chain, so switching between them
+   updated `initialFilter` as a prop that `useState(initialFilter ??
+   "open")` only ever reads once, at first mount — the Filter dropdown
+   and displayed list silently stayed stuck on whichever loaded first.
+   `view` state itself changed correctly (confirmed via React DevTools
+   with Gavi live) — only the screen didn't. **Real fix** (not the
+   first attempt — a `key` prop forcing remount worked but threw away
+   the fetch every switch, which Gavi correctly pushed back on):
+   `AdminList` is now a single persistent instance, kept mounted
+   (hidden, not unmounted) across Open↔Closed nav exactly like the
+   home-screen list already was pre-G411-95 (G411-89's pattern) —
+   `filter` is a real controlled prop synced via `useEffect`, no
+   remount, no refetch, instant switch.
+3. **Close animation had no bounded fallback** — first version deferred
+   `dialog.close()` until CSS `animationend` fired; if that event was
+   ever missed, the modal `<dialog>` (from `showModal()`) would block
+   the entire page forever with zero console error. Fixed with a fixed
+   200ms timeout instead of an open-ended wait.
+
+**Also fixed**: "+ New request" leaking onto the Open/Closed requests
+screens (AdminList's button is now conditional on `onNewRequest` being
+passed at all); admin menu item order (was Presence/Invites/Triggers
+after Closed requests, several rounds of revision landed on Triggers-
+only in the menu, right after Profile); Sort dropdown's "Urgency (oldest
+first)" label confirmed correct-but-confusing (urgency IS the real sort
+key, "oldest first" is only the same-urgency tiebreak) — pre-existing,
+not touched, not a bug.
+
+**G411-56** (copy pass, Epic 9, still Open) updated with a specific
+known item: `client/public/install-ios.md` is genuinely developer-facing
+text (ticket references, HTML tag names) reaching real friends via the
+hamburger menu — flagged there rather than fixed now, since copy is
+deliberately placeholder until that dedicated milestone.
+
+372/372 tests pass. Jira: Landed, Aegis fields written. **Not yet
+merged** — awaiting Gavi's merge go-ahead.
 
 ### What shipped — G411-93 (nudge-driven escalation, replaces old auto-close job)
-Branch `agent-backend/G411-93-nudge-escalation` (worktree
-`Gavi411-agent-backend`), not yet merged. Unifies manual nudge and the old
+**Merged and Reconciled this session** (PR #94). Unifies manual nudge and
+the old independent 12-day-idle auto-close job into one sequence, all
+anchored to
+
+### What shipped — G411-93 (nudge-driven escalation, replaces old auto-close job)
+**Merged and Reconciled this session** (PR #94, `agent-backend/G411-93-nudge-escalation`
+branch, now deleted post-merge). Unifies manual nudge and the old
 independent 12-day-idle auto-close job into one sequence, all anchored to
 `Request.nudgedAt`:
 - **Nudge #1** (manual, admin-clicked): stamps `nudgedAt`, creates an
@@ -180,21 +265,26 @@ branch:
   verification plan before multi-step work.
 
 ### What's next, concretely
-G411-93 Landed, awaiting merge (see above) — once merged and Reconciled,
-Epic 5 (Admin Cockpit) still-Open children in strict key order: G411-95
-(request history, split from G411-80), G411-96 (account deletion, split
-from G411-80, deliberately deferred). (G411-92 is parented under Epic 3.)
+G411-93 merged + Reconciled. G411-95 Landed, awaiting merge go-ahead (see
+above) — once merged and Reconciled, Epic 5 (Admin Cockpit)'s only
+remaining still-Open child is G411-96 (account deletion, split from
+G411-80, deliberately deferred). (G411-92 is parented under Epic 3.)
 Epic 6 (Credits) has its first real child, **G411-97** (full credit
-stress test) — Epic-order convention means Epic 5's remaining children
-come before Epic 6 gets picked up, unless Gavi says otherwise.
+stress test) — Epic-order convention means Epic 5's remaining child
+comes before Epic 6 gets picked up, unless Gavi says otherwise.
+- **G411-96** (account deletion) — next in strict Epic 5 order once
+  G411-95 is merged/Reconciled.
 - **G411-49** (push subscribe flow) — directly relevant now that both
   G411-43 (presence) and G411-44 (admin-create-request notify) have real,
   wired, currently-inert push call sites waiting on it.
 - **G411-97** (credit stress test) — not urgent this session, but worth
   revisiting before Epic 6 proper starts, given decision #116's live
   reminder that credit-path reasoning is easy to get subtly wrong.
+- **G411-56** (copy pass, Epic 9) — has a specific known item now
+  (install-ios.md's dev-facing text), but the whole ticket is
+  deliberately deferred until its own milestone, not urgent.
 
-No task has been explicitly picked up yet beyond finishing G411-93's
+No task has been explicitly picked up yet beyond finishing G411-95's
 merge/Reconcile — agree with Gavi which one before touching code, per the
-session-start ritual (default: G411-95, lowest-numbered still-Open child
+session-start ritual (default: G411-96, lowest-numbered still-Open child
 in Epic 5, once Epic 5's queue resumes).

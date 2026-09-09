@@ -1,7 +1,15 @@
 /* Hamburger menu panel (G411-95). Native <dialog> styled as a
    slide-in left panel — modal backdrop is transparent, panel slides
-   in from left with CSS transforms and transitions. */
-.hamburger-menu {
+   in from left with CSS transforms and transitions.
+
+   display MUST stay scoped to [open] — <dialog> without the open
+   attribute is display:none by UA default, but an unconditional
+   `display: flex` here overrides that and keeps the dialog laid out
+   (and eating clicks over the whole viewport, since it's
+   position:fixed + 100vw/100vh) even when .close() has been called
+   and the attribute is gone. Root cause of "menu is always open" /
+   "nothing outside the menu is clickable" (Gavi, live testing). */
+.hamburger-menu[open] {
   position: fixed;
   top: 0;
   left: 0;
@@ -53,6 +61,22 @@
   }
   to {
     transform: translateX(0);
+  }
+}
+
+/* Close animation (Gavi's live catch — closing had no animation, only
+   opening did). HamburgerMenu.jsx adds this class, waits for
+   animationend, then calls the real dialog.close(). */
+.hamburger-menu-closing .hamburger-menu-content {
+  animation: slideOut 0.2s ease-in forwards;
+}
+
+@keyframes slideOut {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-100%);
   }
 }
 

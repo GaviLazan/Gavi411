@@ -378,6 +378,42 @@ function App() {
                     {adminOpenCount ?? 0} open requests
                   </Button>
                 )}
+                <Button onClick={() => { setPreviousView('list'); setView('invite-admin') }}>
+                  Invite
+                </Button>
+                <div>
+                  <Button
+                    onClick={async () => {
+                      setPresenceToggling(true)
+                      setPresenceToggleError(false)
+                      try {
+                        const res = await fetch('/api/presence', {
+                          method: 'PATCH',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ isOnline: !isOnline }),
+                        })
+                        if (res.ok) {
+                          const data = await res.json()
+                          setIsOnline(data.isOnline)
+                        } else {
+                          setPresenceToggleError(true)
+                        }
+                      } catch {
+                        setPresenceToggleError(true)
+                      } finally {
+                        setPresenceToggling(false)
+                      }
+                    }}
+                    disabled={presenceToggling}
+                  >
+                    {presenceToggling ? '…' : isOnline ? 'Go offline' : 'Go online'}
+                  </Button>
+                  {presenceToggleError && (
+                    <p style={{ fontSize: 13, color: 'var(--text)', marginTop: 'var(--space-1)' }}>
+                      Failed to update — try again.
+                    </p>
+                  )}
+                </div>
               </div>
             ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-3)", width: "100%", maxWidth: 420 }}>
@@ -386,6 +422,31 @@ function App() {
                 </Button>
               </div>
             )}
+          </div>
+        )}
+        {/* Admin's Open/Closed requests screen — kept mounted (hidden,
+            not unmounted) across navigation, same reasoning and same
+            pattern as the 'list' view div right above (G411-89): a
+            fresh AdminList per ternary branch (the original G411-95
+            shape) meant React saw the same component type reused
+            across branches and DIDN'T remount it on its own, so
+            switching Open<->Closed silently kept whatever filter/data
+            had first loaded (Gavi, live testing) — forcing a remount
+            via `key` fixed that but threw the fetch away every switch.
+            A single persistent instance with `filter` as a real
+            controlled prop (not initialFilter, read-once) avoids both:
+            correct on every switch, no refetch needed since the data
+            doesn't change, only which subset is shown. */}
+        {role !== null && isAdmin && (
+          <div hidden={view !== 'open-requests' && view !== 'closed-requests'}>
+            <AdminList
+              filter={view === 'closed-requests' ? 'closed' : 'open'}
+              onOpenRequest={(id) => {
+                setSelectedRequestId(id)
+                setPreviousView(view)
+                setView('detail')
+              }}
+            />
           </div>
         )}
         {isSignedIn && !tokenHandoffDone ? (
@@ -446,25 +507,16 @@ function App() {
           ) : view === 'detail' ? (
             <RequestDetail requestId={selectedRequestId} onBack={() => setView(previousView)} isAdmin={isAdmin} />
           ) : view === 'open-requests' ? (
-            isAdmin ? (
-              <AdminList
-                initialFilter="open"
-                onOpenRequest={(id) => { setSelectedRequestId(id); setPreviousView('open-requests'); setView('detail'); }}
-                onNewRequest={() => { setPreviousView('open-requests'); setView('admin-create-request') }}
-              />
-            ) : (
+            // Admin renders via the persistent hidden AdminList div
+            // above instead (real reason in that div's comment) — this
+            // branch only needs to fire for friends now.
+            isAdmin ? null : (
               <OpenRequestsList
                 onOpenRequest={(id) => { setSelectedRequestId(id); setPreviousView('open-requests'); setView('detail'); }}
               />
             )
           ) : view === 'closed-requests' ? (
-            isAdmin ? (
-              <AdminList
-                initialFilter="closed"
-                onOpenRequest={(id) => { setSelectedRequestId(id); setPreviousView('closed-requests'); setView('detail'); }}
-                onNewRequest={() => { setPreviousView('closed-requests'); setView('admin-create-request') }}
-              />
-            ) : (
+            isAdmin ? null : (
               <ClosedRequestsList
                 onOpenRequest={(id) => { setSelectedRequestId(id); setPreviousView('closed-requests'); setView('detail'); }}
               />
@@ -519,6 +571,22 @@ function App() {
               Profile
             </button>
 
+            {/* Triggers — admin-only, right after Profile per spec (Gavi's
+                call: Presence/Invites moved to the admin home screen
+                instead, only Triggers stays in the menu). */}
+            {isAdmin && (
+              <button
+                type="button"
+                className="hamburger-menu-item"
+                onClick={() => {
+                  setView('trigger-admin')
+                  setHamburgerOpen(false)
+                }}
+              >
+                Triggers
+              </button>
+            )}
+
             {/* Open requests — routes to AdminList for admin, OpenRequestsList
                 for friends (branches on isAdmin at render time below, not
                 here — both roles navigate the same way). */}
@@ -548,89 +616,24 @@ function App() {
               Closed requests
             </button>
 
-            {/* Admin-only section */}
-            {isAdmin && (
-              <>
-                <div className="hamburger-menu-divider" />
-
-                {/* Presence toggle */}
-                <div>
-                  <button
-                    type="button"
-                    className="hamburger-menu-presence-toggle"
-                    onClick={async () => {
-                      setPresenceToggling(true)
-                      setPresenceToggleError(false)
-                      try {
-                        const res = await fetch('/api/presence', {
-                          method: 'PATCH',
-                          headers: { 'Content-Type': 'application/json' },
-                          body: JSON.stringify({ isOnline: !isOnline }),
-                        })
-                        if (res.ok) {
-                          const data = await res.json()
-                          setIsOnline(data.isOnline)
-                        } else {
-                          setPresenceToggleError(true)
-                        }
-                      } catch {
-                        setPresenceToggleError(true)
-                      } finally {
-                        setPresenceToggling(false)
-                      }
-                    }}
-                    disabled={presenceToggling}
-                  >
-                    {presenceToggling ? '…' : isOnline ? 'Go offline' : 'Go online'}
-                  </button>
-                  {presenceToggleError && (
-                    <p style={{ fontSize: 13, color: 'var(--text)', marginTop: 'var(--space-1)' }}>
-                      Failed to update — try again.
-                    </p>
-                  )}
-                </div>
-
-                {/* Invites */}
-                <button
-                  type="button"
-                  className="hamburger-menu-item"
-                  onClick={() => {
-                    setView('invite-admin')
-                    setHamburgerOpen(false)
-                  }}
-                >
-                  Invites
-                </button>
-
-                {/* Triggers */}
-                <button
-                  type="button"
-                  className="hamburger-menu-item"
-                  onClick={() => {
-                    setView('trigger-admin')
-                    setHamburgerOpen(false)
-                  }}
-                >
-                  Triggers
-                </button>
-              </>
-            )}
-
             {/* Installing on iPhone — was RequestList's own link before
                 G411-95 removed RequestList from the friend home screen;
                 moved here so it stays reachable rather than becoming
-                dead routing (view === 'install-help' had no caller left
-                otherwise). Shown to everyone, same as before. */}
-            <button
-              type="button"
-              className="hamburger-menu-item"
-              onClick={() => {
-                setView('install-help')
-                setHamburgerOpen(false)
-              }}
-            >
-              Installing on iPhone
-            </button>
+                dead routing. Friend-only, matching its original home in
+                RequestList (friend-facing PWA-install help doesn't apply
+                to admin — Gavi's live catch). */}
+            {!isAdmin && (
+              <button
+                type="button"
+                className="hamburger-menu-item"
+                onClick={() => {
+                  setView('install-help')
+                  setHamburgerOpen(false)
+                }}
+              >
+                Installing on iPhone
+              </button>
+            )}
 
             {/* Theme toggle — shown to everyone */}
             <div className="hamburger-menu-divider" />
