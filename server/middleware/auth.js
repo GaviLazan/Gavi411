@@ -185,6 +185,17 @@ export async function requireAuth(req, res, next) {
     }
   }
 
+  // G411-96: the one choke point every authenticated request passes
+  // through — soft-deleted accounts must be actually locked out here, not
+  // just have PII scrubbed. Without this, a Clerk-delete failure during
+  // DELETE /api/me (network blip, API error — a case that route already
+  // anticipates and doesn't fail on) leaves a still-valid Clerk session
+  // able to keep using the app under the "deleted" account (Sibling
+  // review finding).
+  if (user.isDeleted) {
+    return res.status(401).json({ error: 'Unauthorized' })
+  }
+
   req.user = user
   next()
 }

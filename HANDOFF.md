@@ -12,64 +12,75 @@ accumulated. If something here turns out to matter long-term, promote it to
 
 ---
 
-## Where this session left off (2026-09-10) — G411-93 merged/Reconciled. G411-95's remaining 5 fixes from the prior session's triage are done, Aegis fields updated, HANDOFF/brain.md committed. **Still not merged — go/no-go on merge is the open question for next session.**
+## Where this session left off (2026-09-10) — G411-95 merged/Reconciled. G411-96 (account deletion) Landed but **NOT merged** — go/no-go on merge is next session's first question.
 
-### G411-95 — this session's fixes (2026-09-10)
+### G411-96 — account deletion (2026-09-10)
 
-All committed on `agent-frontend/G411-95-hamburger-nav` (worktree
-`Gavi411-agent-frontend`), commits `6e0dcbe` and `2b764bb`. Full
-reasoning for #1 in decision #119 (`gavi411-brain.md`); this is the
-outcome summary.
+Branch `agent-frontend/G411-96-account-deletion` (worktree
+`Gavi411-agent-frontend`), commits `096fecd` (Haiku implementation) and
+`2c8e85f` (Sibling review fix). STOP 1/STOP 2 design questions resolved
+live with Gavi before any code — see the ticket's Falsifier field for
+the final resolved spec; summary:
 
-1. **Filter-overwrite finding — not a real bug.** Traced `filterProp`'s
-   actual computation in `App.jsx` (`view === 'closed-requests' ?
-   'closed' : 'open'`) — it can never be anything but what the admin
-   clicked in the menu, so navigating always shows exactly what was
-   clicked. No fix made. See decision #119 for the two-round
-   miscommunication before this got traced correctly.
-2. **Double-fetch + stale count, fixed together.** `AdminList` now
-   reports its fetched `requests` up via a new `onRequestsLoaded` prop;
-   `App.jsx` derives `adminOpenCount` from that instead of running its
-   own separate `/api/requests` fetch. One fetch instead of two; count
-   recomputes whenever `AdminList` refetches instead of freezing at
-   first load.
-3. **Close-animation timing** — CSS `slideOut` shortened from 0.2s to
-   0.15s to match the JS close-timeout (kept the shorter value, since
-   the JS comment explains 150ms was deliberately chosen short to
-   minimize the top-layer click-blocking window). Comments in both
-   files now point at each other.
-4. **Cleanup pass**:
-   - `OpenRequestsList`/`ClosedRequestsList` merged into one
-     `FriendRequestsList({ status })` component.
-   - Restored the pre-G411-95 "show most recent closed request"
-     fallback when a friend's only requests are all closed (open view
-     only) — Gavi confirmed he wants this back.
-   - `useRequests.test.js` deleted (never tested the real hook, just
-     reimplemented trivial logic inline and asserted against itself);
-     no replacement written — no hook-testing library exists in this
-     repo and adding one for one fake test was out of scope.
-   - Dead `retryToken`/`setRetryToken` exports removed.
-   - Stale comments referencing the old component names fixed across
-     `App.jsx`/`RequestList.jsx`.
-   - A same-session Sibling review round 2 (on the fix commit) caught
-     two YAGNI regressions the fix pass itself introduced — a
-     `useRequests` hook extracted for what became a single caller, and
-     a `homeButtonColumn(maxWidth)` helper for 2 call sites. Both
-     reverted to inline code (hook deleted, fetch logic inlined into
-     `FriendRequestsList`; style objects inlined back at both sites)
-     before the second commit.
-   - Other review-round-2 findings (theme system-mode removal, a
-     header-row CSS grid overlap, dead presence-toggle CSS) are
-     pre-existing code from before this session's changes — confirmed
-     via `git diff` against the pre-session commit, out of scope, not
-     touched.
+- **Soft-delete, not hard-delete**: `User.isDeleted` (new boolean
+  column) set true; `email`/`profilePic`/`publicKey` cleared,
+  `phoneNumber` set to a unique `deleted-<clerkId>` placeholder (it's a
+  required field, can't be null). `firstName`/`lastName` deliberately
+  **kept** — Gavi's explicit call, he needs the name in his own request
+  history. No `Request`/`Message`/`CreditTransaction` row is touched —
+  none of the schema's relations to `User` cascade, so a hard delete
+  would 500 on a foreign-key error the moment the user has any history.
+- **Clerk account deleted too**, ordered deliberately AFTER the Prisma
+  soft-delete commits — a Clerk API failure leaves the account already
+  locked out rather than in a broken half-state.
+- **Admin gets a push notification** via the existing `sendPushToUser`
+  (already-working infra, no G411-49 dependency — reused the exact
+  `notifyAdminOfDeviceRequest` pattern from `devices.js`).
+- **Frontend**: type-to-confirm modal on the Profile screen (type first
+  name to enable the real delete button), inline in `ProfilePage.jsx`
+  matching its existing phone-edit-form pattern.
 
-**369/369 tests pass** (372 minus 3 fake assertions removed with the
-dead test file), build clean, worktree clean. Jira: still Landed
-(correct — this session fixed review findings on already-Landed work,
-not a fresh Reviewing→Landed transition), Evidence field updated to
-reflect the fresh run. **Not yet asked about merging this session** —
-do that first next session, once Gavi's seen this summary.
+**Sibling review (medium effort) found one real, confirmed issue**:
+`requireAuth` loaded the `User` row but never checked `isDeleted` — so
+if the Clerk delete call failed after the Prisma soft-delete committed
+(a case the route already anticipates and doesn't fail on), the
+account's still-valid Clerk session kept full API access despite being
+"deleted." Fixed at the actual choke point every authenticated request
+passes through (`server/middleware/auth.js`, right before `req.user =
+user; next()`) — now 401s a soft-deleted account the same way any other
+auth failure does. New test added directly covering this. 305/305
+server tests pass, 70/70 client, build clean.
+
+**Real gotchas hit and fixed this session, worth remembering**:
+1. The implementing agent's own self-reported test count (374) was
+   simply wrong — verified real count is 304 (299 baseline + 5 new),
+   confirmed by counting test files/running the suite directly rather
+   than trusting the agent's summary.
+2. A pre-existing gap unrelated to this ticket surfaced: the `username`
+   column (added back in G411-80) had no migration file anywhere in git
+   — the live DB had it, working fine, but the migration history was
+   silently incomplete. The implementing agent's own `prisma migrate
+   dev` run auto-reconciled it (backfilled the missing migration file,
+   Prisma detected the column already existed and marked it applied
+   without re-running the SQL) — verified safe by directly querying
+   `information_schema.columns` against the real DB before trusting it,
+   not just reading the CLI's status summary. Real column confirmed
+   present both before and after.
+3. **After applying the new `isDeleted` migration for real** (with
+   Gavi's explicit go-ahead, `npx prisma migrate deploy`), a direct
+   query using the new field against the real Prisma Client failed with
+   "unknown field `isDeleted`" — `migrate deploy` had updated the actual
+   database column, but the generated Prisma Client hadn't picked up
+   the new field. `npx prisma generate` fixed it; re-verified with a
+   real query afterward (existing rows correctly default `isDeleted:
+   false`). **Lesson: `migrate deploy` succeeding does not mean the
+   Prisma Client is in sync — always `prisma generate` after, and
+   verify with a real query against the live client, not just a status
+   check**, matching decision #118's "don't trust the CLI's summary"
+   lesson but for a different specific failure mode.
+
+**Not yet asked about merging this session** — do that first next
+session.
 
 ### What shipped — G411-95 (hamburger-menu navigation redesign)
 Branch `agent-frontend/G411-95-hamburger-nav` (worktree

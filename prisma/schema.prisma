@@ -97,6 +97,7 @@ model User {
   creditBalance Int
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
+  isDeleted     Boolean  @default(false)
 
   // E2E messaging (G411-82). Raw ECDH public key, base64 (see
   // client/src/lib/crypto.js's exportPublicKey) — uploaded once at
