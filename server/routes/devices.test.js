@@ -61,6 +61,9 @@ const prismaMock = {
     findMany: vi.fn(),
     delete: vi.fn(),
   },
+  notification: {
+    create: vi.fn(),
+  },
   $transaction: vi.fn((ops) => Promise.all(ops)),
 }
 
@@ -85,6 +88,8 @@ beforeEach(() => {
   // Default: no admins found, so notifyAdminOfDeviceRequest's push fanout
   // is a no-op unless a specific test overrides it.
   prismaMock.user.findMany.mockResolvedValue([])
+  // G411-98: notification.create now called by sendPushToUser
+  prismaMock.notification.create.mockResolvedValue({ id: 1 })
 })
 
 describe('POST /api/devices', () => {
