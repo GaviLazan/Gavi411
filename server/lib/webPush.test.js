@@ -25,6 +25,9 @@ const prismaMock = {
     findMany: vi.fn(),
     delete: vi.fn(),
   },
+  notification: {
+    create: vi.fn(),
+  },
 }
 
 vi.mock('./prisma.js', () => ({ prisma: prismaMock }))
@@ -41,6 +44,7 @@ describe('sendPushToUser', () => {
       { id: 1, endpoint: 'https://push.example/a', p256dh: 'p', auth: 'a' },
     ])
     prismaMock.pushSubscription.delete.mockResolvedValue({})
+    prismaMock.notification.create.mockResolvedValue({ id: 1 })
     sendNotification.mockRejectedValue({ statusCode: 410 })
 
     await sendPushToUser('user_1', { title: 't', body: 'b' })
@@ -53,6 +57,7 @@ describe('sendPushToUser', () => {
       { id: 1, endpoint: 'https://push.example/bad', p256dh: 'p', auth: 'a' },
       { id: 2, endpoint: 'https://push.example/good', p256dh: 'p', auth: 'a' },
     ])
+    prismaMock.notification.create.mockResolvedValue({ id: 1 })
     sendNotification
       .mockRejectedValueOnce(new Error('network blip'))
       .mockResolvedValueOnce(undefined)
@@ -61,5 +66,16 @@ describe('sendPushToUser', () => {
 
     expect(sendNotification).toHaveBeenCalledTimes(2)
     expect(prismaMock.pushSubscription.delete).not.toHaveBeenCalled()
+  })
+
+  it('writes a notification row even when user has zero subscriptions', async () => {
+    prismaMock.pushSubscription.findMany.mockResolvedValue([])
+    prismaMock.notification.create.mockResolvedValue({ id: 1 })
+
+    await sendPushToUser('user_1', { title: 'Test title', body: 'Test body' })
+
+    expect(prismaMock.notification.create).toHaveBeenCalledWith({
+      data: { userId: 'user_1', title: 'Test title', body: 'Test body' },
+    })
   })
 })

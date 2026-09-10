@@ -39,8 +39,22 @@ function ensureVapidConfigured() {
 // stops being retried forever. Any other delivery failure (network blip,
 // payload too large) is logged and skipped; one bad subscription must
 // never block delivery to the user's other devices.
+//
+// G411-98: logs the notification to the user's history regardless of
+// delivery outcome — the log records "this was sent to you," not
+// "this was delivered successfully."
 export async function sendPushToUser(userId, payload) {
   ensureVapidConfigured()
+
+  // Log to history before attempting delivery (success/failure irrelevant)
+  await prisma.notification.create({
+    data: {
+      userId,
+      title: payload.title || '',
+      body: payload.body || '',
+    },
+  }).catch((err) => console.error(`Failed to log notification for user ${userId}:`, err.message))
+
   const subscriptions = await prisma.pushSubscription.findMany({ where: { userId } })
   const body = JSON.stringify(payload)
 

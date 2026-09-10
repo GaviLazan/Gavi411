@@ -127,6 +127,7 @@ model User {
   usedInvite         PendingInvite?
   devices            Device[]
   pushSubscriptions  PushSubscription[]
+  notifications      Notification[]
 }
 
 // Web Push delivery target (G411-29). Deliberately separate from Device
@@ -145,6 +146,19 @@ model PushSubscription {
   p256dh    String // browser-issued public key, base64url
   auth      String // browser-issued auth secret, base64url
   createdAt DateTime @default(now())
+}
+
+// Notification history (G411-98) — log of all notifications sent to a user.
+// Created by sendPushToUser regardless of delivery outcome; the log records
+// "this was sent to you," not "this was delivered successfully."
+model Notification {
+  id        Int       @id @default(autoincrement())
+  userId    String
+  user      User      @relation(fields: [userId], references: [clerkId])
+  title     String
+  body      String
+  createdAt DateTime  @default(now())
+  readAt    DateTime?
 }
 
 // Multi-device support (G411-28's device-linking, 2026-09-01). `User.

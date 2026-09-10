@@ -11,6 +11,7 @@ import AdminCreateRequest from './pages/AdminCreateRequest'
 import CompleteProfile from './pages/CompleteProfile'
 import ProfilePage from './pages/ProfilePage'
 import UserManagement from './pages/UserManagement'
+import NotificationHistory from './pages/NotificationHistory'
 import ConfirmModal from './components/ConfirmModal'
 import HamburgerMenu from './components/HamburgerMenu'
 import Button from './components/Button'
@@ -61,7 +62,7 @@ const THEME_LABEL = { light: 'Light', dark: 'Dark' }
 function App() {
   const { isSignedIn, user } = useUser()
   const { signOut } = useClerk()
-  const [view, setView] = useState('list') // 'list' | 'new' | 'install-help' | 'detail' | 'invite-admin' | 'trigger-admin' | 'admin-create-request' | 'profile' | 'user-management' | 'open-requests' | 'closed-requests'
+  const [view, setView] = useState('list') // 'list' | 'new' | 'install-help' | 'detail' | 'invite-admin' | 'trigger-admin' | 'admin-create-request' | 'profile' | 'user-management' | 'notification-history' | 'open-requests' | 'closed-requests'
   const [selectedRequestId, setSelectedRequestId] = useState(null)
   const [newRequestHasText, setNewRequestHasText] = useState(false)
   const [showLogoDiscardConfirm, setShowLogoDiscardConfirm] = useState(false)
@@ -486,6 +487,8 @@ function App() {
             <AdminCreateRequest onBack={() => setView(previousView)} />
           ) : view === 'user-management' ? (
             <UserManagement onBack={() => setView('list')} />
+          ) : view === 'notification-history' ? (
+            <NotificationHistory onBack={() => setView('list')} />
           ) : view === 'profile' ? (
             <ProfilePage
               user={fetchedUser}
@@ -563,6 +566,18 @@ function App() {
               }}
             >
               Profile
+            </button>
+
+            {/* Notification history — visible to everyone (friend and admin) */}
+            <button
+              type="button"
+              className="hamburger-menu-item"
+              onClick={() => {
+                setView('notification-history')
+                setHamburgerOpen(false)
+              }}
+            >
+              Notifications
             </button>
 
             {/* Triggers — admin-only, right after Profile per spec (Gavi's
