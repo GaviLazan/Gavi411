@@ -3,6 +3,20 @@
 // transaction client.
 
 import { describe, it, expect, vi, beforeEach } from 'vitest'
+
+// vi.mock's factory is hoisted above every top-level statement in this
+// file, including a plain `const` — vi.hoisted() is the sanctioned way to
+// define something the (also-hoisted) factory can safely reference.
+const { resetPrismaMock } = vi.hoisted(() => {
+  const mock = {
+    user: { findMany: vi.fn(), update: vi.fn() },
+    creditTransaction: { create: vi.fn() },
+  }
+  mock.$transaction = vi.fn((cb) => cb(mock))
+  return { resetPrismaMock: mock }
+})
+vi.mock('./prisma.js', () => ({ prisma: resetPrismaMock }))
+
 import { deductCredit, refundCredit, initialCreditFor, resetMonthlyCredits } from './credits.js'
 
 function fakeTx(creditBalance) {
@@ -71,20 +85,15 @@ describe('refundCredit', () => {
 })
 
 describe('resetMonthlyCredits', () => {
-  let prismaMock
+  const prismaMock = resetPrismaMock
 
   beforeEach(() => {
-    prismaMock = {
-      user: {
-        findMany: vi.fn(),
-        update: vi.fn(),
-      },
-      creditTransaction: {
-        create: vi.fn(),
-      },
-      $transaction: vi.fn((cb) => cb(prismaMock)),
-    }
-    vi.stubGlobal('prisma', prismaMock)
+    prismaMock.user.findMany.mockReset()
+    prismaMock.user.update.mockReset()
+    prismaMock.creditTransaction.create.mockReset()
+    // mockClear (not mockReset) — keeps the cb => cb(mock) implementation,
+    // only clears call history between tests.
+    prismaMock.$transaction.mockClear()
   })
 
   it('resets a user with null creditsResetAt', async () => {

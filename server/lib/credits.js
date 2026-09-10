@@ -1,3 +1,5 @@
+import { prisma } from './prisma.js'
+
 // Shared credit-mutation helpers (G411-45/48). Extracted from G411-23's
 // original inline transaction block in requests.js's POST / — same
 // transaction-safety property (balance re-read fresh inside the caller's
@@ -75,6 +77,11 @@ export async function refundCredit(tx, userId) {
 // simply retry on the next pass without duplicating #3's transaction.
 export async function resetMonthlyCredits() {
   const users = await prisma.user.findMany({
+    // G411-96: a soft-deleted account is locked out of the app but its
+    // User row (and history) stays — excluded here so it doesn't keep
+    // accumulating reset CreditTransaction rows forever on an account
+    // nobody can act on again (Sibling review finding).
+    where: { isDeleted: false },
     select: {
       clerkId: true,
       groupTag: true,
