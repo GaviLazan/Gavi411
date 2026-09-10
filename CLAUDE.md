@@ -167,7 +167,18 @@ in the same turn instead of days later.
      (`run_in_background: false`) since review depends on its output.
      Implements and tests; makes no architectural calls.
    - **Sonnet reviews** (§5) — matters more for Haiku-authored code, most
-     of all near an auth/security boundary.
+     of all near an auth/security boundary. **Before review starts, not
+     as part of it** (#125, #127, #129 — four occurrences, four
+     different failure shapes, same root cause): re-run the real test
+     suite fresh, never trust a dispatch's claimed count; read the
+     actual content of any new/changed test file, not just that it
+     exists and passes (a test can duplicate the logic it claims to
+     cover into a local copy and test that copy against itself); for any
+     schema change, confirm via `migrate status`/a real DB query that a
+     genuine migration file exists and matches — `db push` with no
+     migration file has happened; grep the real name of any CSS
+     variable/token/field referenced before trusting it — Haiku invents
+     plausible-sounding names when it hasn't checked.
    - **Opus escalation is confirm-first** — ask Gavi before invoking Opus
      for a specific pinpointed problem. Never an automatic fallback.
    - This changes who writes the first draft. Nothing else in this file
