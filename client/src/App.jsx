@@ -33,7 +33,7 @@ import { loadLinkedConversationKeys, wrapMissingConversationKeys } from './lib/d
 import { seedLinkedConversationKeys } from './lib/conversationCrypto'
 import { loadPrivateKey } from './lib/keyStore'
 import { E2E_ENABLED } from './lib/e2eConfig'
-import PushNotificationToggle from './components/PushNotificationToggle'
+import PushNotificationToggle, { DeniedHelpDialog } from './components/PushNotificationToggle'
 
 // G411-41: stash any ?token= before Clerk's own redirect flow can touch
 // the URL — see client/src/lib/inviteToken.js for why sessionStorage,
@@ -66,6 +66,9 @@ function App() {
   const [selectedRequestId, setSelectedRequestId] = useState(null)
   const [newRequestHasText, setNewRequestHasText] = useState(false)
   const [showLogoDiscardConfirm, setShowLogoDiscardConfirm] = useState(false)
+  // G411-49 fix: DeniedHelpDialog must render as a top-level sibling, not
+  // nested inside HamburgerMenu — see PushNotificationToggle.jsx's comment.
+  const [showPushDeniedHelp, setShowPushDeniedHelp] = useState(false)
   const [hamburgerOpen, setHamburgerOpen] = useState(false)
   const [previousView, setPreviousView] = useState('list')
   const { theme, cycleTheme } = useTheme()
@@ -651,6 +654,7 @@ function App() {
             <PushNotificationToggle
               isSignedIn={isSignedIn}
               onClose={() => setHamburgerOpen(false)}
+              onShowDeniedHelp={() => setShowPushDeniedHelp(true)}
             />
 
             {/* Theme toggle — shown to everyone */}
@@ -674,6 +678,10 @@ function App() {
           setView('list');
         }}
         onCancel={() => setShowLogoDiscardConfirm(false)}
+      />
+      <DeniedHelpDialog
+        open={showPushDeniedHelp}
+        onClose={() => setShowPushDeniedHelp(false)}
       />
     </div>
   )

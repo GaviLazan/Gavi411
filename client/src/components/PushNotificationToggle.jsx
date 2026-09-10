@@ -17,14 +17,34 @@ export function pushToggleViewState(pushSupported, notificationPermission, isPus
   return { visible: true, denied: false, label: isPushSubscribed ? 'Disable notifications' : 'Enable notifications' }
 }
 
-function PushNotificationToggle({ isSignedIn, onClose }) {
+// Decides what a subscribeToPush()/unsubscribeFromPush() failure should
+// do to the UI. Gavi, live testing: a first-ever subscribe click can hit
+// the browser's native permission prompt right there, and clicking
+// "Block" throws the browser's own generic error — that's the same
+// "denied" case the view already has real help text for, not some other
+// failure that should show a raw error message with no path to a fix.
+export function pushToggleErrorOutcome(livePermission, errorMessage) {
+  if (livePermission === 'denied') return { becameDenied: true }
+  return { becameDenied: false, error: errorMessage || 'Failed to update notifications' }
+}
+
+// isSignedIn: gates the subscription-state check. onClose: closes the
+// hamburger menu (existing pattern, every menu item does this on click).
+// onShowDeniedHelp: opens DeniedHelpDialog below — rendered by the
+// caller (App.jsx) as a top-level sibling, NOT nested in here. A native
+// <dialog> showModal() inside an ancestor with a running CSS animation/
+// transform (HamburgerMenu's own slide-in) doesn't reliably promote to
+// the top layer — it was rendering trapped inside the menu panel and
+// vanishing the instant the menu closed (Gavi, live testing). Same
+// reason ConfirmModal itself is a top-level sibling in App.jsx, not
+// nested inside whatever triggered it.
+function PushNotificationToggle({ isSignedIn, onClose, onShowDeniedHelp }) {
   // null = still checking support/subscription state, true/false = known
   const [pushSupported, setPushSupported] = useState(null)
   const [isPushSubscribed, setIsPushSubscribed] = useState(false)
   const [notificationPermission, setNotificationPermission] = useState('default')
   const [togglingError, setTogglingError] = useState(null)
   const [togglingInProgress, setTogglingInProgress] = useState(false)
-  const [showDeniedHelp, setShowDeniedHelp] = useState(false)
 
   useEffect(() => {
     if (!isSignedIn) return
@@ -63,7 +83,12 @@ function PushNotificationToggle({ isSignedIn, onClose }) {
         }
       }
     } catch (err) {
-      setTogglingError(err.message || 'Failed to update notifications')
+      const outcome = pushToggleErrorOutcome(Notification.permission, err.message)
+      if (outcome.becameDenied) {
+        setNotificationPermission('denied')
+      } else {
+        setTogglingError(outcome.error)
+      }
     } finally {
       setTogglingInProgress(false)
     }
@@ -74,18 +99,16 @@ function PushNotificationToggle({ isSignedIn, onClose }) {
 
   if (view.denied) {
     return (
-      <>
-        <button
-          type="button"
-          className="hamburger-menu-item"
-          onClick={() => setShowDeniedHelp(true)}
-        >
-          Notifications blocked in browser settings
-        </button>
-        {showDeniedHelp && (
-          <DeniedHelpDialog onClose={() => setShowDeniedHelp(false)} />
-        )}
-      </>
+      <button
+        type="button"
+        className="hamburger-menu-item"
+        onClick={() => {
+          onShowDeniedHelp()
+          onClose()
+        }}
+      >
+        Notifications blocked in browser settings
+      </button>
     )
   }
 
@@ -112,29 +135,29 @@ function PushNotificationToggle({ isSignedIn, onClose }) {
 // address bar" is the one instruction that's true almost everywhere, and
 // UA-sniffing a full per-browser decision tree is more than this ticket
 // needs (real copy pass is Epic 9, deliberately deferred). Native
-// <dialog> + showModal(), same pattern as ConfirmModal.jsx.
-function DeniedHelpDialog({ onClose }) {
+// <dialog> + showModal(), same open/close-effect pattern as
+// ConfirmModal.jsx — and rendered by the CALLER as a top-level sibling,
+// same as ConfirmModal itself, not nested inside HamburgerMenu (see the
+// comment on PushNotificationToggle above for why).
+export function DeniedHelpDialog({ open, onClose }) {
   const ref = useRef(null)
 
   useEffect(() => {
     const el = ref.current
-    if (el && !el.open) el.showModal()
-  }, [])
-
-  function handleClose() {
-    ref.current?.close()
-    onClose()
-  }
+    if (!el) return
+    if (open && !el.open) el.showModal()
+    if (!open && el.open) el.close()
+  }, [open])
 
   return (
-    <dialog ref={ref} className="denied-help-dialog" onCancel={handleClose}>
+    <dialog ref={ref} className="denied-help-dialog" onCancel={onClose}>
       <p>
         Your browser is blocking notifications for this site. To turn them
         back on: click the lock or site-info icon next to the address bar,
         find "Notifications", and change it to "Allow" — then come back
         here and try again.
       </p>
-      <button type="button" className="hamburger-menu-item" onClick={handleClose}>
+      <button type="button" className="hamburger-menu-item" onClick={onClose}>
         Got it
       </button>
     </dialog>
