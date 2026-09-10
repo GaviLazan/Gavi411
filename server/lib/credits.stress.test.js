@@ -452,8 +452,21 @@ describe('4. Ledger-vs-balance drift check (10+ deduct/refund cycles)', () => {
       }
     }
 
-    // Verify user.update was called the correct number of times
+    // Verify user.update was called the correct number of times, AND that
+    // each call's actual creditBalance mutation (decrement/increment) matches
+    // the sign of the ledger amount recorded at that same index — this is
+    // the real drift check: a bug that flips decrement<->increment while
+    // leaving the ledger row's amount alone (balance silently diverges from
+    // its own audit trail) would pass every assertion above but fail here.
     expect(mockTx.user.update.mock.calls.length).toBe(10)
+    mockTx.user.update.mock.calls.forEach((call, i) => {
+      const mutation = call[0].data.creditBalance
+      if (amounts[i] === -1) {
+        expect(mutation).toEqual({ decrement: 1 })
+      } else {
+        expect(mutation).toEqual({ increment: 1 })
+      }
+    })
   })
 })
 
