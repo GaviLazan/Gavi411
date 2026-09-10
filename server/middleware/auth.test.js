@@ -242,6 +242,18 @@ describe('requireAuth', () => {
     expect(next).toHaveBeenCalled()
   })
 
+  it('401s a soft-deleted account even with a still-valid Clerk session (G411-96)', async () => {
+    mockGetAuth.mockReturnValue({ userId: 'user_deleted' })
+    mockFindUnique.mockResolvedValue({ clerkId: 'user_deleted', isDeleted: true })
+    const next = vi.fn()
+    const res = mockRes()
+
+    await requireAuth({}, res, next)
+
+    expect(res.status).toHaveBeenCalledWith(401)
+    expect(next).not.toHaveBeenCalled()
+  })
+
   it('falls back to null email when Clerk user has none', async () => {
     mockGetAuth.mockReturnValue({ userId: 'user_no_email' })
     mockFindUnique.mockResolvedValue(null)
