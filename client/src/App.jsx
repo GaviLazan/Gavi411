@@ -33,6 +33,7 @@ import { loadLinkedConversationKeys, wrapMissingConversationKeys } from './lib/d
 import { seedLinkedConversationKeys } from './lib/conversationCrypto'
 import { loadPrivateKey } from './lib/keyStore'
 import { E2E_ENABLED } from './lib/e2eConfig'
+import { subscribeToPush, unsubscribeFromPush } from './lib/webPush'
 
 // G411-41: stash any ?token= before Clerk's own redirect flow can touch
 // the URL — see client/src/lib/inviteToken.js for why sessionStorage,
@@ -76,6 +77,12 @@ function App() {
   // roleFetchFailed/escrowBackupFailed elsewhere in this file.
   const [presenceToggleError, setPresenceToggleError] = useState(false)
   const [adminOpenCount, setAdminOpenCount] = useState(null)
+  // G411-49: push notification subscription state
+  const [pushSupported, setPushSupported] = useState(null) // null = checking, true/false = checked
+  const [isPushSubscribed, setIsPushSubscribed] = useState(false)
+  const [notificationPermission, setNotificationPermission] = useState('default') // 'default' | 'granted' | 'denied'
+  const [pushTogglingError, setPushTogglingError] = useState(null)
+  const [pushTogglingInProgress, setPushTogglingInProgress] = useState(false)
 
   // G411-43: fetch and display current presence status on mount
   // (every signed-in user should see whether Gavi is online)
@@ -85,6 +92,33 @@ function App() {
       .then((data) => data && setIsOnline(data.isOnline))
       .catch(() => {}) // silently default to true on network error
   }, [])
+
+  // G411-49: check if push is supported and get current subscription state
+  useEffect(() => {
+    if (!isSignedIn) return
+
+    // Check if push is supported in this browser
+    const isPushSupported = 'serviceWorker' in navigator && 'PushManager' in window
+    if (!isPushSupported) {
+      setPushSupported(false)
+      return
+    }
+
+    // Set notification permission from browser API
+    setNotificationPermission(Notification.permission)
+
+    // Check if user is currently subscribed
+    navigator.serviceWorker.ready
+      .then((registration) => registration.pushManager.getSubscription())
+      .then((subscription) => {
+        setPushSupported(true)
+        setIsPushSubscribed(!!subscription)
+      })
+      .catch(() => {
+        // Silently fail — push support check failed, treat as not supported
+        setPushSupported(false)
+      })
+  }, [isSignedIn])
 
   // Sibling review finding: a stashed token's mere PRESENCE isn't the
   // same as it being valid — a stale/already-used invite link used to
@@ -268,6 +302,32 @@ function App() {
   // whenever AdminList refetches (e.g. its own retry).
   function handleAdminRequestsLoaded(data) {
     setAdminOpenCount(data.filter((r) => !CLOSED_STATUSES.includes(r.status)).length)
+  }
+
+  // G411-49: toggle push notifications on/off
+  async function handleTogglePushNotifications() {
+    setPushTogglingError(null)
+    setPushTogglingInProgress(true)
+    try {
+      if (isPushSubscribed) {
+        await unsubscribeFromPush()
+        setIsPushSubscribed(false)
+      } else {
+        const result = await subscribeToPush()
+        if (result === null) {
+          // Push not supported (shouldn't happen if we got here, but handle it)
+          setPushSupported(false)
+        } else {
+          setIsPushSubscribed(true)
+          // Update permission state after successful subscription
+          setNotificationPermission(Notification.permission)
+        }
+      }
+    } catch (err) {
+      setPushTogglingError(err.message || 'Failed to update notifications')
+    } finally {
+      setPushTogglingInProgress(false)
+    }
   }
 
   return (
@@ -641,6 +701,37 @@ function App() {
               >
                 Installing on iPhone
               </button>
+            )}
+
+            {/* Enable notifications — G411-49. Shown to everyone if push is
+                supported. Disabled if notifications are denied in browser
+                settings. States: denied (can't fix from JS) / unsubscribed
+                (clickable "Enable") / subscribed (clickable "Disable"). */}
+            {pushSupported === true && (
+              <>
+                {notificationPermission === 'denied' ? (
+                  <div
+                    className="hamburger-menu-item"
+                    style={{ opacity: 0.5, cursor: 'default', pointerEvents: 'none' }}
+                  >
+                    Notifications blocked in browser settings
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    className="hamburger-menu-item"
+                    onClick={handleTogglePushNotifications}
+                    disabled={pushTogglingInProgress}
+                  >
+                    {pushTogglingInProgress ? '…' : isPushSubscribed ? 'Disable notifications' : 'Enable notifications'}
+                  </button>
+                )}
+                {pushTogglingError && (
+                  <p style={{ fontSize: 13, color: 'var(--text)', padding: 'var(--space-1) var(--space-2)', marginTop: 'var(--space-1)' }}>
+                    {pushTogglingError}
+                  </p>
+                )}
+              </>
             )}
 
             {/* Theme toggle — shown to everyone */}
