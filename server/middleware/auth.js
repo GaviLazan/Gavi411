@@ -201,6 +201,13 @@ export async function requireAuth(req, res, next) {
     return res.status(401).json({ error: 'Unauthorized' })
   }
 
+  // G411-99: admin-blocked accounts are also locked out at the same choke
+  // point, same pattern as isDeleted. Blocking is reversible (unlike
+  // deletion) — clearing isBlocked re-enables the account immediately.
+  if (user.isBlocked) {
+    return res.status(401).json({ error: 'Unauthorized' })
+  }
+
   req.user = user
   next()
 }

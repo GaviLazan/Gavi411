@@ -17,7 +17,8 @@ const router = express.Router()
 // value the UI itself would reject as too short. Matched to the client's
 // real floor since the client always sends a dial-code-prefixed string;
 // no dial-code-aware parsing needed here, just the same effective bound.
-function isValidPhoneNumber(phoneNumber) {
+// Exported for reuse by G411-99's admin info edit route.
+export function isValidPhoneNumber(phoneNumber) {
   if (!phoneNumber || typeof phoneNumber !== 'string') return false
   const digitsOnly = phoneNumber.replace(/\D/g, '')
   return digitsOnly.length >= 8 && digitsOnly.length <= 15
@@ -163,7 +164,7 @@ router.post('/sync-from-clerk', requireAuth, async (req, res) => {
 // account locked out on our side (safe state) rather than live but broken.
 // Admin notification is fire-and-forget — a push failure must never block
 // account deletion.
-async function notifyAdminOfAccountDeletion(deletedUser) {
+export async function notifyAdminOfAccountDeletion(deletedUser) {
   console.log(
     `[account-deletion] ${deletedUser.firstName} ${deletedUser.lastName} (${deletedUser.clerkId}) deleted their account`,
   )

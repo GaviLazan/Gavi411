@@ -1365,8 +1365,8 @@ describe('GET /api/requests/users (G411-44, admin dropdown)', () => {
   it('returns a sorted list of users for an admin', async () => {
     currentUserId = ADMIN
     const mockUsers = [
-      { clerkId: 'alice', firstName: 'Alice', lastName: 'Smith' },
-      { clerkId: 'bob', firstName: 'Bob', lastName: 'Jones' },
+      { clerkId: 'alice', firstName: 'Alice', lastName: 'Smith', groupTag: 'REGULAR', creditBalance: 5, isDeleted: false, isBlocked: false },
+      { clerkId: 'bob', firstName: 'Bob', lastName: 'Jones', groupTag: 'CLOSE', creditBalance: 7, isDeleted: false, isBlocked: false },
     ]
     prismaMock.user.findMany.mockResolvedValue(mockUsers)
 
@@ -1376,7 +1376,15 @@ describe('GET /api/requests/users (G411-44, admin dropdown)', () => {
     expect(res.body).toEqual(mockUsers)
     expect(prismaMock.user.findMany).toHaveBeenCalledWith({
       where: { role: { not: 'ADMIN' } },
-      select: { clerkId: true, firstName: true, lastName: true },
+      select: {
+        clerkId: true,
+        firstName: true,
+        lastName: true,
+        groupTag: true,
+        creditBalance: true,
+        isDeleted: true,
+        isBlocked: true,
+      },
       orderBy: [{ firstName: 'asc' }, { lastName: 'asc' }],
     })
   })
@@ -1716,6 +1724,350 @@ describe('PATCH /api/requests/users/:userId/group-tag (G411-46)', () => {
 
     expect(res.status).toBe(500)
     expect(res.body.error).toContain('Failed to update')
+  })
+})
+
+describe('PATCH /api/requests/users/:userId/credit-adjustment (G411-99)', () => {
+  it('401s when unauthenticated', async () => {
+    const res = await request(app).patch('/api/requests/users/user_1/credit-adjustment').send({ delta: 2 })
+    expect(res.status).toBe(401)
+  })
+
+  it('404s for a non-admin user', async () => {
+    currentUserId = OTHER
+    const res = await request(app).patch('/api/requests/users/user_1/credit-adjustment').send({ delta: 2 })
+    expect(res.status).toBe(404)
+  })
+
+  it('400s when delta is missing', async () => {
+    currentUserId = ADMIN
+    const res = await request(app).patch('/api/requests/users/user_1/credit-adjustment').send({})
+    expect(res.status).toBe(400)
+    expect(res.body.error).toContain('delta')
+  })
+
+  it('400s when delta is zero', async () => {
+    currentUserId = ADMIN
+    const res = await request(app).patch('/api/requests/users/user_1/credit-adjustment').send({ delta: 0 })
+    expect(res.status).toBe(400)
+  })
+
+  it('400s when delta is not an integer', async () => {
+    currentUserId = ADMIN
+    const res = await request(app).patch('/api/requests/users/user_1/credit-adjustment').send({ delta: 2.5 })
+    expect(res.status).toBe(400)
+  })
+
+  it('400s when balance would go negative', async () => {
+    currentUserId = ADMIN
+    prismaMock.user.findUnique.mockResolvedValue({ role: 'USER', creditBalance: 2 })
+
+    const res = await request(app)
+      .patch('/api/requests/users/user_other/credit-adjustment')
+      .send({ delta: -5 })
+
+    expect(res.status).toBe(400)
+    expect(res.body.error).toContain('cannot go below 0')
+  })
+
+  it('adds a positive delta to creditBalance and creates a CreditTransaction', async () => {
+    currentUserId = ADMIN
+    prismaMock.user.findUnique.mockResolvedValue({ role: 'USER', creditBalance: 2 })
+    prismaMock.user.update.mockResolvedValue({ clerkId: OTHER, creditBalance: 5 })
+
+    const res = await request(app)
+      .patch('/api/requests/users/user_other/credit-adjustment')
+      .send({ delta: 3 })
+
+    expect(res.status).toBe(200)
+    expect(res.body).toEqual({ clerkId: OTHER, creditBalance: 5 })
+    expect(prismaMock.user.update).toHaveBeenCalledWith({
+      where: { clerkId: 'user_other' },
+      data: { creditBalance: { increment: 3 } },
+      select: { clerkId: true, creditBalance: true },
+    })
+    expect(prismaMock.creditTransaction.create).toHaveBeenCalledWith({
+      data: { amount: 3, userId: 'user_other' },
+    })
+  })
+
+  it('subtracts a negative delta from creditBalance and creates a CreditTransaction', async () => {
+    currentUserId = ADMIN
+    prismaMock.user.findUnique.mockResolvedValue({ role: 'USER', creditBalance: 5 })
+    prismaMock.user.update.mockResolvedValue({ clerkId: OTHER, creditBalance: 2 })
+
+    const res = await request(app)
+      .patch('/api/requests/users/user_other/credit-adjustment')
+      .send({ delta: -3 })
+
+    expect(res.status).toBe(200)
+    expect(prismaMock.creditTransaction.create).toHaveBeenCalledWith({
+      data: { amount: -3, userId: 'user_other' },
+    })
+  })
+
+  it('404s when the target user does not exist', async () => {
+    currentUserId = ADMIN
+    prismaMock.user.findUnique.mockResolvedValue(null)
+
+    const res = await request(app)
+      .patch('/api/requests/users/nonexistent/credit-adjustment')
+      .send({ delta: 2 })
+
+    expect(res.status).toBe(404)
+  })
+
+  it('404s when the target is an ADMIN', async () => {
+    currentUserId = ADMIN
+    prismaMock.user.findUnique.mockResolvedValue({ role: 'ADMIN', creditBalance: 10 })
+
+    const res = await request(app)
+      .patch('/api/requests/users/user_1/credit-adjustment')
+      .send({ delta: 2 })
+
+    expect(res.status).toBe(404)
+    expect(res.body.error).toBe('User not found')
+  })
+})
+
+describe('PATCH /api/requests/users/:userId/info (G411-99)', () => {
+  it('401s when unauthenticated', async () => {
+    const res = await request(app).patch('/api/requests/users/user_1/info').send({ firstName: 'John' })
+    expect(res.status).toBe(401)
+  })
+
+  it('404s for a non-admin user', async () => {
+    currentUserId = OTHER
+    const res = await request(app).patch('/api/requests/users/user_1/info').send({ firstName: 'John' })
+    expect(res.status).toBe(404)
+  })
+
+  it('400s when no fields are provided', async () => {
+    currentUserId = ADMIN
+    const res = await request(app).patch('/api/requests/users/user_1/info').send({})
+    expect(res.status).toBe(400)
+  })
+
+  it('400s when phoneNumber is invalid', async () => {
+    currentUserId = ADMIN
+    const res = await request(app).patch('/api/requests/users/user_1/info').send({ phoneNumber: '123' })
+    expect(res.status).toBe(400)
+    expect(res.body.error).toContain('phone')
+  })
+
+  it('updates firstName only', async () => {
+    currentUserId = ADMIN
+    prismaMock.user.findUnique.mockResolvedValue({ role: 'USER' })
+    prismaMock.user.update.mockResolvedValue({ clerkId: OTHER, firstName: 'John', lastName: 'Doe', phoneNumber: '1234567890' })
+
+    const res = await request(app)
+      .patch('/api/requests/users/user_other/info')
+      .send({ firstName: 'John' })
+
+    expect(res.status).toBe(200)
+    expect(prismaMock.user.update).toHaveBeenCalledWith({
+      where: { clerkId: 'user_other' },
+      data: { firstName: 'John' },
+      select: { clerkId: true, firstName: true, lastName: true, phoneNumber: true },
+    })
+  })
+
+  it('updates phoneNumber and creates a ledger row for phone change', async () => {
+    currentUserId = ADMIN
+    prismaMock.user.findUnique.mockResolvedValue({ role: 'USER' })
+    prismaMock.user.update.mockResolvedValue({ clerkId: OTHER, firstName: 'Jane', lastName: 'Doe', phoneNumber: '+972501234567' })
+
+    const res = await request(app)
+      .patch('/api/requests/users/user_other/info')
+      .send({ phoneNumber: '+972501234567' })
+
+    expect(res.status).toBe(200)
+    expect(res.body.phoneNumber).toBe('+972501234567')
+  })
+
+  it('409s when phoneNumber conflicts with another account (P2002)', async () => {
+    currentUserId = ADMIN
+    prismaMock.user.findUnique.mockResolvedValue({ role: 'USER' })
+    const err = new Error('Unique constraint failed')
+    err.code = 'P2002'
+    prismaMock.user.update.mockRejectedValue(err)
+
+    const res = await request(app)
+      .patch('/api/requests/users/user_other/info')
+      .send({ phoneNumber: '+972501234567' })
+
+    expect(res.status).toBe(409)
+    expect(res.body.error).toContain('phone number')
+  })
+
+  it('404s when the target user does not exist', async () => {
+    currentUserId = ADMIN
+    prismaMock.user.findUnique.mockResolvedValue(null)
+
+    const res = await request(app)
+      .patch('/api/requests/users/nonexistent/info')
+      .send({ firstName: 'John' })
+
+    expect(res.status).toBe(404)
+  })
+
+  it('404s when the target is an ADMIN', async () => {
+    currentUserId = ADMIN
+    prismaMock.user.findUnique.mockResolvedValue({ role: 'ADMIN' })
+
+    const res = await request(app)
+      .patch('/api/requests/users/user_1/info')
+      .send({ firstName: 'John' })
+
+    expect(res.status).toBe(404)
+  })
+})
+
+describe('PATCH /api/requests/users/:userId/block (G411-99)', () => {
+  it('401s when unauthenticated', async () => {
+    const res = await request(app).patch('/api/requests/users/user_1/block').send({ blocked: true })
+    expect(res.status).toBe(401)
+  })
+
+  it('404s for a non-admin user', async () => {
+    currentUserId = OTHER
+    const res = await request(app).patch('/api/requests/users/user_1/block').send({ blocked: true })
+    expect(res.status).toBe(404)
+  })
+
+  it('400s when blocked is not a boolean', async () => {
+    currentUserId = ADMIN
+    const res = await request(app).patch('/api/requests/users/user_1/block').send({ blocked: 'yes' })
+    expect(res.status).toBe(400)
+  })
+
+  it('blocks a user', async () => {
+    currentUserId = ADMIN
+    prismaMock.user.findUnique.mockResolvedValue({ role: 'USER' })
+    prismaMock.user.update.mockResolvedValue({ clerkId: OTHER, isBlocked: true })
+
+    const res = await request(app)
+      .patch('/api/requests/users/user_other/block')
+      .send({ blocked: true })
+
+    expect(res.status).toBe(200)
+    expect(res.body.isBlocked).toBe(true)
+    expect(prismaMock.user.update).toHaveBeenCalledWith({
+      where: { clerkId: 'user_other' },
+      data: { isBlocked: true },
+      select: { clerkId: true, isBlocked: true },
+    })
+  })
+
+  it('unblocks a user', async () => {
+    currentUserId = ADMIN
+    prismaMock.user.findUnique.mockResolvedValue({ role: 'USER' })
+    prismaMock.user.update.mockResolvedValue({ clerkId: OTHER, isBlocked: false })
+
+    const res = await request(app)
+      .patch('/api/requests/users/user_other/block')
+      .send({ blocked: false })
+
+    expect(res.status).toBe(200)
+    expect(res.body.isBlocked).toBe(false)
+  })
+
+  it('404s when the target user does not exist', async () => {
+    currentUserId = ADMIN
+    prismaMock.user.findUnique.mockResolvedValue(null)
+
+    const res = await request(app)
+      .patch('/api/requests/users/nonexistent/block')
+      .send({ blocked: true })
+
+    expect(res.status).toBe(404)
+  })
+
+  it('404s when the target is an ADMIN', async () => {
+    currentUserId = ADMIN
+    prismaMock.user.findUnique.mockResolvedValue({ role: 'ADMIN' })
+
+    const res = await request(app)
+      .patch('/api/requests/users/user_1/block')
+      .send({ blocked: true })
+
+    expect(res.status).toBe(404)
+  })
+})
+
+describe('DELETE /api/requests/users/:userId (G411-99)', () => {
+  it('401s when unauthenticated', async () => {
+    const res = await request(app).delete('/api/requests/users/user_1')
+    expect(res.status).toBe(401)
+  })
+
+  it('404s for a non-admin user', async () => {
+    currentUserId = OTHER
+    const res = await request(app).delete('/api/requests/users/user_1')
+    expect(res.status).toBe(404)
+  })
+
+  it('soft-deletes a user by marking isDeleted, scrubbing PII, and deleting Clerk record', async () => {
+    currentUserId = ADMIN
+    prismaMock.user.findUnique.mockResolvedValue({ role: 'USER' })
+    // notifyAdminOfAccountDeletion (real, unmocked — only sendPushToUser
+    // inside it is mocked) looks up all admins to notify; give it a real
+    // list rather than let the fire-and-forget call silently no-op on
+    // undefined.
+    prismaMock.user.findMany.mockResolvedValue([{ clerkId: ADMIN }])
+    prismaMock.user.update.mockResolvedValue({
+      clerkId: OTHER,
+      firstName: 'Jane',
+      lastName: 'Doe',
+      isDeleted: true,
+      email: null,
+      phoneNumber: `deleted-${OTHER}`,
+      profilePic: null,
+      publicKey: null,
+    })
+
+    const res = await request(app).delete('/api/requests/users/user_other')
+
+    expect(res.status).toBe(200)
+    expect(res.body.success).toBe(true)
+    expect(prismaMock.user.update).toHaveBeenCalledWith({
+      where: { clerkId: 'user_other' },
+      data: {
+        isDeleted: true,
+        email: null,
+        phoneNumber: `deleted-${OTHER}`,
+        profilePic: null,
+        publicKey: null,
+      },
+    })
+    // Sibling review fix: the original version of this route pushed a
+    // "they deleted their account" notification to the ACTING ADMIN only
+    // (req.user.clerkId) — wrong both in audience (the admin already
+    // knows) and in copy (falsely implies the friend acted on their own).
+    // Now reuses G411-96's real notifyAdminOfAccountDeletion, which
+    // notifies every admin via a real user.findMany lookup, then pushes
+    // through the same mocked sendPushToUser every other route uses.
+    await vi.waitFor(() => {
+      expect(prismaMock.user.findMany).toHaveBeenCalledWith({ where: { role: 'ADMIN' } })
+    })
+  })
+
+  it('404s when the target user does not exist', async () => {
+    currentUserId = ADMIN
+    prismaMock.user.findUnique.mockResolvedValue(null)
+
+    const res = await request(app).delete('/api/requests/users/nonexistent')
+
+    expect(res.status).toBe(404)
+  })
+
+  it('404s when the target is an ADMIN', async () => {
+    currentUserId = ADMIN
+    prismaMock.user.findUnique.mockResolvedValue({ role: 'ADMIN' })
+
+    const res = await request(app).delete('/api/requests/users/user_1')
+
+    expect(res.status).toBe(404)
   })
 })
 
