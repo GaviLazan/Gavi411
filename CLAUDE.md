@@ -80,7 +80,12 @@ in the same turn instead of days later.
    HANDOFF, since a status line and a standing decision are different
    things and the second is lost when HANDOFF is overwritten. If the
    decision corrects an instruction written elsewhere, edit that
-   instruction in the same pass (§3).
+   instruction in the same pass (§3). **Written before steps 7–8 run**,
+   so it's necessarily written pre-merge — say that in its own text
+   ("awaiting merge go-ahead," not a flat "Landed") rather than let a
+   later session read the gap as HANDOFF being wrong. This is expected
+   staleness, not drift, as long as it's exactly the steps-7–8 gap and
+   nothing more.
 7. **Ask: OK to merge, and OK to Reconcile once it lands?** One
    go-ahead covering both. Merge is the only genuinely hard-to-reverse
    step here; a passing Sibling review is a precondition for asking, not
