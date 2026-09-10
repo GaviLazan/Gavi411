@@ -101,6 +101,21 @@
   color: var(--text-h);
 }
 
+/* Non-interactive variant (G411-49: notifications blocked in browser
+   settings — nothing to click, can't be re-prompted from JS). */
+.hamburger-menu-item-disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+/* No error color exists in DESIGN.md yet — matches MessageThread.css's
+   .message-send-error convention rather than inventing one here. */
+.push-toggle-error {
+  font-size: 14px;
+  padding: 0 0 var(--space-1);
+  margin: 0;
+}
+
 /* Section divider */
 .hamburger-menu-divider {
   height: 1px;
