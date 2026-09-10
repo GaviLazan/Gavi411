@@ -207,6 +207,65 @@ describe('resetMonthlyCredits', () => {
     })
   })
 
+  // G411-47 — overdraftUsedAt clears on the same "different calendar
+  // month" pass as creditsResetAt, using the identical comparison logic.
+  it('clears overdraftUsedAt when it is in a different calendar month', async () => {
+    const now = new Date()
+    const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 10)
+    const user = {
+      clerkId: 'user_overdraft_clear',
+      groupTag: 'REGULAR',
+      creditBalance: 0,
+      creditsResetAt: null, // needs a normal reset too, same pass
+      overdraftUsedAt: lastMonth,
+    }
+    prismaMock.user.findMany.mockResolvedValue([user])
+
+    await resetMonthlyCredits()
+
+    expect(prismaMock.user.update).toHaveBeenCalledWith({
+      where: { clerkId: 'user_overdraft_clear' },
+      data: {
+        creditBalance: 5,
+        creditsResetAt: expect.any(Date),
+        overdraftUsedAt: null,
+      },
+    })
+  })
+
+  it('does NOT clear overdraftUsedAt when it is already in the current calendar month', async () => {
+    const now = new Date()
+    const user = {
+      clerkId: 'user_overdraft_keep',
+      groupTag: 'REGULAR',
+      creditBalance: 3, // below cap, still triggers a normal reset
+      creditsResetAt: null,
+      overdraftUsedAt: now,
+    }
+    prismaMock.user.findMany.mockResolvedValue([user])
+
+    await resetMonthlyCredits()
+
+    const call = prismaMock.user.update.mock.calls.find((c) => c[0].where.clerkId === 'user_overdraft_keep')
+    expect(call[0].data.overdraftUsedAt).toBeUndefined()
+  })
+
+  it('leaves overdraftUsedAt untouched (undefined in the update) when it was already null', async () => {
+    const user = {
+      clerkId: 'user_overdraft_null',
+      groupTag: 'REGULAR',
+      creditBalance: 0,
+      creditsResetAt: null,
+      overdraftUsedAt: null,
+    }
+    prismaMock.user.findMany.mockResolvedValue([user])
+
+    await resetMonthlyCredits()
+
+    const call = prismaMock.user.update.mock.calls.find((c) => c[0].where.clerkId === 'user_overdraft_null')
+    expect(call[0].data.overdraftUsedAt).toBeUndefined()
+  })
+
   it('continues processing other users if one fails', async () => {
     const users = [
       { clerkId: 'user_1', groupTag: 'REGULAR', creditBalance: 0, creditsResetAt: null },

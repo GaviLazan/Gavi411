@@ -600,6 +600,18 @@ function canCloseRequest(nextStatus, user) {
   return user.role !== 'ADMIN'
 }
 
+// G411-47: approving or denying an overdraft request is admin-only — a
+// friend must not be able to self-approve their own overdraft ask by
+// PATCHing status directly (TRANSITIONS only validates the shape of the
+// state machine, not who's allowed to trigger a given edge). Named
+// alongside canCloseRequest/canSetUrgency (same actor-gating shape),
+// gates only the OVERDRAFT_PENDING -> * edge, same "if not this
+// transition, allow" pattern as canCloseRequest above.
+function canApproveOrDenyOverdraft(existingStatus, user) {
+  if (existingStatus !== Status.OVERDRAFT_PENDING) return true
+  return user.role === 'ADMIN'
+}
+
 // PATCH /:id — accepts a status/urgency update. Status changes are checked
 // against TRANSITIONS above (G411-30); urgency changes are checked against
 // canSetUrgency above (G411-32).
@@ -656,6 +668,11 @@ router.patch('/:id', requireAuth, async (req, res) => {
     if (!canCloseRequest(status, req.user)) {
       return res.status(400).json({
         error: 'Only the friend can confirm and close a request',
+      })
+    }
+    if (!canApproveOrDenyOverdraft(existing.status, req.user)) {
+      return res.status(400).json({
+        error: 'Only an admin can approve or deny an overdraft request',
       })
     }
     data.status = status
@@ -870,6 +887,98 @@ router.post('/', requireAuth, async (req, res) => {
     }
     console.error('Failed to create request:', err)
     res.status(500).json({ error: 'Failed to create request' })
+  }
+})
+
+// POST /overdraft-request — friend-facing "Request anyway" when blocked at 0
+// balance (G411-47). Distinct from POST / in one critical way: no credit is
+// ever deducted here, ever — the request is created with status
+// OVERDRAFT_PENDING and isOverdraft: true, then sits until an admin approves
+// (PATCH /:id { status: IN_QUEUE }) or denies (PATCH /:id { status:
+// OVERDRAFT_DENIED }) via the normal status-update route. Gavi's explicit,
+// repeated rule: this is a one-time free favor, not a loan — nothing is ever
+// charged for it, at creation, on approval, or (per the isOverdraft refund
+// guard on PATCH /:id) on any later exit either.
+router.post('/overdraft-request', requireAuth, async (req, res) => {
+  const { freeText, type, urgency, additionalInfo, typeDetails } = req.body
+
+  if (!freeText) {
+    return res.status(400).json({ error: 'freeText is required' })
+  }
+
+  const requestType = type === 'NONE' ? null : type
+  const cleanedTypeDetails = stripEmpty(typeDetails)
+
+  try {
+    const request = await prisma.$transaction(async (tx) => {
+      const user = await tx.user.findUnique({
+        where: { clerkId: req.user.clerkId },
+        select: { creditBalance: true, overdraftUsedAt: true },
+      })
+
+      if (user.creditBalance >= 1) {
+        const err = new Error('You still have credits available')
+        err.statusCode = 400
+        throw err
+      }
+
+      // Same "null or different calendar month" comparison resetMonthlyCredits()
+      // already uses for creditsResetAt — reused exactly, not reimplemented,
+      // so the two never drift out of sync with each other.
+      if (user.overdraftUsedAt) {
+        const now = new Date()
+        const usedMonth = user.overdraftUsedAt.getMonth()
+        const usedYear = user.overdraftUsedAt.getFullYear()
+        const sameMonth = usedMonth === now.getMonth() && usedYear === now.getFullYear()
+        if (sameMonth) {
+          const err = new Error('You have already used your one-time overdraft request this period')
+          err.statusCode = 400
+          throw err
+        }
+      }
+
+      await tx.user.update({
+        where: { clerkId: req.user.clerkId },
+        data: { overdraftUsedAt: new Date() },
+      })
+
+      return tx.request.create({
+        data: {
+          freeText,
+          type: requestType,
+          urgency,
+          additionalInfo: additionalInfo || null,
+          typeDetails: cleanedTypeDetails,
+          userId: req.user.clerkId,
+          status: Status.OVERDRAFT_PENDING,
+          isOverdraft: true,
+        },
+      })
+    })
+
+    // Fire-and-forget notification to every admin — same all-admins lookup
+    // shape as notifyAdminOfAccountDeletion (completeProfile.js), adapted
+    // copy. A push failure must never block the request itself.
+    prisma.user.findMany({ where: { role: 'ADMIN' } }).then((admins) => {
+      return Promise.all(
+        admins.map((admin) =>
+          sendPushToUser(admin.clerkId, {
+            title: 'Overdraft request pending',
+            body: `${req.user.firstName} ${req.user.lastName} is asking for a one-time overdraft request.`,
+          }),
+        ),
+      )
+    }).catch((err) => {
+      console.error('Failed to notify admins of overdraft request:', err)
+    })
+
+    res.status(201).json(request)
+  } catch (err) {
+    if (err.statusCode) {
+      return res.status(err.statusCode).json({ error: err.message })
+    }
+    console.error('Failed to create overdraft request:', err)
+    res.status(500).json({ error: 'Failed to create overdraft request' })
   }
 })
 

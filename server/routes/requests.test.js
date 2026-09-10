@@ -603,6 +603,93 @@ describe('PATCH /api/requests/:id', () => {
     })
   })
 
+  // G411-47 — an overdraft request never had a credit charged, so it must
+  // never refund one at any later exit either (would create free credits).
+  // Paired against the identical, otherwise-untouched CANCELLED-refund test
+  // above (line ~496) to prove the ONLY difference is isOverdraft.
+  describe('overdraft requests never refund (G411-47)', () => {
+    it('does NOT refund an overdraft-approved request on CANCELLED, even fully untouched', async () => {
+      currentUserId = OWNER
+      prismaMock.request.findUnique.mockResolvedValue({ ...sampleRequest, isOverdraft: true })
+      prismaMock.message.findFirst.mockResolvedValue(null) // untouched — would refund if NOT overdraft
+      prismaMock.user.findUnique.mockResolvedValue({ creditBalance: 3 })
+      prismaMock.request.update.mockResolvedValue({ ...sampleRequest, isOverdraft: true, status: 'CANCELLED' })
+
+      const res = await request(app).patch('/api/requests/1').send({ status: 'CANCELLED' })
+
+      expect(res.status).toBe(200)
+      expect(prismaMock.user.update).not.toHaveBeenCalled()
+      expect(prismaMock.creditTransaction.create).not.toHaveBeenCalled()
+      expect(prismaMock.request.update).toHaveBeenCalledWith({
+        where: { id: 1 },
+        data: { status: 'CANCELLED' },
+        include: { message: { orderBy: { createdAt: 'asc' } } },
+      })
+    })
+
+    it('contrast: an otherwise-identical non-overdraft request DOES refund on the same CANCELLED exit', async () => {
+      currentUserId = OWNER
+      prismaMock.request.findUnique.mockResolvedValue({ ...sampleRequest, isOverdraft: false })
+      prismaMock.message.findFirst.mockResolvedValue(null)
+      prismaMock.user.findUnique.mockResolvedValue({ creditBalance: 3 })
+      prismaMock.request.update.mockResolvedValue({ ...sampleRequest, isOverdraft: false, status: 'CANCELLED' })
+
+      const res = await request(app).patch('/api/requests/1').send({ status: 'CANCELLED' })
+
+      expect(res.status).toBe(200)
+      expect(prismaMock.creditTransaction.create).toHaveBeenCalledWith({
+        data: { amount: 1, userId: OWNER },
+      })
+    })
+  })
+
+  // G411-47 — OVERDRAFT_PENDING transitions are admin-only
+  describe('overdraft approve/deny transitions are admin-only (G411-47)', () => {
+    it('allows an admin to approve (OVERDRAFT_PENDING -> IN_QUEUE)', async () => {
+      currentUserId = ADMIN
+      prismaMock.request.findUnique.mockResolvedValue({ ...sampleRequest, status: 'OVERDRAFT_PENDING', isOverdraft: true })
+      prismaMock.request.update.mockResolvedValue({ ...sampleRequest, status: 'IN_QUEUE', isOverdraft: true })
+
+      const res = await request(app).patch('/api/requests/1').send({ status: 'IN_QUEUE' })
+      expect(res.status).toBe(200)
+    })
+
+    it('allows an admin to deny (OVERDRAFT_PENDING -> OVERDRAFT_DENIED)', async () => {
+      currentUserId = ADMIN
+      prismaMock.request.findUnique.mockResolvedValue({ ...sampleRequest, status: 'OVERDRAFT_PENDING', isOverdraft: true })
+      prismaMock.request.update.mockResolvedValue({ ...sampleRequest, status: 'OVERDRAFT_DENIED', isOverdraft: true })
+
+      const res = await request(app).patch('/api/requests/1').send({ status: 'OVERDRAFT_DENIED' })
+      expect(res.status).toBe(200)
+    })
+
+    it('blocks the owning friend from self-approving their own overdraft request', async () => {
+      currentUserId = OWNER
+      prismaMock.request.findUnique.mockResolvedValue({ ...sampleRequest, status: 'OVERDRAFT_PENDING', isOverdraft: true })
+
+      const res = await request(app).patch('/api/requests/1').send({ status: 'IN_QUEUE' })
+      expect(res.status).toBe(400)
+      expect(prismaMock.request.update).not.toHaveBeenCalled()
+    })
+
+    it('blocks the owning friend from self-denying their own overdraft request', async () => {
+      currentUserId = OWNER
+      prismaMock.request.findUnique.mockResolvedValue({ ...sampleRequest, status: 'OVERDRAFT_PENDING', isOverdraft: true })
+
+      const res = await request(app).patch('/api/requests/1').send({ status: 'OVERDRAFT_DENIED' })
+      expect(res.status).toBe(400)
+      expect(prismaMock.request.update).not.toHaveBeenCalled()
+    })
+
+    it('rejects any other transition out of OVERDRAFT_PENDING (invalid, same as any bad TRANSITIONS edge)', async () => {
+      currentUserId = ADMIN
+      prismaMock.request.findUnique.mockResolvedValue({ ...sampleRequest, status: 'OVERDRAFT_PENDING', isOverdraft: true })
+
+      const res = await request(app).patch('/api/requests/1').send({ status: 'CLOSED' })
+      expect(res.status).toBe(400)
+    })
+  })
+
   // G411-33 — close is friend-only
   describe('close is friend-only (G411-33)', () => {
     it('allows a friend to close from RESOLVED_PENDING_CONFIRMATION', async () => {
@@ -667,6 +754,90 @@ describe('POST /api/requests (G411-23, deduction via lib/credits.js)', () => {
     expect(res.status).toBe(402)
     expect(prismaMock.request.create).not.toHaveBeenCalled()
     expect(prismaMock.user.update).not.toHaveBeenCalled()
+  })
+})
+
+describe('POST /api/requests/overdraft-request (G411-47)', () => {
+  beforeEach(() => {
+    currentUserId = OWNER
+  })
+
+  it('401s when unauthenticated', async () => {
+    currentUserId = null
+    const res = await request(app).post('/api/requests/overdraft-request').send({ freeText: 'help' })
+    expect(res.status).toBe(401)
+  })
+
+  it('400s when freeText is missing', async () => {
+    prismaMock.user.findUnique.mockResolvedValue({ creditBalance: 0, overdraftUsedAt: null })
+    const res = await request(app).post('/api/requests/overdraft-request').send({})
+    expect(res.status).toBe(400)
+  })
+
+  it('creates an OVERDRAFT_PENDING request with isOverdraft: true and deducts NOTHING', async () => {
+    prismaMock.user.findUnique.mockResolvedValue({ creditBalance: 0, overdraftUsedAt: null })
+    prismaMock.request.create.mockResolvedValue({
+      id: 1, freeText: 'help', userId: OWNER, status: 'OVERDRAFT_PENDING', isOverdraft: true,
+    })
+    prismaMock.user.findMany.mockResolvedValue([{ clerkId: ADMIN }])
+
+    const res = await request(app).post('/api/requests/overdraft-request').send({ freeText: 'help' })
+
+    expect(res.status).toBe(201)
+    expect(res.body.status).toBe('OVERDRAFT_PENDING')
+    expect(prismaMock.request.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({ status: 'OVERDRAFT_PENDING', isOverdraft: true, userId: OWNER }),
+    })
+    // The critical property: no deduction, no ledger row, ever, for this route.
+    expect(prismaMock.creditTransaction.create).not.toHaveBeenCalled()
+    expect(prismaMock.user.update).not.toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ creditBalance: expect.anything() }) }),
+    )
+  })
+
+  it('stamps overdraftUsedAt on the user when a request is created', async () => {
+    prismaMock.user.findUnique.mockResolvedValue({ creditBalance: 0, overdraftUsedAt: null })
+    prismaMock.request.create.mockResolvedValue({ id: 1, status: 'OVERDRAFT_PENDING', isOverdraft: true })
+    prismaMock.user.findMany.mockResolvedValue([])
+
+    await request(app).post('/api/requests/overdraft-request').send({ freeText: 'help' })
+
+    expect(prismaMock.user.update).toHaveBeenCalledWith({
+      where: { clerkId: OWNER },
+      data: { overdraftUsedAt: expect.any(Date) },
+    })
+  })
+
+  it('400s when the friend still has a real balance (>= 1)', async () => {
+    prismaMock.user.findUnique.mockResolvedValue({ creditBalance: 1, overdraftUsedAt: null })
+
+    const res = await request(app).post('/api/requests/overdraft-request').send({ freeText: 'help' })
+
+    expect(res.status).toBe(400)
+    expect(res.body.error).toMatch(/still have credits/)
+    expect(prismaMock.request.create).not.toHaveBeenCalled()
+  })
+
+  it('400s when overdraftUsedAt is already set this calendar month', async () => {
+    prismaMock.user.findUnique.mockResolvedValue({ creditBalance: 0, overdraftUsedAt: new Date() })
+
+    const res = await request(app).post('/api/requests/overdraft-request').send({ freeText: 'help' })
+
+    expect(res.status).toBe(400)
+    expect(res.body.error).toMatch(/already used your one-time overdraft/)
+    expect(prismaMock.request.create).not.toHaveBeenCalled()
+  })
+
+  it('allows a new overdraft request when the prior one was used in an earlier calendar month', async () => {
+    const lastMonth = new Date()
+    lastMonth.setMonth(lastMonth.getMonth() - 1)
+    prismaMock.user.findUnique.mockResolvedValue({ creditBalance: 0, overdraftUsedAt: lastMonth })
+    prismaMock.request.create.mockResolvedValue({ id: 1, status: 'OVERDRAFT_PENDING', isOverdraft: true })
+    prismaMock.user.findMany.mockResolvedValue([])
+
+    const res = await request(app).post('/api/requests/overdraft-request').send({ freeText: 'help' })
+
+    expect(res.status).toBe(201)
   })
 })
 

@@ -74,6 +74,14 @@ function NewRequest({ onDone, onExit, onFreeTextChange }) {
   const [submitError, setSubmitError] = useState("");
   const [submitted, setSubmitted] = useState(false);
   const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
+  // G411-47: set when a normal submit 402s specifically on "still have
+  // credits available"-style insufficient balance — offers "Request
+  // anyway" instead of just the generic error. Cleared on any other
+  // outcome so a stale offer never lingers across a retry.
+  const [overdraftEligible, setOverdraftEligible] = useState(false);
+  // Distinct from `submitted` — an overdraft ask is pending admin review,
+  // not an accepted request, so "done" needs different copy.
+  const [overdraftPending, setOverdraftPending] = useState(false);
 
   async function handleContinue() {
     setSubmitError("");
@@ -261,6 +269,7 @@ function NewRequest({ onDone, onExit, onFreeTextChange }) {
   async function handleSubmit() {
     setSubmitting(true);
     setSubmitError("");
+    setOverdraftEligible(false);
 
     try {
       const res = await fetch("/api/requests", {
@@ -278,6 +287,10 @@ function NewRequest({ onDone, onExit, onFreeTextChange }) {
       if (!res.ok) {
         const { error } = await res.json().catch(() => ({}));
         setSubmitError(error || "Something went wrong submitting your request.");
+        // G411-47: a 402 here is specifically "out of credits" (the only
+        // thing this route ever 402s on) — offer the overdraft path
+        // instead of just leaving the friend stuck on a dead-end error.
+        if (res.status === 402) setOverdraftEligible(true);
         return;
       }
 
@@ -287,6 +300,43 @@ function NewRequest({ onDone, onExit, onFreeTextChange }) {
       setStep("done");
     } catch {
       setSubmitError("Something went wrong submitting your request.");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  // G411-47: friend explicitly chose "Request anyway" — same body, but
+  // hits the overdraft-only route (no credit is ever touched by it,
+  // either way, approved or denied) and waits on Gavi's review instead
+  // of completing immediately.
+  async function handleOverdraftRequest() {
+    setSubmitting(true);
+    setSubmitError("");
+
+    try {
+      const res = await fetch("/api/requests/overdraft-request", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          freeText,
+          type: selectedType,
+          urgency,
+          additionalInfo,
+          typeDetails: currentTypeDetails(),
+        }),
+      });
+
+      if (!res.ok) {
+        const { error } = await res.json().catch(() => ({}));
+        setSubmitError(error || "Something went wrong submitting your overdraft request.");
+        return;
+      }
+
+      setOverdraftEligible(false);
+      setOverdraftPending(true);
+      setStep("done");
+    } catch {
+      setSubmitError("Something went wrong submitting your overdraft request.");
     } finally {
       setSubmitting(false);
     }
@@ -403,6 +453,15 @@ function NewRequest({ onDone, onExit, onFreeTextChange }) {
               onUnlock={(key) => setUnlockedKeys((prev) => new Set(prev).add(key))}
             />
             {submitError && <p style={{ color: "#b3261e" }}>{submitError}</p>}
+            {/* G411-47: only offered after a real 402 — a deliberate,
+                explicit friend action, not an automatic retry. Gavi's
+                admin approval still gates whether it actually goes
+                through; this button only sends the ask. */}
+            {overdraftEligible && (
+              <Button variant="secondary" onClick={handleOverdraftRequest} disabled={submitting}>
+                {submitting ? "Sending…" : "Request anyway"}
+              </Button>
+            )}
             {/* No separate "Edit" button — every row above is click-to-edit
                 in place. No "Not quite?" here either (Gavi's call) — by
                 review time the type is treated as settled; that escape
@@ -430,6 +489,15 @@ function NewRequest({ onDone, onExit, onFreeTextChange }) {
         {step === "done" && submitted && (
           <>
             <p>Thanks — your request is in! Gavi's been notified.</p>
+            <Button variant="primary" onClick={onDone}>
+              Back to my requests
+            </Button>
+          </>
+        )}
+
+        {step === "done" && overdraftPending && (
+          <>
+            <p>Sent — Gavi will review your overdraft request.</p>
             <Button variant="primary" onClick={onDone}>
               Back to my requests
             </Button>

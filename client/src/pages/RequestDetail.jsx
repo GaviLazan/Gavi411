@@ -90,6 +90,13 @@ const ADMIN_STATUS_OPTIONS = {
   CLOSED: [],
   CANCELLED: [],
   SELF_SOLVED: [],
+  // G411-47: deliberately empty, not [IN_QUEUE, OVERDRAFT_DENIED] — the
+  // generic dropdown would show "In Queue" for approve, which doesn't
+  // read as "approve this overdraft" on its own. Dedicated Approve/Deny
+  // buttons below (same convention as Nudge) cover this transition
+  // instead of the dropdown.
+  OVERDRAFT_PENDING: [],
+  OVERDRAFT_DENIED: [],
 };
 
 // G411-39: statuses whose transition is disruptive enough to confirm
@@ -97,7 +104,11 @@ const ADMIN_STATUS_OPTIONS = {
 // Plain in-flow moves (RECEIVED, WORKING_ON_IT, WAITING_ON_USER, etc.)
 // don't need a confirm step; ConfirmModal.jsx (G411-64) is reused as-is,
 // same convention as the discard-request flow it was built for.
-const STATUS_NEEDS_CONFIRM = ["CANCELLED", "SELF_SOLVED"];
+// G411-47: denying an overdraft request is the same "ends this outright"
+// shape as CANCELLED/SELF_SOLVED — worth a real confirm, not a one-click
+// accident. Approving (-> IN_QUEUE) is deliberately NOT here — that's the
+// normal "this proceeds" direction, same as any other in-flow move.
+const STATUS_NEEDS_CONFIRM = ["CANCELLED", "SELF_SOLVED", "OVERDRAFT_DENIED"];
 
 // One shared source for the confirm-modal message, used by both the
 // friend and admin branches below (Sibling review finding — each branch
@@ -106,6 +117,7 @@ const STATUS_NEEDS_CONFIRM = ["CANCELLED", "SELF_SOLVED"];
 function confirmMessage(status) {
   if (status === "SELF_SOLVED") return "Mark this request as self-solved? This ends the request.";
   if (status === "CANCELLED") return "Cancel this request?";
+  if (status === "OVERDRAFT_DENIED") return "Deny this overdraft request? The friend keeps their 0 balance and won't be charged.";
   return `Change status to "${status ? labelize(status) : ""}"? This ends the request.`;
 }
 
@@ -879,6 +891,29 @@ function RequestDetail({ requestId, onBack, isAdmin }) {
                 </Button>
               )
             })()}
+            {/* G411-47: dedicated Approve/Deny buttons rather than making
+                the admin read "In Queue" off the generic status dropdown
+                and infer that means "approve the overdraft" — same
+                dedicated-button convention as Nudge/No-longer-urgent above
+                for a status-specific action that deserves clearer copy. */}
+            {request.status === 'OVERDRAFT_PENDING' && (
+              <>
+                <Button
+                  variant="success"
+                  onClick={() => handleStatusSelect('IN_QUEUE')}
+                  disabled={statusSaving}
+                >
+                  Approve overdraft
+                </Button>
+                <Button
+                  variant="secondary"
+                  onClick={() => handleStatusSelect('OVERDRAFT_DENIED')}
+                  disabled={statusSaving}
+                >
+                  Deny
+                </Button>
+              </>
+            )}
           </div>
           <button type="button" className="admin-layout-toggle" onClick={() => setSideBySide((v) => !v)}>
             {sideBySide ? "Stack tabs" : "Side by side"}
