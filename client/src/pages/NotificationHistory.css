@@ -1,0 +1,38 @@
+.notification-list {
+  list-style: none;
+  padding: 0;
+  margin-top: var(--space-4);
+}
+
+.notification-item {
+  padding: var(--space-3);
+  margin-bottom: var(--space-2);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+
+.notification-item-title {
+  font-weight: 600;
+  margin-bottom: var(--space-1);
+}
+
+.notification-item-body {
+  margin-bottom: var(--space-2);
+}
+
+.notification-item-date {
+  font-size: 14px;
+  color: var(--text);
+}
+
+.notification-history-status {
+  margin-top: var(--space-4);
+  color: var(--text);
+}
+
+/* No error color exists in DESIGN.md yet — matches MessageThread.css's
+   .message-send-error convention rather than inventing one here. */
+.notification-history-error {
+  margin-top: var(--space-4);
+}

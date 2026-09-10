@@ -41,12 +41,11 @@ function ensureVapidConfigured() {
 // never block delivery to the user's other devices.
 //
 // G411-98: logs the notification to the user's history regardless of
-// delivery outcome — the log records "this was sent to you," not
-// "this was delivered successfully."
+// delivery outcome — the log records "this was sent to you," not "this
+// was delivered successfully." Logged before ensureVapidConfigured()'s
+// check, deliberately: a misconfigured VAPID deploy shouldn't silently
+// lose history too, on top of losing actual delivery.
 export async function sendPushToUser(userId, payload) {
-  ensureVapidConfigured()
-
-  // Log to history before attempting delivery (success/failure irrelevant)
   await prisma.notification.create({
     data: {
       userId,
@@ -54,6 +53,8 @@ export async function sendPushToUser(userId, payload) {
       body: payload.body || '',
     },
   }).catch((err) => console.error(`Failed to log notification for user ${userId}:`, err.message))
+
+  ensureVapidConfigured()
 
   const subscriptions = await prisma.pushSubscription.findMany({ where: { userId } })
   const body = JSON.stringify(payload)

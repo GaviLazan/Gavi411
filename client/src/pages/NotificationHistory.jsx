@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import Card from '../components/Card'
 import Button from '../components/Button'
+import './NotificationHistory.css'
 
 // Notification history page (G411-98) — shows all notifications sent to
 // the signed-in user, newest first. Marks all as read on mount.
@@ -47,32 +48,21 @@ function NotificationHistory({ onBack }) {
         ← Back
       </Button>
 
-      {error && <p style={{ color: 'var(--color-error)', marginTop: '1rem' }}>Error: {error}</p>}
+      {error && <p className="notification-history-error">Error: {error}</p>}
 
-      {loading && <p style={{ marginTop: '1rem' }}>Loading notifications...</p>}
+      {loading && <p className="notification-history-status">Loading notifications...</p>}
 
       {!loading && !error && notifications.length === 0 && (
-        <p style={{ marginTop: '1rem', color: 'var(--color-text-muted)' }}>No notifications yet</p>
+        <p className="notification-history-status">No notifications yet</p>
       )}
 
       {!loading && !error && notifications.length > 0 && (
-        <ul style={{ listStyle: 'none', padding: 0, marginTop: '1rem' }}>
+        <ul className="notification-list">
           {notifications.map((notif) => (
-            <li
-              key={notif.id}
-              style={{
-                padding: '0.75rem',
-                marginBottom: '0.5rem',
-                backgroundColor: 'var(--color-surface)',
-                borderRadius: '0.5rem',
-                border: '1px solid var(--color-border)',
-              }}
-            >
-              <div style={{ fontWeight: '600', marginBottom: '0.25rem' }}>{notif.title}</div>
-              <div style={{ marginBottom: '0.5rem' }}>{notif.body}</div>
-              <div style={{ fontSize: '0.875rem', color: 'var(--color-text-muted)' }}>
-                {formatDate(notif.createdAt)}
-              </div>
+            <li key={notif.id} className="notification-item">
+              <div className="notification-item-title">{notif.title}</div>
+              <div className="notification-item-body">{notif.body}</div>
+              <div className="notification-item-date">{formatDate(notif.createdAt)}</div>
             </li>
           ))}
         </ul>

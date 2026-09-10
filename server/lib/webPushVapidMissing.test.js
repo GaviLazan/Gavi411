@@ -10,7 +10,10 @@ vi.mock('web-push', () => ({
 }))
 
 vi.mock('./prisma.js', () => ({
-  prisma: { pushSubscription: { findMany: vi.fn().mockResolvedValue([]) } },
+  prisma: {
+    pushSubscription: { findMany: vi.fn().mockResolvedValue([]) },
+    notification: { create: vi.fn().mockResolvedValue({ id: 1 }) },
+  },
 }))
 
 describe('sendPushToUser with missing VAPID config', () => {
@@ -26,5 +29,16 @@ describe('sendPushToUser with missing VAPID config', () => {
     await expect(sendPushToUser('user_1', { title: 't', body: 'b' })).rejects.toThrow(
       /Web Push is misconfigured/,
     )
+  })
+
+  // G411-98: the notification history log must not be lost just because
+  // delivery infra is misconfigured — it's logged before the VAPID check.
+  it('still logs the notification even though VAPID is misconfigured', async () => {
+    const { sendPushToUser } = await import('./webPush.js')
+    const { prisma } = await import('./prisma.js')
+    await sendPushToUser('user_1', { title: 't', body: 'b' }).catch(() => {})
+    expect(prisma.notification.create).toHaveBeenCalledWith({
+      data: { userId: 'user_1', title: 't', body: 'b' },
+    })
   })
 })
