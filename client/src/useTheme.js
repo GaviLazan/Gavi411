@@ -2,29 +2,26 @@ import { useEffect, useState } from 'react'
 
 // Manual light/dark override (G411-73), layered on top of G411-17's
 // existing @media (prefers-color-scheme: dark) tokens in index.css.
-// Three states, cycling: 'system' (follows OS, the original behavior,
-// default) -> 'light' -> 'dark' -> back to 'system'. Persisted so a
-// friend's choice survives a reload.
+// Two states, cycling: 'light' (default) -> 'dark' -> back to 'light'.
+// Persisted so a friend's choice survives a reload. Always defaults to
+// light regardless of OS preference.
 const STORAGE_KEY = 'gavi411-theme'
-const ORDER = ['system', 'light', 'dark']
+const ORDER = ['light', 'dark']
 
 export function useTheme() {
   const [theme, setTheme] = useState(() => {
     try {
       const stored = localStorage.getItem(STORAGE_KEY)
-      return ORDER.includes(stored) ? stored : 'system'
+      return ORDER.includes(stored) ? stored : 'light'
     } catch {
-      return 'system'
+      return 'light'
     }
   })
 
   useEffect(() => {
     const root = document.documentElement
-    if (theme === 'system') {
-      root.removeAttribute('data-theme')
-    } else {
-      root.setAttribute('data-theme', theme)
-    }
+    // Always set data-theme (light or dark), never remove it
+    root.setAttribute('data-theme', theme)
     try {
       localStorage.setItem(STORAGE_KEY, theme)
     } catch {

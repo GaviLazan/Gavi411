@@ -106,13 +106,30 @@ function AdminRequestRow({ request, onClick }) {
   );
 }
 
-function AdminList({ onOpenRequest, onNewRequest }) {
+function AdminList({ onOpenRequest, onNewRequest, filter: filterProp, onRequestsLoaded }) {
   const [requests, setRequests] = useState(null);
   const [error, setError] = useState("");
   const [sort, setSort] = useState("urgency");
-  const [filter, setFilter] = useState("open");
+  const [filter, setFilter] = useState(filterProp ?? "open");
   const [group, setGroup] = useState("none");
   const [retryToken, setRetryToken] = useState(0);
+
+  // `filter` is a real controlled prop from App.jsx (G411-95): this
+  // component is now kept mounted once (hidden, not unmounted) across
+  // Open requests <-> Closed requests navigation, same pattern as the
+  // home-screen list (G411-89) — so `filter` needs to track filterProp
+  // on every change, not just read it once at mount. An earlier version
+  // used a one-time initialFilter with a fresh AdminList instance per
+  // view; forcing that remount via a `key` prop worked but threw away
+  // the already-fetched list and refetched on every single switch, for
+  // what's really just a client-side filter change (Gavi's catch: no
+  // reason to reload the whole list to show 10 of the same 50 rows).
+  useEffect(() => {
+    if (filterProp) setFilter(filterProp);
+  }, [filterProp]);
+
+  // Local dropdown changes (the admin manually picking a filter) still
+  // work exactly as before — setFilter below, unrelated to filterProp.
 
   // Plain GET /api/requests by default — the lightweight admin path
   // (narrow `user` select + one-row-per-request `message` for "time
@@ -131,7 +148,10 @@ function AdminList({ onOpenRequest, onNewRequest }) {
         const res = await fetch("/api/requests");
         if (!res.ok) throw new Error("failed");
         const data = await res.json();
-        if (!cancelled) setRequests(data);
+        if (!cancelled) {
+          setRequests(data);
+          onRequestsLoaded?.(data);
+        }
       } catch {
         if (!cancelled) setError("Couldn't load requests. Try again?");
       }
@@ -236,9 +256,11 @@ function AdminList({ onOpenRequest, onNewRequest }) {
   if (error) {
     return (
       <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-4)", width: "100%", maxWidth: 560 }}>
-        <Button variant="primary" onClick={onNewRequest}>
-          + New request
-        </Button>
+        {onNewRequest && (
+          <Button variant="primary" onClick={onNewRequest}>
+            + New request
+          </Button>
+        )}
         <Card>
           <p>{error}</p>
           <Button onClick={() => setRetryToken((t) => t + 1)}>Try again</Button>
@@ -250,9 +272,11 @@ function AdminList({ onOpenRequest, onNewRequest }) {
   if (requests === null) {
     return (
       <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-4)", width: "100%", maxWidth: 560 }}>
-        <Button variant="primary" onClick={onNewRequest}>
-          + New request
-        </Button>
+        {onNewRequest && (
+          <Button variant="primary" onClick={onNewRequest}>
+            + New request
+          </Button>
+        )}
         <Card>Loading…</Card>
       </div>
     );
@@ -260,9 +284,11 @@ function AdminList({ onOpenRequest, onNewRequest }) {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-4)", width: "100%", maxWidth: 560 }}>
-      <Button variant="primary" onClick={onNewRequest}>
-        + New request
-      </Button>
+      {onNewRequest && (
+        <Button variant="primary" onClick={onNewRequest}>
+          + New request
+        </Button>
+      )}
 
       <Input
         type="search"

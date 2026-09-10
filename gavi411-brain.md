@@ -704,6 +704,20 @@ G411-93 started as a UX-copy/tone ticket ("the nudge message reads like a formal
 
 **Process note, also corrected live by Gavi**: mid-verification, this session briefly ran the fix-branch's dev server pair (backend :3099, frontend :5199) SIMULTANEOUSLY with the primary worktree's own pair (:3000/:5173-ish) still up — Gavi corrected directly: **at most one Gavi411 client+server pair running at any time, full stop, across all worktrees combined**, not just "clean up strays after the fact." This sharpens the existing dev-server-hygiene lesson ([[gavi411-stray-dev-server-processes]]) — the earlier version of that rule was about killing what you start when you're done with it; this adds the harder ceiling that a second pair should never be started at all while any pair is already up, regardless of which worktree either belongs to.
 
+### Decision #119 — A Sibling review finding must be re-verified against real prop-flow before being fixed; one of G411-95's 6 triaged findings was wrong (2026-09-10, G411-95)
+
+Of the 6 findings from the prior session's Sibling review that Gavi triaged as needing fixes, finding #1 ("AdminList's Filter dropdown can get silently overwritten by hamburger-menu nav") turned out not to be a real bug once traced against the actual code, not the finding's own prose description.
+
+**What the finding claimed**: navigating via the hamburger menu to a view the admin is already on re-fires a `useEffect` that silently reverts a manually-picked Filter-dropdown value (e.g. "All") back to whatever the menu implies.
+
+**What tracing the real code showed**: `App.jsx` passes `AdminList` a `filter` prop computed as `view === 'closed-requests' ? 'closed' : 'open'` — a two-way derivation off `view` with no path to "all" or any other value. The prop can never diverge from what the admin actually clicked in the menu. Every menu click produces exactly the view clicked, full stop — there is no scenario where clicking "Open requests" yields anything but Open requests. The finding's own repro steps didn't hold up against the literal data flow once checked line-by-line.
+
+**Gavi's own words when the first two framings of this were given**: "I'm not sure I understand what you're saying" and then, more sharply, "5 isn't a bug. I left and came back. more over: I CLICKED on 'open requests'! If I got anything other than 'open requests' (all/closed/purple/upsidedown) THAT would be a bug." That second framing is what triggered re-tracing the actual `filterProp` computation rather than re-explaining the same (wrong) mental model a third time — the fix wasn't a better explanation, it was going back to the code.
+
+**Lesson**: a Sibling review finding is a claim, not a fact — it gets the same "verify against real state before acting" treatment as anything else in `CLAUDE.md`'s Required Workflow item 2, even after Gavi has already triaged it as "needs fixing" in a prior session. Triage happened without either party re-deriving `filterProp`'s actual computation; the fix session is where that check should have happened before proposing a repro at all, not after two rounds of Gavi correctly rejecting a confused explanation.
+
+**Also landed this session** (mechanical, no standing-decision content — see HANDOFF.md for detail): G411-95's remaining 5 HANDOFF fixes — AdminList/adminOpenCount double-fetch resolved by sharing one fetch instead of running two, close-animation CSS/JS timing synced to 150ms, `OpenRequestsList`/`ClosedRequestsList` merged into one `FriendRequestsList(status)` component, a fake test file deleted, dead exports removed, and the pre-G411-95 "most recent closed request" fallback restored on Gavi's explicit request. A same-session Sibling review round 2 caught two YAGNI regressions this fix pass itself introduced (a single-caller hook extraction, a 2-call-site style helper) — both reverted back to inline code before commit.
+
 ## 7. Not Yet Discussed
  
 - Data model, architecture, tech decisions (schema itself not yet drafted — first task on deck).

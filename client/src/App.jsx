@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react'
 import { useUser, useClerk, SignIn, SignUp, ClerkLoaded, ClerkLoading } from '@clerk/react'
 import './App.css'
 import NewRequest from './pages/NewRequest'
-import RequestList from './pages/RequestList'
 import AdminList from './pages/AdminList'
 import RequestDetail from './pages/RequestDetail'
 import InstallHelp from './pages/InstallHelp'
@@ -12,9 +11,12 @@ import AdminCreateRequest from './pages/AdminCreateRequest'
 import CompleteProfile from './pages/CompleteProfile'
 import ProfilePage from './pages/ProfilePage'
 import ConfirmModal from './components/ConfirmModal'
+import HamburgerMenu from './components/HamburgerMenu'
 import Button from './components/Button'
 import { useTheme } from './useTheme'
 import Recover from './pages/Recover'
+import FriendRequestsList from './pages/FriendRequestsList'
+import { CLOSED_STATUSES } from './pages/RequestList'
 import {
   captureInviteTokenFromUrl,
   getStashedInviteToken,
@@ -41,7 +43,7 @@ captureInviteTokenFromUrl()
 // brand-new signup is.
 captureRecoveryParamsFromUrl()
 
-const THEME_LABEL = { system: 'Auto', light: 'Light', dark: 'Dark' }
+const THEME_LABEL = { light: 'Light', dark: 'Dark' }
 
 // G411-66: gate real content behind Clerk auth state.
 // NOTE: this project's installed package is "@clerk/react" (a lower-level
@@ -58,10 +60,12 @@ const THEME_LABEL = { system: 'Auto', light: 'Light', dark: 'Dark' }
 function App() {
   const { isSignedIn, user } = useUser()
   const { signOut } = useClerk()
-  const [view, setView] = useState('list') // 'list' | 'new' | 'install-help' | 'detail' | 'invite-admin' | 'trigger-admin' | 'admin-create-request' | 'profile'
+  const [view, setView] = useState('list') // 'list' | 'new' | 'install-help' | 'detail' | 'invite-admin' | 'trigger-admin' | 'admin-create-request' | 'profile' | 'open-requests' | 'closed-requests'
   const [selectedRequestId, setSelectedRequestId] = useState(null)
   const [newRequestHasText, setNewRequestHasText] = useState(false)
   const [showLogoDiscardConfirm, setShowLogoDiscardConfirm] = useState(false)
+  const [hamburgerOpen, setHamburgerOpen] = useState(false)
+  const [previousView, setPreviousView] = useState('list')
   const { theme, cycleTheme } = useTheme()
   const [isOnline, setIsOnline] = useState(true)
   const [presenceToggling, setPresenceToggling] = useState(false)
@@ -70,6 +74,7 @@ function App() {
   // and zero feedback — same silent-failure class already fixed for
   // roleFetchFailed/escrowBackupFailed elsewhere in this file.
   const [presenceToggleError, setPresenceToggleError] = useState(false)
+  const [adminOpenCount, setAdminOpenCount] = useState(null)
 
   // G411-43: fetch and display current presence status on mount
   // (every signed-in user should see whether Gavi is online)
@@ -253,14 +258,34 @@ function App() {
     })
   }, [role])
 
+  // Admin's open request count for home screen display, derived from
+  // AdminList's own already-fetched data (via onRequestsLoaded) instead
+  // of a second independent /api/requests fetch (Sibling review finding,
+  // G411-95: AdminList is mounted unconditionally for every admin, so a
+  // separate fetch here doubled every admin's list load). This also
+  // fixes the count never refreshing after first load — it now recomputes
+  // whenever AdminList refetches (e.g. its own retry).
+  function handleAdminRequestsLoaded(data) {
+    setAdminOpenCount(data.filter((r) => !CLOSED_STATUSES.includes(r.status)).length)
+  }
+
   return (
     <div className="design-preview">
+      {/* G411-95: hamburger-menu navigation redesign. Header now shows:
+          hamburger icon (left) - logo (center) - account indicator (right) */}
       <div className="header-row">
-        {/* Clickable everywhere there's somewhere to go back to (Gavi's
-            ask — logo should always be an exit control, not just from
-            install-help). On the intake flow, still routes through the
-            same confirm-if-typed prompt NewRequest's own "×" uses, so an
-            accidental logo tap can't silently discard a typed request. */}
+        {isSignedIn && (
+          <button
+            type="button"
+            className="hamburger-button"
+            onClick={() => setHamburgerOpen(true)}
+            aria-label="Menu"
+          >
+            ☰
+          </button>
+        )}
+        {/* Logo always clickable to exit views back to list/home screen,
+            with same confirm-if-typed logic on the new-request intake. */}
         {view === 'new' ? (
           <button
             type="button"
@@ -282,11 +307,7 @@ function App() {
             Gavi411
           </button>
         )}
-        {/* Minimal account indicator + sign-out, until a real account
-            menu exists — Gavi's call: keep this, don't strip it, once a
-            nicer version is built it replaces this rather than removing
-            it outright. G411-80: profile text is clickable to open the
-            profile editor, Sign out button stays separate. */}
+        {/* Account indicator stays in right corner, unchanged from original */}
         {isSignedIn && (
           <span className="account-indicator">
             <button
@@ -300,68 +321,6 @@ function App() {
             <button type="button" onClick={() => signOut()}>Sign out</button>
           </span>
         )}
-      </div>
-      {/* Second row, per Gavi's call: the logo/account row stays a single
-          line, every toggle/admin-nav button lives below it instead of
-          all competing for space in one row (which overflowed
-          unusably on mobile). */}
-      <div className="toolbar-row">
-        {/* G411-73: cycles system -> light -> dark -> system. Text label
-            (not just an icon) so the current state is unambiguous without
-            needing a tooltip. */}
-        <button type="button" className="theme-toggle" onClick={cycleTheme}>
-          Theme: {THEME_LABEL[theme]}
-        </button>
-        {/* G411-41: only entry point to the invite-creation UI — shown to
-            admins only, minimal placement per the ticket's own note not
-            to wait on the full admin cockpit (G411-37/38). */}
-        {isAdmin && (
-          <button type="button" onClick={() => setView('invite-admin')}>
-            Invites
-          </button>
-        )}
-        {/* G411-42: live trigger/keyword admin, same minimal top-nav
-            placement as Invites above — not waiting on the full admin
-            cockpit either. */}
-        {isAdmin && (
-          <button type="button" onClick={() => setView('trigger-admin')}>
-            Triggers
-          </button>
-        )}
-        {/* G411-43: admin presence toggle (online/offline status) — friends
-            see the status via the banner below, only admin can change it.
-            disabled={presenceToggling} also blocks a fast double-click from
-            firing two PATCHes off the same stale isOnline value. */}
-        {isAdmin && (
-          <button
-            type="button"
-            onClick={async () => {
-              setPresenceToggling(true)
-              setPresenceToggleError(false)
-              try {
-                const res = await fetch('/api/presence', {
-                  method: 'PATCH',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ isOnline: !isOnline }),
-                })
-                if (res.ok) {
-                  const data = await res.json()
-                  setIsOnline(data.isOnline)
-                } else {
-                  setPresenceToggleError(true)
-                }
-              } catch {
-                setPresenceToggleError(true)
-              } finally {
-                setPresenceToggling(false)
-              }
-            }}
-            disabled={presenceToggling}
-          >
-            {presenceToggling ? '…' : isOnline ? 'Go offline' : 'Go online'}
-          </button>
-        )}
-        {presenceToggleError && ' Failed to update — try again.'}
       </div>
       {escrowBackupFailed && (
         <p role="alert" className="escrow-backup-warning">
@@ -396,22 +355,87 @@ function App() {
         {role !== null && (
           <div hidden={view !== 'list'}>
             {isAdmin ? (
-              <AdminList
-                onOpenRequest={(id) => { setSelectedRequestId(id); setView('detail'); }}
-                // G411-44, per Gavi's direct correction: admin doesn't open
-                // requests for themself — this button now opens the
-                // on-behalf-of-a-friend flow, not the old self-service
-                // NewRequest form. That form (view('new')) is friend-only
-                // now, reachable only via RequestList below.
-                onNewRequest={() => setView('admin-create-request')}
-              />
+              <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-3)", width: "100%", maxWidth: 560 }}>
+                <Button variant="primary" onClick={() => { setPreviousView('list'); setView('admin-create-request') }}>
+                  + New request
+                </Button>
+                {adminOpenCount === null ? (
+                  <Button disabled>Loading…</Button>
+                ) : (
+                  <Button onClick={() => { setPreviousView('list'); setView('open-requests'); }}>
+                    {adminOpenCount} open requests
+                  </Button>
+                )}
+                <Button onClick={() => { setPreviousView('list'); setView('invite-admin') }}>
+                  Invite
+                </Button>
+                <div>
+                  <Button
+                    onClick={async () => {
+                      setPresenceToggling(true)
+                      setPresenceToggleError(false)
+                      try {
+                        const res = await fetch('/api/presence', {
+                          method: 'PATCH',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ isOnline: !isOnline }),
+                        })
+                        if (res.ok) {
+                          const data = await res.json()
+                          setIsOnline(data.isOnline)
+                        } else {
+                          setPresenceToggleError(true)
+                        }
+                      } catch {
+                        setPresenceToggleError(true)
+                      } finally {
+                        setPresenceToggling(false)
+                      }
+                    }}
+                    disabled={presenceToggling}
+                  >
+                    {presenceToggling ? '…' : isOnline ? 'Go offline' : 'Go online'}
+                  </Button>
+                  {presenceToggleError && (
+                    <p style={{ fontSize: 13, color: 'var(--text)', marginTop: 'var(--space-1)' }}>
+                      Failed to update — try again.
+                    </p>
+                  )}
+                </div>
+              </div>
             ) : (
-              <RequestList
-                onNewRequest={() => setView('new')}
-                onShowInstallHelp={() => setView('install-help')}
-                onOpenRequest={(id) => { setSelectedRequestId(id); setView('detail'); }}
-              />
+              <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-3)", width: "100%", maxWidth: 420 }}>
+                <Button variant="primary" onClick={() => setView('new')}>
+                  + New request
+                </Button>
+              </div>
             )}
+          </div>
+        )}
+        {/* Admin's Open/Closed requests screen — kept mounted (hidden,
+            not unmounted) across navigation, same reasoning and same
+            pattern as the 'list' view div right above (G411-89): a
+            fresh AdminList per ternary branch (the original G411-95
+            shape) meant React saw the same component type reused
+            across branches and DIDN'T remount it on its own, so
+            switching Open<->Closed silently kept whatever filter/data
+            had first loaded (Gavi, live testing) — forcing a remount
+            via `key` fixed that but threw the fetch away every switch.
+            A single persistent instance with `filter` as a real
+            controlled prop (not initialFilter, read-once) avoids both:
+            correct on every switch, no refetch needed since the data
+            doesn't change, only which subset is shown. */}
+        {role !== null && isAdmin && (
+          <div hidden={view !== 'open-requests' && view !== 'closed-requests'}>
+            <AdminList
+              filter={view === 'closed-requests' ? 'closed' : 'open'}
+              onRequestsLoaded={handleAdminRequestsLoaded}
+              onOpenRequest={(id) => {
+                setSelectedRequestId(id)
+                setPreviousView(view)
+                setView('detail')
+              }}
+            />
           </div>
         )}
         {isSignedIn && !tokenHandoffDone ? (
@@ -458,7 +482,7 @@ function App() {
           ) : view === 'trigger-admin' ? (
             <TriggerAdmin onBack={() => setView('list')} />
           ) : view === 'admin-create-request' ? (
-            <AdminCreateRequest onBack={() => setView('list')} />
+            <AdminCreateRequest onBack={() => setView(previousView)} />
           ) : view === 'profile' ? (
             <ProfilePage
               user={fetchedUser}
@@ -470,7 +494,24 @@ function App() {
               }}
             />
           ) : view === 'detail' ? (
-            <RequestDetail requestId={selectedRequestId} onBack={() => setView('list')} isAdmin={isAdmin} />
+            <RequestDetail requestId={selectedRequestId} onBack={() => setView(previousView)} isAdmin={isAdmin} />
+          ) : view === 'open-requests' ? (
+            // Admin renders via the persistent hidden AdminList div
+            // above instead (real reason in that div's comment) — this
+            // branch only needs to fire for friends now.
+            isAdmin ? null : (
+              <FriendRequestsList
+                status="open"
+                onOpenRequest={(id) => { setSelectedRequestId(id); setPreviousView('open-requests'); setView('detail'); }}
+              />
+            )
+          ) : view === 'closed-requests' ? (
+            isAdmin ? null : (
+              <FriendRequestsList
+                status="closed"
+                onOpenRequest={(id) => { setSelectedRequestId(id); setPreviousView('closed-requests'); setView('detail'); }}
+              />
+            )
           ) : roleFetchFailed ? (
             // Sibling review finding: the /api/me fetch failing (network
             // blip, cold-start timeout) used to leave role permanently
@@ -501,6 +542,102 @@ function App() {
           inviteTokenState === 'valid' ? <SignUp /> : <SignIn />
         )}
       </ClerkLoaded>
+      {/* G411-95: hamburger menu navigation. Contents depend on user role
+          (friend vs admin) and include navigation items + theme toggle. */}
+      <HamburgerMenu
+        open={hamburgerOpen}
+        onClose={() => setHamburgerOpen(false)}
+      >
+        {isSignedIn && (
+          <>
+            {/* Profile */}
+            <button
+              type="button"
+              className="hamburger-menu-item"
+              onClick={() => {
+                setView('profile')
+                setHamburgerOpen(false)
+              }}
+            >
+              Profile
+            </button>
+
+            {/* Triggers — admin-only, right after Profile per spec (Gavi's
+                call: Presence/Invites moved to the admin home screen
+                instead, only Triggers stays in the menu). */}
+            {isAdmin && (
+              <button
+                type="button"
+                className="hamburger-menu-item"
+                onClick={() => {
+                  setView('trigger-admin')
+                  setHamburgerOpen(false)
+                }}
+              >
+                Triggers
+              </button>
+            )}
+
+            {/* Open requests — routes to AdminList for admin, FriendRequestsList
+                for friends (branches on isAdmin at render time below, not
+                here — both roles navigate the same way). */}
+            <button
+              type="button"
+              className="hamburger-menu-item"
+              onClick={() => {
+                setPreviousView('list')
+                setView('open-requests')
+                setHamburgerOpen(false)
+              }}
+            >
+              Open requests
+            </button>
+
+            {/* Closed requests — same split as above, AdminList vs
+                FriendRequestsList decided at render time. */}
+            <button
+              type="button"
+              className="hamburger-menu-item"
+              onClick={() => {
+                setPreviousView('list')
+                setView('closed-requests')
+                setHamburgerOpen(false)
+              }}
+            >
+              Closed requests
+            </button>
+
+            {/* Installing on iPhone — was RequestList's own link before
+                G411-95 removed RequestList from the friend home screen;
+                moved here so it stays reachable rather than becoming
+                dead routing. Friend-only, matching its original home in
+                RequestList (friend-facing PWA-install help doesn't apply
+                to admin — Gavi's live catch). */}
+            {!isAdmin && (
+              <button
+                type="button"
+                className="hamburger-menu-item"
+                onClick={() => {
+                  setView('install-help')
+                  setHamburgerOpen(false)
+                }}
+              >
+                Installing on iPhone
+              </button>
+            )}
+
+            {/* Theme toggle — shown to everyone */}
+            <div className="hamburger-menu-divider" />
+            <button
+              type="button"
+              className="hamburger-menu-theme-toggle"
+              onClick={cycleTheme}
+            >
+              Theme: {THEME_LABEL[theme]}
+            </button>
+          </>
+        )}
+      </HamburgerMenu>
       <ConfirmModal
         open={showLogoDiscardConfirm}
         message="Discard this request?"
