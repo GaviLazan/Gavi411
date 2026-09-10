@@ -109,6 +109,7 @@ export async function resetMonthlyCredits() {
       groupTag: true,
       creditBalance: true,
       creditsResetAt: true,
+      overdraftUsedAt: true,
     },
   })
 
@@ -133,16 +134,32 @@ export async function resetMonthlyCredits() {
 
       // Perform the reset in a transaction: update balance + creditsResetAt,
       // and write the transaction log entry with the delta amount.
+      // G411-47: also reset overdraftUsedAt if it's in a different calendar month.
       await prisma.$transaction(async (tx) => {
         const newBalance = initialCreditFor(user.groupTag)
         const delta = newBalance - user.creditBalance
 
+        // G411-47: determine if overdraftUsedAt should be cleared using the
+        // exact same logic as creditsResetAt (different calendar month or null).
+        let shouldClearOverdraftUsedAt = false
+        if (user.overdraftUsedAt) {
+          // Check if overdraftUsedAt is in a different month than today
+          const overdraftMonth = user.overdraftUsedAt.getMonth()
+          const overdraftYear = user.overdraftUsedAt.getFullYear()
+          shouldClearOverdraftUsedAt = overdraftMonth !== currentMonth || overdraftYear !== currentYear
+        }
+
+        const updateData = {
+          creditBalance: newBalance,
+          creditsResetAt: new Date(),
+        }
+        if (shouldClearOverdraftUsedAt) {
+          updateData.overdraftUsedAt = null
+        }
+
         await tx.user.update({
           where: { clerkId: user.clerkId },
-          data: {
-            creditBalance: newBalance,
-            creditsResetAt: new Date(),
-          },
+          data: updateData,
         })
 
         // Sibling review finding: skip the write when delta is 0 (user's

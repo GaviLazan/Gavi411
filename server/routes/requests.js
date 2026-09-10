@@ -564,6 +564,10 @@ const TRANSITIONS = {
   CLOSED: [],
   CANCELLED: [],
   SELF_SOLVED: [],
+  // G411-47: admin approves overdraft request by moving it to IN_QUEUE,
+  // or denies by moving it to OVERDRAFT_DENIED.
+  OVERDRAFT_PENDING: [Status.IN_QUEUE, Status.OVERDRAFT_DENIED],
+  OVERDRAFT_DENIED: [],
 }
 
 // G411-31: exits that refund 1 credit, gated on no ADMIN-role user having
@@ -663,7 +667,10 @@ router.patch('/:id', requireAuth, async (req, res) => {
   // concurrent cancels both observe "untouched" and both refund; Prisma
   // serializes concurrent transactions touching the same rows, closing
   // that race).
-  const isRefundable = status !== undefined && REFUNDABLE_EXITS.includes(status)
+  // G411-47: also check !existing.isOverdraft — an overdraft request never
+  // had a credit charged, so it must never refund one (that would create
+  // free credits out of nothing).
+  const isRefundable = status !== undefined && REFUNDABLE_EXITS.includes(status) && !existing.isOverdraft
 
   // G411-90: track whether a refund actually happened on this request
   // so we can set refundedAt only when the refund truly fires (both

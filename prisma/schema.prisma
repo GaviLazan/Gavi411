@@ -44,6 +44,8 @@ enum Status {
   CLOSED
   CANCELLED
   SELF_SOLVED
+  OVERDRAFT_PENDING
+  OVERDRAFT_DENIED
 }
 
 enum DeviceStatus {
@@ -99,6 +101,11 @@ model User {
   // Null means never reset (existing users); set to signup time for new
   // users so they don't get re-reset immediately.
   creditsResetAt DateTime?
+  // G411-47: timestamp when a friend created their one-time-per-period
+  // overdraft request (status OVERDRAFT_PENDING), blocking a second ask
+  // even if the first is still pending or was denied. Resets monthly,
+  // same logic as creditsResetAt.
+  overdraftUsedAt DateTime?
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
   isDeleted     Boolean  @default(false)
@@ -220,6 +227,13 @@ model Request {
   // yet in this cycle, or nudge sequence was reset by a friend reply.
   // Replaces fragile text-matching detection (checking message.content).
   nudgeTwoSentAt DateTime?
+  // G411-47: permanent flag set when this request is created via the
+  // overdraft flow (status OVERDRAFT_PENDING). Never changes once set true,
+  // survives every later status transition. Used to block refunds on
+  // approved overdraft requests moved to IN_QUEUE (which would create
+  // credits out of nothing, since no credit was ever charged for an
+  // overdraft request).
+  isOverdraft    Boolean      @default(false)
 
   userId String
   user   User   @relation(fields: [userId], references: [clerkId])
