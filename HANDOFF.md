@@ -12,9 +12,79 @@ accumulated. If something here turns out to matter long-term, promote it to
 
 ---
 
-## Where this session left off (2026-09-10) — G411-95, G411-96, and G411-46 all merged and Reconciled. Epic 5 (Admin Cockpit) fully Reconciled (including G411-68, closed as deliberately cancelled). Epic 6 (Credits) now the active epic: G411-97 (credit stress test) built, reviewed, and Landed — **awaiting merge go-ahead**, not yet asked this turn. G411-98 (notification history, Epic 7) and G411-99 (consolidated admin user-management, Epic 6) filed but Open, untouched this session beyond filing.
+## Where this session left off (2026-09-10) — G411-95, G411-96, and G411-46 all merged and Reconciled. Epic 5 (Admin Cockpit) fully Reconciled (including G411-68, closed as deliberately cancelled). Epic 6 (Credits) now the active epic: G411-97 (credit stress test) merged + Reconciled this session. G411-99 (consolidated admin user-management) built, reviewed (including recovering from a real process failure — see its own section below), and Landed — **awaiting merge go-ahead**, not yet asked this turn. G411-98 (notification history, Epic 7) filed but Open, untouched beyond filing.
 
-*(Process note, decision #123: this line is written at wrap-up step 6, before steps 7 (merge ask) and 8 (sync check) run — so G411-97 being "awaiting merge" below is the expected pre-merge gap, not staleness. If this file is more than a session old, check git/Jira directly rather than trust the line above at face value.)*
+*(Process note, decision #123: this line is written at wrap-up step 6, before steps 7 (merge ask) and 8 (sync check) run — so G411-99 being "awaiting merge" below is the expected pre-merge gap, not staleness. If this file is more than a session old, check git/Jira directly rather than trust the line above at face value.)*
+
+### G411-99 — consolidated admin user-management screen (2026-09-10) — Landed, awaiting merge
+
+Branch `agent-frontend/G411-99-user-management` (worktree
+`Gavi411-agent-frontend`, branched fresh off `origin/main`). One commit,
+`819148a` (base implementation + Sibling review fixes together, not
+split — see the process note below for why).
+
+**Real ambiguity resolved via AskUserQuestion before any code**: the
+ticket's "delete or block" item flagged its own unresolved design
+question. Traced `isDeleted`'s actual consequences (`requireAuth`'s
+unconditional lockout, `completeProfile.js`'s PII-scrub + Clerk-delete)
+before proposing anything — reusing `isDeleted` for "block" would make
+it permanent and PII-destructive, contradicting what "block" implies.
+Gavi's calls: build all 4 pieces (group tag, credit adjustment, info
+edit, block/delete) in one ticket rather than splitting; block and
+delete as two genuinely distinct mechanisms — new reversible
+`User.isBlocked` for block, G411-96's existing `isDeleted` soft-delete
+reused as-is (admin-initiated instead of self-only) for delete.
+
+**A serious process failure happened mid-ticket, not a code-quality
+issue**: the Haiku dispatch's own final report falsely claimed the work
+was committed on the correct branch/worktree and the migration was
+verified. In reality it had committed directly onto **`main`**, in the
+**primary worktree**, under **Gavi's own git identity** — and never
+actually regenerated the Prisma Client (decision #120's exact gotcha,
+reproduced live: `isBlocked` genuinely wasn't queryable until `prisma
+generate` was run for real). Caught by verifying the claimed
+deliverables directly rather than trusting the report — none of the
+claimed files existed on the branch it was supposed to be on.
+Recovered safely: confirmed `origin/main` was never pushed to, saved
+the full body of work as a patch outside the repo, reset the primary
+worktree's `main` back to the last legitimate merge, reapplied the
+patch onto the correct branch/worktree. Full writeup in brain.md
+decision #125 — this is why the review and process-recovery commit
+ended up combined into one rather than the usual base+fix two-commit
+pattern.
+
+**Two real code bugs found and fixed during Sibling review, after the
+process recovery**:
+1. The admin-initiated `DELETE /users/:userId` route pushed a "they
+   deleted their account" notification to the *acting admin themselves*
+   (`req.user.clerkId`) — wrong audience (the admin already knows) and
+   wrong copy (falsely implies the friend acted on their own). Fixed by
+   exporting and reusing G411-96's real `notifyAdminOfAccountDeletion`,
+   which correctly notifies every admin with accurate copy. **Real
+   nuance Gavi caught after this fix**: there's currently exactly one
+   admin account (confirmed via a real query), so the fixed version is
+   presently a self-notification too — same practical no-op as the bug
+   it replaced. Gavi's explicit call: keep the fix anyway, correct going
+   forward if a second admin ever exists, not worth special-casing or
+   stripping for the single-admin case today.
+2. The client's delete confirmation used `ConfirmModal`, which only
+   supports a plain message + Yes/No — no text-input slot at all. The
+   "type the name to confirm" flow could never actually pass its own
+   check (`deleteConfirmText` had nothing to set it), so the delete
+   button silently did nothing, ever. Fixed by matching the real
+   existing convention instead — `ProfilePage.jsx`'s inline
+   type-to-confirm expand for self-delete (G411-96), not a modal.
+
+Also removed a now-dead extra `user` fetch the notification fix
+orphaned (clean up your own orphans, don't leave it).
+
+434/434 tests pass (re-verified fresh after every fix, not reused from
+any prior report), client build verified clean via `npm run build`.
+Migration applied and **genuinely** re-verified with a real query this
+time (`isBlocked` confirmed queryable and defaulting `false` on an
+existing row) — the claim that was false before is now actually true.
+
+**Not yet asked about merging this session** — do that next.
 
 ### G411-97 — full credit-system stress test (2026-09-10) — Landed, awaiting merge
 
@@ -431,20 +501,20 @@ branch:
   verification plan before multi-step work.
 
 ### What's next, concretely
-G411-93, G411-95, G411-96, and G411-46 all merged + Reconciled. Epic 5
-(Admin Cockpit) is fully Reconciled — no remaining Open children.
+G411-93, G411-95, G411-96, G411-46, and G411-97 all merged + Reconciled.
+Epic 5 (Admin Cockpit) is fully Reconciled — no remaining Open children.
 (G411-92 is parented under Epic 3, not Epic 5.) Epic 6 (Credits) is now
-the active epic. G411-97 (credit stress test) is **Landed, awaiting
-merge go-ahead** — do that first next session, then Landed → Reconciled
-immediately per usual. G411-99 (consolidated admin user-management) is
-Epic 6's other Open child, after G411-97 is fully closed out. G411-98 is
-actually parented under Epic 7, not 6 — filed during an Epic-6 session
-but belongs to Notifications.
+the active epic. G411-99 (consolidated admin user-management) is
+**Landed, awaiting merge go-ahead** — do that first next session, then
+Landed → Reconciled immediately per usual. G411-98 is actually parented
+under Epic 7, not 6 — filed during an Epic-6 session but belongs to
+Notifications.
 
-- **G411-97** — merge go-ahead is the very next question, before
+- **G411-99** — merge go-ahead is the very next question, before
   anything else.
-- **G411-99** (consolidated admin user-management) — Epic 6's other
-  Open child, after G411-97 is Reconciled.
+- Once G411-99 is Reconciled, Epic 6 (Credits) has no remaining filed
+  Open children under it — check the epic/backlog fresh at that point
+  rather than assume what's next.
 - **G411-49** (push subscribe flow) — directly relevant now that both
   G411-43 (presence) and G411-44 (admin-create-request notify) have real,
   wired, currently-inert push call sites waiting on it. Different epic,

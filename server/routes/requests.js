@@ -2,7 +2,8 @@
 
 import express from 'express'
 import multer from 'multer'
-import { Status, Urgency } from '@prisma/client'
+import { Status, Urgency, Prisma } from '@prisma/client'
+import { clerkClient } from '@clerk/express'
 import { matchKeywords } from '../lib/matchKeywords.js'
 import { requireAuth, requireAdmin } from '../middleware/auth.js'
 import { prisma } from '../lib/prisma.js'
@@ -12,6 +13,7 @@ import { E2E_ENABLED } from '../lib/e2eConfig.js'
 import { deductCredit, refundCredit, creditDeltaForTierChange } from '../lib/credits.js'
 import { sendNudge, MESSAGE_INCLUDE } from '../lib/autoClose.js'
 import { sendPushToUser } from '../lib/webPush.js'
+import { isValidPhoneNumber, notifyAdminOfAccountDeletion } from './completeProfile.js'
 
 const router = express.Router()
 
@@ -143,7 +145,11 @@ router.get('/', requireAuth, async (req, res) => {
   }
 })
 
-// GET /users — list all users for admin's dropdown (G411-44)
+// GET /users — list all users for admin's dropdown (G411-44).
+// Extended for G411-99 user-management screen: now also includes
+// groupTag, creditBalance, isDeleted, isBlocked so the new screen can
+// render user state and available actions (edit, adjust credits, etc.)
+// without additional fetches.
 router.get('/users', requireAuth, requireAdmin, async (req, res) => {
   try {
     const users = await prisma.user.findMany({
@@ -153,7 +159,15 @@ router.get('/users', requireAuth, requireAdmin, async (req, res) => {
       // appearing in it. Without this, admin could select themselves,
       // charge their own account a credit, and push-notify themselves.
       where: { role: { not: 'ADMIN' } },
-      select: { clerkId: true, firstName: true, lastName: true },
+      select: {
+        clerkId: true,
+        firstName: true,
+        lastName: true,
+        groupTag: true,
+        creditBalance: true,
+        isDeleted: true,
+        isBlocked: true,
+      },
       orderBy: [{ firstName: 'asc' }, { lastName: 'asc' }],
     })
     res.json(users)
@@ -227,6 +241,209 @@ router.patch('/users/:userId/group-tag', requireAuth, requireAdmin, async (req, 
     }
     console.error('Failed to update group tag:', err)
     res.status(500).json({ error: 'Failed to update group tag' })
+  }
+})
+
+// PATCH /users/:userId/credit-adjustment — admin-only one-time credit
+// adjustment for a user (G411-99). Body: { delta: number } (positive or
+// negative integer). Validates non-zero, rejects if target is an admin
+// (same convention as group-tag route), and enforces balance floor (can't
+// go below 0). Writes a matching CreditTransaction row per the existing
+// deductCredit/refundCredit pattern.
+router.patch('/users/:userId/credit-adjustment', requireAuth, requireAdmin, async (req, res) => {
+  const { delta } = req.body
+
+  if (typeof delta !== 'number' || !Number.isInteger(delta) || delta === 0) {
+    return res.status(400).json({ error: 'delta must be a non-zero integer' })
+  }
+
+  try {
+    const updated = await prisma.$transaction(async (tx) => {
+      const existing = await tx.user.findUnique({
+        where: { clerkId: req.params.userId },
+        select: { role: true, creditBalance: true },
+      })
+      if (!existing) {
+        const err = new Error('User not found')
+        err.statusCode = 404
+        throw err
+      }
+      if (existing.role === 'ADMIN') {
+        const err = new Error('User not found')
+        err.statusCode = 404
+        throw err
+      }
+
+      const newBalance = existing.creditBalance + delta
+      if (newBalance < 0) {
+        const err = new Error('Balance cannot go below 0')
+        err.statusCode = 400
+        throw err
+      }
+
+      const user = await tx.user.update({
+        where: { clerkId: req.params.userId },
+        data: { creditBalance: { increment: delta } },
+        select: { clerkId: true, creditBalance: true },
+      })
+
+      await tx.creditTransaction.create({
+        data: { amount: delta, userId: req.params.userId },
+      })
+
+      return user
+    })
+    res.json(updated)
+  } catch (err) {
+    if (err.statusCode === 404 || err.code === 'P2025') {
+      return res.status(404).json({ error: 'User not found' })
+    }
+    if (err.statusCode === 400) {
+      return res.status(400).json({ error: err.message })
+    }
+    console.error('Failed to adjust credit:', err)
+    res.status(500).json({ error: 'Failed to adjust credit' })
+  }
+})
+
+// PATCH /users/:userId/info — admin-only update of user basic info
+// (G411-99). Body: { firstName?, lastName?, phoneNumber? } — all optional,
+// partial update. Validates phoneNumber if present using isValidPhoneNumber.
+// Returns 404 if target not found or is an admin (same convention as
+// group-tag route). Handles P2002 (phone uniqueness) and P2025 errors.
+router.patch('/users/:userId/info', requireAuth, requireAdmin, async (req, res) => {
+  const { firstName, lastName, phoneNumber } = req.body
+  const data = {}
+
+  if (firstName !== undefined) data.firstName = firstName
+  if (lastName !== undefined) data.lastName = lastName
+  if (phoneNumber !== undefined) {
+    if (!isValidPhoneNumber(phoneNumber)) {
+      return res.status(400).json({ error: 'Please enter a valid phone number' })
+    }
+    data.phoneNumber = phoneNumber
+  }
+
+  if (Object.keys(data).length === 0) {
+    return res.status(400).json({ error: 'No valid fields to update' })
+  }
+
+  try {
+    const existing = await prisma.user.findUnique({
+      where: { clerkId: req.params.userId },
+      select: { role: true },
+    })
+    if (!existing || existing.role === 'ADMIN') {
+      return res.status(404).json({ error: 'User not found' })
+    }
+
+    const user = await prisma.user.update({
+      where: { clerkId: req.params.userId },
+      data,
+      select: { clerkId: true, firstName: true, lastName: true, phoneNumber: true },
+    })
+    res.json(user)
+  } catch (err) {
+    if (err.code === 'P2002') {
+      return res.status(409).json({ error: 'That phone number is already registered to another account' })
+    }
+    if (err.code === 'P2025') {
+      return res.status(404).json({ error: 'User not found' })
+    }
+    console.error('Failed to update user info:', err)
+    res.status(500).json({ error: 'Failed to update user info' })
+  }
+})
+
+// PATCH /users/:userId/block — admin-only toggle block status for a user
+// (G411-99). Body: { blocked: boolean }. Reversible unlike deletion.
+// Returns 404 if target not found or is an admin.
+router.patch('/users/:userId/block', requireAuth, requireAdmin, async (req, res) => {
+  const { blocked } = req.body
+
+  if (typeof blocked !== 'boolean') {
+    return res.status(400).json({ error: 'blocked must be a boolean' })
+  }
+
+  try {
+    const existing = await prisma.user.findUnique({
+      where: { clerkId: req.params.userId },
+      select: { role: true },
+    })
+    if (!existing || existing.role === 'ADMIN') {
+      return res.status(404).json({ error: 'User not found' })
+    }
+
+    const user = await prisma.user.update({
+      where: { clerkId: req.params.userId },
+      data: { isBlocked: blocked },
+      select: { clerkId: true, isBlocked: true },
+    })
+    res.json(user)
+  } catch (err) {
+    if (err.code === 'P2025') {
+      return res.status(404).json({ error: 'User not found' })
+    }
+    console.error('Failed to update block status:', err)
+    res.status(500).json({ error: 'Failed to update block status' })
+  }
+})
+
+// DELETE /users/:userId — admin-only soft-delete of a user account
+// (G411-99). Reuses the exact soft-delete mechanism from completeProfile.js's
+// DELETE /api/me route (isDeleted: true, scrub email/phoneNumber/profilePic/
+// publicKey, delete Clerk record after Prisma commit, fire-and-forget admin
+// notification). This is IRREVERSIBLE, unlike the reversible block action.
+// Returns 404 if target not found or is an admin.
+router.delete('/users/:userId', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const existing = await prisma.user.findUnique({
+      where: { clerkId: req.params.userId },
+      select: { role: true },
+    })
+    if (!existing || existing.role === 'ADMIN') {
+      return res.status(404).json({ error: 'User not found' })
+    }
+
+    // Soft-delete: clear PII, mark deleted, preserve Request/Message/Credit history
+    const deletedUser = await prisma.user.update({
+      where: { clerkId: req.params.userId },
+      data: {
+        isDeleted: true,
+        email: null,
+        phoneNumber: `deleted-${req.params.userId}`,
+        profilePic: null,
+        publicKey: null,
+      },
+    })
+
+    // Delete Clerk record AFTER Prisma succeeds — if Clerk fails, our account
+    // is already locked out locally (safe), not the other way around.
+    try {
+      await clerkClient.users.deleteUser(req.params.userId)
+    } catch (clerkErr) {
+      // Clerk delete failure doesn't fail the whole request — the account is
+      // already scrubbed/locked on our side, which is the safe state.
+      console.error(`Failed to delete Clerk user ${req.params.userId}:`, clerkErr)
+    }
+
+    // Fire-and-forget admin notification — reuses the same notify-all-admins
+    // helper G411-96's self-delete uses (Sibling review fix: the original
+    // version here sent a "they deleted their account" push to the acting
+    // admin only — wrong on both counts, since the admin already knows
+    // they just did it, and the copy falsely implied the friend acted on
+    // their own).
+    notifyAdminOfAccountDeletion(deletedUser).catch((err) => {
+      console.error(`Failed to notify admins of account deletion for ${req.params.userId}:`, err)
+    })
+
+    res.json({ success: true })
+  } catch (err) {
+    if (err.code === 'P2025') {
+      return res.status(404).json({ error: 'User not found' })
+    }
+    console.error('Failed to delete user:', err)
+    res.status(500).json({ error: 'Failed to delete user' })
   }
 })
 

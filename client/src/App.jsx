@@ -10,6 +10,7 @@ import TriggerAdmin from './pages/TriggerAdmin'
 import AdminCreateRequest from './pages/AdminCreateRequest'
 import CompleteProfile from './pages/CompleteProfile'
 import ProfilePage from './pages/ProfilePage'
+import UserManagement from './pages/UserManagement'
 import ConfirmModal from './components/ConfirmModal'
 import HamburgerMenu from './components/HamburgerMenu'
 import Button from './components/Button'
@@ -60,7 +61,7 @@ const THEME_LABEL = { light: 'Light', dark: 'Dark' }
 function App() {
   const { isSignedIn, user } = useUser()
   const { signOut } = useClerk()
-  const [view, setView] = useState('list') // 'list' | 'new' | 'install-help' | 'detail' | 'invite-admin' | 'trigger-admin' | 'admin-create-request' | 'profile' | 'open-requests' | 'closed-requests'
+  const [view, setView] = useState('list') // 'list' | 'new' | 'install-help' | 'detail' | 'invite-admin' | 'trigger-admin' | 'admin-create-request' | 'profile' | 'user-management' | 'open-requests' | 'closed-requests'
   const [selectedRequestId, setSelectedRequestId] = useState(null)
   const [newRequestHasText, setNewRequestHasText] = useState(false)
   const [showLogoDiscardConfirm, setShowLogoDiscardConfirm] = useState(false)
@@ -483,6 +484,8 @@ function App() {
             <TriggerAdmin onBack={() => setView('list')} />
           ) : view === 'admin-create-request' ? (
             <AdminCreateRequest onBack={() => setView(previousView)} />
+          ) : view === 'user-management' ? (
+            <UserManagement onBack={() => setView('list')} />
           ) : view === 'profile' ? (
             <ProfilePage
               user={fetchedUser}
@@ -575,6 +578,20 @@ function App() {
                 }}
               >
                 Triggers
+              </button>
+            )}
+
+            {/* User Management — admin-only user management screen (G411-99) */}
+            {isAdmin && (
+              <button
+                type="button"
+                className="hamburger-menu-item"
+                onClick={() => {
+                  setView('user-management')
+                  setHamburgerOpen(false)
+                }}
+              >
+                User Management
               </button>
             )}
 

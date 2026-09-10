@@ -74,6 +74,42 @@
         ],
         "createdAt": "2026-08-26T10:32:34.571Z",
         "reason": "icon glyph (remove-image ✕) inside a fixed 24x24 button, not running text — same sanctioned exception class as the 20px send-arrow/camera glyph already ignored in this file"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "#d32f2f",
+        "files": [
+          "client/src/pages/UserManagement.jsx"
+        ],
+        "createdAt": "2026-09-10T13:41:43.851Z",
+        "reason": "matches ProfilePage.jsx existing pattern for error/danger actions (#d32f2f for delete account confirmation)"
+      },
+      {
+        "rule": "design-system-font-size",
+        "value": "12px",
+        "files": [
+          "client/src/pages/UserManagement.css"
+        ],
+        "createdAt": "2026-09-10T13:41:55.289Z",
+        "reason": "small badge label font size, utility sizing matching existing codebase patterns"
+      },
+      {
+        "rule": "design-system-radius",
+        "value": "4px",
+        "files": [
+          "client/src/pages/UserManagement.css"
+        ],
+        "createdAt": "2026-09-10T13:41:58.549Z",
+        "reason": "small badge/input border-radius, utility sizing for UI consistency"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "#ffe0e0",
+        "files": [
+          "client/src/pages/UserManagement.css"
+        ],
+        "createdAt": "2026-09-10T13:42:02.394Z",
+        "reason": "light red badge background for blocked status, complements delete action danger color"
       }
     ]
   }
