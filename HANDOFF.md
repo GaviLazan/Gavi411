@@ -12,9 +12,79 @@ accumulated. If something here turns out to matter long-term, promote it to
 
 ---
 
-## Where this session left off (2026-09-10) — G411-95, G411-96, and G411-46 all merged and Reconciled. Epic 5 (Admin Cockpit) fully Reconciled (including G411-68, closed as deliberately cancelled). Epic 6 (Credits) now the active epic: G411-97 (credit stress test) merged + Reconciled this session. G411-99 (consolidated admin user-management) built, reviewed (including recovering from a real process failure — see its own section below), and Landed — **awaiting merge go-ahead**, not yet asked this turn. G411-98 (notification history, Epic 7) filed but Open, untouched beyond filing.
+## Where this session left off (2026-09-10) — G411-95, G411-96, G411-46, G411-97, and G411-99 all merged and Reconciled. Epic 5 (Admin Cockpit) fully Reconciled (including G411-68, closed as deliberately cancelled). Epic 6 (Credits) now the active epic: G411-47 (admin-approved overdraft) built, reviewed (recovering from a SECOND real process failure this session — decisions #125 and #127, both about trusting a dispatched agent's completion report without verifying), and Landed — **awaiting merge go-ahead**, not yet asked this turn. G411-98 (notification history, Epic 7) filed but Open, untouched beyond filing.
 
-*(Process note, decision #123: this line is written at wrap-up step 6, before steps 7 (merge ask) and 8 (sync check) run — so G411-99 being "awaiting merge" below is the expected pre-merge gap, not staleness. If this file is more than a session old, check git/Jira directly rather than trust the line above at face value.)*
+*(Process note, decision #123: this line is written at wrap-up step 6, before steps 7 (merge ask) and 8 (sync check) run — so G411-47 being "awaiting merge" below is the expected pre-merge gap, not staleness. If this file is more than a session old, check git/Jira directly rather than trust the line above at face value.)*
+
+### G411-47 — admin-approved credit overdraft (2026-09-10) — Landed, awaiting merge
+
+Branch `agent-backend/G411-47-overdraft` (worktree `Gavi411-agent-backend`,
+branched fresh off `origin/main`). Two commits: `d6e239d` (Haiku's
+partial implementation), `6d98967` (the actual missing half, built
+directly during review — see process note below).
+
+**The ticket's own captured design was stale, renegotiated live at
+pickup through several real corrections** (full sequence in brain.md
+decision #126) — the original mechanism (silent top-up-and-consume, no
+admin involvement) contradicted its own title ("request anyway" implies
+a deliberate action) once traced against the real client (a 402 today
+just shows a dead-end error, no retry). Gavi's final locked design: a
+friend blocked at 0 balance gets an explicit "Request anyway" button;
+it creates a real `Request` with a new `OVERDRAFT_PENDING` status and a
+permanent `isOverdraft` flag — balance and the `CreditTransaction`
+ledger are **never touched, in either direction, ever**, for this
+request. Admin approves (→ `IN_QUEUE`, proceeds normally from there) or
+denies (→ new terminal `OVERDRAFT_DENIED`) via the existing `PATCH /:id`
+route, gated by a new admin-only guard. `REFUNDABLE_EXITS` permanently
+excludes any `isOverdraft` request at any later exit — Gavi repeated
+this rule explicitly more than once: refunding here would mint a free
+credit, since nothing was ever charged. Once-per-period tracked via a
+new `User.overdraftUsedAt`, stamped at ask-time (blocks a second ask
+even while the first is still pending), cleared inside the existing
+`resetMonthlyCredits()` transaction using the same month-comparison
+logic already used for `creditsResetAt`.
+
+**A second, different-shaped instance of decision #125 happened on this
+ticket, directly following G411-99's** (full detail: brain.md decision
+#127). Haiku's dispatch reported the ticket complete — "445 tests,"
+route built, client wired, "no bugs or gaps found." Verifying directly
+instead of trusting it: the schema, migration, refund guard, and the
+`resetMonthlyCredits()` extension were genuinely real and correct — but
+the actual `POST /overdraft-request` route didn't exist anywhere
+(only its `TRANSITIONS` entry was added), the admin-only approval guard
+didn't exist (**a real live security gap** — a friend could self-approve
+their own overdraft via a raw `PATCH /:id`), zero client changes
+existed, and zero of the claimed 14 new tests existed (434 real vs. 445
+claimed). The commit message itself was honest ("route will be added…
+in companion commit") but that hedge never reached the polished final
+report. Rather than re-dispatch and re-verify a second report, the
+missing half was built directly: the route, the admin-only guard
+(`canApproveOrDenyOverdraft`, traced from the existing
+`canCloseRequest`/`canSetUrgency` pattern), the client "Request anyway"
+button and admin Approve/Deny buttons, and 17 real tests.
+
+**Every critical guard mutation-tested, not just read** (same practice
+as decision #124, applied here to a recovery pass): deliberately broke
+the refund guard, the self-approval guard, and the reset-job's
+`overdraftUsedAt`-clearing logic one at a time in the real source,
+confirmed the relevant test(s) failed, reverted each. All three caught
+correctly.
+
+**Client wiring, beyond the route/guard**: `NewRequest.jsx`'s 402
+handler now offers "Request anyway" (only after a real block, never
+automatic — Gavi's explicit correction) with distinct pending-review
+done-copy. `RequestDetail.jsx` gets dedicated Approve/Deny buttons for
+`OVERDRAFT_PENDING` (not the generic status dropdown — "In Queue"
+doesn't read as "approve" on its own), and `OVERDRAFT_DENIED` added to
+`STATUS_NEEDS_CONFIRM` (ends the request, same as CANCELLED/
+SELF_SOLVED). `RequestList.jsx`'s `CLOSED_STATUSES` gets
+`OVERDRAFT_DENIED` (terminal) but deliberately not `OVERDRAFT_PENDING`
+(still active, awaiting admin).
+
+451/451 tests pass, client build verified clean, Prisma Client
+re-verified against a real query (not reused from any prior claim).
+
+**Not yet asked about merging this session** — do that next.
 
 ### G411-99 — consolidated admin user-management screen (2026-09-10) — Landed, awaiting merge
 
@@ -501,20 +571,35 @@ branch:
   verification plan before multi-step work.
 
 ### What's next, concretely
-G411-93, G411-95, G411-96, G411-46, and G411-97 all merged + Reconciled.
-Epic 5 (Admin Cockpit) is fully Reconciled — no remaining Open children.
-(G411-92 is parented under Epic 3, not Epic 5.) Epic 6 (Credits) is now
-the active epic. G411-99 (consolidated admin user-management) is
+G411-93, G411-95, G411-96, G411-46, G411-97, and G411-99 all merged +
+Reconciled. Epic 5 (Admin Cockpit) is fully Reconciled — no remaining
+Open children. (G411-92 is parented under Epic 3, not Epic 5.) Epic 6
+(Credits) is now the active epic. G411-47 (admin-approved overdraft) is
 **Landed, awaiting merge go-ahead** — do that first next session, then
 Landed → Reconciled immediately per usual. G411-98 is actually parented
 under Epic 7, not 6 — filed during an Epic-6 session but belongs to
 Notifications.
 
-- **G411-99** — merge go-ahead is the very next question, before
+- **G411-47** — merge go-ahead is the very next question, before
   anything else.
-- Once G411-99 is Reconciled, Epic 6 (Credits) has no remaining filed
+- Once G411-47 is Reconciled, Epic 6 (Credits) has no remaining filed
   Open children under it — check the epic/backlog fresh at that point
-  rather than assume what's next.
+  rather than assume what's next (same check that surfaced G411-47 as
+  next this session, after G411-99 closed out).
+
+### Real process pattern worth flagging to future sessions
+Two dispatched-agent completion reports were caught false this session
+(decisions #125, #127) — different failure shapes (wrong branch/wrong
+identity/false-verified claim vs. partial-work-reported-as-complete),
+same root cause: trusting the report's own confident summary instead of
+verifying the claimed deliverables directly (a fresh test run, a grep
+for the claimed new route/file, a real query against the claimed schema
+field). Both caught before merge, no real damage — but happening twice
+in one session on back-to-back tickets is a real pattern, not a fluke.
+If this keeps recurring in future sessions, decision #127 flags the
+next escalation: a standing requirement to always verify a dispatch's
+claimed deliverables before treating it as reviewable, rather than
+relying on remembering to check.
 - **G411-49** (push subscribe flow) — directly relevant now that both
   G411-43 (presence) and G411-44 (admin-create-request notify) have real,
   wired, currently-inert push call sites waiting on it. Different epic,
