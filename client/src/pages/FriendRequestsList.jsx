@@ -1,7 +1,7 @@
+import { useEffect, useState } from "react";
 import Card from "../components/Card";
 import Button from "../components/Button";
 import { CLOSED_STATUSES, RequestCard } from "./RequestList";
-import { useRequests } from "../lib/useRequests";
 
 // Friend's open/closed requests list (G411-95 — extracted from
 // RequestList's toggle; open and closed were originally two near-
@@ -10,7 +10,29 @@ import { useRequests } from "../lib/useRequests";
 // RequestCard and CLOSED_STATUSES from RequestList to keep filtering
 // logic in one place.
 function FriendRequestsList({ status, onOpenRequest }) {
-  const { requests, error, retry } = useRequests();
+  const [requests, setRequests] = useState(null);
+  const [error, setError] = useState("");
+  const [retryToken, setRetryToken] = useState(0);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      setError("");
+      try {
+        const res = await fetch("/api/requests");
+        if (!res.ok) throw new Error("failed");
+        const data = await res.json();
+        if (!cancelled) setRequests(data);
+      } catch {
+        if (!cancelled) setError("Couldn't load requests. Try again?");
+      }
+    }
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, [retryToken]);
+  const retry = () => setRetryToken((t) => t + 1);
 
   const filtered = requests
     ? requests.filter((r) => (status === "closed") === CLOSED_STATUSES.includes(r.status))

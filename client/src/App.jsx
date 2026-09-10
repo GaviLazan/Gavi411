@@ -45,10 +45,6 @@ captureRecoveryParamsFromUrl()
 
 const THEME_LABEL = { light: 'Light', dark: 'Dark' }
 
-// Shared home-screen button-column style — admin and friend branches only
-// differ on maxWidth (admin has more buttons to fit).
-const homeButtonColumn = (maxWidth) => ({ display: "flex", flexDirection: "column", gap: "var(--space-3)", width: "100%", maxWidth })
-
 // G411-66: gate real content behind Clerk auth state.
 // NOTE: this project's installed package is "@clerk/react" (a lower-level
 // package), not "@clerk/clerk-react" — it does not export SignedIn/SignedOut
@@ -359,7 +355,7 @@ function App() {
         {role !== null && (
           <div hidden={view !== 'list'}>
             {isAdmin ? (
-              <div style={homeButtonColumn(560)}>
+              <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-3)", width: "100%", maxWidth: 560 }}>
                 <Button variant="primary" onClick={() => { setPreviousView('list'); setView('admin-create-request') }}>
                   + New request
                 </Button>
@@ -408,7 +404,7 @@ function App() {
                 </div>
               </div>
             ) : (
-              <div style={homeButtonColumn(420)}>
+              <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-3)", width: "100%", maxWidth: 420 }}>
                 <Button variant="primary" onClick={() => setView('new')}>
                   + New request
                 </Button>
