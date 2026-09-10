@@ -163,6 +163,34 @@ router.get('/users', requireAuth, requireAdmin, async (req, res) => {
   }
 })
 
+// PATCH /users/:userId/group-tag — update a user's group tier (G411-46)
+// Minimal admin control to unblock the monthly reset job: needs real data
+// (users with assigned tiers) to work. NOT the fuller user-management
+// screen (G411-99, separate ticket) — just this one tier-update endpoint.
+router.patch('/users/:userId/group-tag', requireAuth, requireAdmin, async (req, res) => {
+  const { groupTag } = req.body
+  const validTags = ['LIMITED', 'REGULAR', 'CLOSE']
+
+  if (!groupTag || !validTags.includes(groupTag)) {
+    return res.status(400).json({ error: `groupTag must be one of: ${validTags.join(', ')}` })
+  }
+
+  try {
+    const user = await prisma.user.update({
+      where: { clerkId: req.params.userId },
+      data: { groupTag },
+      select: { clerkId: true, groupTag: true },
+    })
+    res.json(user)
+  } catch (err) {
+    if (err.code === 'P2025') {
+      return res.status(404).json({ error: 'User not found' })
+    }
+    console.error('Failed to update group tag:', err)
+    res.status(500).json({ error: 'Failed to update group tag' })
+  }
+})
+
 // GET /:id — one request + its messages (G411-67). Owner or admin only.
 router.get('/:id', requireAuth, async (req, res) => {
   const id = Number(req.params.id)

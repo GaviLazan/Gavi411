@@ -1596,6 +1596,76 @@ describe('POST /api/requests/admin-create (G411-44)', () => {
   })
 })
 
+describe('PATCH /api/requests/users/:userId/group-tag (G411-46)', () => {
+  it('401s when unauthenticated', async () => {
+    const res = await request(app).patch('/api/requests/users/user_1/group-tag').send({ groupTag: 'REGULAR' })
+    expect(res.status).toBe(401)
+  })
+
+  it('404s for a non-admin user', async () => {
+    currentUserId = OTHER
+    const res = await request(app).patch('/api/requests/users/user_1/group-tag').send({ groupTag: 'REGULAR' })
+    expect(res.status).toBe(404)
+  })
+
+  it('400s when groupTag is missing', async () => {
+    currentUserId = ADMIN
+    const res = await request(app).patch('/api/requests/users/user_1/group-tag').send({})
+    expect(res.status).toBe(400)
+    expect(res.body.error).toContain('groupTag')
+  })
+
+  it('400s when groupTag is an invalid value', async () => {
+    currentUserId = ADMIN
+    const res = await request(app).patch('/api/requests/users/user_1/group-tag').send({ groupTag: 'INVALID' })
+    expect(res.status).toBe(400)
+    expect(res.body.error).toContain('LIMITED')
+  })
+
+  it('updates the user\'s groupTag and returns the updated user', async () => {
+    currentUserId = ADMIN
+    prismaMock.user.update.mockResolvedValue({ clerkId: OTHER, groupTag: 'CLOSE' })
+
+    const res = await request(app)
+      .patch('/api/requests/users/user_other/group-tag')
+      .send({ groupTag: 'CLOSE' })
+
+    expect(res.status).toBe(200)
+    expect(res.body).toEqual({ clerkId: OTHER, groupTag: 'CLOSE' })
+    expect(prismaMock.user.update).toHaveBeenCalledWith({
+      where: { clerkId: 'user_other' },
+      data: { groupTag: 'CLOSE' },
+      select: { clerkId: true, groupTag: true },
+    })
+  })
+
+  it('404s when the user does not exist (P2025 error)', async () => {
+    currentUserId = ADMIN
+    const notFoundErr = new Error('User not found')
+    notFoundErr.code = 'P2025'
+    prismaMock.user.update.mockRejectedValue(notFoundErr)
+
+    const res = await request(app)
+      .patch('/api/requests/users/nonexistent/group-tag')
+      .send({ groupTag: 'LIMITED' })
+
+    expect(res.status).toBe(404)
+    expect(res.body.error).toBe('User not found')
+  })
+
+  it('500s on an unexpected database error', async () => {
+    currentUserId = ADMIN
+    prismaMock.user.update.mockRejectedValue(new Error('DB connection lost'))
+
+    const res = await request(app)
+      .patch('/api/requests/users/user_1/group-tag')
+      .send({ groupTag: 'REGULAR' })
+
+    expect(res.status).toBe(500)
+    expect(res.body.error).toContain('Failed to update')
+  })
+})
+
 describe('stripEmpty (G411-74 Sibling review finding)', () => {
   it('drops a nested object whose fields are all empty, not just top-level empties', async () => {
     // TravelFields' new hotel/car objects (G411-74) — an all-blank toggled-on

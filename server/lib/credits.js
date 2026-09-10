@@ -59,3 +59,70 @@ export async function refundCredit(tx, userId) {
     data: { amount: 1, userId },
   })
 }
+
+// G411-46: monthly credit reset job. Resets credit balance to the tier's
+// initial amount for any user whose creditsResetAt is either null (never
+// reset) or falls in a different calendar month than today. Calendar month
+// is determined by getMonth()/getFullYear() (or their UTC equivalents — we
+// match the codebase's existing convention), so a user who joined near
+// month-end and gets reset again just days later on the next month-change
+// is expected behavior, not a bug.
+//
+// Runs every 6 hours via server.js's setInterval — no need for finer-
+// grained polling. Fire-and-log: a failure for one user does not stop
+// the pass from processing others. Non-atomic across users by design:
+// if the server crashes after resetting user #3, user #4 onward will
+// simply retry on the next pass without duplicating #3's transaction.
+export async function resetMonthlyCredits() {
+  const users = await prisma.user.findMany({
+    select: {
+      clerkId: true,
+      groupTag: true,
+      creditBalance: true,
+      creditsResetAt: true,
+    },
+  })
+
+  const now = new Date()
+  const currentMonth = now.getMonth()
+  const currentYear = now.getFullYear()
+
+  for (const user of users) {
+    try {
+      // Determine if this user needs a reset: either creditsResetAt is
+      // null, or it's from a different calendar month.
+      let needsReset = !user.creditsResetAt
+      if (user.creditsResetAt && !needsReset) {
+        const lastResetMonth = user.creditsResetAt.getMonth()
+        const lastResetYear = user.creditsResetAt.getFullYear()
+        needsReset = lastResetMonth !== currentMonth || lastResetYear !== currentYear
+      }
+
+      if (!needsReset) {
+        continue
+      }
+
+      // Perform the reset in a transaction: update balance + creditsResetAt,
+      // and write the transaction log entry with the delta amount.
+      await prisma.$transaction(async (tx) => {
+        const newBalance = initialCreditFor(user.groupTag)
+        const delta = newBalance - user.creditBalance
+
+        await tx.user.update({
+          where: { clerkId: user.clerkId },
+          data: {
+            creditBalance: newBalance,
+            creditsResetAt: new Date(),
+          },
+        })
+
+        await tx.creditTransaction.create({
+          data: { amount: delta, userId: user.clerkId },
+        })
+      })
+    } catch (err) {
+      // Log the failure but continue processing the next user.
+      console.error(`Failed to reset credits for user ${user.clerkId}:`, err)
+    }
+  }
+}
