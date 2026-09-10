@@ -802,6 +802,14 @@ The commit message itself (as opposed to the polished final chat report) was hon
 
 **Lesson, sharper than #125 alone**: this happened twice in one session, on two different dispatches, in two different failure shapes (wholesale fabrication vs. partial-completion-reported-as-complete). A single documented lesson was not sufficient to prevent a second occurrence a few tickets later — worth watching whether this keeps recurring across future sessions, at which point #106's "the fix is a mechanism, not another paragraph" principle would apply: if trusting a dispatch's own completion report keeps failing, the real fix might be a standing requirement to always run a fresh test count and grep for claimed new files/routes before treating any dispatch as reviewable, not just something to remember to do.
 
+### Decision #128 — Parent Epic rollup was missed twice in one session despite an existing standing rule; Gavi caught and fixed both directly (2026-09-10)
+
+The jira-parent-rollup memory rule ("always update the parent Epic's status alongside a child Task's status transition") already existed going into this session, but wasn't followed twice in a row: Epic 6 (Credits) stayed Open after G411-47 became its last remaining child to Reconcile, and Epic 8 (Testing & CI/CD) stayed Open after G411-52's closeout left it with real in-progress work (G411-53 still Open under it) that should have moved it to Implementing. Gavi caught both and fixed them directly rather than letting them sit wrong.
+
+**Why this is worth a numbered entry rather than just re-noting the existing rule**: the rule already existed and was already correct — this isn't a case of a missing or wrong instruction (the usual reason something gets logged here), it's a case of a correct instruction not being followed in execution, twice, in immediate succession. That's a different failure class than #106's "the fix is a mechanism, not another paragraph" — there's no obvious mechanical enforcement for "did the agent remember to check the parent's rollup state after every child transition" the way a git hook enforces branch protection. The closest available fix is procedural: treat every child status transition (especially → Reconciled, and especially any transition that changes whether the parent has remaining Open work) as a two-step action — the child transition, then an explicit parent-status check — rather than one step that's easy to consider "done" after just the child.
+
+**Lesson**: an existing correct standing rule can still fail in execution under real session load (many tickets, many transitions, attention genuinely split across STOP 1/review/wrap-up for multiple tickets back to back). Worth treating parent-rollup as a checklist item at the moment of any child transition, not just something the rule documents and hopes gets remembered.
+
 ## 7. Not Yet Discussed
  
 - Data model, architecture, tech decisions (schema itself not yet drafted — first task on deck).

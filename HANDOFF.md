@@ -12,11 +12,11 @@ accumulated. If something here turns out to matter long-term, promote it to
 
 ---
 
-## Where this session left off (2026-09-10) — G411-95, G411-96, G411-46, G411-97, and G411-99 all merged and Reconciled. Epic 5 (Admin Cockpit) fully Reconciled (including G411-68, closed as deliberately cancelled). Epic 6 (Credits) now the active epic: G411-47 (admin-approved overdraft) built, reviewed (recovering from a SECOND real process failure this session — decisions #125 and #127, both about trusting a dispatched agent's completion report without verifying), and Landed — **awaiting merge go-ahead**, not yet asked this turn. G411-98 (notification history, Epic 7) filed but Open, untouched beyond filing.
+## Where this session left off (2026-09-10) — G411-95, G411-96, G411-46, G411-97, G411-99, and G411-47 all merged and Reconciled. Epic 5 (Admin Cockpit) and Epic 6 (Credits) are both now fully Reconciled — every Epic-6 child (G411-45/46/47/48) is resolved, no Open children remain under it. G411-98 (notification history, Epic 7) filed but Open, untouched beyond filing — next Epic to pick up isn't yet agreed with Gavi.
 
-*(Process note, decision #123: this line is written at wrap-up step 6, before steps 7 (merge ask) and 8 (sync check) run — so G411-47 being "awaiting merge" below is the expected pre-merge gap, not staleness. If this file is more than a session old, check git/Jira directly rather than trust the line above at face value.)*
+*(Process note, decision #123: HANDOFF gets written pre-merge at wrap-up step 6 and then corrected post-merge once steps 7-8 actually run, same turn — this file reflects the real, fully-merged state as of the end of this session, not a pre-merge snapshot.)*
 
-### G411-47 — admin-approved credit overdraft (2026-09-10) — Landed, awaiting merge
+### G411-47 — admin-approved credit overdraft (2026-09-10) — merged, Reconciled
 
 Branch `agent-backend/G411-47-overdraft` (worktree `Gavi411-agent-backend`,
 branched fresh off `origin/main`). Two commits: `d6e239d` (Haiku's
@@ -84,9 +84,9 @@ SELF_SOLVED). `RequestList.jsx`'s `CLOSED_STATUSES` gets
 451/451 tests pass, client build verified clean, Prisma Client
 re-verified against a real query (not reused from any prior claim).
 
-**Not yet asked about merging this session** — do that next.
+**Merged (PR #101, `7038159`) and Reconciled.**
 
-### G411-99 — consolidated admin user-management screen (2026-09-10) — Landed, awaiting merge
+### G411-99 — consolidated admin user-management screen (2026-09-10) — merged, Reconciled
 
 Branch `agent-frontend/G411-99-user-management` (worktree
 `Gavi411-agent-frontend`, branched fresh off `origin/main`). One commit,
@@ -154,9 +154,9 @@ Migration applied and **genuinely** re-verified with a real query this
 time (`isBlocked` confirmed queryable and defaulting `false` on an
 existing row) — the claim that was false before is now actually true.
 
-**Not yet asked about merging this session** — do that next.
+**Merged (PR #100, `fcb98b2`) and Reconciled.**
 
-### G411-97 — full credit-system stress test (2026-09-10) — Landed, awaiting merge
+### G411-97 — full credit-system stress test (2026-09-10) — merged, Reconciled
 
 Branch `agent-backend/G411-97-credit-stress-test` (worktree
 `Gavi411-agent-backend`, branched fresh off `origin/main` at the start
@@ -207,7 +207,7 @@ zero diff against the real source files before finishing.
 fields written (Evidence-bar-met field kept under the 255-char cap,
 full mutation-test detail here instead).
 
-**Not yet asked about merging this session** — do that next.
+**Merged (PR #99, `b7a09d7`) and Reconciled.**
 
 ### G411-46 — monthly credit reset job + admin tier control (2026-09-10) — merged, Reconciled
 
@@ -571,21 +571,39 @@ branch:
   verification plan before multi-step work.
 
 ### What's next, concretely
-G411-93, G411-95, G411-96, G411-46, G411-97, and G411-99 all merged +
-Reconciled. Epic 5 (Admin Cockpit) is fully Reconciled — no remaining
-Open children. (G411-92 is parented under Epic 3, not Epic 5.) Epic 6
-(Credits) is now the active epic. G411-47 (admin-approved overdraft) is
-**Landed, awaiting merge go-ahead** — do that first next session, then
-Landed → Reconciled immediately per usual. G411-98 is actually parented
-under Epic 7, not 6 — filed during an Epic-6 session but belongs to
-Notifications.
+G411-93, G411-95, G411-96, G411-46, G411-97, G411-99, and G411-47 all
+merged + Reconciled. Epic 5 (Admin Cockpit) AND Epic 6 (Credits) are
+now both fully Reconciled — every filed child under Epic 6 (G411-45,
+46, 47, 48) is resolved, none Open. (G411-92 is parented under Epic 3,
+not Epic 5.) G411-98 is parented under Epic 7 (Notifications), filed
+during an Epic-6 session but belongs there, not here.
 
-- **G411-47** — merge go-ahead is the very next question, before
-  anything else.
-- Once G411-47 is Reconciled, Epic 6 (Credits) has no remaining filed
-  Open children under it — check the epic/backlog fresh at that point
-  rather than assume what's next (same check that surfaced G411-47 as
-  next this session, after G411-99 closed out).
+**G411-52 (Vitest scaffolding, Epic 8) also Reconciled this session**,
+as a status check Gavi asked for, not new work — verified `npm test`
+from repo root already runs one Vitest suite (25 files, 451 tests)
+spanning both `server/` and `client/src/lib/`, covering every feature
+shipped so far. Real gap against the ticket's literal `[Collab]` scope
+(same superseded-tag situation as decision #63 already covers) — Gavi's
+explicit call: not a real gap, Reconcile as-is. Comment on the ticket
+has full detail. **G411-53 (CI pipeline, same Epic 8) checked at the
+same time and left Open** — no real CI exists yet. Epic 6 (Credits) and
+Epic 8 (Testing & CI/CD, now Implementing since G411-53 is still Open)
+parent rollups were **missed by this session and fixed by Gavi
+directly** — a real process gap (the standing jira-parent-rollup rule
+wasn't followed on either transition), see brain.md decision #128.
+
+- **No epic has been explicitly agreed with Gavi as next yet** — per
+  Epic-order convention, the next lowest-numbered Epic with an Open
+  child needs a fresh check against the real Jira backlog (Epics 3, 7,
+  8, 9 all have Open work; don't assume from memory which is really
+  next — re-check at pickup, same as every session-start ritual says).
+- **G411-49** (push subscribe flow) — flagged as genuinely ready
+  whenever its epic comes up: G411-43 (presence) and G411-44
+  (admin-create-request notify) both have real, wired, currently-inert
+  push call sites waiting on it.
+- **G411-56** (copy pass, Epic 9) — has a specific known item now
+  (install-ios.md's dev-facing text), but the whole ticket is
+  deliberately deferred until its own milestone, not urgent.
 
 ### Real process pattern worth flagging to future sessions
 Two dispatched-agent completion reports were caught false this session
@@ -600,10 +618,3 @@ If this keeps recurring in future sessions, decision #127 flags the
 next escalation: a standing requirement to always verify a dispatch's
 claimed deliverables before treating it as reviewable, rather than
 relying on remembering to check.
-- **G411-49** (push subscribe flow) — directly relevant now that both
-  G411-43 (presence) and G411-44 (admin-create-request notify) have real,
-  wired, currently-inert push call sites waiting on it. Different epic,
-  not next in strict order, but flagged as ready whenever picked up.
-- **G411-56** (copy pass, Epic 9) — has a specific known item now
-  (install-ios.md's dev-facing text), but the whole ticket is
-  deliberately deferred until its own milestone, not urgent.
