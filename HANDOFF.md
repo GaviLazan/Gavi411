@@ -12,9 +12,38 @@ accumulated. If something here turns out to matter long-term, promote it to
 
 ---
 
-## Where this session left off (2026-09-10) — G411-95, G411-96, G411-46, G411-97, G411-99, and G411-47 all merged and Reconciled. Epic 5 (Admin Cockpit) and Epic 6 (Credits) are both now fully Reconciled — every Epic-6 child (G411-45/46/47/48) is resolved, no Open children remain under it. G411-98 (notification history, Epic 7) filed but Open, untouched beyond filing — next Epic to pick up isn't yet agreed with Gavi.
+## Where this session left off (2026-09-10) — G411-95, G411-96, G411-46, G411-97, G411-99, G411-47, and G411-52 all merged/Reconciled. **Next session: Gavi wants to move to Epic 7 (Notifications)** — his explicit call, not strict Epic-order default (see the real epic state below, Epic 3 is technically lower-numbered and still Implementing, but Gavi chose to skip to 7). Start there: agree the specific child with Gavi (G411-98 is filed and Open under it — check for siblings too, don't assume it's the only one) before any code, per the normal STOP 1 ritual.
 
 *(Process note, decision #123: HANDOFF gets written pre-merge at wrap-up step 6 and then corrected post-merge once steps 7-8 actually run, same turn — this file reflects the real, fully-merged state as of the end of this session, not a pre-merge snapshot.)*
+
+**Real epic state, checked fresh at end of session** (all 9 epics, not
+just the ones touched this session):
+- G411-1 (Foundation) — Reconciled
+- G411-2 (Requests/Intake) — Reconciled
+- G411-3 (Messaging) — **Implementing**, not touched this session, has
+  real work still open under it (not enumerated here — check its
+  children fresh if this ever becomes relevant)
+- G411-4 (Request Lifecycle) — Reconciled
+- G411-5 (Admin Cockpit) — Reconciled (fully closed out this session)
+- G411-6 (Credits) — Reconciled (fully closed out this session, via
+  G411-47 + the G411-52 rollup Gavi fixed manually — see decision #128)
+- **G411-7 (Notifications) — Open, this is next per Gavi's explicit
+  call.** Real children, checked fresh, all Open: **G411-49** (Web Push
+  subscribe flow + permission UI — infra + trigger integration,
+  lowest-numbered, and already flagged earlier this session as ready:
+  G411-43/G411-44 have real wired-but-inert push call sites waiting on
+  it), **G411-50** (Telegram bot setup), **G411-51** (notification
+  trigger matrix — new request/message/status-change → which channel),
+  **G411-78** (message-thread aria-live region), **G411-98**
+  (notification history screen, admin + friend). Agree the specific
+  child with Gavi at pickup — G411-49 reads as the natural
+  lowest-numbered start, but don't assume, ask.
+- G411-8 (Testing & CI/CD) — Implementing (G411-52 Reconciled this
+  session as a status check; G411-53, the CI pipeline, still Open under
+  it — genuinely unbuilt, not just unreconciled)
+- G411-9 (Copywriting & UI/UX Pass) — Open, deliberately deferred to its
+  own milestone (see G411-56)
+- G411-57 (V2/Stretch Backlog) — Open, not in scope for now
 
 ### G411-47 — admin-approved credit overdraft (2026-09-10) — merged, Reconciled
 
@@ -571,50 +600,35 @@ branch:
   verification plan before multi-step work.
 
 ### What's next, concretely
-G411-93, G411-95, G411-96, G411-46, G411-97, G411-99, and G411-47 all
-merged + Reconciled. Epic 5 (Admin Cockpit) AND Epic 6 (Credits) are
-now both fully Reconciled — every filed child under Epic 6 (G411-45,
-46, 47, 48) is resolved, none Open. (G411-92 is parented under Epic 3,
-not Epic 5.) G411-98 is parented under Epic 7 (Notifications), filed
-during an Epic-6 session but belongs there, not here.
+See the epic-by-epic breakdown and Epic 7's real children near the top
+of this file — not repeated here to avoid two sources of truth. Short
+version: Epic 7 is next per Gavi's explicit call, G411-49 (push
+subscribe flow) reads as the natural lowest-numbered start (G411-43/
+G411-44 already have wired-but-inert push call sites waiting on it),
+but agree the actual child with Gavi at pickup rather than assume.
 
-**G411-52 (Vitest scaffolding, Epic 8) also Reconciled this session**,
-as a status check Gavi asked for, not new work — verified `npm test`
-from repo root already runs one Vitest suite (25 files, 451 tests)
-spanning both `server/` and `client/src/lib/`, covering every feature
-shipped so far. Real gap against the ticket's literal `[Collab]` scope
-(same superseded-tag situation as decision #63 already covers) — Gavi's
-explicit call: not a real gap, Reconcile as-is. Comment on the ticket
-has full detail. **G411-53 (CI pipeline, same Epic 8) checked at the
-same time and left Open** — no real CI exists yet. Epic 6 (Credits) and
-Epic 8 (Testing & CI/CD, now Implementing since G411-53 is still Open)
-parent rollups were **missed by this session and fixed by Gavi
-directly** — a real process gap (the standing jira-parent-rollup rule
-wasn't followed on either transition), see brain.md decision #128.
-
-- **No epic has been explicitly agreed with Gavi as next yet** — per
-  Epic-order convention, the next lowest-numbered Epic with an Open
-  child needs a fresh check against the real Jira backlog (Epics 3, 7,
-  8, 9 all have Open work; don't assume from memory which is really
-  next — re-check at pickup, same as every session-start ritual says).
-- **G411-49** (push subscribe flow) — flagged as genuinely ready
-  whenever its epic comes up: G411-43 (presence) and G411-44
-  (admin-create-request notify) both have real, wired, currently-inert
-  push call sites waiting on it.
-- **G411-56** (copy pass, Epic 9) — has a specific known item now
+- **G411-56** (copy pass, Epic 9) — has a specific known item
   (install-ios.md's dev-facing text), but the whole ticket is
   deliberately deferred until its own milestone, not urgent.
 
-### Real process pattern worth flagging to future sessions
-Two dispatched-agent completion reports were caught false this session
-(decisions #125, #127) — different failure shapes (wrong branch/wrong
-identity/false-verified claim vs. partial-work-reported-as-complete),
-same root cause: trusting the report's own confident summary instead of
-verifying the claimed deliverables directly (a fresh test run, a grep
-for the claimed new route/file, a real query against the claimed schema
-field). Both caught before merge, no real damage — but happening twice
-in one session on back-to-back tickets is a real pattern, not a fluke.
-If this keeps recurring in future sessions, decision #127 flags the
-next escalation: a standing requirement to always verify a dispatch's
-claimed deliverables before treating it as reviewable, rather than
-relying on remembering to check.
+### Real process patterns worth flagging to future sessions
+1. Two dispatched-agent completion reports were caught false this
+   session (decisions #125, #127) — different failure shapes (wrong
+   branch/wrong identity/false-verified claim vs.
+   partial-work-reported-as-complete), same root cause: trusting the
+   report's own confident summary instead of verifying the claimed
+   deliverables directly (a fresh test run, a grep for the claimed new
+   route/file, a real query against the claimed schema field). Both
+   caught before merge, no real damage — but happening twice in one
+   session on back-to-back tickets is a real pattern, not a fluke. If
+   this keeps recurring, decision #127 flags the next escalation: a
+   standing requirement to always verify a dispatch's claimed
+   deliverables before treating it as reviewable, not just remembering
+   to check.
+2. Parent Epic rollup (the standing jira-parent-rollup rule) was missed
+   twice this session — Epic 6 stayed Open after its last child
+   Reconciled, Epic 8 stayed Open after G411-52's closeout should have
+   moved it to Implementing. Gavi caught and fixed both directly. See
+   decision #128 — an already-correct rule can still fail in execution;
+   treat every child status transition as two steps (child, then an
+   explicit parent-status check), not one.
