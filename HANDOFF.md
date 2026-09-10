@@ -12,75 +12,116 @@ accumulated. If something here turns out to matter long-term, promote it to
 
 ---
 
-## Where this session left off (2026-09-10) — G411-95 merged/Reconciled. G411-96 (account deletion) Landed but **NOT merged** — go/no-go on merge is next session's first question.
+## Where this session left off (2026-09-10) — G411-95 and G411-96 both merged/Reconciled. G411-46 (credit reset job + tier control) Landed but **NOT merged** — go/no-go on merge is next session's first question. Epic 5 (Admin Cockpit) fully Reconciled this session (including G411-68, closed as deliberately cancelled). Epic 6 (Credits) now in progress: G411-46 is its active child; two new tickets filed this session — G411-98 (notification history screen, Epic 7) and G411-99 (consolidated admin user-management screen, Epic 6).
 
-### G411-96 — account deletion (2026-09-10)
+### G411-46 — monthly credit reset job + admin tier control (2026-09-10)
 
-Branch `agent-frontend/G411-96-account-deletion` (worktree
-`Gavi411-agent-frontend`), commits `096fecd` (Haiku implementation) and
-`2c8e85f` (Sibling review fix). STOP 1/STOP 2 design questions resolved
-live with Gavi before any code — see the ticket's Falsifier field for
-the final resolved spec; summary:
+Branch `agent-frontend/G411-46-credit-reset` (worktree
+`Gavi411-agent-frontend`), 4 commits: `40d6e29` (Haiku implementation),
+`633afa2` (Sibling review round 1 — a missing `prisma` import made the
+reset job dead code), `17ef80c` (Gavi's live correction — tier changes
+must adjust `creditBalance` immediately), `c032db4` (Sibling review
+round 2 — admin self-service block, zero-delta ledger noise). Real
+scope gap found at pickup and folded in: G411-41 ("User management —
+invites, approvals, group tags, credit adjustments") was Reconciled
+under Epic 5 without ever actually building group tags or credit
+adjustments — only its invite-token piece shipped. Rather than
+reopening it, a minimal groupTag control was folded into this ticket;
+the fuller gap is now G411-99 (filed this session, Epic 6).
 
-- **Soft-delete, not hard-delete**: `User.isDeleted` (new boolean
-  column) set true; `email`/`profilePic`/`publicKey` cleared,
-  `phoneNumber` set to a unique `deleted-<clerkId>` placeholder (it's a
-  required field, can't be null). `firstName`/`lastName` deliberately
-  **kept** — Gavi's explicit call, he needs the name in his own request
-  history. No `Request`/`Message`/`CreditTransaction` row is touched —
-  none of the schema's relations to `User` cascade, so a hard delete
-  would 500 on a foreign-key error the moment the user has any history.
-- **Clerk account deleted too**, ordered deliberately AFTER the Prisma
-  soft-delete commits — a Clerk API failure leaves the account already
-  locked out rather than in a broken half-state.
-- **Admin gets a push notification** via the existing `sendPushToUser`
-  (already-working infra, no G411-49 dependency — reused the exact
-  `notifyAdminOfDeviceRequest` pattern from `devices.js`).
-- **Frontend**: type-to-confirm modal on the Profile screen (type first
-  name to enable the real delete button), inline in `ProfilePage.jsx`
-  matching its existing phone-edit-form pattern.
+**What shipped**:
+- New `User.creditsResetAt` (nullable DateTime), stamped at signup and
+  on every reset — migration applied live, verified with a direct
+  query (not just `migrate status`).
+- `PATCH /api/requests/users/:userId/group-tag` (admin-only): sets a
+  user's tier (Acquaintance/Regular/Close). **Blocks targeting an
+  ADMIN account** (404, matching `requireAdmin`'s no-existence-leak
+  convention) — added in review round 2 after `GET /users`'s own
+  "admin could charge themselves a credit" exclusion turned out to be
+  UI-only, not enforced server-side.
+- **Tier change adjusts `creditBalance` immediately** (Gavi's live
+  correction, not in the original spec): an upgrade always adds the
+  full delta between tier caps, uncapped (Regular(5)→Close(7) at
+  balance 4 becomes 6); a downgrade clamps balance DOWN to the new cap
+  only if currently above it, never raises or further lowers a balance
+  already at/below the cap (Regular(5)→Limited(2): balance 5 or 3 both
+  become 2, balance 1 stays 1). New `creditDeltaForTierChange` in
+  `credits.js` implements this exactly.
+- `resetMonthlyCredits()`: resets non-deleted users whose
+  `creditsResetAt` is null or in an earlier calendar month, wired into
+  the existing 6-hour `setInterval` pattern (`server.js`, same shape as
+  the auto-close job). Skips the `CreditTransaction` write on a
+  zero-delta reset (round-2 fix, matches the PATCH route's own
+  convention — no permanent monthly ledger-noise rows).
+- Minimal tier-control UI added to `AdminCreateRequest.jsx` (reuses its
+  existing fetched user list).
 
-**Sibling review (medium effort) found one real, confirmed issue**:
-`requireAuth` loaded the `User` row but never checked `isDeleted` — so
-if the Clerk delete call failed after the Prisma soft-delete committed
-(a case the route already anticipates and doesn't fail on), the
-account's still-valid Clerk session kept full API access despite being
-"deleted." Fixed at the actual choke point every authenticated request
-passes through (`server/middleware/auth.js`, right before `req.user =
-user; next()`) — now 401s a soft-deleted account the same way any other
-auth failure does. New test added directly covering this. 305/305
-server tests pass, 70/70 client, build clean.
+**Sibling review round 1 found something severe**: `resetMonthlyCredits()`
+referenced `prisma` with **no import anywhere in the file** — every
+real 6-hour invocation would throw `ReferenceError`, the entire
+feature dead on arrival in production. Fully masked by a test using
+`vi.stubGlobal('prisma', ...)` — the only such stub in the whole
+`server/` tree — which fabricated the global the real module was
+missing instead of exercising the real import path. Fixed: real
+import added, test rewritten to `vi.mock('./prisma.js', ...)` (this
+codebase's actual convention) via `vi.hoisted()` (needed because
+`vi.mock`'s factory is hoisted above plain top-level `const`s — hit
+live, a real `ReferenceError: Cannot access 'X' before initialization`
+until fixed correctly). **Verified for real against the live dev DB**,
+not just tests: ran `resetMonthlyCredits()` twice back-to-back against
+the two real seed accounts — confirmed it resets correctly once and
+does NOT double-reset on the second run.
 
-**Real gotchas hit and fixed this session, worth remembering**:
-1. The implementing agent's own self-reported test count (374) was
-   simply wrong — verified real count is 304 (299 baseline + 5 new),
-   confirmed by counting test files/running the suite directly rather
-   than trusting the agent's summary.
-2. A pre-existing gap unrelated to this ticket surfaced: the `username`
-   column (added back in G411-80) had no migration file anywhere in git
-   — the live DB had it, working fine, but the migration history was
-   silently incomplete. The implementing agent's own `prisma migrate
-   dev` run auto-reconciled it (backfilled the missing migration file,
-   Prisma detected the column already existed and marked it applied
-   without re-running the SQL) — verified safe by directly querying
-   `information_schema.columns` against the real DB before trusting it,
-   not just reading the CLI's status summary. Real column confirmed
-   present both before and after.
-3. **After applying the new `isDeleted` migration for real** (with
-   Gavi's explicit go-ahead, `npx prisma migrate deploy`), a direct
-   query using the new field against the real Prisma Client failed with
-   "unknown field `isDeleted`" — `migrate deploy` had updated the actual
-   database column, but the generated Prisma Client hadn't picked up
-   the new field. `npx prisma generate` fixed it; re-verified with a
-   real query afterward (existing rows correctly default `isDeleted:
-   false`). **Lesson: `migrate deploy` succeeding does not mean the
-   Prisma Client is in sync — always `prisma generate` after, and
-   verify with a real query against the live client, not just a status
-   check**, matching decision #118's "don't trust the CLI's summary"
-   lesson but for a different specific failure mode.
+**Gavi caught a real correction mid-review** (before round-2 review
+even ran): he flagged that a tier change should adjust credits
+immediately, not wait for the next reset — and gave the exact edge-case
+rules by hand (see above). This was implemented, tested, and separately
+live-verified against the real "Second" test account (995 credits,
+REGULAR→CLOSE upgrade → 997, confirmed, then restored exactly).
+
+**A real data-integrity task mid-session**: testing `resetMonthlyCredits()`
+and the tier-change logic against the real (shared, single) dev DB
+overwrote the two seed accounts' real credit balances (Gavi: 997→5,
+Second: 995→5, then 995→997 during the second test). Gavi asked for
+both to be restored to their prior values, since there's no
+unlimited-credit mechanism for admin/test accounts yet — done both
+times, including writing offsetting `CreditTransaction` entries so the
+ledger stays balanced rather than just silently overwriting
+`creditBalance` with no audit trail. **General lesson: testing
+credit-affecting logic against the shared dev DB has real, undoable-
+without-manual-fix side effects on seed account balances — restore
+them explicitly afterward, don't just move on.**
+
+324/324 server tests pass, 70/70 client, build clean. Migration
+applied live, Prisma Client regenerated and verified (decision #120's
+lesson applied correctly this time, no repeat of the sync gap).
 
 **Not yet asked about merging this session** — do that first next
 session.
+
+### Also this session: Epic 5 closed out, Epic 6 scoped
+
+- **G411-68** ("Request access" homepage form) moved Open →
+  Reconciled-as-**cancelled** (not built-and-verified) — Gavi's call,
+  deliberately deferred speculative infra for a scenario that hasn't
+  occurred at this scale. Comment added making the cancellation
+  explicit and distinct from a genuine build-and-verify Reconcile.
+- **Epic 5 (Admin Cockpit)** → Reconciled — every child now resolved
+  (built or explicitly cancelled).
+- **G411-98** filed: notification history screen (admin + friend),
+  parented under Epic 7 (Notifications) — the hamburger-menu button
+  Gavi referenced doesn't actually exist yet (confirmed via grep, not
+  assumed), no data model persists sent notifications yet either. Real
+  ordering note: should come before/alongside G411-49 (push
+  subscribe/permission flow), same Epic, still Open.
+- **G411-99** filed: consolidated admin user-management screen
+  (group tag, one-time credit adjustment, friend info edit, admin-
+  initiated delete/block), parented under Epic 6 (Credits, per Gavi's
+  explicit call, even though it's admin-cockpit-shaped — Epic 5 is
+  already Reconciled and reopening it for this felt like the wrong
+  move). This is the real fix for G411-41's dropped scope. A deferred
+  finding from G411-46's review is logged as a comment there: the new
+  PATCH group-tag route has no `isDeleted` check.
 
 ### What shipped — G411-95 (hamburger-menu navigation redesign)
 Branch `agent-frontend/G411-95-hamburger-nav` (worktree
