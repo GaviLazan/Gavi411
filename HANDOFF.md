@@ -12,9 +12,67 @@ accumulated. If something here turns out to matter long-term, promote it to
 
 ---
 
-## Where this session left off (2026-09-10) — G411-95 and G411-96 both merged/Reconciled. G411-46 (credit reset job + tier control) Landed but **NOT merged** — go/no-go on merge is next session's first question. Epic 5 (Admin Cockpit) fully Reconciled this session (including G411-68, closed as deliberately cancelled). Epic 6 (Credits) now in progress: G411-46 is its active child; two new tickets filed this session — G411-98 (notification history screen, Epic 7) and G411-99 (consolidated admin user-management screen, Epic 6).
+## Where this session left off (2026-09-10) — G411-95, G411-96, and G411-46 all merged and Reconciled. Epic 5 (Admin Cockpit) fully Reconciled (including G411-68, closed as deliberately cancelled). Epic 6 (Credits) now the active epic: G411-97 (credit stress test) built, reviewed, and Landed — **awaiting merge go-ahead**, not yet asked this turn. G411-98 (notification history, Epic 7) and G411-99 (consolidated admin user-management, Epic 6) filed but Open, untouched this session beyond filing.
 
-### G411-46 — monthly credit reset job + admin tier control (2026-09-10)
+*(Process note, decision #123: this line is written at wrap-up step 6, before steps 7 (merge ask) and 8 (sync check) run — so G411-97 being "awaiting merge" below is the expected pre-merge gap, not staleness. If this file is more than a session old, check git/Jira directly rather than trust the line above at face value.)*
+
+### G411-97 — full credit-system stress test (2026-09-10) — Landed, awaiting merge
+
+Branch `agent-backend/G411-97-credit-stress-test` (worktree
+`Gavi411-agent-backend`, branched fresh off `origin/main` at the start
+of pickup since that worktree had been sitting on the old G411-93
+branch). Two commits: `8ad8444` (Haiku implementation), `637dec4`
+(Sibling review fix). New file only — `server/lib/credits.stress.test.js`
+(573 lines, 9 tests) — no production code touched, as scoped.
+
+**Real ambiguity surfaced at pickup, resolved via AskUserQuestion before
+any code**: the ticket's concurrency scenario ("two near-simultaneous
+reopens should only charge once") can't be proven against this repo's
+existing all-mocked-Prisma test convention — a mock is synchronous, there's
+no real race to lose — but there's also no test-DB infrastructure anywhere
+in the repo, and G411-46 (this same session, credit reset job) already
+found the shared dev DB carries real side-effect/cleanup cost for
+credit-affecting tests. Gavi's call: mock-only, assert the app-code
+serialization-dependent pattern (fresh reads inside the transaction) rather
+than build real-DB test infra for one ticket. Documented in the test file
+itself as a comment, not left implicit.
+
+**All 5 scenarios from the ticket description built**: multi-cycle
+lifecycle (same request through two full refund→reopen cycles, not just
+one), concurrency (fresh-read pattern + at-most-once deductCredit call),
+insufficient-balance edges (create and reopen, both 402 with no mutation),
+ledger-vs-balance drift (10 alternating real deductCredit/refundCredit
+calls), admin-on-behalf-of-friend (both admin-create and admin-triggered
+reopen charge the friend, never the admin).
+
+**Sibling review found one real gap via mutation testing, not just
+reading the diff**: scenario 4 (ledger drift) checked that
+`creditTransaction.create` amounts alternated correctly and that
+`user.update` was called the right number of times, but never checked
+that each `user.update` call's actual `decrement`/`increment` payload
+matched the ledger amount at that same step. Proved this was a real gap
+by deliberately swapping `decrement`→`increment` inside the real
+`deductCredit` (balance would silently move the wrong direction while
+the ledger row still logs `-1` correctly) — all 9 tests still passed
+unchanged. This is exactly the drift-bug class scenario 4 exists to
+catch. Fixed by asserting the mutation shape per call; re-ran the same
+deliberate bug, now caught. Also mutation-tested the reopen-charge call
+site itself (commented out `deductCredit(tx, existing.userId)` in
+`requests.js`) — that one was already correctly caught by 5 of the 9
+tests pre-fix, no gap there. Both deliberate bugs reverted, confirmed
+zero diff against the real source files before finishing.
+
+403/403 tests pass (394 pre-existing + 9 new), verified fresh via
+`npm test`, not reused from Haiku's own report. Jira: Landed, Aegis
+fields written (Evidence-bar-met field kept under the 255-char cap,
+full mutation-test detail here instead).
+
+**Not yet asked about merging this session** — do that next.
+
+### G411-46 — monthly credit reset job + admin tier control (2026-09-10) — merged, Reconciled
+
+**Merged (PR #98) and Reconciled** since this was written. Detail below is
+from the session it was built in.
 
 Branch `agent-frontend/G411-46-credit-reset` (worktree
 `Gavi411-agent-frontend`), 4 commits: `40d6e29` (Haiku implementation),
@@ -96,8 +154,7 @@ them explicitly afterward, don't just move on.**
 applied live, Prisma Client regenerated and verified (decision #120's
 lesson applied correctly this time, no repeat of the sync gap).
 
-**Not yet asked about merging this session** — do that first next
-session.
+**Merged since this was written** (PR #98) and Reconciled.
 
 ### Also this session: Epic 5 closed out, Epic 6 scoped
 
@@ -374,26 +431,24 @@ branch:
   verification plan before multi-step work.
 
 ### What's next, concretely
-G411-93 merged + Reconciled. G411-95 Landed, awaiting merge go-ahead (see
-above) — once merged and Reconciled, Epic 5 (Admin Cockpit)'s only
-remaining still-Open child is G411-96 (account deletion, split from
-G411-80, deliberately deferred). (G411-92 is parented under Epic 3.)
-Epic 6 (Credits) has its first real child, **G411-97** (full credit
-stress test) — Epic-order convention means Epic 5's remaining child
-comes before Epic 6 gets picked up, unless Gavi says otherwise.
-- **G411-96** (account deletion) — next in strict Epic 5 order once
-  G411-95 is merged/Reconciled.
+G411-93, G411-95, G411-96, and G411-46 all merged + Reconciled. Epic 5
+(Admin Cockpit) is fully Reconciled — no remaining Open children.
+(G411-92 is parented under Epic 3, not Epic 5.) Epic 6 (Credits) is now
+the active epic. G411-97 (credit stress test) is **Landed, awaiting
+merge go-ahead** — do that first next session, then Landed → Reconciled
+immediately per usual. G411-99 (consolidated admin user-management) is
+Epic 6's other Open child, after G411-97 is fully closed out. G411-98 is
+actually parented under Epic 7, not 6 — filed during an Epic-6 session
+but belongs to Notifications.
+
+- **G411-97** — merge go-ahead is the very next question, before
+  anything else.
+- **G411-99** (consolidated admin user-management) — Epic 6's other
+  Open child, after G411-97 is Reconciled.
 - **G411-49** (push subscribe flow) — directly relevant now that both
   G411-43 (presence) and G411-44 (admin-create-request notify) have real,
-  wired, currently-inert push call sites waiting on it.
-- **G411-97** (credit stress test) — not urgent this session, but worth
-  revisiting before Epic 6 proper starts, given decision #116's live
-  reminder that credit-path reasoning is easy to get subtly wrong.
+  wired, currently-inert push call sites waiting on it. Different epic,
+  not next in strict order, but flagged as ready whenever picked up.
 - **G411-56** (copy pass, Epic 9) — has a specific known item now
   (install-ios.md's dev-facing text), but the whole ticket is
   deliberately deferred until its own milestone, not urgent.
-
-No task has been explicitly picked up yet beyond finishing G411-95's
-merge/Reconcile — agree with Gavi which one before touching code, per the
-session-start ritual (default: G411-96, lowest-numbered still-Open child
-in Epic 5, once Epic 5's queue resumes).
