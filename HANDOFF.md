@@ -12,116 +12,64 @@ accumulated. If something here turns out to matter long-term, promote it to
 
 ---
 
-## Where this session left off (2026-09-10) — G411-93 merged/Reconciled. G411-95 (hamburger-menu nav redesign) Landed but **NOT merged** — a "quick" Sibling review (medium effort) on the final commit found 10 real issues, Gavi triaged each one live, 6 need fixing before merge. Fix these first, next session, before asking to merge again.
+## Where this session left off (2026-09-10) — G411-93 merged/Reconciled. G411-95's remaining 5 fixes from the prior session's triage are done, Aegis fields updated, HANDOFF/brain.md committed. **Still not merged — go/no-go on merge is the open question for next session.**
 
-### G411-95 — fixes needed before merge (Gavi's live triage, 2026-09-09)
+### G411-95 — this session's fixes (2026-09-10)
 
-Re-read the full Sibling review findings in the prior session's transcript
-if more context is needed on any of these — this list is the triage
-outcome, not the full finding detail. All are in the `agent-frontend`
-worktree, branch `agent-frontend/G411-95-hamburger-nav`.
+All committed on `agent-frontend/G411-95-hamburger-nav` (worktree
+`Gavi411-agent-frontend`), commits `6e0dcbe` and `2b764bb`. Full
+reasoning for #1 in decision #119 (`gavi411-brain.md`); this is the
+outcome summary.
 
-1. ~~Dark-mode-forced-light regression (`useTheme.js`)~~ — **Gavi: not an
-   issue.** No fix needed. (Original finding: `useTheme.js`'s effect
-   unconditionally sets `data-theme="light"` on mount, overriding OS dark
-   preference for first-time visitors — Gavi confirmed this is the
-   intended behavior, not a bug.)
+1. **Filter-overwrite finding — not a real bug.** Traced `filterProp`'s
+   actual computation in `App.jsx` (`view === 'closed-requests' ?
+   'closed' : 'open'`) — it can never be anything but what the admin
+   clicked in the menu, so navigating always shows exactly what was
+   clicked. No fix made. See decision #119 for the two-round
+   miscommunication before this got traced correctly.
+2. **Double-fetch + stale count, fixed together.** `AdminList` now
+   reports its fetched `requests` up via a new `onRequestsLoaded` prop;
+   `App.jsx` derives `adminOpenCount` from that instead of running its
+   own separate `/api/requests` fetch. One fetch instead of two; count
+   recomputes whenever `AdminList` refetches instead of freezing at
+   first load.
+3. **Close-animation timing** — CSS `slideOut` shortened from 0.2s to
+   0.15s to match the JS close-timeout (kept the shorter value, since
+   the JS comment explains 150ms was deliberately chosen short to
+   minimize the top-layer click-blocking window). Comments in both
+   files now point at each other.
+4. **Cleanup pass**:
+   - `OpenRequestsList`/`ClosedRequestsList` merged into one
+     `FriendRequestsList({ status })` component.
+   - Restored the pre-G411-95 "show most recent closed request"
+     fallback when a friend's only requests are all closed (open view
+     only) — Gavi confirmed he wants this back.
+   - `useRequests.test.js` deleted (never tested the real hook, just
+     reimplemented trivial logic inline and asserted against itself);
+     no replacement written — no hook-testing library exists in this
+     repo and adding one for one fake test was out of scope.
+   - Dead `retryToken`/`setRetryToken` exports removed.
+   - Stale comments referencing the old component names fixed across
+     `App.jsx`/`RequestList.jsx`.
+   - A same-session Sibling review round 2 (on the fix commit) caught
+     two YAGNI regressions the fix pass itself introduced — a
+     `useRequests` hook extracted for what became a single caller, and
+     a `homeButtonColumn(maxWidth)` helper for 2 call sites. Both
+     reverted to inline code (hook deleted, fetch logic inlined into
+     `FriendRequestsList`; style objects inlined back at both sites)
+     before the second commit.
+   - Other review-round-2 findings (theme system-mode removal, a
+     header-row CSS grid overlap, dead presence-toggle CSS) are
+     pre-existing code from before this session's changes — confirmed
+     via `git diff` against the pre-session commit, out of scope, not
+     touched.
 
-2. **`AdminList`'s Filter dropdown can get silently overwritten** —
-   `client/src/pages/AdminList.jsx` around line 109-129. `filter` state
-   has two writers: a `useEffect` syncing it from the `filterProp` (menu
-   nav) AND the on-screen Filter `<Select>` calling `setFilter` directly.
-   If an admin manually picks a different filter than what the menu nav
-   implies, then navigates to a request detail and back to the *same*
-   view (`previousView` unchanged, so `filterProp` doesn't change value),
-   the effect doesn't re-fire — so far so good, the manual pick survives
-   THAT specific round trip. But the NEXT time the admin uses the
-   hamburger menu to go Open→Closed or Closed→Open (a real `filterProp`
-   change), the effect fires and silently reverts back to open/closed,
-   discarding the earlier manual choice with zero warning. **Needs a
-   fresh explanation to Gavi before fixing** — the prior session's
-   explanation apparently wasn't clear (Gavi: "I don't understand what
-   you're saying"). Show the exact repro steps live/concretely before
-   proposing a fix, don't just re-describe it abstractly. Likely fix: a
-   single source of truth for `filter` (either App.jsx owns it and both
-   the menu AND the dropdown call the same setter passed down as a prop,
-   or drop the dropdown's independent `setFilter` entirely while
-   filterProp-driven navigation is active).
-
-3. **Double-fetch of `/api/requests` on every admin page load** —
-   `client/src/App.jsx` line ~264 (`adminOpenCount` effect, gated only on
-   `isAdmin`) fires in parallel with `AdminList`'s own internal fetch
-   (its persistent wrapper div, line ~440, is gated on `role !== null &&
-   isAdmin`, not on `view`, so it mounts and fetches immediately on
-   login regardless of whether the admin ever visits Open/Closed
-   requests). Gavi: "you seem to know what to do here" — proceed with a
-   fix without re-asking; the cleanest approach is likely deriving
-   `adminOpenCount` from `AdminList`'s already-fetched data (lift the
-   fetch, or have `AdminList` report its count back up) instead of a
-   second independent fetch of the same endpoint.
-
-4. **Close-animation timing mismatch, `client/src/components/HamburgerMenu.jsx`**
-   line ~43 — the JS `setTimeout` is 150ms but the CSS `slideOut`
-   animation in `HamburgerMenu.css` is `0.2s` (200ms) — `dialog.close()`
-   fires ~50ms before the animation visually finishes, so the menu
-   visibly snaps/cuts off mid-slide instead of completing smoothly.
-   **Gavi: fix it.** Match the two values (either bump the timeout to
-   200ms, or shorten the CSS animation to 150ms — pick one, keep them in
-   sync, ideally with a comment or shared constant so they can't drift
-   apart silently again like this).
-
-5. **Admin's open-request count never refreshes after the first load** —
-   `client/src/App.jsx` line ~264, the `adminOpenCount` effect has
-   dependency array `[isAdmin]` only, which flips true/false once per
-   session (at login) and never again — confirmed by re-reading the
-   code directly, not just asserted. So closing or creating a request
-   never updates the "N open requests" button on the home screen for
-   the rest of that session. **Gavi: needs fixing.** Needs a real
-   trigger to refetch — candidates: refetch on every `view` transition
-   back to `'list'`, or derive the count from `AdminList`'s own fetched
-   data if #3's fix ends up sharing that data anyway (would resolve both
-   findings with one mechanism — worth doing #3 and #5 together).
-
-6. ~~Friend-side Open/Closed requests refetch on every switch~~ —
-   **Gavi: that's not a bug, those need to be reloaded.** No fix
-   needed — intentional, unlike the admin persistent-mount case (#3's
-   AdminList had a stronger reason to avoid refetching: an
-   admin-scale dataset; friend lists don't carry the same cost/reason).
-
-7. **General cleanup pass — "a TON," per Gavi, "lots of comments and
-   stuff like that too."** Not itemized individually; treat as its own
-   pass separate from 2-5 above. From the Sibling review and this
-   session's own tracing, known candidates to look at (not exhaustive,
-   re-review the branch fresh rather than trusting this list is
-   complete):
-   - `client/src/lib/useRequests.test.js` doesn't test the real hook at
-     all (reimplements logic inline, never imports `useRequests`) —
-     confirmed by multiple independent review passes.
-   - `client/src/lib/useRequests.js` returns `retryToken`/`setRetryToken`
-     that neither real caller (`OpenRequestsList`/`ClosedRequestsList`)
-     uses — dead exports.
-   - `OpenRequestsList.jsx`/`ClosedRequestsList.jsx` are near-total
-     duplicates of each other (already flagged as a deliberately
-     deferred YAGNI shortcut in the introducing commit message, real
-     candidate for a shared component now).
-   - The old `RequestList`'s "show most recent closed request" fallback
-     (when a friend's only requests are all closed) has no equivalent in
-     the new `OpenRequestsList` — shows a bare empty state instead. Not
-     yet confirmed whether Gavi wants this back; ask before assuming.
-   - Stale/outdated comments accumulated across the multiple fix rounds
-     this ticket went through (the ticket's own commit history has several
-     "first attempt was X, here's why Y is right instead" comments that
-     may be worth trimming once the code has stabilized) — this is
-     likely most of what "a ton of comments" refers to; do a fresh read
-     of the whole diff with fresh eyes rather than assuming which
-     specific comments are the problem.
-   - `client/src/App.jsx`'s admin and friend home-screen branches
-     duplicate near-identical inline `style={{...}}` objects (only
-     `maxWidth` differs) — flagged by review, real but low priority.
-
-**Do not ask to merge again until 2, 3, 4, 5, and a real pass at 7 are
-done** — re-run a Sibling review on the new diff before asking, same as
-this round.
+**369/369 tests pass** (372 minus 3 fake assertions removed with the
+dead test file), build clean, worktree clean. Jira: still Landed
+(correct — this session fixed review findings on already-Landed work,
+not a fresh Reviewing→Landed transition), Evidence field updated to
+reflect the fresh run. **Not yet asked about merging this session** —
+do that first next session, once Gavi's seen this summary.
 
 ### What shipped — G411-95 (hamburger-menu navigation redesign)
 Branch `agent-frontend/G411-95-hamburger-nav` (worktree
