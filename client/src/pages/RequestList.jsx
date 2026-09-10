@@ -9,7 +9,11 @@ import Card from "../components/Card";
 // Exported — adminListSort.js (G411-37) reuses this same "what counts as
 // closed" rule for the admin list's open/closed filter, instead of
 // carrying its own separate copy (Sibling review finding).
-export const CLOSED_STATUSES = ["CLOSED", "CANCELLED", "SELF_SOLVED"];
+// G411-47: OVERDRAFT_DENIED is terminal, same as CANCELLED/SELF_SOLVED — a
+// denied overdraft ask is done, not still active. OVERDRAFT_PENDING is
+// deliberately NOT here — it's actively awaiting an admin decision, same
+// "still active" bucket as IN_QUEUE etc.
+export const CLOSED_STATUSES = ["CLOSED", "CANCELLED", "SELF_SOLVED", "OVERDRAFT_DENIED"];
 
 // Exported — RequestDetail.jsx/AdminList.jsx reuse this for the same
 // enum-label formatting instead of duplicating it (Sibling review finding).
