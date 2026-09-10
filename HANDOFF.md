@@ -12,11 +12,205 @@ accumulated. If something here turns out to matter long-term, promote it to
 
 ---
 
-## Where this session left off (2026-09-09) — G411-93 (nudge-driven escalation) Landed, on branch `agent-backend/G411-93-nudge-escalation`, awaiting merge go-ahead. PR #92 (doc restructuring + Karpathy fold-in) merged earlier this session.
+## Where this session left off (2026-09-10) — G411-93 merged/Reconciled. G411-95 (hamburger-menu nav redesign) Landed but **NOT merged** — a "quick" Sibling review (medium effort) on the final commit found 10 real issues, Gavi triaged each one live, 6 need fixing before merge. Fix these first, next session, before asking to merge again.
+
+### G411-95 — fixes needed before merge (Gavi's live triage, 2026-09-09)
+
+Re-read the full Sibling review findings in the prior session's transcript
+if more context is needed on any of these — this list is the triage
+outcome, not the full finding detail. All are in the `agent-frontend`
+worktree, branch `agent-frontend/G411-95-hamburger-nav`.
+
+1. ~~Dark-mode-forced-light regression (`useTheme.js`)~~ — **Gavi: not an
+   issue.** No fix needed. (Original finding: `useTheme.js`'s effect
+   unconditionally sets `data-theme="light"` on mount, overriding OS dark
+   preference for first-time visitors — Gavi confirmed this is the
+   intended behavior, not a bug.)
+
+2. **`AdminList`'s Filter dropdown can get silently overwritten** —
+   `client/src/pages/AdminList.jsx` around line 109-129. `filter` state
+   has two writers: a `useEffect` syncing it from the `filterProp` (menu
+   nav) AND the on-screen Filter `<Select>` calling `setFilter` directly.
+   If an admin manually picks a different filter than what the menu nav
+   implies, then navigates to a request detail and back to the *same*
+   view (`previousView` unchanged, so `filterProp` doesn't change value),
+   the effect doesn't re-fire — so far so good, the manual pick survives
+   THAT specific round trip. But the NEXT time the admin uses the
+   hamburger menu to go Open→Closed or Closed→Open (a real `filterProp`
+   change), the effect fires and silently reverts back to open/closed,
+   discarding the earlier manual choice with zero warning. **Needs a
+   fresh explanation to Gavi before fixing** — the prior session's
+   explanation apparently wasn't clear (Gavi: "I don't understand what
+   you're saying"). Show the exact repro steps live/concretely before
+   proposing a fix, don't just re-describe it abstractly. Likely fix: a
+   single source of truth for `filter` (either App.jsx owns it and both
+   the menu AND the dropdown call the same setter passed down as a prop,
+   or drop the dropdown's independent `setFilter` entirely while
+   filterProp-driven navigation is active).
+
+3. **Double-fetch of `/api/requests` on every admin page load** —
+   `client/src/App.jsx` line ~264 (`adminOpenCount` effect, gated only on
+   `isAdmin`) fires in parallel with `AdminList`'s own internal fetch
+   (its persistent wrapper div, line ~440, is gated on `role !== null &&
+   isAdmin`, not on `view`, so it mounts and fetches immediately on
+   login regardless of whether the admin ever visits Open/Closed
+   requests). Gavi: "you seem to know what to do here" — proceed with a
+   fix without re-asking; the cleanest approach is likely deriving
+   `adminOpenCount` from `AdminList`'s already-fetched data (lift the
+   fetch, or have `AdminList` report its count back up) instead of a
+   second independent fetch of the same endpoint.
+
+4. **Close-animation timing mismatch, `client/src/components/HamburgerMenu.jsx`**
+   line ~43 — the JS `setTimeout` is 150ms but the CSS `slideOut`
+   animation in `HamburgerMenu.css` is `0.2s` (200ms) — `dialog.close()`
+   fires ~50ms before the animation visually finishes, so the menu
+   visibly snaps/cuts off mid-slide instead of completing smoothly.
+   **Gavi: fix it.** Match the two values (either bump the timeout to
+   200ms, or shorten the CSS animation to 150ms — pick one, keep them in
+   sync, ideally with a comment or shared constant so they can't drift
+   apart silently again like this).
+
+5. **Admin's open-request count never refreshes after the first load** —
+   `client/src/App.jsx` line ~264, the `adminOpenCount` effect has
+   dependency array `[isAdmin]` only, which flips true/false once per
+   session (at login) and never again — confirmed by re-reading the
+   code directly, not just asserted. So closing or creating a request
+   never updates the "N open requests" button on the home screen for
+   the rest of that session. **Gavi: needs fixing.** Needs a real
+   trigger to refetch — candidates: refetch on every `view` transition
+   back to `'list'`, or derive the count from `AdminList`'s own fetched
+   data if #3's fix ends up sharing that data anyway (would resolve both
+   findings with one mechanism — worth doing #3 and #5 together).
+
+6. ~~Friend-side Open/Closed requests refetch on every switch~~ —
+   **Gavi: that's not a bug, those need to be reloaded.** No fix
+   needed — intentional, unlike the admin persistent-mount case (#3's
+   AdminList had a stronger reason to avoid refetching: an
+   admin-scale dataset; friend lists don't carry the same cost/reason).
+
+7. **General cleanup pass — "a TON," per Gavi, "lots of comments and
+   stuff like that too."** Not itemized individually; treat as its own
+   pass separate from 2-5 above. From the Sibling review and this
+   session's own tracing, known candidates to look at (not exhaustive,
+   re-review the branch fresh rather than trusting this list is
+   complete):
+   - `client/src/lib/useRequests.test.js` doesn't test the real hook at
+     all (reimplements logic inline, never imports `useRequests`) —
+     confirmed by multiple independent review passes.
+   - `client/src/lib/useRequests.js` returns `retryToken`/`setRetryToken`
+     that neither real caller (`OpenRequestsList`/`ClosedRequestsList`)
+     uses — dead exports.
+   - `OpenRequestsList.jsx`/`ClosedRequestsList.jsx` are near-total
+     duplicates of each other (already flagged as a deliberately
+     deferred YAGNI shortcut in the introducing commit message, real
+     candidate for a shared component now).
+   - The old `RequestList`'s "show most recent closed request" fallback
+     (when a friend's only requests are all closed) has no equivalent in
+     the new `OpenRequestsList` — shows a bare empty state instead. Not
+     yet confirmed whether Gavi wants this back; ask before assuming.
+   - Stale/outdated comments accumulated across the multiple fix rounds
+     this ticket went through (the ticket's own commit history has several
+     "first attempt was X, here's why Y is right instead" comments that
+     may be worth trimming once the code has stabilized) — this is
+     likely most of what "a ton of comments" refers to; do a fresh read
+     of the whole diff with fresh eyes rather than assuming which
+     specific comments are the problem.
+   - `client/src/App.jsx`'s admin and friend home-screen branches
+     duplicate near-identical inline `style={{...}}` objects (only
+     `maxWidth` differs) — flagged by review, real but low priority.
+
+**Do not ask to merge again until 2, 3, 4, 5, and a real pass at 7 are
+done** — re-run a Sibling review on the new diff before asking, same as
+this round.
+
+### What shipped — G411-95 (hamburger-menu navigation redesign)
+Branch `agent-frontend/G411-95-hamburger-nav` (worktree
+`Gavi411-agent-frontend`), not yet merged. Redefined mid-pickup from a
+narrow "request history" ask into a full nav overhaul for both roles —
+decision and rationale not yet logged to brain.md as its own numbered
+item (folding into this HANDOFF entry given how much of it was iterative
+live-testing fixes rather than a single design decision):
+
+- **Header**: hamburger (left) — logo (center) — sign in/out (right,
+  unchanged). **Home screen**: friend gets just "+ New request"; admin
+  gets "+ New request", "N open requests", "Invite", presence toggle
+  (moved here from the menu per Gavi's live revision).
+- **Hamburger menu**: Profile, Triggers (admin-only), Open requests,
+  Closed requests, Theme (now 2-state light/dark only, "system" removed
+  entirely, new users default light — Gavi's explicit call, "never
+  wanted system to begin with"). Friend-only: "Installing on iPhone"
+  (moved here from the old home-screen `RequestList`, which no longer
+  exists as a rendered component — friend home screen has nothing to
+  keep it mounted, per Gavi's own catch mid-session).
+- **New standalone `Closed requests` view** (`ClosedRequestsList.jsx`)
+  for friends — previously only a toggle inside the now-removed
+  `RequestList`. `OpenRequestsList.jsx` is its open-only sibling. Both
+  reuse `RequestCard`/`statusLabel`/`CLOSED_STATUSES`, now exported from
+  `RequestList.jsx` even though that file's own component body is dead
+  (kept only for those shared exports, per its own comment).
+- **Admin's Open/Closed requests route through the existing `AdminList`**
+  (not the friend-only components) — fixes a real data-exposure bug a
+  Sibling review caught (admin would otherwise see every friend's
+  requests mixed together, no attribution).
+
+**Three real, serious bugs found and fixed during live testing, beyond
+the Sibling review's own 10 findings** (full blow-by-blow belongs in a
+brain.md decision, not written yet — flag for next session or do it now
+if picking this back up):
+1. **Menu CSS bug** — `.hamburger-menu` had unconditional `display:
+   flex`, overriding the browser's own `dialog:not([open]) {display:
+   none}` default. The closed dialog stayed laid out full-viewport and
+   ate every click on the page underneath it — explained "menu always
+   open," "no button anywhere works," "can't reach the homepage," all
+   from one root cause. Fixed by scoping to `.hamburger-menu[open]`.
+2. **`AdminList` reused across Open↔Closed instead of remounting** —
+   `view === 'open-requests'` and `view === 'closed-requests'` render
+   the same `AdminList` component type at what React treats as
+   reusable positions in a ternary chain, so switching between them
+   updated `initialFilter` as a prop that `useState(initialFilter ??
+   "open")` only ever reads once, at first mount — the Filter dropdown
+   and displayed list silently stayed stuck on whichever loaded first.
+   `view` state itself changed correctly (confirmed via React DevTools
+   with Gavi live) — only the screen didn't. **Real fix** (not the
+   first attempt — a `key` prop forcing remount worked but threw away
+   the fetch every switch, which Gavi correctly pushed back on):
+   `AdminList` is now a single persistent instance, kept mounted
+   (hidden, not unmounted) across Open↔Closed nav exactly like the
+   home-screen list already was pre-G411-95 (G411-89's pattern) —
+   `filter` is a real controlled prop synced via `useEffect`, no
+   remount, no refetch, instant switch.
+3. **Close animation had no bounded fallback** — first version deferred
+   `dialog.close()` until CSS `animationend` fired; if that event was
+   ever missed, the modal `<dialog>` (from `showModal()`) would block
+   the entire page forever with zero console error. Fixed with a fixed
+   200ms timeout instead of an open-ended wait.
+
+**Also fixed**: "+ New request" leaking onto the Open/Closed requests
+screens (AdminList's button is now conditional on `onNewRequest` being
+passed at all); admin menu item order (was Presence/Invites/Triggers
+after Closed requests, several rounds of revision landed on Triggers-
+only in the menu, right after Profile); Sort dropdown's "Urgency (oldest
+first)" label confirmed correct-but-confusing (urgency IS the real sort
+key, "oldest first" is only the same-urgency tiebreak) — pre-existing,
+not touched, not a bug.
+
+**G411-56** (copy pass, Epic 9, still Open) updated with a specific
+known item: `client/public/install-ios.md` is genuinely developer-facing
+text (ticket references, HTML tag names) reaching real friends via the
+hamburger menu — flagged there rather than fixed now, since copy is
+deliberately placeholder until that dedicated milestone.
+
+372/372 tests pass. Jira: Landed, Aegis fields written. **Not yet
+merged** — awaiting Gavi's merge go-ahead.
 
 ### What shipped — G411-93 (nudge-driven escalation, replaces old auto-close job)
-Branch `agent-backend/G411-93-nudge-escalation` (worktree
-`Gavi411-agent-backend`), not yet merged. Unifies manual nudge and the old
+**Merged and Reconciled this session** (PR #94). Unifies manual nudge and
+the old independent 12-day-idle auto-close job into one sequence, all
+anchored to
+
+### What shipped — G411-93 (nudge-driven escalation, replaces old auto-close job)
+**Merged and Reconciled this session** (PR #94, `agent-backend/G411-93-nudge-escalation`
+branch, now deleted post-merge). Unifies manual nudge and the old
 independent 12-day-idle auto-close job into one sequence, all anchored to
 `Request.nudgedAt`:
 - **Nudge #1** (manual, admin-clicked): stamps `nudgedAt`, creates an
@@ -180,21 +374,26 @@ branch:
   verification plan before multi-step work.
 
 ### What's next, concretely
-G411-93 Landed, awaiting merge (see above) — once merged and Reconciled,
-Epic 5 (Admin Cockpit) still-Open children in strict key order: G411-95
-(request history, split from G411-80), G411-96 (account deletion, split
-from G411-80, deliberately deferred). (G411-92 is parented under Epic 3.)
+G411-93 merged + Reconciled. G411-95 Landed, awaiting merge go-ahead (see
+above) — once merged and Reconciled, Epic 5 (Admin Cockpit)'s only
+remaining still-Open child is G411-96 (account deletion, split from
+G411-80, deliberately deferred). (G411-92 is parented under Epic 3.)
 Epic 6 (Credits) has its first real child, **G411-97** (full credit
-stress test) — Epic-order convention means Epic 5's remaining children
-come before Epic 6 gets picked up, unless Gavi says otherwise.
+stress test) — Epic-order convention means Epic 5's remaining child
+comes before Epic 6 gets picked up, unless Gavi says otherwise.
+- **G411-96** (account deletion) — next in strict Epic 5 order once
+  G411-95 is merged/Reconciled.
 - **G411-49** (push subscribe flow) — directly relevant now that both
   G411-43 (presence) and G411-44 (admin-create-request notify) have real,
   wired, currently-inert push call sites waiting on it.
 - **G411-97** (credit stress test) — not urgent this session, but worth
   revisiting before Epic 6 proper starts, given decision #116's live
   reminder that credit-path reasoning is easy to get subtly wrong.
+- **G411-56** (copy pass, Epic 9) — has a specific known item now
+  (install-ios.md's dev-facing text), but the whole ticket is
+  deliberately deferred until its own milestone, not urgent.
 
-No task has been explicitly picked up yet beyond finishing G411-93's
+No task has been explicitly picked up yet beyond finishing G411-95's
 merge/Reconcile — agree with Gavi which one before touching code, per the
-session-start ritual (default: G411-95, lowest-numbered still-Open child
+session-start ritual (default: G411-96, lowest-numbered still-Open child
 in Epic 5, once Epic 5's queue resumes).
