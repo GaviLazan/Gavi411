@@ -1,8 +1,7 @@
 import { useEffect, useState } from 'react'
 
-// Shared hook for fetching requests with cancelled flag + error handling
-// used by RequestList, OpenRequestsList, ClosedRequestsList to avoid
-// duplicating the same /api/requests fetch logic.
+// Shared hook for fetching requests with cancelled flag + error handling,
+// used by FriendRequestsList.
 export function useRequests() {
   const [requests, setRequests] = useState(null)
   const [error, setError] = useState('')
@@ -29,5 +28,5 @@ export function useRequests() {
     }
   }, [retryToken])
 
-  return { requests, error, retryToken, setRetryToken, retry: () => setRetryToken((t) => t + 1) }
+  return { requests, error, retry: () => setRetryToken((t) => t + 1) }
 }

@@ -26,8 +26,8 @@ export function statusLabel(status) {
 // for free — same "reset UA chrome, keep the visual" pattern App.jsx's
 // wordmark-button already uses. Card itself stays a plain div (no new
 // "as" prop) since this is the only caller that needs it clickable.
-// Exported (G411-95) — OpenRequestsList/ClosedRequestsList reuse this
-// to avoid duplicating the card rendering logic.
+// Exported (G411-95) — FriendRequestsList reuses this to avoid
+// duplicating the card rendering logic.
 export function RequestCard({ request, onClick }) {
   return (
     <button type="button" className="request-card-button" onClick={onClick}>
@@ -47,9 +47,9 @@ export function RequestCard({ request, onClick }) {
 // The RequestList component itself (friend home-screen open/closed
 // toggle) is gone as of G411-95 — the friend home screen now renders
 // only "+ New request" (App.jsx), and Open/Closed requests are reached
-// via the hamburger menu's OpenRequestsList/ClosedRequestsList instead.
+// via the hamburger menu's FriendRequestsList instead.
 // This file stays only for the shared exports above (CLOSED_STATUSES,
 // statusLabel, RequestCard), still used by AdminList.jsx, RequestDetail.jsx,
-// adminListSort.js, OpenRequestsList.jsx, and ClosedRequestsList.jsx —
-// same reasoning as this file's own G411-37 precedent of removing a
-// component's body once unreachable while keeping its live exports.
+// adminListSort.js, and FriendRequestsList.jsx — same reasoning as this
+// file's own G411-37 precedent of removing a component's body once
+// unreachable while keeping its live exports.

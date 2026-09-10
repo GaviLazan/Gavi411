@@ -15,8 +15,7 @@ import HamburgerMenu from './components/HamburgerMenu'
 import Button from './components/Button'
 import { useTheme } from './useTheme'
 import Recover from './pages/Recover'
-import OpenRequestsList from './pages/OpenRequestsList'
-import ClosedRequestsList from './pages/ClosedRequestsList'
+import FriendRequestsList from './pages/FriendRequestsList'
 import { CLOSED_STATUSES } from './pages/RequestList'
 import {
   captureInviteTokenFromUrl,
@@ -45,6 +44,10 @@ captureInviteTokenFromUrl()
 captureRecoveryParamsFromUrl()
 
 const THEME_LABEL = { light: 'Light', dark: 'Dark' }
+
+// Shared home-screen button-column style — admin and friend branches only
+// differ on maxWidth (admin has more buttons to fit).
+const homeButtonColumn = (maxWidth) => ({ display: "flex", flexDirection: "column", gap: "var(--space-3)", width: "100%", maxWidth })
 
 // G411-66: gate real content behind Clerk auth state.
 // NOTE: this project's installed package is "@clerk/react" (a lower-level
@@ -76,7 +79,6 @@ function App() {
   // roleFetchFailed/escrowBackupFailed elsewhere in this file.
   const [presenceToggleError, setPresenceToggleError] = useState(false)
   const [adminOpenCount, setAdminOpenCount] = useState(null)
-  const [adminCountLoading, setAdminCountLoading] = useState(false)
 
   // G411-43: fetch and display current presence status on mount
   // (every signed-in user should see whether Gavi is online)
@@ -260,26 +262,16 @@ function App() {
     })
   }, [role])
 
-  // Load admin's open request count for home screen display. Cancelled
-  // flag matches useRequests.js's own guard (same class of race: role
-  // flips or unmount while the fetch is in flight).
-  useEffect(() => {
-    if (!isAdmin) return
-    let cancelled = false
-    setAdminCountLoading(true)
-    fetch('/api/requests')
-      .then((res) => res.ok ? res.json() : null)
-      .then((data) => {
-        if (cancelled) return
-        if (data) {
-          const openCount = data.filter((r) => !CLOSED_STATUSES.includes(r.status)).length
-          setAdminOpenCount(openCount)
-        }
-        setAdminCountLoading(false)
-      })
-      .catch(() => { if (!cancelled) setAdminCountLoading(false) })
-    return () => { cancelled = true }
-  }, [isAdmin])
+  // Admin's open request count for home screen display, derived from
+  // AdminList's own already-fetched data (via onRequestsLoaded) instead
+  // of a second independent /api/requests fetch (Sibling review finding,
+  // G411-95: AdminList is mounted unconditionally for every admin, so a
+  // separate fetch here doubled every admin's list load). This also
+  // fixes the count never refreshing after first load — it now recomputes
+  // whenever AdminList refetches (e.g. its own retry).
+  function handleAdminRequestsLoaded(data) {
+    setAdminOpenCount(data.filter((r) => !CLOSED_STATUSES.includes(r.status)).length)
+  }
 
   return (
     <div className="design-preview">
@@ -367,15 +359,15 @@ function App() {
         {role !== null && (
           <div hidden={view !== 'list'}>
             {isAdmin ? (
-              <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-3)", width: "100%", maxWidth: 560 }}>
+              <div style={homeButtonColumn(560)}>
                 <Button variant="primary" onClick={() => { setPreviousView('list'); setView('admin-create-request') }}>
                   + New request
                 </Button>
-                {adminCountLoading ? (
+                {adminOpenCount === null ? (
                   <Button disabled>Loading…</Button>
                 ) : (
                   <Button onClick={() => { setPreviousView('list'); setView('open-requests'); }}>
-                    {adminOpenCount ?? 0} open requests
+                    {adminOpenCount} open requests
                   </Button>
                 )}
                 <Button onClick={() => { setPreviousView('list'); setView('invite-admin') }}>
@@ -416,7 +408,7 @@ function App() {
                 </div>
               </div>
             ) : (
-              <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-3)", width: "100%", maxWidth: 420 }}>
+              <div style={homeButtonColumn(420)}>
                 <Button variant="primary" onClick={() => setView('new')}>
                   + New request
                 </Button>
@@ -441,6 +433,7 @@ function App() {
           <div hidden={view !== 'open-requests' && view !== 'closed-requests'}>
             <AdminList
               filter={view === 'closed-requests' ? 'closed' : 'open'}
+              onRequestsLoaded={handleAdminRequestsLoaded}
               onOpenRequest={(id) => {
                 setSelectedRequestId(id)
                 setPreviousView(view)
@@ -511,13 +504,15 @@ function App() {
             // above instead (real reason in that div's comment) — this
             // branch only needs to fire for friends now.
             isAdmin ? null : (
-              <OpenRequestsList
+              <FriendRequestsList
+                status="open"
                 onOpenRequest={(id) => { setSelectedRequestId(id); setPreviousView('open-requests'); setView('detail'); }}
               />
             )
           ) : view === 'closed-requests' ? (
             isAdmin ? null : (
-              <ClosedRequestsList
+              <FriendRequestsList
+                status="closed"
                 onOpenRequest={(id) => { setSelectedRequestId(id); setPreviousView('closed-requests'); setView('detail'); }}
               />
             )
@@ -587,7 +582,7 @@ function App() {
               </button>
             )}
 
-            {/* Open requests — routes to AdminList for admin, OpenRequestsList
+            {/* Open requests — routes to AdminList for admin, FriendRequestsList
                 for friends (branches on isAdmin at render time below, not
                 here — both roles navigate the same way). */}
             <button
@@ -603,7 +598,7 @@ function App() {
             </button>
 
             {/* Closed requests — same split as above, AdminList vs
-                ClosedRequestsList decided at render time. */}
+                FriendRequestsList decided at render time. */}
             <button
               type="button"
               className="hamburger-menu-item"

@@ -106,7 +106,7 @@ function AdminRequestRow({ request, onClick }) {
   );
 }
 
-function AdminList({ onOpenRequest, onNewRequest, filter: filterProp }) {
+function AdminList({ onOpenRequest, onNewRequest, filter: filterProp, onRequestsLoaded }) {
   const [requests, setRequests] = useState(null);
   const [error, setError] = useState("");
   const [sort, setSort] = useState("urgency");
@@ -148,7 +148,10 @@ function AdminList({ onOpenRequest, onNewRequest, filter: filterProp }) {
         const res = await fetch("/api/requests");
         if (!res.ok) throw new Error("failed");
         const data = await res.json();
-        if (!cancelled) setRequests(data);
+        if (!cancelled) {
+          setRequests(data);
+          onRequestsLoaded?.(data);
+        }
       } catch {
         if (!cancelled) setError("Couldn't load requests. Try again?");
       }

@@ -65,10 +65,11 @@
 }
 
 /* Close animation (Gavi's live catch — closing had no animation, only
-   opening did). HamburgerMenu.jsx adds this class, waits for
-   animationend, then calls the real dialog.close(). */
+   opening did). HamburgerMenu.jsx adds this class, then calls the real
+   dialog.close() on a fixed 150ms timeout (not animationend — see that
+   file's comment). Keep this duration in sync with that timeout. */
 .hamburger-menu-closing .hamburger-menu-content {
-  animation: slideOut 0.2s ease-in forwards;
+  animation: slideOut 0.15s ease-in forwards;
 }
 
 @keyframes slideOut {

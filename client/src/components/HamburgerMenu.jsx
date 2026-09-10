@@ -36,6 +36,7 @@ function HamburgerMenu({ open, onClose, children }) {
       // never gated on an event (animationend) that might not fire —
       // and capped at 150ms specifically so it can never be mistaken
       // for "broken/unresponsive" the way the open-ended version was.
+      // Keep in sync with HamburgerMenu.css's slideOut duration.
       setClosing(true)
       const timeout = setTimeout(() => {
         el.close()
