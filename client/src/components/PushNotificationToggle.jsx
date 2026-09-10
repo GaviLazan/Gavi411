@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { subscribeToPush, unsubscribeFromPush } from '../lib/webPush'
 
 // G411-49: hamburger-menu item that subscribes/unsubscribes the signed-in
@@ -24,6 +24,7 @@ function PushNotificationToggle({ isSignedIn, onClose }) {
   const [notificationPermission, setNotificationPermission] = useState('default')
   const [togglingError, setTogglingError] = useState(null)
   const [togglingInProgress, setTogglingInProgress] = useState(false)
+  const [showDeniedHelp, setShowDeniedHelp] = useState(false)
 
   useEffect(() => {
     if (!isSignedIn) return
@@ -73,9 +74,18 @@ function PushNotificationToggle({ isSignedIn, onClose }) {
 
   if (view.denied) {
     return (
-      <div className="hamburger-menu-item hamburger-menu-item-disabled">
-        Notifications blocked in browser settings
-      </div>
+      <>
+        <button
+          type="button"
+          className="hamburger-menu-item"
+          onClick={() => setShowDeniedHelp(true)}
+        >
+          Notifications blocked in browser settings
+        </button>
+        {showDeniedHelp && (
+          <DeniedHelpDialog onClose={() => setShowDeniedHelp(false)} />
+        )}
+      </>
     )
   }
 
@@ -94,6 +104,40 @@ function PushNotificationToggle({ isSignedIn, onClose }) {
       </button>
       {togglingError && <p className="push-toggle-error">{togglingError}</p>}
     </>
+  )
+}
+
+// Generic re-enable steps, not browser-sniffed — the exact menu wording
+// varies by browser, but "click the site-info/lock icon next to the
+// address bar" is the one instruction that's true almost everywhere, and
+// UA-sniffing a full per-browser decision tree is more than this ticket
+// needs (real copy pass is Epic 9, deliberately deferred). Native
+// <dialog> + showModal(), same pattern as ConfirmModal.jsx.
+function DeniedHelpDialog({ onClose }) {
+  const ref = useRef(null)
+
+  useEffect(() => {
+    const el = ref.current
+    if (el && !el.open) el.showModal()
+  }, [])
+
+  function handleClose() {
+    ref.current?.close()
+    onClose()
+  }
+
+  return (
+    <dialog ref={ref} className="denied-help-dialog" onCancel={handleClose}>
+      <p>
+        Your browser is blocking notifications for this site. To turn them
+        back on: click the lock or site-info icon next to the address bar,
+        find "Notifications", and change it to "Allow" — then come back
+        here and try again.
+      </p>
+      <button type="button" className="hamburger-menu-item" onClick={handleClose}>
+        Got it
+      </button>
+    </dialog>
   )
 }
 
