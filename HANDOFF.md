@@ -12,15 +12,16 @@ accumulated. If something here turns out to matter long-term, promote it to
 
 ---
 
-## Where this session left off (2026-09-10, continued) — G411-49 and
-G411-98 (Epic 7) both built, Landed, **NOT yet merged** — this HANDOFF
-entry is written pre-merge per decision #123/step 6 ordering; steps 7-8
-(merge + Reconciled) have not run yet this turn. A third, small standalone
-fix (unrelated to either ticket, see below) is also built and committed
-but not merged. **Next: ask Gavi for the merge go-ahead on all three**,
-then run steps 7-8, then decide the next Epic 7 child (G411-51 reads as
-the natural next pick — it's what G411-98's own deferred end-to-end test
-note is waiting on).
+## Where this session left off (2026-09-10) — G411-49 and G411-98 (Epic 7)
+both built, **merged, and Reconciled** (PRs #105, #106; the standalone
+fix below merged as PR #104). Epic 7 correctly stays **Implementing**
+(3 of 5 children — G411-50, G411-51, G411-78 — are still genuinely
+Open). **Next: agree the specific next Epic 7 child with Gavi at
+pickup** — G411-51 (notification trigger matrix) reads as the natural
+next pick, since it's what unblocks G411-98's own deferred
+end-to-end-live-test note (see that ticket's history below) by finally
+giving a plain new-request a real trigger to test against — but don't
+assume, ask, per the normal STOP 1 ritual.
 
 **Real epic state, checked fresh at end of session** (all 9 epics, not
 just the ones touched this session):
@@ -32,19 +33,19 @@ just the ones touched this session):
 - G411-4 (Request Lifecycle) — Reconciled
 - G411-5 (Admin Cockpit) — Reconciled
 - G411-6 (Credits) — Reconciled
-- **G411-7 (Notifications) — Implementing** (rolled forward this session
-  once G411-49 Landed). Children: **G411-49** (Web Push subscribe flow)
-  — **Landed, not merged**, see below. **G411-98** (notification history
-  screen) — **Landed, not merged**, see below. **G411-50** (Telegram bot
-  setup), **G411-51** (notification trigger matrix), **G411-78**
-  (message-thread aria-live region) — all still Open, untouched.
+- **G411-7 (Notifications) — Implementing.** Children: **G411-49**
+  (Web Push subscribe flow) — **Reconciled**, merged, see below.
+  **G411-98** (notification history screen) — **Reconciled**, merged,
+  see below. **G411-50** (Telegram bot setup), **G411-51** (notification
+  trigger matrix), **G411-78** (message-thread aria-live region) — all
+  still Open, untouched.
 - G411-8 (Testing & CI/CD) — Implementing (G411-53, the CI pipeline,
   still Open under it — genuinely unbuilt)
 - G411-9 (Copywriting & UI/UX Pass) — Open, deliberately deferred to its
   own milestone (see G411-56)
 - G411-57 (V2/Stretch Backlog) — Open, not in scope for now
 
-### G411-49 — Web Push subscribe flow + permission UI (2026-09-10) — Landed, not merged
+### G411-49 — Web Push subscribe flow + permission UI (2026-09-10) — merged, Reconciled
 
 Branch `agent-frontend/G411-49-push-subscribe` (worktree
 `Gavi411-agent-frontend`, fresh off `origin/main`). 4 commits: `5516e1d`
@@ -82,7 +83,9 @@ confirmed real, both reverted clean.
 
 79/79 client tests pass (fresh), build clean.
 
-### G411-98 — notification history screen (2026-09-10) — Landed, not merged
+**Merged (PR #105) and Reconciled.**
+
+### G411-98 — notification history screen (2026-09-10) — merged, Reconciled
 
 Branch `agent-backend/G411-98-notification-history` (worktree
 `Gavi411-agent-backend`, fresh off `origin/main`). 3 commits: `99fcdd5`
@@ -115,25 +118,31 @@ whole screen's styling; and a logging-order bug where a misconfigured
 VAPID deploy would lose notification history too, not just delivery
 (reordered, tested).
 
-**Real, deliberate gap, flagged for next pickup — NOT yet fixed, needs
-re-verification once more of Epic 7 is built:** the read/unread UI and
-the log-write path are both verified via mutation-tested routes and a
+**Real, deliberate gap — NOT fixed, tracked deliberately, not silently
+dropped just because the ticket Reconciled**: the read/unread UI and the
+log-write path are both verified via mutation-tested routes and a
 manually-inserted test row (`node -e "...prisma.notification.create..."`
 against Gavi's real account) — but no actual end-to-end trigger (a real
 device-link request, etc.) has been clicked through live yet, since the
 easiest real trigger (a plain new-request) doesn't push at all (that's
 G411-51's job, still Open — confirmed via grep, not assumed, that
-`POST /api/requests` never calls `sendPushToUser`). **Re-test the full
-live path once G411-51 (trigger matrix) is built and more real triggers
-exist**, before this can honestly move past Landed.
+`POST /api/requests` never calls `sendPushToUser`). **Gavi's explicit
+call: land it now, re-test the full live path once the rest of Epic 7
+(specifically G411-51, the trigger matrix) is built and more real
+triggers exist to test against** — flag this again at that pickup,
+don't let it silently fall off.
 
 484/484 server tests pass (fresh), 82/82 client tests pass, build clean.
 
+**Merged (PR #106) and Reconciled.**
+
 ### Also this session: standalone fix, unrelated to either ticket
 
-Branch `you/fix-usermanagement-select-crash` (primary worktree), 1
-commit `7ebbcf7`, not merged. Found live while testing G411-49/98, not
-caused by either — **Gavi's explicit call: fix now, no new ticket**
+Branch `you/fix-usermanagement-select-crash` (primary worktree), 2
+commits (the fix itself, plus this HANDOFF/brain.md/CLAUDE.md doc
+commit). **Merged (PR #104).** No Jira ticket — found live while testing
+G411-49/98, not caused by either — **Gavi's explicit call: fix now, no
+new ticket**
 (small enough not to need one). Two things in one commit:
 1. `UserManagement.jsx`'s group-tag `<Select>` was passing `<option>`
    children like a native `<select>`, but `Select.jsx`'s real API is an
@@ -148,6 +157,18 @@ caused by either — **Gavi's explicit call: fix now, no new ticket**
    exported and tested.
 
 73/73 client tests pass, build clean.
+
+### Real state, right now
+
+Primary worktree on `main`, up to date with `origin/main` (`54b8413`,
+after merging PRs #104/#105/#106). All 6 agent worktrees checked clean
+(`git status --short` empty in each) — `Gavi411-agent-backend` and
+`Gavi411-agent-frontend` are parked on their now-fully-merged feature
+branches (can't hold `main` themselves while the primary worktree does,
+per this project's worktree constraint), confirmed via
+`git merge-base --is-ancestor` that both branch tips are real ancestors
+of `origin/main` — nothing lost, nothing to fast-forward, next dispatch
+just branches fresh off `origin/main` as usual.
 
 ### G411-47 — admin-approved credit overdraft (2026-09-10) — merged, Reconciled
 
