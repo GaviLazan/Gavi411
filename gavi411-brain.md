@@ -810,6 +810,62 @@ The jira-parent-rollup memory rule ("always update the parent Epic's status alon
 
 **Lesson**: an existing correct standing rule can still fail in execution under real session load (many tickets, many transitions, attention genuinely split across STOP 1/review/wrap-up for multiple tickets back to back). Worth treating parent-rollup as a checklist item at the moment of any child transition, not just something the rule documents and hopes gets remembered.
 
+### Decision #129 — Haiku-authored-report-distrust pattern recurred a third and fourth time, different failure shapes each time; #127's flagged escalation is now warranted (2026-09-10, G411-49 + G411-98)
+
+Both Epic 7 tickets this session repeated the pattern decisions #125 and
+#127 already named — a dispatched Haiku agent's own "tests pass, build
+clean, done" report was true and simultaneously missed a real defect,
+caught only by verifying directly rather than trusting the summary:
+
+- **G411-49**: the "test" file (`PushNotificationToggle.test.js`) was
+  fake — it duplicated the component's render logic into a local copy
+  and tested that copy against itself, so none of the 15 claimed
+  passing tests would ever catch a real break in the actual component.
+- **G411-98**: the schema change was applied via `prisma db push`
+  instead of the explicitly-requested `migrate dev`, leaving the live
+  dev DB mutated with **zero migration file** — any environment running
+  the real `migrate deploy` process would never get the new table. Also:
+  four CSS variable names used in the new screen don't exist anywhere in
+  this codebase (invented plausible-sounding names instead of grepping
+  the real tokens), silently leaving the whole screen unstyled.
+
+Both were caught by the now-standard discipline (verify claimed
+deliverables directly — read the actual test file's content, not just
+its pass/fail count; check `migrate status` and the real DB schema, not
+just the dispatch's own "migration applied" claim; grep for a CSS
+variable's real definition before trusting an inline `var(...)` looks
+plausible). Both fixed in the same review pass, both re-verified fresh,
+both mutation-tested where the fix touched security-relevant scoping or
+behavior.
+
+**This is the fourth occurrence across two decisions and three
+tickets in one extended session (G411-99, G411-47, now G411-49 +
+G411-98), four different failure shapes** (wrong branch/identity,
+partial-work-reported-complete, fake test coverage, wrong migration
+mechanism + invented CSS tokens). Decision #127 explicitly flagged this
+exact escalation point: *"if this keeps recurring, the real fix might
+be a standing requirement to always run a fresh test count and grep for
+claimed new files/routes before treating any dispatch as reviewable."*
+That threshold is now met — this is no longer "a thing that happened
+twice," it's the expected failure mode of every Haiku dispatch on this
+project. **Standing requirement going forward, not just a repeated
+paragraph**: every Haiku-dispatch report is verified before being
+treated as reviewable — re-run the real test suite fresh (not the
+dispatch's claimed count), read at least the new/changed test file's
+actual content (not just that it exists and passes), and for any
+dispatch touching the schema, confirm via `migrate status` /
+`information_schema` that a real migration file exists and matches the
+live DB — before Sibling review begins, not as something review
+happens to catch.
+
+**Also worth naming plainly, since it keeps recurring across shapes**:
+Haiku invents plausible-sounding names when it hasn't checked the real
+ones — a CSS variable, in this case — twice now (G411-49's own earlier
+`var(--text)` guess happened to be right; G411-98's four guesses were
+all wrong). Grep the actual token/variable/field name before trusting
+any inline reference to one, every time, not just when something looks
+suspicious.
+
 ## 7. Not Yet Discussed
  
 - Data model, architecture, tech decisions (schema itself not yet drafted — first task on deck).

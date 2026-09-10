@@ -12,6 +12,20 @@ import './UserManagement.css'
 // 3. Edit basic info (name, phone)
 // 4. Block/delete account (toggle block, or soft-delete with confirmation)
 
+// Gavi's call: the input reads as "set balance to this number" by
+// default (matches how admin actually thinks about it), but a leading
+// +/- still means "adjust by this much" — the server only ever wants a
+// delta, so this converts a plain target into one against the user's
+// current balance.
+export function creditInputToDelta(input, currentBalance) {
+  const trimmed = input.trim()
+  if (!trimmed) return 0
+  const isExplicitDelta = trimmed.startsWith('+') || trimmed.startsWith('-')
+  const parsed = parseInt(trimmed, 10)
+  if (Number.isNaN(parsed)) return 0
+  return isExplicitDelta ? parsed : parsed - currentBalance
+}
+
 function UserManagement({ onBack }) {
   const [users, setUsers] = useState(null)
   const [error, setError] = useState('')
@@ -19,7 +33,7 @@ function UserManagement({ onBack }) {
 
   // Per-user edit state: { [clerkId]: { editing, firstName, lastName, phoneNumber } }
   const [editingUsers, setEditingUsers] = useState({})
-  const [updatingCredit, setUpdatingCredit] = useState(null) // { userId, delta }
+  const [updatingCredit, setUpdatingCredit] = useState(null) // { userId, input: raw text }
   const [creditsLoading, setCreditsLoading] = useState({}) // { userId: boolean }
   const [infoLoading, setInfoLoading] = useState({}) // { userId: boolean }
   const [blockLoading, setBlockLoading] = useState({}) // { userId: boolean }
@@ -190,7 +204,8 @@ function UserManagement({ onBack }) {
       <div className="users-list">
         {users.map((user) => {
           const isEditing = editingUsers[user.clerkId]
-          const creditDelta = updatingCredit?.userId === user.clerkId ? updatingCredit.delta : 0
+          const creditInput = updatingCredit?.userId === user.clerkId ? updatingCredit.input : ''
+          const creditDelta = creditInputToDelta(creditInput, user.creditBalance)
 
           return (
             <Card key={user.clerkId} className="user-card">
@@ -209,11 +224,12 @@ function UserManagement({ onBack }) {
                   value={user.groupTag}
                   onChange={(e) => handleGroupTagChange(user.clerkId, e.target.value)}
                   disabled={user.isDeleted}
-                >
-                  <option value="LIMITED">Limited (2 credits)</option>
-                  <option value="REGULAR">Regular (5 credits)</option>
-                  <option value="CLOSE">Close (7 credits)</option>
-                </Select>
+                  options={[
+                    { value: 'LIMITED', label: 'Limited (2 credits)' },
+                    { value: 'REGULAR', label: 'Regular (5 credits)' },
+                    { value: 'CLOSE', label: 'Close (7 credits)' },
+                  ]}
+                />
               </div>
 
               {/* Credit Balance */}
@@ -221,10 +237,11 @@ function UserManagement({ onBack }) {
                 <label>Credits: {user.creditBalance}</label>
                 <div className="credit-adjustment">
                   <input
-                    type="number"
-                    placeholder="+/- delta"
-                    value={creditDelta || ''}
-                    onChange={(e) => setUpdatingCredit({ userId: user.clerkId, delta: parseInt(e.target.value) || 0 })}
+                    type="text"
+                    inputMode="numeric"
+                    placeholder="new total, or +5 / -2"
+                    value={creditInput}
+                    onChange={(e) => setUpdatingCredit({ userId: user.clerkId, input: e.target.value })}
                     disabled={user.isDeleted || creditsLoading[user.clerkId]}
                   />
                   <Button

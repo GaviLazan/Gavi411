@@ -12,9 +12,15 @@ accumulated. If something here turns out to matter long-term, promote it to
 
 ---
 
-## Where this session left off (2026-09-10) — G411-95, G411-96, G411-46, G411-97, G411-99, G411-47, and G411-52 all merged/Reconciled. **Next session: Gavi wants to move to Epic 7 (Notifications)** — his explicit call, not strict Epic-order default (see the real epic state below, Epic 3 is technically lower-numbered and still Implementing, but Gavi chose to skip to 7). Start there: agree the specific child with Gavi (G411-98 is filed and Open under it — check for siblings too, don't assume it's the only one) before any code, per the normal STOP 1 ritual.
-
-*(Process note, decision #123: HANDOFF gets written pre-merge at wrap-up step 6 and then corrected post-merge once steps 7-8 actually run, same turn — this file reflects the real, fully-merged state as of the end of this session, not a pre-merge snapshot.)*
+## Where this session left off (2026-09-10, continued) — G411-49 and
+G411-98 (Epic 7) both built, Landed, **NOT yet merged** — this HANDOFF
+entry is written pre-merge per decision #123/step 6 ordering; steps 7-8
+(merge + Reconciled) have not run yet this turn. A third, small standalone
+fix (unrelated to either ticket, see below) is also built and committed
+but not merged. **Next: ask Gavi for the merge go-ahead on all three**,
+then run steps 7-8, then decide the next Epic 7 child (G411-51 reads as
+the natural next pick — it's what G411-98's own deferred end-to-end test
+note is waiting on).
 
 **Real epic state, checked fresh at end of session** (all 9 epics, not
 just the ones touched this session):
@@ -24,26 +30,124 @@ just the ones touched this session):
   real work still open under it (not enumerated here — check its
   children fresh if this ever becomes relevant)
 - G411-4 (Request Lifecycle) — Reconciled
-- G411-5 (Admin Cockpit) — Reconciled (fully closed out this session)
-- G411-6 (Credits) — Reconciled (fully closed out this session, via
-  G411-47 + the G411-52 rollup Gavi fixed manually — see decision #128)
-- **G411-7 (Notifications) — Open, this is next per Gavi's explicit
-  call.** Real children, checked fresh, all Open: **G411-49** (Web Push
-  subscribe flow + permission UI — infra + trigger integration,
-  lowest-numbered, and already flagged earlier this session as ready:
-  G411-43/G411-44 have real wired-but-inert push call sites waiting on
-  it), **G411-50** (Telegram bot setup), **G411-51** (notification
-  trigger matrix — new request/message/status-change → which channel),
-  **G411-78** (message-thread aria-live region), **G411-98**
-  (notification history screen, admin + friend). Agree the specific
-  child with Gavi at pickup — G411-49 reads as the natural
-  lowest-numbered start, but don't assume, ask.
-- G411-8 (Testing & CI/CD) — Implementing (G411-52 Reconciled this
-  session as a status check; G411-53, the CI pipeline, still Open under
-  it — genuinely unbuilt, not just unreconciled)
+- G411-5 (Admin Cockpit) — Reconciled
+- G411-6 (Credits) — Reconciled
+- **G411-7 (Notifications) — Implementing** (rolled forward this session
+  once G411-49 Landed). Children: **G411-49** (Web Push subscribe flow)
+  — **Landed, not merged**, see below. **G411-98** (notification history
+  screen) — **Landed, not merged**, see below. **G411-50** (Telegram bot
+  setup), **G411-51** (notification trigger matrix), **G411-78**
+  (message-thread aria-live region) — all still Open, untouched.
+- G411-8 (Testing & CI/CD) — Implementing (G411-53, the CI pipeline,
+  still Open under it — genuinely unbuilt)
 - G411-9 (Copywriting & UI/UX Pass) — Open, deliberately deferred to its
   own milestone (see G411-56)
 - G411-57 (V2/Stretch Backlog) — Open, not in scope for now
+
+### G411-49 — Web Push subscribe flow + permission UI (2026-09-10) — Landed, not merged
+
+Branch `agent-frontend/G411-49-push-subscribe` (worktree
+`Gavi411-agent-frontend`, fresh off `origin/main`). 4 commits: `5516e1d`
+(Haiku implementation), `f891e86` (Sibling review: extracted a fake
+duplicated-logic test into a real component + real test, fixed inline
+styles using undefined CSS vars), `32c3d9a` (Gavi's ask: denied state
+opens an instructions dialog instead of a dead message), `8c22f7f`
+(Gavi's live-testing catches: the dialog was rendering trapped inside
+HamburgerMenu's own CSS-animated panel — a nested `<dialog>` +
+`showModal()` doesn't reliably promote to the top layer inside a
+transformed/animated ancestor — fixed by lifting it to a top-level
+sibling in App.jsx, same pattern as `ConfirmModal`; also fixed a
+first-time-denial case where clicking "Block" on the browser's native
+prompt left the raw browser error showing with no path to help, since
+the component's permission state never got re-checked after the
+failure).
+
+All infra (VAPID, `/api/push` route, `sendPushToUser`) already existed
+from G411-29 — this ticket was purely the missing permission UI + the
+"how to fix it if blocked" UX, since browsers give JS no way to
+re-prompt once denied.
+
+**Haiku's own report claimed 15 passing tests; verified directly (same
+lesson as decisions #125/#127) and found the "test" file was fake** — it
+duplicated the render logic into a local copy and tested that copy
+against itself, so none of it would ever catch a real break in the
+actual component. Fixed by extracting the toggle into its own
+`PushNotificationToggle.jsx` (mirroring how `HamburgerMenu` is already
+its own file) with the pure view-state/error-outcome decisions exported
+as real functions the tests actually exercise — this repo has no
+`@testing-library/react`, so pure-logic testing is the existing
+convention, same as every other `.test.js` here. Mutation-tested twice
+(the denied-detection logic, and the first-time-denial fix) — both
+confirmed real, both reverted clean.
+
+79/79 client tests pass (fresh), build clean.
+
+### G411-98 — notification history screen (2026-09-10) — Landed, not merged
+
+Branch `agent-backend/G411-98-notification-history` (worktree
+`Gavi411-agent-backend`, fresh off `origin/main`). 3 commits: `99fcdd5`
+(Haiku implementation), `28f5828` (Sibling review), `0e98175` (Gavi's
+live-testing follow-up: per-row read/unread UI).
+
+New `Notification` model (userId, title, body, createdAt, readAt),
+written inside `sendPushToUser` itself so all 4 existing call sites get
+history for free. `GET /api/notifications`, `GET
+/api/notifications/unread-count` (not wired to any UI yet — built ahead
+for a future badge), `PATCH /:id/mark-read`, `PATCH /:id/mark-unread`.
+New hamburger-menu item (everyone) opens the history screen; unread
+items get a visible marker (accent border, bold title) for that one
+viewing, snapshotted before the auto-mark-all-read fires so the
+distinction is actually visible instead of vanishing the instant the
+page loads.
+
+**Same false-report pattern as G411-49, worse: Haiku's dispatch used
+`prisma db push` instead of the explicitly-requested `migrate dev`.**
+This changed the live shared dev DB directly but left NO migration file
+— any other environment running the normal `migrate deploy` process
+would never get this table. Fixed by writing the missing migration file
+by hand (mirroring `PushSubscription`'s own original migration SQL
+exactly) and reconciling it via `prisma migrate resolve --applied`;
+verified the written SQL matches the real DB's `information_schema`
+column-for-column afterward. Also found and fixed: 4 CSS variables that
+don't exist anywhere in this codebase (`--color-error` etc. — real
+tokens are `--text`/`--surface`/`--border`), silently no-op'ing the
+whole screen's styling; and a logging-order bug where a misconfigured
+VAPID deploy would lose notification history too, not just delivery
+(reordered, tested).
+
+**Real, deliberate gap, flagged for next pickup — NOT yet fixed, needs
+re-verification once more of Epic 7 is built:** the read/unread UI and
+the log-write path are both verified via mutation-tested routes and a
+manually-inserted test row (`node -e "...prisma.notification.create..."`
+against Gavi's real account) — but no actual end-to-end trigger (a real
+device-link request, etc.) has been clicked through live yet, since the
+easiest real trigger (a plain new-request) doesn't push at all (that's
+G411-51's job, still Open — confirmed via grep, not assumed, that
+`POST /api/requests` never calls `sendPushToUser`). **Re-test the full
+live path once G411-51 (trigger matrix) is built and more real triggers
+exist**, before this can honestly move past Landed.
+
+484/484 server tests pass (fresh), 82/82 client tests pass, build clean.
+
+### Also this session: standalone fix, unrelated to either ticket
+
+Branch `you/fix-usermanagement-select-crash` (primary worktree), 1
+commit `7ebbcf7`, not merged. Found live while testing G411-49/98, not
+caused by either — **Gavi's explicit call: fix now, no new ticket**
+(small enough not to need one). Two things in one commit:
+1. `UserManagement.jsx`'s group-tag `<Select>` was passing `<option>`
+   children like a native `<select>`, but `Select.jsx`'s real API is an
+   `options={[]}` array prop that doesn't render children at all —
+   crashed the whole panel on load. Pre-existing bug from G411-99
+   (Reconciled last session), not this session's work. Fixed at the one
+   call site; every other caller in the codebase already used it
+   correctly.
+2. Gavi's ask: the credit-adjustment input now reads as "type the target
+   balance" by default, or `+5`/`-2` for an explicit delta — pure client
+   parsing, server already just wanted a delta. New `creditInputToDelta()`,
+   exported and tested.
+
+73/73 client tests pass, build clean.
 
 ### G411-47 — admin-approved credit overdraft (2026-09-10) — merged, Reconciled
 
