@@ -62,6 +62,28 @@ export async function refundCredit(tx, userId) {
   })
 }
 
+// G411-46: changing a user's tier immediately adjusts their credit
+// balance, not just at the next monthly reset (Gavi's explicit call —
+// otherwise an admin bumping someone up a tier mid-month wouldn't see
+// it take effect until the next reset boundary). Two different rules
+// depending on direction, not a single "always apply the delta" — an
+// upgrade (higher cap) always adds the full delta between tier caps,
+// but a downgrade (lower cap) only clamps balance DOWN to the new cap
+// if they're currently above it; someone already below the new cap
+// (they'd used more of their old allotment) keeps what they have,
+// never gets bumped down further. Examples: Regular(5)->Limited(2) at
+// balance 5 or 3 both clamp to 2; at balance 1, stays 1 (already below
+// 2). Regular(5)->Close(7) at balance 4 (used 1) becomes 4+(7-5)=6.
+export function creditDeltaForTierChange(oldGroupTag, newGroupTag, currentBalance) {
+  const oldCap = initialCreditFor(oldGroupTag)
+  const newCap = initialCreditFor(newGroupTag)
+
+  if (newCap >= oldCap) {
+    return newCap - oldCap
+  }
+  return Math.min(0, newCap - currentBalance)
+}
+
 // G411-46: monthly credit reset job. Resets credit balance to the tier's
 // initial amount for any user whose creditsResetAt is either null (never
 // reset) or falls in a different calendar month than today. Calendar month

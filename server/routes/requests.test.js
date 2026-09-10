@@ -1622,28 +1622,68 @@ describe('PATCH /api/requests/users/:userId/group-tag (G411-46)', () => {
     expect(res.body.error).toContain('LIMITED')
   })
 
-  it('updates the user\'s groupTag and returns the updated user', async () => {
+  it('updates the user\'s groupTag and applies the upgrade delta to creditBalance', async () => {
     currentUserId = ADMIN
-    prismaMock.user.update.mockResolvedValue({ clerkId: OTHER, groupTag: 'CLOSE' })
+    // Regular(5) -> Close(7), balance 4 (used 1) -> delta +2 -> 6.
+    prismaMock.user.findUnique.mockResolvedValue({ groupTag: 'REGULAR', creditBalance: 4 })
+    prismaMock.user.update.mockResolvedValue({ clerkId: OTHER, groupTag: 'CLOSE', creditBalance: 6 })
 
     const res = await request(app)
       .patch('/api/requests/users/user_other/group-tag')
       .send({ groupTag: 'CLOSE' })
 
     expect(res.status).toBe(200)
-    expect(res.body).toEqual({ clerkId: OTHER, groupTag: 'CLOSE' })
+    expect(res.body).toEqual({ clerkId: OTHER, groupTag: 'CLOSE', creditBalance: 6 })
     expect(prismaMock.user.update).toHaveBeenCalledWith({
       where: { clerkId: 'user_other' },
-      data: { groupTag: 'CLOSE' },
-      select: { clerkId: true, groupTag: true },
+      data: { groupTag: 'CLOSE', creditBalance: { increment: 2 } },
+      select: { clerkId: true, groupTag: true, creditBalance: true },
+    })
+    expect(prismaMock.creditTransaction.create).toHaveBeenCalledWith({
+      data: { amount: 2, userId: 'user_other' },
     })
   })
 
-  it('404s when the user does not exist (P2025 error)', async () => {
+  it('downgrade clamps balance down to the new cap only if currently above it', async () => {
     currentUserId = ADMIN
-    const notFoundErr = new Error('User not found')
-    notFoundErr.code = 'P2025'
-    prismaMock.user.update.mockRejectedValue(notFoundErr)
+    // Regular(5) -> Limited(2), balance 3 (above the new cap) -> clamp to 2.
+    prismaMock.user.findUnique.mockResolvedValue({ groupTag: 'REGULAR', creditBalance: 3 })
+    prismaMock.user.update.mockResolvedValue({ clerkId: OTHER, groupTag: 'LIMITED', creditBalance: 2 })
+
+    const res = await request(app)
+      .patch('/api/requests/users/user_other/group-tag')
+      .send({ groupTag: 'LIMITED' })
+
+    expect(res.status).toBe(200)
+    expect(prismaMock.user.update).toHaveBeenCalledWith({
+      where: { clerkId: 'user_other' },
+      data: { groupTag: 'LIMITED', creditBalance: { increment: -1 } },
+      select: { clerkId: true, groupTag: true, creditBalance: true },
+    })
+  })
+
+  it('downgrade leaves balance untouched, no CreditTransaction, when already below the new cap', async () => {
+    currentUserId = ADMIN
+    // Regular(5) -> Limited(2), balance 1 (already below the new cap) -> no change.
+    prismaMock.user.findUnique.mockResolvedValue({ groupTag: 'REGULAR', creditBalance: 1 })
+    prismaMock.user.update.mockResolvedValue({ clerkId: OTHER, groupTag: 'LIMITED', creditBalance: 1 })
+
+    const res = await request(app)
+      .patch('/api/requests/users/user_other/group-tag')
+      .send({ groupTag: 'LIMITED' })
+
+    expect(res.status).toBe(200)
+    expect(prismaMock.user.update).toHaveBeenCalledWith({
+      where: { clerkId: 'user_other' },
+      data: { groupTag: 'LIMITED', creditBalance: { increment: 0 } },
+      select: { clerkId: true, groupTag: true, creditBalance: true },
+    })
+    expect(prismaMock.creditTransaction.create).not.toHaveBeenCalled()
+  })
+
+  it('404s when the user does not exist', async () => {
+    currentUserId = ADMIN
+    prismaMock.user.findUnique.mockResolvedValue(null)
 
     const res = await request(app)
       .patch('/api/requests/users/nonexistent/group-tag')
@@ -1655,7 +1695,7 @@ describe('PATCH /api/requests/users/:userId/group-tag (G411-46)', () => {
 
   it('500s on an unexpected database error', async () => {
     currentUserId = ADMIN
-    prismaMock.user.update.mockRejectedValue(new Error('DB connection lost'))
+    prismaMock.user.findUnique.mockRejectedValue(new Error('DB connection lost'))
 
     const res = await request(app)
       .patch('/api/requests/users/user_1/group-tag')

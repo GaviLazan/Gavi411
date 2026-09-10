@@ -79,7 +79,10 @@ function AdminCreateRequest({ onBack }) {
         throw new Error(body.error || 'Could not update tier')
       }
 
-      setTierSuccess('Tier updated')
+      // Tier change adjusts creditBalance immediately (not just at next
+      // reset) — show the resulting balance so the effect is visible.
+      const body = await res.json()
+      setTierSuccess(`Tier updated — new balance: ${body.creditBalance}`)
       setTierUserId('')
       setTierValue('REGULAR')
     } catch (err) {

@@ -17,7 +17,7 @@ const { resetPrismaMock } = vi.hoisted(() => {
 })
 vi.mock('./prisma.js', () => ({ prisma: resetPrismaMock }))
 
-import { deductCredit, refundCredit, initialCreditFor, resetMonthlyCredits } from './credits.js'
+import { deductCredit, refundCredit, initialCreditFor, resetMonthlyCredits, creditDeltaForTierChange } from './credits.js'
 
 function fakeTx(creditBalance) {
   return {
@@ -41,6 +41,32 @@ describe('initialCreditFor', () => {
   it('falls back to REGULAR for an unknown/missing tag', () => {
     expect(initialCreditFor(undefined)).toBe(5)
     expect(initialCreditFor('NOT_A_TAG')).toBe(5)
+  })
+})
+
+describe('creditDeltaForTierChange', () => {
+  it('upgrade always adds the full delta between tier caps, uncapped', () => {
+    // Regular(5) -> Close(7), balance 4 (used 1) -> +2 -> 6.
+    expect(creditDeltaForTierChange('REGULAR', 'CLOSE', 4)).toBe(2)
+    // Limited(2) -> Regular(5), balance 0 (fully used) -> +3 -> 3.
+    expect(creditDeltaForTierChange('LIMITED', 'REGULAR', 0)).toBe(3)
+  })
+
+  it('downgrade clamps down to the new cap only when currently above it', () => {
+    // Regular(5) -> Limited(2): balance 5 or 3 both clamp to 2.
+    expect(creditDeltaForTierChange('REGULAR', 'LIMITED', 5)).toBe(-3)
+    expect(creditDeltaForTierChange('REGULAR', 'LIMITED', 3)).toBe(-1)
+  })
+
+  it('downgrade leaves balance untouched when already at or below the new cap', () => {
+    // Regular(5) -> Limited(2), balance 1 (already below 2) -> no change.
+    expect(creditDeltaForTierChange('REGULAR', 'LIMITED', 1)).toBe(0)
+    // Balance exactly at the new cap -> no change either.
+    expect(creditDeltaForTierChange('REGULAR', 'LIMITED', 2)).toBe(0)
+  })
+
+  it('same-tier "change" is a no-op', () => {
+    expect(creditDeltaForTierChange('REGULAR', 'REGULAR', 3)).toBe(0)
   })
 })
 
