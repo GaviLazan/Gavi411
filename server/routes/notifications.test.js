@@ -183,3 +183,79 @@ describe('POST /api/notifications/mark-all-read', () => {
     expect(call.where.userId).not.toBe(ADMIN)
   })
 })
+
+describe('PATCH /api/notifications/:id/mark-unread', () => {
+  it('401s when signed out', async () => {
+    const res = await request(app).patch('/api/notifications/1/mark-unread')
+    expect(res.status).toBe(401)
+  })
+
+  it('400s on a non-integer id', async () => {
+    currentUserId = USER
+    const res = await request(app).patch('/api/notifications/not-a-number/mark-unread')
+    expect(res.status).toBe(400)
+  })
+
+  it('sets readAt to null, scoped to the signed-in user and that row id', async () => {
+    currentUserId = USER
+    prismaMock.notification.updateMany.mockResolvedValue({ count: 1 })
+
+    const res = await request(app).patch('/api/notifications/7/mark-unread')
+
+    expect(res.status).toBe(200)
+    expect(res.body).toEqual({ ok: true })
+    expect(prismaMock.notification.updateMany).toHaveBeenCalledWith({
+      where: { id: 7, userId: USER },
+      data: { readAt: null },
+    })
+  })
+
+  it('cannot unmark another user\'s notification (scoped by userId, not just id)', async () => {
+    currentUserId = USER
+    prismaMock.notification.updateMany.mockResolvedValue({ count: 0 })
+
+    await request(app).patch('/api/notifications/7/mark-unread')
+
+    const call = prismaMock.notification.updateMany.mock.calls[0][0]
+    expect(call.where.userId).toBe(USER)
+    expect(call.where.userId).not.toBe(ADMIN)
+  })
+})
+
+describe('PATCH /api/notifications/:id/mark-read', () => {
+  it('401s when signed out', async () => {
+    const res = await request(app).patch('/api/notifications/1/mark-read')
+    expect(res.status).toBe(401)
+  })
+
+  it('400s on a non-integer id', async () => {
+    currentUserId = USER
+    const res = await request(app).patch('/api/notifications/not-a-number/mark-read')
+    expect(res.status).toBe(400)
+  })
+
+  it('sets readAt to a real date, scoped to the signed-in user and that row id', async () => {
+    currentUserId = USER
+    prismaMock.notification.updateMany.mockResolvedValue({ count: 1 })
+
+    const res = await request(app).patch('/api/notifications/7/mark-read')
+
+    expect(res.status).toBe(200)
+    expect(res.body).toEqual({ ok: true })
+    expect(prismaMock.notification.updateMany).toHaveBeenCalledWith({
+      where: { id: 7, userId: USER },
+      data: { readAt: expect.any(Date) },
+    })
+  })
+
+  it('cannot mark another user\'s notification as read (scoped by userId, not just id)', async () => {
+    currentUserId = USER
+    prismaMock.notification.updateMany.mockResolvedValue({ count: 0 })
+
+    await request(app).patch('/api/notifications/7/mark-read')
+
+    const call = prismaMock.notification.updateMany.mock.calls[0][0]
+    expect(call.where.userId).toBe(USER)
+    expect(call.where.userId).not.toBe(ADMIN)
+  })
+})

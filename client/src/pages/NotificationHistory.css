@@ -12,9 +12,40 @@
   border-radius: var(--radius-sm);
 }
 
+/* Unread marker for this one viewing — see NotificationHistory.jsx's own
+   comment on why this is a local snapshot, not live server state. */
+.notification-item-unread {
+  border-left: 3px solid var(--accent);
+}
+
+.notification-item-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
 .notification-item-title {
   font-weight: 600;
   margin-bottom: var(--space-1);
+}
+
+.notification-item-unread .notification-item-title {
+  font-weight: 700;
+}
+
+.notification-item-toggle {
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  color: var(--accent);
+  font-size: 13px;
+  cursor: pointer;
+  padding: 0;
+}
+
+.notification-item-toggle:hover {
+  text-decoration: underline;
 }
 
 .notification-item-body {
