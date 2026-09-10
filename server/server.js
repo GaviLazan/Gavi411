@@ -13,6 +13,7 @@ import cors from 'cors'
 import { clerkMiddleware, requireAuth } from './middleware/auth.js'
 import { prisma } from './lib/prisma.js'
 import { runAutoCloseCheck } from './lib/autoClose.js'
+import { resetMonthlyCredits } from './lib/credits.js'
 
 const app = express()
 
@@ -78,3 +79,12 @@ const AUTO_CLOSE_INTERVAL_MS = 6 * 60 * 60 * 1000
 setInterval(() => {
   runAutoCloseCheck().catch((err) => console.error('Auto-close check failed:', err))
 }, AUTO_CLOSE_INTERVAL_MS)
+
+// Monthly credit reset job (G411-46) — runs every 6 hours, same as the
+// auto-close job. Checking for calendar-month changes doesn't need
+// frequent polling — once every several hours is plenty. Fire-and-log:
+// if one user's reset fails, others should still get processed.
+const CREDIT_RESET_INTERVAL_MS = AUTO_CLOSE_INTERVAL_MS
+setInterval(() => {
+  resetMonthlyCredits().catch((err) => console.error('Credit reset check failed:', err))
+}, CREDIT_RESET_INTERVAL_MS)

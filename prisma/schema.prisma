@@ -95,6 +95,10 @@ model User {
   profilePic    String?
   groupTag      GroupTag @default(REGULAR)
   creditBalance Int
+  // G411-46: timestamp of the most recent credit reset for this user.
+  // Null means never reset (existing users); set to signup time for new
+  // users so they don't get re-reset immediately.
+  creditsResetAt DateTime?
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
   isDeleted     Boolean  @default(false)

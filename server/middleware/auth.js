@@ -166,6 +166,11 @@ export async function requireAuth(req, res, next) {
             // groupTag collection exists — that's separate scope, not this
             // ticket's job.
             creditBalance: initialCreditFor(undefined),
+            // G411-46: initialize the reset timestamp at signup so the
+            // monthly reset job doesn't immediately re-reset a brand-new
+            // user on its next pass. Existing users have null; the job
+            // treats null as "never reset yet, do it now."
+            creditsResetAt: new Date(),
           },
         })
       } catch (err) {

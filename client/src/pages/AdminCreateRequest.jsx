@@ -10,6 +10,12 @@ function AdminCreateRequest({ onBack }) {
   const [creating, setCreating] = useState(false)
   const [error, setError] = useState(null)
   const [successMessage, setSuccessMessage] = useState(null)
+  // G411-46: tier control
+  const [tierUserId, setTierUserId] = useState('')
+  const [tierValue, setTierValue] = useState('REGULAR')
+  const [tierUpdating, setTierUpdating] = useState(false)
+  const [tierError, setTierError] = useState(null)
+  const [tierSuccess, setTierSuccess] = useState(null)
 
   // Load the list of users for the dropdown
   useEffect(() => {
@@ -52,6 +58,37 @@ function AdminCreateRequest({ onBack }) {
       setError(err.message)
     } finally {
       setCreating(false)
+    }
+  }
+
+  async function handleTierUpdate(e) {
+    e.preventDefault()
+    setTierError(null)
+    setTierSuccess(null)
+    setTierUpdating(true)
+
+    try {
+      const res = await fetch(`/api/requests/users/${tierUserId}/group-tag`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ groupTag: tierValue }),
+      })
+
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}))
+        throw new Error(body.error || 'Could not update tier')
+      }
+
+      // Tier change adjusts creditBalance immediately (not just at next
+      // reset) — show the resulting balance so the effect is visible.
+      const body = await res.json()
+      setTierSuccess(`Tier updated — new balance: ${body.creditBalance}`)
+      setTierUserId('')
+      setTierValue('REGULAR')
+    } catch (err) {
+      setTierError(err.message)
+    } finally {
+      setTierUpdating(false)
     }
   }
 
@@ -104,6 +141,44 @@ function AdminCreateRequest({ onBack }) {
 
       {error && <p role="alert">{error}</p>}
       {successMessage && <p role="status">{successMessage}</p>}
+
+      {/* G411-46: minimal tier control for unblocking monthly reset job */}
+      <div style={{ marginTop: '2rem', paddingTop: '2rem', borderTop: '1px solid #ccc' }}>
+        <h3>Set a friend's tier</h3>
+        <form onSubmit={handleTierUpdate}>
+          <label>
+            Friend
+            <select
+              value={tierUserId}
+              onChange={(e) => setTierUserId(e.target.value)}
+              required
+            >
+              <option value="">Select a friend</option>
+              {users.map((u) => (
+                <option key={u.clerkId} value={u.clerkId}>
+                  {u.firstName} {u.lastName}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label>
+            Tier
+            <select value={tierValue} onChange={(e) => setTierValue(e.target.value)}>
+              <option value="LIMITED">Acquaintance (2 credits)</option>
+              <option value="REGULAR">Regular (5 credits)</option>
+              <option value="CLOSE">Close (7 credits)</option>
+            </select>
+          </label>
+
+          <button type="submit" disabled={tierUpdating}>
+            {tierUpdating ? 'Saving…' : 'Save'}
+          </button>
+        </form>
+
+        {tierError && <p role="alert">{tierError}</p>}
+        {tierSuccess && <p role="status">{tierSuccess}</p>}
+      </div>
     </div>
   )
 }

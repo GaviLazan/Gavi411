@@ -9,7 +9,7 @@ import { prisma } from '../lib/prisma.js'
 import { validateImage, uploadImage, MAX_IMAGE_BYTES } from '../lib/cloudinary.js'
 import { canAccessRequest, hasAdminMessaged } from '../lib/requestAccess.js'
 import { E2E_ENABLED } from '../lib/e2eConfig.js'
-import { deductCredit, refundCredit } from '../lib/credits.js'
+import { deductCredit, refundCredit, creditDeltaForTierChange } from '../lib/credits.js'
 import { sendNudge, MESSAGE_INCLUDE } from '../lib/autoClose.js'
 import { sendPushToUser } from '../lib/webPush.js'
 
@@ -160,6 +160,73 @@ router.get('/users', requireAuth, requireAdmin, async (req, res) => {
   } catch (err) {
     console.error('Failed to load users:', err)
     res.status(500).json({ error: 'Failed to load users' })
+  }
+})
+
+// PATCH /users/:userId/group-tag — update a user's group tier (G411-46)
+// Minimal admin control to unblock the monthly reset job: needs real data
+// (users with assigned tiers) to work. NOT the fuller user-management
+// screen (G411-99, separate ticket) — just this one tier-update endpoint.
+//
+// Changing tier adjusts creditBalance immediately, not just at the next
+// monthly reset (Gavi's explicit call) — see creditDeltaForTierChange's
+// own doc comment for the exact up/downgrade rule. Read+update inside one
+// transaction so the delta is always computed against a balance that's
+// still current when the write lands, same reasoning as deductCredit's
+// existing tx pattern.
+router.patch('/users/:userId/group-tag', requireAuth, requireAdmin, async (req, res) => {
+  const { groupTag } = req.body
+  const validTags = ['LIMITED', 'REGULAR', 'CLOSE']
+
+  if (!groupTag || !validTags.includes(groupTag)) {
+    return res.status(400).json({ error: `groupTag must be one of: ${validTags.join(', ')}` })
+  }
+
+  try {
+    const updated = await prisma.$transaction(async (tx) => {
+      const existing = await tx.user.findUnique({
+        where: { clerkId: req.params.userId },
+        select: { role: true, groupTag: true, creditBalance: true },
+      })
+      if (!existing) {
+        const err = new Error('User not found')
+        err.statusCode = 404
+        throw err
+      }
+      // Sibling review finding: GET /users already excludes ADMIN from
+      // its dropdown for exactly this reason ("admin could select
+      // themselves, charge their own account a credit") but that's
+      // UI-only — nothing stopped a direct PATCH call from bypassing it.
+      // Enforced here for real, same 404 (not-found) convention as
+      // requireAdmin, so this doesn't leak which accounts are admins.
+      if (existing.role === 'ADMIN') {
+        const err = new Error('User not found')
+        err.statusCode = 404
+        throw err
+      }
+
+      const delta = creditDeltaForTierChange(existing.groupTag, groupTag, existing.creditBalance)
+      const user = await tx.user.update({
+        where: { clerkId: req.params.userId },
+        data: { groupTag, creditBalance: { increment: delta } },
+        select: { clerkId: true, groupTag: true, creditBalance: true },
+      })
+
+      if (delta !== 0) {
+        await tx.creditTransaction.create({
+          data: { amount: delta, userId: req.params.userId },
+        })
+      }
+
+      return user
+    })
+    res.json(updated)
+  } catch (err) {
+    if (err.statusCode === 404 || err.code === 'P2025') {
+      return res.status(404).json({ error: 'User not found' })
+    }
+    console.error('Failed to update group tag:', err)
+    res.status(500).json({ error: 'Failed to update group tag' })
   }
 })
 
