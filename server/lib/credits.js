@@ -145,9 +145,15 @@ export async function resetMonthlyCredits() {
           },
         })
 
-        await tx.creditTransaction.create({
-          data: { amount: delta, userId: user.clerkId },
-        })
+        // Sibling review finding: skip the write when delta is 0 (user's
+        // already exactly at their tier cap) — matches the group-tag
+        // PATCH route's own convention, avoids a permanent monthly
+        // zero-amount ledger row with no informational value.
+        if (delta !== 0) {
+          await tx.creditTransaction.create({
+            data: { amount: delta, userId: user.clerkId },
+          })
+        }
       })
     } catch (err) {
       // Log the failure but continue processing the next user.

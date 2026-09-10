@@ -1693,6 +1693,19 @@ describe('PATCH /api/requests/users/:userId/group-tag (G411-46)', () => {
     expect(res.body.error).toBe('User not found')
   })
 
+  it('404s when the target is an ADMIN (Sibling review finding — GET /users excludes ADMIN client-side for this exact reason, PATCH did not enforce it server-side)', async () => {
+    currentUserId = ADMIN
+    prismaMock.user.findUnique.mockResolvedValue({ role: 'ADMIN', groupTag: 'REGULAR', creditBalance: 5 })
+
+    const res = await request(app)
+      .patch('/api/requests/users/user_1/group-tag')
+      .send({ groupTag: 'CLOSE' })
+
+    expect(res.status).toBe(404)
+    expect(res.body.error).toBe('User not found')
+    expect(prismaMock.user.update).not.toHaveBeenCalled()
+  })
+
   it('500s on an unexpected database error', async () => {
     currentUserId = ADMIN
     prismaMock.user.findUnique.mockRejectedValue(new Error('DB connection lost'))

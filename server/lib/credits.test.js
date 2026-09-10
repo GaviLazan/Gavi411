@@ -189,7 +189,7 @@ describe('resetMonthlyCredits', () => {
     expect(prismaMock.creditTransaction.create).not.toHaveBeenCalled()
   })
 
-  it('writes a CreditTransaction even when the delta is 0', async () => {
+  it('skips the CreditTransaction write when the delta is 0, but still stamps creditsResetAt', async () => {
     const user = {
       clerkId: 'user_zero_delta',
       groupTag: 'REGULAR',
@@ -200,8 +200,10 @@ describe('resetMonthlyCredits', () => {
 
     await resetMonthlyCredits()
 
-    expect(prismaMock.creditTransaction.create).toHaveBeenCalledWith({
-      data: { amount: 0, userId: 'user_zero_delta' },
+    expect(prismaMock.creditTransaction.create).not.toHaveBeenCalled()
+    expect(prismaMock.user.update).toHaveBeenCalledWith({
+      where: { clerkId: 'user_zero_delta' },
+      data: { creditBalance: 5, creditsResetAt: expect.any(Date) },
     })
   })
 

@@ -186,9 +186,20 @@ router.patch('/users/:userId/group-tag', requireAuth, requireAdmin, async (req, 
     const updated = await prisma.$transaction(async (tx) => {
       const existing = await tx.user.findUnique({
         where: { clerkId: req.params.userId },
-        select: { groupTag: true, creditBalance: true },
+        select: { role: true, groupTag: true, creditBalance: true },
       })
       if (!existing) {
+        const err = new Error('User not found')
+        err.statusCode = 404
+        throw err
+      }
+      // Sibling review finding: GET /users already excludes ADMIN from
+      // its dropdown for exactly this reason ("admin could select
+      // themselves, charge their own account a credit") but that's
+      // UI-only — nothing stopped a direct PATCH call from bypassing it.
+      // Enforced here for real, same 404 (not-found) convention as
+      // requireAdmin, so this doesn't leak which accounts are admins.
+      if (existing.role === 'ADMIN') {
         const err = new Error('User not found')
         err.statusCode = 404
         throw err
