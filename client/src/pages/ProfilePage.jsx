@@ -11,12 +11,15 @@ import './CompleteProfile.css'
 // it. Only phone gets its own small edit flow, right here.
 function ProfilePage({ user, onBack, onUpdated }) {
   const { user: clerkUser } = useUser()
-  const { openUserProfile } = useClerk()
+  const { openUserProfile, signOut } = useClerk()
   const [editingPhone, setEditingPhone] = useState(false)
   const [dialCode, setDialCode] = useState('+972')
   const [localNumber, setLocalNumber] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState(null)
+  const [confirmingDelete, setConfirmingDelete] = useState(false)
+  const [confirmText, setConfirmText] = useState('')
+  const [deleteError, setDeleteError] = useState(null)
 
   // Real per-country grouping conventions, not guessed — dial code decides
   // which grouping applies. Israel's stored value already has its leading
@@ -171,6 +174,32 @@ function ProfilePage({ user, onBack, onUpdated }) {
     }
   }
 
+  // G411-96: delete account
+  async function handleDeleteAccount() {
+    setDeleteError(null)
+    setSubmitting(true)
+    try {
+      const res = await fetch('/api/me', { method: 'DELETE' })
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        throw new Error(data.error || 'Failed to delete account')
+      }
+
+      // Account deleted successfully — sign out
+      await signOut()
+    } catch (err) {
+      setDeleteError(err.message)
+      setSubmitting(false)
+    }
+  }
+
+  function cancelDelete() {
+    setConfirmingDelete(false)
+    setConfirmText('')
+    setDeleteError(null)
+  }
+
   return (
     <div className="complete-profile">
       <h1>Profile</h1>
@@ -216,6 +245,40 @@ function ProfilePage({ user, onBack, onUpdated }) {
             <button type="button" onClick={handleBack}>
               Back
             </button>
+          </div>
+
+          {/* G411-96: account deletion */}
+          <div style={{ marginTop: 'var(--space-5)', paddingTop: 'var(--space-3)', borderTop: '1px solid var(--color-border)' }}>
+            {!confirmingDelete ? (
+              <button type="button" onClick={() => setConfirmingDelete(true)} style={{ color: '#d32f2f' }}>
+                Delete account
+              </button>
+            ) : (
+              <div>
+                <p>This will permanently delete your account. Type your first name to confirm.</p>
+                <input
+                  type="text"
+                  value={confirmText}
+                  onChange={(e) => setConfirmText(e.target.value)}
+                  placeholder="Enter your first name"
+                  style={{ marginBottom: 'var(--space-2)' }}
+                />
+                {deleteError && <p role="alert" style={{ color: '#d32f2f' }}>{deleteError}</p>}
+                <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
+                  <button
+                    type="button"
+                    onClick={handleDeleteAccount}
+                    disabled={submitting || confirmText.trim().toLowerCase() !== (user?.firstName?.toLowerCase() ?? '')}
+                    style={{ color: '#d32f2f' }}
+                  >
+                    {submitting ? 'Deleting…' : 'Delete my account'}
+                  </button>
+                  <button type="button" onClick={cancelDelete} disabled={submitting}>
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </>
       ) : (

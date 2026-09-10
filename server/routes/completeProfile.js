@@ -7,6 +7,7 @@ import { Prisma } from '@prisma/client'
 import { clerkClient } from '@clerk/express'
 import { requireAuth } from '../middleware/auth.js'
 import { prisma } from '../lib/prisma.js'
+import { sendPushToUser } from '../lib/webPush.js'
 
 const router = express.Router()
 
@@ -148,6 +149,78 @@ router.post('/sync-from-clerk', requireAuth, async (req, res) => {
       // accounts somehow raced, don't silently drop the sync attempt.
       return res.status(409).json({ error: 'That information conflicts with another account' })
     }
+    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2025') {
+      return res.status(404).json({ error: 'Account not found' })
+    }
+    throw err
+  }
+})
+
+// G411-96: soft-delete account — marks user as deleted, scrubs personal
+// fields, and removes Clerk record. Request/Message history preserved intact
+// (FK constraints survive, data tied to this now-deleted user remains).
+// Clerk delete ordered AFTER Prisma commit so a partial failure leaves the
+// account locked out on our side (safe state) rather than live but broken.
+// Admin notification is fire-and-forget — a push failure must never block
+// account deletion.
+async function notifyAdminOfAccountDeletion(deletedUser) {
+  console.log(
+    `[account-deletion] ${deletedUser.firstName} ${deletedUser.lastName} (${deletedUser.clerkId}) deleted their account`,
+  )
+
+  const admins = await prisma.user.findMany({ where: { role: 'ADMIN' } })
+  await Promise.all(
+    admins.map((admin) =>
+      sendPushToUser(admin.clerkId, {
+        title: 'Account deleted',
+        body: `${deletedUser.firstName} ${deletedUser.lastName} deleted their account`,
+      }),
+    ),
+  )
+}
+
+// DELETE /api/me — soft-delete the caller's account
+router.delete('/', requireAuth, async (req, res) => {
+  try {
+    // Capture name before soft-delete wipes any fields (name is NOT scrubbed,
+    // but capture cleanly regardless for the notification).
+    const user = await prisma.user.findUnique({
+      where: { clerkId: req.user.clerkId },
+    })
+
+    if (!user) {
+      return res.status(404).json({ error: 'Account not found' })
+    }
+
+    // Soft-delete: clear PII, mark deleted, preserve Request/Message/Credit history
+    const deletedUser = await prisma.user.update({
+      where: { clerkId: req.user.clerkId },
+      data: {
+        isDeleted: true,
+        email: null,
+        phoneNumber: `deleted-${req.user.clerkId}`,
+        profilePic: null,
+        publicKey: null,
+      },
+    })
+
+    // Delete Clerk record AFTER Prisma succeeds — if Clerk fails, our account
+    // is already locked out locally (safe), not the other way around.
+    try {
+      await clerkClient.users.deleteUser(req.user.clerkId)
+    } catch (clerkErr) {
+      // Clerk delete failure doesn't fail the whole request — the account is
+      // already scrubbed/locked on our side, which is the safe state.
+      console.error(`Failed to delete Clerk user ${req.user.clerkId}:`, clerkErr)
+    }
+
+    // Fire-and-forget admin notification — don't block response on push failure
+    notifyAdminOfAccountDeletion(deletedUser).catch((err) => {
+      console.error(`Failed to notify admins of account deletion for ${req.user.clerkId}:`, err)
+    })
+
+    res.json({ success: true })
+  } catch (err) {
     if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2025') {
       return res.status(404).json({ error: 'Account not found' })
     }

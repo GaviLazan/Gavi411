@@ -41,10 +41,20 @@ vi.mock('../middleware/auth.js', () => ({
 const prismaMock = {
   user: {
     update: vi.fn(),
+    findUnique: vi.fn(),
+    findMany: vi.fn(),
   },
 }
 
 vi.mock('../lib/prisma.js', () => ({ prisma: prismaMock }))
+
+const sendPushToUserMock = vi.fn(async () => undefined)
+vi.mock('../lib/webPush.js', () => ({
+  sendPushToUser: sendPushToUserMock,
+}))
+
+const clerkClientDeleteMock = vi.fn()
+clerkClientMock.users.deleteUser = clerkClientDeleteMock
 
 const { default: completeProfileRouter } = await import('./completeProfile.js')
 
@@ -339,5 +349,108 @@ describe('POST /api/me/sync-from-clerk', () => {
     prismaMock.user.update.mockRejectedValue(uniqueViolation())
     const res = await request(app).post('/api/me/sync-from-clerk')
     expect(res.status).toBe(409)
+  })
+})
+
+// G411-96: soft-delete account
+describe('DELETE /api/me', () => {
+  it('401s when signed out', async () => {
+    const res = await request(app).delete('/api/me')
+    expect(res.status).toBe(401)
+  })
+
+  it('soft-deletes the account and deletes from Clerk on success', async () => {
+    currentUserId = USER
+    const userBefore = { clerkId: USER, firstName: 'John', lastName: 'Doe', email: 'john@example.com', phoneNumber: '050-1234567', profilePic: 'https://pic.jpg', publicKey: 'base64-key', role: 'USER' }
+    prismaMock.user.findUnique.mockResolvedValue(userBefore)
+    const userAfterDelete = { ...userBefore, isDeleted: true, email: null, phoneNumber: `deleted-${USER}`, profilePic: null, publicKey: null }
+    prismaMock.user.update.mockResolvedValue(userAfterDelete)
+    prismaMock.user.findMany.mockResolvedValue([{ clerkId: ADMIN, firstName: 'Gavi', lastName: 'Lazan' }])
+    clerkClientDeleteMock.mockResolvedValue()
+    sendPushToUserMock.mockResolvedValue()
+
+    const res = await request(app).delete('/api/me')
+    expect(res.status).toBe(200)
+    expect(res.body.success).toBe(true)
+
+    // Verify Prisma update was called with correct soft-delete fields
+    expect(prismaMock.user.update).toHaveBeenCalledWith({
+      where: { clerkId: USER },
+      data: {
+        isDeleted: true,
+        email: null,
+        phoneNumber: `deleted-${USER}`,
+        profilePic: null,
+        publicKey: null,
+      },
+    })
+
+    // Verify Clerk delete was called
+    expect(clerkClientDeleteMock).toHaveBeenCalledWith(USER)
+
+    // Verify admin notification was sent (sendPushToUser called)
+    expect(sendPushToUserMock).toHaveBeenCalled()
+  })
+
+  it('still returns success if Clerk delete fails (Prisma succeeded, safe state)', async () => {
+    currentUserId = USER
+    const userBefore = { clerkId: USER, firstName: 'John', lastName: 'Doe', email: 'john@example.com' }
+    prismaMock.user.findUnique.mockResolvedValue(userBefore)
+    prismaMock.user.update.mockResolvedValue({ ...userBefore, isDeleted: true, email: null, phoneNumber: `deleted-${USER}`, profilePic: null, publicKey: null })
+    prismaMock.user.findMany.mockResolvedValue([])
+    clerkClientDeleteMock.mockRejectedValue(new Error('Clerk API error'))
+    sendPushToUserMock.mockResolvedValue()
+
+    const res = await request(app).delete('/api/me')
+    expect(res.status).toBe(200)
+    expect(res.body.success).toBe(true)
+
+    // Prisma update should still have been called
+    expect(prismaMock.user.update).toHaveBeenCalled()
+
+    // Clerk delete was attempted but failed
+    expect(clerkClientDeleteMock).toHaveBeenCalledWith(USER)
+  })
+
+  it('404s if the user row does not exist', async () => {
+    currentUserId = USER
+    prismaMock.user.findUnique.mockResolvedValue(null)
+
+    const res = await request(app).delete('/api/me')
+    expect(res.status).toBe(404)
+    expect(res.body.error).toBe('Account not found')
+
+    // Should not attempt Clerk delete if Prisma lookup fails
+    expect(clerkClientDeleteMock).not.toHaveBeenCalled()
+  })
+
+  it('notifies all admins of the account deletion via push', async () => {
+    currentUserId = USER
+    const userBefore = { clerkId: USER, firstName: 'John', lastName: 'Doe', email: 'john@example.com' }
+    prismaMock.user.findUnique.mockResolvedValue(userBefore)
+    prismaMock.user.update.mockResolvedValue({ ...userBefore, isDeleted: true, email: null, phoneNumber: `deleted-${USER}`, profilePic: null, publicKey: null })
+    prismaMock.user.findMany.mockResolvedValue([
+      { clerkId: ADMIN, role: 'ADMIN', firstName: 'Admin1', lastName: 'User' },
+      { clerkId: 'user_admin_2', role: 'ADMIN', firstName: 'Admin2', lastName: 'User' },
+    ])
+    clerkClientDeleteMock.mockResolvedValue()
+    sendPushToUserMock.mockResolvedValue()
+
+    const res = await request(app).delete('/api/me')
+    expect(res.status).toBe(200)
+
+    // Verify findMany was called to get admins
+    expect(prismaMock.user.findMany).toHaveBeenCalledWith({ where: { role: 'ADMIN' } })
+
+    // Verify sendPushToUser was called once per admin
+    expect(sendPushToUserMock).toHaveBeenCalledTimes(2)
+    expect(sendPushToUserMock).toHaveBeenCalledWith(ADMIN, {
+      title: 'Account deleted',
+      body: 'John Doe deleted their account',
+    })
+    expect(sendPushToUserMock).toHaveBeenCalledWith('user_admin_2', {
+      title: 'Account deleted',
+      body: 'John Doe deleted their account',
+    })
   })
 })
