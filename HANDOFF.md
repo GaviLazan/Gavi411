@@ -12,6 +12,106 @@ accumulated. If something here turns out to matter long-term, promote it to
 
 ---
 
+## Where this session left off (2026-09-16) — G411-100 (Epic 6/Credits) built, merged, Reconciled; Epic 6 fully closed
+
+**G411-100 — credit balance indicator in header, friends only** — Gavi
+filed this fresh this session and reopened Epic 6 (Credits) because the
+display half of credits (originally scoped under G411-45, "Credit
+balance schema + user-facing display," Reconciled) had silently never
+shipped — the whole credit *mechanism* (grant/deduct/refund/reset/tier/
+overdraft) was built and tested, but a friend had no way to see their
+own balance short of hitting a 402 on submit.
+
+**STOP 1 done properly**: dispatched Opus to investigate the real gap
+(confirmed via grep — `GET /api/me` already returns the full `User` row
+including `creditBalance`/`creditsResetAt`, already sitting unused in
+`App.jsx`'s `fetchedUser` state, so no new backend route was needed) and
+surface open design questions rather than resolve them. Gavi corrected
+the flow mid-session — "Opus should first talk to me about scope"
+before Sonnet relays a finished package — locked design directly with
+Gavi via AskUserQuestion: header row next to account name, friends only
+(admin has a real `creditBalance` used for testing but it's deliberately
+not shown), bare number with tap-or-hover reveal for reset-date detail
+(one interaction covering both mouse and touch/PWA), refetches after a
+request submit via the existing `roleRetryToken` mechanism (same pattern
+`CompleteProfile`'s `onComplete` already uses).
+
+Jira: transitioned Open → Implementing *before* Scope/Falsifier fields
+were written (correct order per CLAUDE.md #114), then Scope/Falsifier/
+Evidence-required/Owner/Reviewer-type all written against the locked
+design. Dispatched Haiku with a fully pinned handoff (exact files,
+exact line numbers, exact existing patterns to reuse — no open
+questions left for the dispatch to resolve on its own).
+
+**Small, clean diff — 12 lines in `App.jsx`, 5 in `App.css`.** Verified
+independently before trusting Haiku's own report (per the standing
+#125/#127/#129 discipline): re-ran the full test suite fresh (this repo
+runs one combined root-level `vitest` suite across client+server, not
+two separate suites — worth noting since older HANDOFF entries below
+phrase counts as "X server + Y client," which doesn't reflect how `npm
+test` actually runs here) — 484/484 pass, build clean. Specifically
+checked the `0`-balance edge case (the falsifier's explicit concern:
+"a friend at balance 0 sees no indication of it") renders correctly
+rather than silently vanishing — `!== undefined` correctly includes
+`0`; `creditBalance` is non-nullable `Int` in the schema so the `null`
+case is moot. Sibling review: clean, no fixes needed.
+
+**Real process mistake this session, now logged as decision #130
+(brain.md)**: this ticket was built directly inside the persistent
+`Gavi411-agent-backend` worktree (correct role — `agent-frontend` is
+infra-only per the commit convention; product UI wiring is
+`agent-backend`'s job even when it only touches `client/`). Merging via
+`gh pr merge --merge --admin --delete-branch` deleted that branch,
+which was the live checked-out HEAD of the persistent worktree —
+`git worktree list` afterward silently stopped listing it, the
+directory's `.git` linkage was gone. No work was lost (already merged
+into `main` first), but the worktree needed manual recovery: fresh
+`git worktree add` on a new `agent-backend/base` branch off `main`,
+identity re-set (`user.name`/`user.email`), `core.hooksPath`
+re-pointed, `.env`/`client/.env` symlinks re-created. **Standing rule
+now in brain.md #130**: check `git worktree list` before
+`--delete-branch` on any agent-role branch — if it's a worktree's live
+HEAD, don't pass that flag.
+
+**Merged (PR #108, merge commit `647ce10`) and Reconciled.** Epic G411-6
+(Credits) is now fully Reconciled — all 7 children (G411-45, 46, 47, 48,
+97, 99, 100) resolved.
+
+**HANDOFF staleness found and corrected this session**: several entries
+below (G411-95, G411-93) were still phrased as "Landed... not yet
+merged" from when they were originally written — both actually merged
+and Reconciled since (PR #96 and PR #94 respectively, confirmed via
+`git log` and live Jira status), the stale wording just never got
+cleaned up as newer sessions prepended entries on top rather than
+overwriting. Confirmed via Jira MCP (after some timeouts, retried
+successfully) that both are genuinely Reconciled — nothing is actually
+mid-work from either of those. **The one real open item carried
+forward is G411-98's own deliberately-deferred live end-to-end
+notification trigger test**, still waiting on G411-51 (trigger matrix)
+to give it a real trigger to test against — see that ticket's own
+history further down, not re-summarized here to avoid a second stale
+copy.
+
+### Real state, right now
+Primary worktree on `main`, up to date with `origin/main` (`647ce10`,
+after merging PR #108). All 6 agent worktrees checked clean via
+`git status --short`. `Gavi411-agent-backend` was rebuilt this session
+(see decision #130 above) — currently parked on a fresh
+`agent-backend/base` branch at the same commit as `main`, ready for the
+next dispatch. No open PRs on GitHub. **Nothing is currently mid-work**
+— everything checked this session (G411-100, G411-95, G411-93, Epic 6)
+resolved to Reconciled or was already there.
+
+### What's next, concretely
+Epic 7 (Notifications) is the standing next pick — G411-50 (Telegram bot
+setup), G411-51 (notification trigger matrix), G411-78 (message-thread
+aria-live region) are all still genuinely Open. G411-51 reads as the
+natural next one (unblocks G411-98's own deferred live-trigger test,
+see above) but **agree the actual child with Gavi at pickup**, per the
+normal STOP 1 ritual — don't assume.
+
+---
+
 ## Where this session left off (2026-09-10) — G411-49 and G411-98 (Epic 7)
 both built, **merged, and Reconciled** (PRs #105, #106; the standalone
 fix below merged as PR #104). Epic 7 correctly stays **Implementing**
