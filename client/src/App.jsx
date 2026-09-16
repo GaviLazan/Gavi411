@@ -48,6 +48,12 @@ captureRecoveryParamsFromUrl()
 
 const THEME_LABEL = { light: 'Light', dark: 'Dark' }
 
+// Mirrors server/lib/credits.js's INITIAL_CREDITS (PRD §9's monthly tier
+// caps) — kept as a small client-side copy rather than importing the
+// server module, since it's a 3-entry constant map, not worth a shared
+// package for. Used only for the credit-balance tooltip's "x/y" cap.
+const CREDIT_CAP_BY_TIER = { LIMITED: 2, REGULAR: 5, CLOSE: 7 }
+
 // G411-66: gate real content behind Clerk auth state.
 // NOTE: this project's installed package is "@clerk/react" (a lower-level
 // package), not "@clerk/clerk-react" — it does not export SignedIn/SignedOut
@@ -220,6 +226,28 @@ function App() {
   // already use for their own fetch failures.
   const [roleFetchFailed, setRoleFetchFailed] = useState(false)
   const [roleRetryToken, setRoleRetryToken] = useState(0)
+  // Bumped when a push notification arrives (see the BroadcastChannel
+  // listener below) so an already-open Open/Closed requests list
+  // refetches instead of going stale until a manual reload — separate
+  // from roleRetryToken so a push doesn't also trigger an unrelated
+  // /api/me refetch.
+  const [pushRefreshToken, setPushRefreshToken] = useState(0)
+  useEffect(() => {
+    if (typeof BroadcastChannel === 'undefined') return
+    const channel = new BroadcastChannel('gavi411-push')
+    channel.onmessage = () => setPushRefreshToken((t) => t + 1)
+    return () => channel.close()
+  }, [])
+  // AdminList stays mounted-hidden across nav (G411-89) rather than
+  // remounting, so switching back to Open/Closed requests doesn't refetch
+  // on its own the way a fresh mount would — bump on becoming visible
+  // (view changes TO one of these), not on every internal filter/sort
+  // change within AdminList itself, which isn't a `view` change at all.
+  useEffect(() => {
+    if (view === 'open-requests' || view === 'closed-requests') {
+      setPushRefreshToken((t) => t + 1)
+    }
+  }, [view])
   // G411-28 stage 4: a ?recover=<token>#<passphrase> link, stashed by
   // captureRecoveryParamsFromUrl() above the same way the signup token
   // is — read once here, doesn't need to react to later URL changes.
@@ -326,9 +354,20 @@ function App() {
             {!isAdmin && fetchedUser?.creditBalance !== undefined && (
               <span
                 className="credit-balance"
-                title={fetchedUser.creditsResetAt ? `Resets ${new Date(fetchedUser.creditsResetAt).toLocaleDateString()}` : undefined}
+                title={(() => {
+                  const cap = CREDIT_CAP_BY_TIER[fetchedUser.groupTag] ?? CREDIT_CAP_BY_TIER.REGULAR
+                  // Resets always land at the start of a calendar month (the
+                  // 6-hourly reset job just fires sometime within that day,
+                  // not at an exact minute) — "Month 1st" is accurate without
+                  // implying a precision the job doesn't actually have.
+                  const now = new Date()
+                  const resetMonth = now.getDate() === 1
+                    ? now.toLocaleDateString('en-US', { month: 'long' })
+                    : new Date(now.getFullYear(), now.getMonth() + 1, 1).toLocaleDateString('en-US', { month: 'long' })
+                  return `${fetchedUser.creditBalance}/${cap} credits left, resets ${resetMonth} 1st`
+                })()}
               >
-                {fetchedUser.creditBalance}
+                {fetchedUser.creditBalance} credits
               </span>
             )}
             {' '}
@@ -444,6 +483,7 @@ function App() {
             <AdminList
               filter={view === 'closed-requests' ? 'closed' : 'open'}
               onRequestsLoaded={handleAdminRequestsLoaded}
+              refreshToken={roleRetryToken + pushRefreshToken}
               onOpenRequest={(id) => {
                 setSelectedRequestId(id)
                 setPreviousView(view)
@@ -520,6 +560,7 @@ function App() {
             isAdmin ? null : (
               <FriendRequestsList
                 status="open"
+                refreshToken={roleRetryToken + pushRefreshToken}
                 onOpenRequest={(id) => { setSelectedRequestId(id); setPreviousView('open-requests'); setView('detail'); }}
               />
             )
@@ -527,6 +568,7 @@ function App() {
             isAdmin ? null : (
               <FriendRequestsList
                 status="closed"
+                refreshToken={roleRetryToken + pushRefreshToken}
                 onOpenRequest={(id) => { setSelectedRequestId(id); setPreviousView('closed-requests'); setView('detail'); }}
               />
             )

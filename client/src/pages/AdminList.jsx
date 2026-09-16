@@ -106,7 +106,7 @@ function AdminRequestRow({ request, onClick }) {
   );
 }
 
-function AdminList({ onOpenRequest, onNewRequest, filter: filterProp, onRequestsLoaded }) {
+function AdminList({ onOpenRequest, onNewRequest, filter: filterProp, onRequestsLoaded, refreshToken }) {
   const [requests, setRequests] = useState(null);
   const [error, setError] = useState("");
   const [sort, setSort] = useState("urgency");
@@ -160,7 +160,7 @@ function AdminList({ onOpenRequest, onNewRequest, filter: filterProp, onRequests
     return () => {
       cancelled = true;
     };
-  }, [retryToken]);
+  }, [retryToken, refreshToken]);
 
   const [searchEntries, setSearchEntries] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");

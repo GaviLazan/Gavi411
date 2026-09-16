@@ -298,6 +298,12 @@ function NewRequest({ onDone, onExit, onFreeTextChange }) {
       // nothing to do here beyond showing the confirmation.
       setSubmitted(true);
       setStep("done");
+      // The request is safely submitted — there's nothing left to discard,
+      // so any exit path (logo click, hamburger nav, etc.) must stop
+      // treating this as "has unsaved text" (Gavi's live-testing catch:
+      // the discard-confirm was firing on the post-submit "thanks" screen
+      // for any exit besides the explicit "Back to my requests" button).
+      onFreeTextChange?.("");
     } catch {
       setSubmitError("Something went wrong submitting your request.");
     } finally {
