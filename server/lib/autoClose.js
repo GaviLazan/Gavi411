@@ -21,6 +21,7 @@
 import { Status } from '@prisma/client'
 import { prisma } from './prisma.js'
 import { getAdminUser } from './requestAccess.js'
+import { notifyUser } from './notify.js'
 
 // Shared by sendNudge and requests.js routes — both need a request's
 // messages in the same order, so one literal instead of
@@ -45,7 +46,7 @@ export async function sendNudge(requestId, admin = null) {
     throw new Error('No admin account found — cannot send nudge')
   }
 
-  return prisma.$transaction(async (tx) => {
+  const result = await prisma.$transaction(async (tx) => {
     // Atomic check-and-set: only proceed if nudgedAt is currently null.
     // If 0 rows updated, someone else already nudged this request first.
     const updated = await tx.request.updateMany({
@@ -65,6 +66,16 @@ export async function sendNudge(requestId, admin = null) {
       include: MESSAGE_INCLUDE,
     })
   })
+
+  // Notify friend of nudge #1 (G411-51)
+  notifyUser(result.userId, {
+    title: 'Reminder',
+    body: NUDGE_ONE_TEXT,
+  }).catch((err) => {
+    console.error('Failed to notify user of nudge:', err)
+  })
+
+  return result
 }
 
 // Runs one pass of the auto-close check over every WAITING_ON_USER
@@ -98,7 +109,7 @@ export async function sendNudge(requestId, admin = null) {
 export async function runAutoCloseCheck() {
   const nudgedRequests = await prisma.request.findMany({
     where: { status: Status.WAITING_ON_USER, nudgedAt: { not: null } },
-    select: { id: true, nudgedAt: true, nudgeTwoSentAt: true },
+    select: { id: true, userId: true, nudgedAt: true, nudgeTwoSentAt: true },
   })
 
   const now = Date.now()
@@ -120,6 +131,14 @@ export async function runAutoCloseCheck() {
           await tx.request.update({ where: { id: req.id }, data: { status: Status.CLOSED } })
         }
       })
+
+      // Notify friend of auto-close (G411-51)
+      notifyUser(req.userId, {
+        title: 'Request closed',
+        body: 'Your request has been automatically closed due to inactivity',
+      }).catch((err) => {
+        console.error('Failed to notify user of auto-close:', err)
+      })
     } else if (!nudgeTwoSent && timeSinceNudgeMs >= NUDGE_TWO_AFTER_MS) {
       // Nudge #2 not sent yet, 7+ days since nudge #1, and no friend reply: send nudge #2
       await prisma.$transaction(async (tx) => {
@@ -130,6 +149,14 @@ export async function runAutoCloseCheck() {
           where: { id: req.id },
           data: { nudgeTwoSentAt: new Date() },
         })
+      })
+
+      // Notify friend of nudge #2 (G411-51)
+      notifyUser(req.userId, {
+        title: 'Reminder',
+        body: NUDGE_TWO_TEXT,
+      }).catch((err) => {
+        console.error('Failed to notify user of nudge #2:', err)
       })
     }
   }

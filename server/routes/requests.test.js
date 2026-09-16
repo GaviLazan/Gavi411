@@ -98,6 +98,11 @@ vi.mock('../lib/webPush.js', () => ({
   sendPushToUser: vi.fn(async () => undefined),
 }))
 
+vi.mock('../lib/notify.js', () => ({
+  notifyAdmins: vi.fn(async () => undefined),
+  notifyUser: vi.fn(async () => undefined),
+}))
+
 const { default: requestsRouter } = await import('./requests.js')
 
 const app = express()
@@ -2179,12 +2184,10 @@ describe('DELETE /api/requests/users/:userId (G411-99)', () => {
   })
 
   it('soft-deletes a user by marking isDeleted, scrubbing PII, and deleting Clerk record', async () => {
+    const { notifyAdmins } = await import('../lib/notify.js')
     currentUserId = ADMIN
     prismaMock.user.findUnique.mockResolvedValue({ role: 'USER' })
-    // notifyAdminOfAccountDeletion (real, unmocked — only sendPushToUser
-    // inside it is mocked) looks up all admins to notify; give it a real
-    // list rather than let the fire-and-forget call silently no-op on
-    // undefined.
+    // notifyAdmins looks up all admins to notify via user.findMany
     prismaMock.user.findMany.mockResolvedValue([{ clerkId: ADMIN }])
     prismaMock.user.update.mockResolvedValue({
       clerkId: OTHER,
@@ -2215,12 +2218,10 @@ describe('DELETE /api/requests/users/:userId (G411-99)', () => {
     // "they deleted their account" notification to the ACTING ADMIN only
     // (req.user.clerkId) — wrong both in audience (the admin already
     // knows) and in copy (falsely implies the friend acted on their own).
-    // Now reuses G411-96's real notifyAdminOfAccountDeletion, which
+    // Now uses notifyAdmins via notifyAdminOfAccountDeletion, which
     // notifies every admin via a real user.findMany lookup, then pushes
-    // through the same mocked sendPushToUser every other route uses.
-    await vi.waitFor(() => {
-      expect(prismaMock.user.findMany).toHaveBeenCalledWith({ where: { role: 'ADMIN' } })
-    })
+    // through the mocked sendPushToUser.
+    expect(notifyAdmins).toHaveBeenCalled()
   })
 
   it('404s when the target user does not exist', async () => {
@@ -2255,5 +2256,249 @@ describe('stripEmpty (G411-74 Sibling review finding)', () => {
     const { stripEmpty } = await import('./requests.js')
     expect(stripEmpty({ hotel: { date: 'Sep 1', location: '', company: '', ref: '' } }))
       .toEqual({ hotel: { date: 'Sep 1' } })
+  })
+})
+
+describe('POST / request creation notification (G411-51)', () => {
+  it('calls notifyAdmins with telegram flag when request is successfully created', async () => {
+    const { notifyAdmins } = await import('../lib/notify.js')
+    currentUserId = OWNER
+
+    prismaMock.user.findMany.mockResolvedValue([{ clerkId: OWNER, role: 'USER', balance: 10 }])
+    prismaMock.request.create.mockResolvedValue({ id: 1, userId: OWNER })
+    prismaMock.$transaction.mockImplementation((cb) => cb(prismaMock))
+
+    const res = await request(app).post('/api/requests').send({
+      freeText: 'help me',
+      urgency: 'NORMAL',
+    })
+
+    expect(res.status).toBe(201)
+    expect(notifyAdmins).toHaveBeenCalledWith(
+      expect.objectContaining({ title: 'New request' }),
+      expect.objectContaining({ telegram: true }),
+    )
+  })
+})
+
+describe('POST /:id/messages notification (G411-51)', () => {
+  it('calls notifyAdmins when friend sends a message', async () => {
+    const { notifyAdmins } = await import('../lib/notify.js')
+    currentUserId = OWNER
+
+    const request1 = { id: 1, userId: OWNER, status: 'IN_QUEUE' }
+    prismaMock.request.findUnique.mockResolvedValue(request1)
+    prismaMock.message.create.mockResolvedValue({
+      id: 1,
+      requestId: 1,
+      userId: OWNER,
+      content: 'help',
+    })
+
+    const res = await request(app).post('/api/requests/1/messages').send({
+      content: 'help',
+    })
+
+    expect(res.status).toBe(201)
+    expect(notifyAdmins).toHaveBeenCalledWith(
+      expect.objectContaining({ title: 'New message' }),
+      expect.objectContaining({ telegram: true }),
+    )
+  })
+
+  it('calls notifyUser when admin sends a message to friend', async () => {
+    const { notifyUser } = await import('../lib/notify.js')
+    currentUserId = ADMIN
+
+    const request1 = { id: 1, userId: OWNER, status: 'IN_QUEUE' }
+    prismaMock.request.findUnique.mockResolvedValue(request1)
+    prismaMock.message.create.mockResolvedValue({
+      id: 1,
+      requestId: 1,
+      userId: ADMIN,
+      content: 'response',
+    })
+
+    const res = await request(app).post('/api/requests/1/messages').send({
+      content: 'response',
+    })
+
+    expect(res.status).toBe(201)
+    expect(notifyUser).toHaveBeenCalledWith(
+      OWNER,
+      expect.objectContaining({ title: 'New message' }),
+      expect.anything(),
+    )
+  })
+})
+
+describe('PATCH /:id status change notification (G411-51)', () => {
+  beforeEach(() => {
+    prismaMock.message.findFirst.mockResolvedValue(null)
+    prismaMock.$transaction.mockImplementation((cb) => cb(prismaMock))
+  })
+
+  it('notifies user on status change to WAITING_ON_USER', async () => {
+    const { notifyUser } = await import('../lib/notify.js')
+    currentUserId = ADMIN
+    prismaMock.request.findUnique.mockResolvedValue({
+      id: 1,
+      status: 'WORKING_ON_IT',
+      urgency: 'NORMAL',
+      userId: OWNER,
+      isOverdraft: false,
+      message: [],
+    })
+    prismaMock.request.update.mockResolvedValue({
+      id: 1,
+      status: 'WAITING_ON_USER',
+      userId: OWNER,
+      message: [],
+    })
+
+    const res = await request(app).patch('/api/requests/1').send({
+      status: 'WAITING_ON_USER',
+    })
+
+    expect(res.status).toBe(200)
+    expect(notifyUser).toHaveBeenCalledWith(
+      OWNER,
+      expect.objectContaining({ title: 'Your input needed' }),
+      expect.objectContaining({ excludeClerkId: ADMIN }),
+    )
+  })
+
+  it('notifies user on status change to RESOLVED_PENDING_CONFIRMATION', async () => {
+    const { notifyUser } = await import('../lib/notify.js')
+    currentUserId = ADMIN
+    prismaMock.request.findUnique.mockResolvedValue({
+      id: 1,
+      status: 'WORKING_ON_IT',
+      urgency: 'NORMAL',
+      userId: OWNER,
+      isOverdraft: false,
+      message: [],
+    })
+    prismaMock.request.update.mockResolvedValue({
+      id: 1,
+      status: 'RESOLVED_PENDING_CONFIRMATION',
+      userId: OWNER,
+      message: [],
+    })
+
+    const res = await request(app).patch('/api/requests/1').send({
+      status: 'RESOLVED_PENDING_CONFIRMATION',
+    })
+
+    expect(res.status).toBe(200)
+    expect(notifyUser).toHaveBeenCalled()
+  })
+
+  it('notifies user on status change to OVERDRAFT_DENIED', async () => {
+    const { notifyUser } = await import('../lib/notify.js')
+    currentUserId = ADMIN
+    prismaMock.request.findUnique.mockResolvedValue({
+      id: 1,
+      status: 'OVERDRAFT_PENDING',
+      urgency: 'NORMAL',
+      userId: OWNER,
+      isOverdraft: true,
+      message: [],
+    })
+    prismaMock.request.update.mockResolvedValue({
+      id: 1,
+      status: 'OVERDRAFT_DENIED',
+      userId: OWNER,
+      message: [],
+    })
+
+    const res = await request(app).patch('/api/requests/1').send({
+      status: 'OVERDRAFT_DENIED',
+    })
+
+    expect(res.status).toBe(200)
+    expect(notifyUser).toHaveBeenCalled()
+  })
+
+  it('does not notify user on status change to RECEIVED', async () => {
+    const { notifyUser } = await import('../lib/notify.js')
+    currentUserId = ADMIN
+    prismaMock.request.findUnique.mockResolvedValue({
+      id: 1,
+      status: 'IN_QUEUE',
+      urgency: 'NORMAL',
+      userId: OWNER,
+      isOverdraft: false,
+      message: [],
+    })
+    prismaMock.request.update.mockResolvedValue({
+      id: 1,
+      status: 'RECEIVED',
+      userId: OWNER,
+      message: [],
+    })
+
+    const res = await request(app).patch('/api/requests/1').send({
+      status: 'RECEIVED',
+    })
+
+    expect(res.status).toBe(200)
+    expect(notifyUser).not.toHaveBeenCalled()
+  })
+
+  it('notifies user on OVERDRAFT_PENDING → IN_QUEUE approval', async () => {
+    const { notifyUser } = await import('../lib/notify.js')
+    currentUserId = ADMIN
+    prismaMock.request.findUnique.mockResolvedValue({
+      id: 1,
+      status: 'OVERDRAFT_PENDING',
+      urgency: 'NORMAL',
+      userId: OWNER,
+      isOverdraft: true,
+      message: [],
+    })
+    prismaMock.request.update.mockResolvedValue({
+      id: 1,
+      status: 'IN_QUEUE',
+      userId: OWNER,
+      message: [],
+    })
+
+    const res = await request(app).patch('/api/requests/1').send({
+      status: 'IN_QUEUE',
+    })
+
+    expect(res.status).toBe(200)
+    expect(notifyUser).toHaveBeenCalled()
+  })
+
+  it('suppresses self-notification by passing excludeClerkId', async () => {
+    const { notifyUser } = await import('../lib/notify.js')
+    currentUserId = OWNER
+    prismaMock.request.findUnique.mockResolvedValue({
+      id: 1,
+      status: 'WORKING_ON_IT',
+      urgency: 'NORMAL',
+      userId: OWNER,
+      isOverdraft: false,
+      message: [],
+    })
+    prismaMock.request.update.mockResolvedValue({
+      id: 1,
+      status: 'WAITING_ON_USER',
+      userId: OWNER,
+      message: [],
+    })
+
+    const res = await request(app).patch('/api/requests/1').send({
+      status: 'WAITING_ON_USER',
+    })
+
+    expect(res.status).toBe(200)
+    expect(notifyUser).toHaveBeenCalledWith(
+      OWNER,
+      expect.anything(),
+      expect.objectContaining({ excludeClerkId: OWNER }),
+    )
   })
 })

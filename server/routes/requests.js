@@ -13,6 +13,7 @@ import { E2E_ENABLED } from '../lib/e2eConfig.js'
 import { deductCredit, refundCredit, creditDeltaForTierChange } from '../lib/credits.js'
 import { sendNudge, MESSAGE_INCLUDE } from '../lib/autoClose.js'
 import { sendPushToUser } from '../lib/webPush.js'
+import { notifyAdmins, notifyUser } from '../lib/notify.js'
 import { isValidPhoneNumber, notifyAdminOfAccountDeletion } from './completeProfile.js'
 
 const router = express.Router()
@@ -731,6 +732,44 @@ router.patch('/:id', requireAuth, async (req, res) => {
       include: MESSAGE_INCLUDE,
     })
   })
+
+  // Notify friend on specific status changes (G411-51)
+  const NOTIFIABLE_STATUSES = [
+    Status.WAITING_ON_USER,
+    Status.RESOLVED_PENDING_CONFIRMATION,
+    Status.OVERDRAFT_DENIED,
+  ]
+  // Special case: OVERDRAFT_PENDING → IN_QUEUE (approval)
+  const isOverdraftApproval =
+    existing.status === Status.OVERDRAFT_PENDING && status === Status.IN_QUEUE
+
+  if ((status !== undefined && NOTIFIABLE_STATUSES.includes(status)) || isOverdraftApproval) {
+    let notifyTitle = ''
+    let notifyBody = ''
+
+    if (status === Status.WAITING_ON_USER) {
+      notifyTitle = 'Your input needed'
+      notifyBody = 'Gavi is waiting for your response'
+    } else if (status === Status.RESOLVED_PENDING_CONFIRMATION) {
+      notifyTitle = 'Request resolved'
+      notifyBody = 'Please confirm that your request has been resolved'
+    } else if (status === Status.OVERDRAFT_DENIED) {
+      notifyTitle = 'Overdraft request denied'
+      notifyBody = 'Your overdraft request was not approved'
+    } else if (isOverdraftApproval) {
+      notifyTitle = 'Overdraft approved'
+      notifyBody = 'Your overdraft request was approved'
+    }
+
+    notifyUser(
+      existing.userId,
+      { title: notifyTitle, body: notifyBody },
+      { excludeClerkId: req.user.clerkId },
+    ).catch((err) => {
+      console.error('Failed to notify user of status change:', err)
+    })
+  }
+
   res.json(updated)
 })
 
@@ -880,6 +919,17 @@ router.post('/', requireAuth, async (req, res) => {
       })
     })
 
+    // Notify admins of new request (G411-51)
+    notifyAdmins(
+      {
+        title: 'New request',
+        body: `${req.user.firstName} ${req.user.lastName} submitted a new request`,
+      },
+      { telegram: true },
+    ).catch((err) => {
+      console.error('Failed to notify admins of new request:', err)
+    })
+
     res.status(201).json(request)
   } catch (err) {
     if (err.statusCode) {
@@ -956,18 +1006,11 @@ router.post('/overdraft-request', requireAuth, async (req, res) => {
       })
     })
 
-    // Fire-and-forget notification to every admin — same all-admins lookup
-    // shape as notifyAdminOfAccountDeletion (completeProfile.js), adapted
-    // copy. A push failure must never block the request itself.
-    prisma.user.findMany({ where: { role: 'ADMIN' } }).then((admins) => {
-      return Promise.all(
-        admins.map((admin) =>
-          sendPushToUser(admin.clerkId, {
-            title: 'Overdraft request pending',
-            body: `${req.user.firstName} ${req.user.lastName} is asking for a one-time overdraft request.`,
-          }),
-        ),
-      )
+    // Fire-and-forget notification to every admin — a push failure must
+    // never block the request itself.
+    notifyAdmins({
+      title: 'Overdraft request pending',
+      body: `${req.user.firstName} ${req.user.lastName} is asking for a one-time overdraft request.`,
     }).catch((err) => {
       console.error('Failed to notify admins of overdraft request:', err)
     })
@@ -1205,6 +1248,32 @@ router.post('/:id/messages', requireAuth, uploadImageField, async (req, res) => 
           data: { nudgedAt: null, nudgeTwoSentAt: null },
         })
       }
+    }
+
+    // Notify on new message (G411-51)
+    if (req.user.role !== 'ADMIN') {
+      // Friend sending a message — notify admin
+      notifyAdmins(
+        {
+          title: 'New message',
+          body: `${req.user.firstName} ${req.user.lastName} sent a new message`,
+        },
+        { telegram: true, excludeClerkId: req.user.clerkId },
+      ).catch((err) => {
+        console.error('Failed to notify admins of new message:', err)
+      })
+    } else {
+      // Admin sending a message — notify the friend
+      notifyUser(
+        existing.userId,
+        {
+          title: 'New message',
+          body: 'Gavi sent you a new message',
+        },
+        { excludeClerkId: req.user.clerkId },
+      ).catch((err) => {
+        console.error('Failed to notify user of new message:', err)
+      })
     }
 
     res.status(201).json(message)

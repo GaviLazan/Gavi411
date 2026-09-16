@@ -8,7 +8,7 @@
 import express from 'express'
 import { requireAuth, requireAdmin } from '../middleware/auth.js'
 import { prisma } from '../lib/prisma.js'
-import { sendPushToUser } from '../lib/webPush.js'
+import { notifyAdmins } from '../lib/notify.js'
 
 const router = express.Router()
 
@@ -46,15 +46,10 @@ async function notifyAdminOfDeviceRequest(device, requestingUser) {
     `[device-request] ${requestingUser.firstName} ${requestingUser.lastName} (${requestingUser.clerkId}) requested a new device link, Device.id=${device.id}`,
   )
 
-  const admins = await prisma.user.findMany({ where: { role: 'ADMIN' } })
-  await Promise.all(
-    admins.map((admin) =>
-      sendPushToUser(admin.clerkId, {
-        title: 'New device link request',
-        body: `${requestingUser.firstName} ${requestingUser.lastName} wants to link a new device`,
-      }),
-    ),
-  )
+  await notifyAdmins({
+    title: 'New device link request',
+    body: `${requestingUser.firstName} ${requestingUser.lastName} wants to link a new device`,
+  })
 }
 
 // GET /pending — admin's queue of unapproved device requests, each with

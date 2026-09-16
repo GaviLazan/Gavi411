@@ -7,7 +7,7 @@ import { Prisma } from '@prisma/client'
 import { clerkClient } from '@clerk/express'
 import { requireAuth } from '../middleware/auth.js'
 import { prisma } from '../lib/prisma.js'
-import { sendPushToUser } from '../lib/webPush.js'
+import { notifyAdmins } from '../lib/notify.js'
 
 const router = express.Router()
 
@@ -169,15 +169,10 @@ export async function notifyAdminOfAccountDeletion(deletedUser) {
     `[account-deletion] ${deletedUser.firstName} ${deletedUser.lastName} (${deletedUser.clerkId}) deleted their account`,
   )
 
-  const admins = await prisma.user.findMany({ where: { role: 'ADMIN' } })
-  await Promise.all(
-    admins.map((admin) =>
-      sendPushToUser(admin.clerkId, {
-        title: 'Account deleted',
-        body: `${deletedUser.firstName} ${deletedUser.lastName} deleted their account`,
-      }),
-    ),
-  )
+  await notifyAdmins({
+    title: 'Account deleted',
+    body: `${deletedUser.firstName} ${deletedUser.lastName} deleted their account`,
+  })
 }
 
 // DELETE /api/me — soft-delete the caller's account
