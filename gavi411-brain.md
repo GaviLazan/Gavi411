@@ -866,6 +866,14 @@ all wrong). Grep the actual token/variable/field name before trusting
 any inline reference to one, every time, not just when something looks
 suspicious.
 
+### Decision #130 — `gh pr merge --delete-branch` deletes a branch that a persistent agent-role worktree is checked out on, corrupting that worktree; check `git worktree list` before using the flag (2026-09-16, G411-100)
+
+Merging PR #108 (G411-100, built directly on `agent-backend/G411-100-credit-indicator` inside the persistent `Gavi411-agent-backend` worktree, not a throwaway per-PR branch) with `gh pr merge --merge --admin --delete-branch` deleted that branch both on GitHub and locally — but the local branch was the actual checked-out HEAD of a live, persistent worktree. `git worktree list` afterward silently stopped listing `Gavi411-agent-backend` at all; the directory's `.git` file (the worktree-linkage pointer) was gone. No work was lost — G411-100's code had already merged into `main` first — but the worktree itself needed manual recovery: delete the orphaned directory, `git worktree prune`, `git worktree add` a fresh base branch off `main`, re-set `user.name`/`user.email` for the role identity, re-set `core.hooksPath .githooks`, and re-create the `.env`/`client/.env` symlinks — none of that is automatic.
+
+**Root cause**: `gavi411-commit-convention.md`'s branch-cleanup rule ("whenever Claude merges a PR, the now-merged branch gets deleted immediately... without being asked") explicitly carves out an exception for "the persistent per-role agent worktree branches... those are long-lived infrastructure, not per-PR branches, and are never deleted as a side effect of a merge" — but this session used `gh pr merge`'s own `--delete-branch` flag (the default merge invocation pattern) without checking whether the branch being merged was actually a worktree's live HEAD first. The convention doc already said not to delete this class of branch; the mistake was applying the generic merge command without that check.
+
+**Standing rule going forward**: before `gh pr merge --delete-branch` (or any branch deletion) on a branch built by an agent role, run `git worktree list` first — if the branch appears there as a worktree's checked-out ref, merge WITHOUT `--delete-branch`, or delete the branch manually only after confirming (via `git worktree list` again) that no worktree still points at it. If a role worktree does get corrupted this way, recovery is: `rm -rf` the orphaned directory → `git worktree prune` → `git worktree add <path> -b agent-<role>/base main` → re-apply identity (`git config user.name/user.email`) + hooks path + `.env` symlinks, all per `gavi411-commit-convention.md`.
+
 ## 7. Not Yet Discussed
  
 - Data model, architecture, tech decisions (schema itself not yet drafted — first task on deck).
