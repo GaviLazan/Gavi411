@@ -121,6 +121,11 @@ button.wordmark-button {
   font-size: 14px;
 }
 
+.credit-balance {
+  font-weight: 600;
+  cursor: help;
+}
+
 /* G411-80: make the account indicator text clickable to open profile page.
    Reset button styling and look like plain text, but show a pointer cursor
    and slight highlight on hover. */

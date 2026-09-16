@@ -323,6 +323,14 @@ function App() {
             >
               {fetchedUser?.username || user?.primaryEmailAddress?.emailAddress || user?.id}
             </button>
+            {!isAdmin && fetchedUser?.creditBalance !== undefined && (
+              <span
+                className="credit-balance"
+                title={fetchedUser.creditsResetAt ? `Resets ${new Date(fetchedUser.creditsResetAt).toLocaleDateString()}` : undefined}
+              >
+                {fetchedUser.creditBalance}
+              </span>
+            )}
             {' '}
             <button type="button" onClick={() => signOut()}>Sign out</button>
           </span>
@@ -477,7 +485,7 @@ function App() {
         ) : isSignedIn ? (
           view === 'new' ? (
             <NewRequest
-              onDone={() => { setNewRequestHasText(false); setView('list'); }}
+              onDone={() => { setNewRequestHasText(false); setView('list'); setRoleRetryToken((t) => t + 1); }}
               onExit={() => { setNewRequestHasText(false); setView('list'); }}
               onFreeTextChange={(v) => setNewRequestHasText(!!v)}
             />
