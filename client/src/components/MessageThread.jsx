@@ -1,4 +1,5 @@
 import { useUser } from "@clerk/react";
+import { useRef, useEffect } from "react";
 import "./MessageThread.css";
 
 // Real thread UI (G411-25), replacing G411-24's throwaway review-row list.
@@ -10,13 +11,30 @@ import "./MessageThread.css";
 // other side as plain text.
 function MessageThread({ messages }) {
   const { user } = useUser();
+  // G411-78: aria-live region attached after mount to announce new
+  // messages without re-announcing pre-existing history on load
+  const containerRef = useRef(null);
+
+  // G411-78: arm aria-live after initial mount, one tick after React
+  // has rendered all initial content to the DOM. This ensures that
+  // screen readers don't announce the initial batch of messages on first
+  // load (the region is not live yet while those messages are inserted),
+  // but DO announce new additions on subsequent refetches (from G411-92's
+  // polling). The attribute is added via ref, not static JSX, to make the
+  // timing explicit and deterministic across browsers.
+  useEffect(() => {
+    if (containerRef.current) {
+      containerRef.current.setAttribute("aria-live", "polite");
+      containerRef.current.setAttribute("aria-relevant", "additions");
+    }
+  }, []);
 
   if (messages.length === 0) {
     return <p className="review-empty">No messages yet.</p>;
   }
 
   return (
-    <div className="message-thread">
+    <div className="message-thread" ref={containerRef}>
       {messages.map((m) => {
         const isOwn = m.userId === user?.id;
         // G411-93: system messages (nudges) are rendered centered and
