@@ -640,7 +640,7 @@ function App() {
           ) : view === 'user-management' ? (
             <UserManagement onBack={() => setView('list')} />
           ) : view === 'notification-history' ? (
-            <NotificationHistory onBack={() => setView('list')} />
+            <NotificationHistory onBack={() => setView('list')} onOpenRequest={openRequest} />
           ) : view === 'profile' ? (
             <ProfilePage
               user={fetchedUser}
