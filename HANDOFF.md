@@ -12,6 +12,123 @@ accumulated. If something here turns out to matter long-term, promote it to
 
 ---
 
+## Where this session left off (2026-09-17) — G411-51 (Epic 7/Notifications) built + live-testing fix round, Landed, awaiting merge go-ahead
+
+**G411-51 — notification trigger matrix.** Ticket was already defined
+(task-list-source scope, PRD citations) — dispatching Opus to "define"
+it the way G411-100 was defined turned out to be the wrong move here;
+Gavi caught it directly ("wasn't the ticket already defined?"). Corrected:
+resolved the genuinely open implementation questions (which status
+changes notify, Telegram's exact trigger scope, whether to fold in 3
+existing duplicated admin-lookup call sites) directly with Gavi via
+AskUserQuestion, then wrote Scope/Falsifier straight from the ticket's
+own existing description plus real code facts, no extra subagent round
+trip.
+
+**Locked matrix**: Web Push wired for real across every trigger — request
+creation, message creation (both directions), status changes limited to
+action-required only (`WAITING_ON_USER`, `RESOLVED_PENDING_CONFIRMATION`,
+`OVERDRAFT_DENIED`, overdraft approval), nudge #1/#2, auto-close.
+Telegram is a stub (new `server/lib/notify.js`'s `sendTelegram`, no-op)
+scoped to new-request/new-message only, ready for G411-50 to wire a real
+send later. Self-notification suppressed everywhere via `excludeClerkId`.
+Folded in a real cleanup: 3 existing duplicated "look up all admins"
+call sites (`devices.js`, `completeProfile.js`, overdraft in
+`requests.js`) refactored onto the new `notifyAdmins`/`notifyUser`
+helpers, exact payload text preserved.
+
+**Haiku dispatch verified independently before trusting it** (per
+#125/#127/#129) — diff read directly, `.catch()` isolation confirmed at
+every call site (a push/VAPID failure can't break a route), status-
+change gating confirmed to match the locked set exactly, one real
+inefficiency found and fixed in review (`autoClose.js` was doing an
+extra `findUnique` per notify just to get `userId` — added `userId` to
+the original `select` instead, saves 2 DB round-trips per check cycle).
+
+**Built in the `agent-backend` worktree correctly this time** (learned
+from decision #130's mistake on G411-100) — but hit a new, unrelated
+snag: this worktree had never had `npm install` run in it (rebuilt fresh
+mid-session after the #130 incident), so the first dev-server start
+failed on a missing `express` module. Fixed: root `npm install` +
+`client/npm install` + `npx prisma generate` (Prisma's postinstall
+scripts needed an explicit `npm approve-scripts` first — this project
+uses npm's script-allowlist safety feature). **Also hit the identity-set
+silently-not-sticking problem again**: `git config user.email` inside
+this worktree kept reading back as Gavi's own address even right after
+setting it, traced to the harness's cwd occasionally resetting between
+Bash calls mid-session — worked around by using `git -C <path> config`
+(explicit path, not reliant on cwd) and `GIT_AUTHOR_*`/`GIT_COMMITTER_*`
+env vars on the actual `git commit` invocation, which is what finally
+stuck. First commit landed under the wrong identity and needed
+`--amend --author=...` with those same env vars to fix — caught by
+checking `git log -1 --format="%an %ae"` immediately after, per the
+launch-checklist's own post-flight verification step, not assumed.
+
+**Live-testing pass by Gavi (both G411-51 and G411-100 together) found
+7 real things, triaged live**, not silently absorbed into one giant fix:
+- **Filed as separate tickets, not built**: G411-101 (move "Open
+  requests" back onto the friend home screen — a design reconsideration
+  of G411-95, not a bug), G411-102 (notification click should deep-link
+  to the relevant request — G411-51's own Q5, deferred at scoping time,
+  now confirmed wanted), G411-103 (unread-notification dot on the
+  hamburger menu), G411-104 (real fix needed: "Sort by urgency" only
+  ever sorted oldest-first — Gavi explicitly overrode G411-95's earlier
+  "pre-existing, not a bug" call on this exact behavior).
+- **Fixed in this same PR** (commit `cf9ea56`, on top of the original
+  `5bccaf8`): the post-submit "thanks" screen was wrongly offering a
+  discard-confirm on any exit besides "Back to my requests" —
+  `NewRequest`'s `freeText` state (and the `newRequestHasText` it drives
+  in `App.jsx`) was never cleared after a successful submit, so every
+  exit path read it as "has unsaved text." `AdminList`/
+  `FriendRequestsList` never refetched once mounted — added two real
+  triggers, a push notification arriving (new service-worker
+  `BroadcastChannel` → page listener, since `AdminList` stays
+  mounted-hidden per G411-89 and doesn't remount on nav) and the screen
+  becoming visible again — deliberately NOT on every internal filter/
+  sort change, Gavi corrected this distinction directly mid-fix. Credit
+  tooltip (G411-100) was completely empty whenever `creditsResetAt` was
+  null (a real state for pre-G411-46 seed accounts) — now always shows
+  `x/y credits left, resets <Month> 1st` (cap derived from `groupTag`,
+  accounts for already being past the 1st); main badge changed from a
+  bare number to "N credits" per Gavi's live call, which explicitly
+  overrides G411-100's original locked "bare number" spec — a deliberate
+  in-session scope change, not a regression.
+- **One thing investigated, not fixed**: admin's home-screen open-count
+  was observed stale once after Notifications→home nav despite the
+  refresh wiring tracing correctly end-to-end on paper. Flagged rather
+  than guessed at — Gavi retested and it worked fine on retry, so this
+  was NOT filed as a bug; treat as resolved/noise unless it recurs.
+
+Every finding got its own PR comment (not just chat) per the standing
+rule — see PR #110's comment history for the full triage writeup.
+
+504/504 tests pass fresh (re-run after every fix, not reused), build
+clean. Jira: **Landed**, Scope/Falsifier/Evidence-bar all written.
+**Awaiting merge go-ahead — not yet Reconciled.**
+
+### Real state, right now
+Primary worktree on `main`, up to date with `origin/main` (`939b031`).
+`Gavi411-agent-backend` worktree holds `agent-backend/G411-51-
+notification-triggers` (2 commits: `5bccaf8`, `cf9ea56`), pushed, PR
+#110 open. Dev server pair running from that worktree/branch (backend
+:3000, Vite :5173) — this worktree needed a fresh `npm install` +
+`prisma generate` this session (see above), now has real
+`node_modules`, not previously the case. **4 new tickets filed and
+genuinely Open**: G411-101, G411-102, G411-103, G411-104 — none
+started.
+
+### What's next, concretely
+1. **Merge PR #110** (Gavi's go-ahead, per wrap-up step 7) — then Jira
+   Landed → Reconciled immediately, no separate re-check.
+2. After that, next pick is agreed fresh at STOP 1 — candidates: the
+   remaining Epic 7 children (G411-50 Telegram bot setup — now unblocked
+   as a real consumer of `notify.js`'s stub; G411-78 aria-live region),
+   or any of the 4 newly-filed tickets (G411-101/102/103/104) if Gavi
+   wants to prioritize live-testing follow-ups over continuing Epic 7 in
+   strict order. Don't assume — ask.
+
+---
+
 ## Where this session left off (2026-09-16) — G411-100 (Epic 6/Credits) built, merged, Reconciled; Epic 6 fully closed
 
 **G411-100 — credit balance indicator in header, friends only** — Gavi
