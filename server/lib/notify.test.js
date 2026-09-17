@@ -38,10 +38,13 @@ beforeEach(() => {
 describe('notifyAdmins', () => {
   beforeEach(() => {
     vi.stubGlobal('fetch', vi.fn())
+    vi.stubEnv('TELEGRAM_BOT_TOKEN', 'test-token')
+    vi.stubEnv('TELEGRAM_CHAT_ID', 'test-chat-id')
   })
 
   afterEach(() => {
     vi.unstubAllGlobals()
+    vi.unstubAllEnvs()
   })
 
   it('sends push to all admins', async () => {
@@ -130,15 +133,27 @@ describe('notifyAdmins', () => {
     // Should not throw or reject
     await expect(notifyAdmins(payload, { telegram: true })).resolves.toBeUndefined()
   })
+
+  it('does not call fetch and does not reject when Telegram env vars are missing', async () => {
+    vi.stubEnv('TELEGRAM_BOT_TOKEN', '')
+    vi.stubEnv('TELEGRAM_CHAT_ID', '')
+    const payload = { title: 'Test', body: 'Test body' }
+
+    await expect(notifyAdmins(payload, { telegram: true })).resolves.toBeUndefined()
+    expect(global.fetch).not.toHaveBeenCalled()
+  })
 })
 
 describe('notifyUser', () => {
   beforeEach(() => {
     vi.stubGlobal('fetch', vi.fn())
+    vi.stubEnv('TELEGRAM_BOT_TOKEN', 'test-token')
+    vi.stubEnv('TELEGRAM_CHAT_ID', 'test-chat-id')
   })
 
   afterEach(() => {
     vi.unstubAllGlobals()
+    vi.unstubAllEnvs()
   })
 
   it('sends push to a specific user', async () => {

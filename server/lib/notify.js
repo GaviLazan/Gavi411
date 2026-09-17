@@ -9,14 +9,28 @@
 import { prisma } from './prisma.js'
 import { sendPushToUser } from './webPush.js'
 
+// Sibling review finding: a missing TELEGRAM_BOT_TOKEN/CHAT_ID used to fail
+// silently as a generic 404 logged like a transient outage. Fail loud
+// instead, matching webPush.js's ensureVapidConfigured() for the same class
+// of problem.
+function ensureTelegramConfigured() {
+  const { TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID } = process.env
+  if (!TELEGRAM_BOT_TOKEN || !TELEGRAM_CHAT_ID) {
+    throw new Error(
+      'Telegram is misconfigured: TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID must both be set (see .env.example). Telegram notifications cannot be sent until this is fixed.',
+    )
+  }
+}
+
 // Real Telegram Bot API call (G411-50). Constructs a message from title/body/link
-// and POSTs to Telegram. Catches and logs fetch errors internally so failures
-// don't propagate up to the caller.
+// and POSTs to Telegram. Catches and logs errors internally so failures don't
+// propagate up to the caller.
 async function sendTelegram(payload) {
   const { title, body, link } = payload
   const text = link ? `${title}\n${body}\n\n${link}` : `${title}\n${body}`
 
   try {
+    ensureTelegramConfigured()
     const response = await fetch(
       `https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/sendMessage`,
       {
@@ -36,6 +50,12 @@ async function sendTelegram(payload) {
   }
 }
 
+// Sends payload to Telegram if the telegram option is set. Shared by
+// notifyAdmins/notifyUser so the dispatch and its await live in one place.
+function maybeSendTelegram(payload, telegram) {
+  return telegram ? sendTelegram(payload) : Promise.resolve()
+}
+
 // Notifies all admin users of an event via push notifications (and
 // optionally Telegram). Looks up all users with role: ADMIN, calls
 // sendPushToUser for each, and if telegram option is true, calls
@@ -53,9 +73,7 @@ export async function notifyAdmins(payload, { telegram = false, excludeClerkId =
       .map((admin) => sendPushToUser(admin.clerkId, payload)),
   )
 
-  if (telegram) {
-    sendTelegram(payload)
-  }
+  await maybeSendTelegram(payload, telegram)
 }
 
 // Notifies a specific user via push notification (and optionally Telegram).
@@ -73,7 +91,5 @@ export async function notifyUser(clerkId, payload, { telegram = false, excludeCl
 
   await sendPushToUser(clerkId, payload)
 
-  if (telegram) {
-    sendTelegram(payload)
-  }
+  await maybeSendTelegram(payload, telegram)
 }

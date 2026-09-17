@@ -19,6 +19,23 @@ import { generatePublicId } from '../lib/publicId.js'
 
 const router = express.Router()
 
+// Sibling review finding (G411-50): FRONTEND_URL is only used to build a
+// Telegram deep link — if it's unset, omit the link rather than send a
+// broken "undefined/r/<publicId>" URL.
+export function buildPermalink(publicId) {
+  return process.env.FRONTEND_URL ? `${process.env.FRONTEND_URL}/r/${publicId}` : undefined
+}
+
+// Telegram's sendMessage has a hard 4096 UTF-8 character limit (Sibling
+// review finding, G411-50). freeText has no length limit elsewhere in the
+// app; this is a safety cap to stay under Telegram's real limit, not a
+// product decision about message length — leaves headroom for the
+// title/urgency line/link that get joined onto it in notify.js.
+const TELEGRAM_FREETEXT_LIMIT = 3900
+export function truncateForTelegram(text) {
+  return text.length > TELEGRAM_FREETEXT_LIMIT ? text.slice(0, TELEGRAM_FREETEXT_LIMIT) : text
+}
+
 // memoryStorage — files stay in RAM as a Buffer just long enough to
 // forward to Cloudinary, never written to disk. Fine at a 10MB cap on a
 // free-tier backend; would need rethinking for anything larger (see
@@ -950,11 +967,12 @@ router.post('/', requireAuth, async (req, res) => {
     })
 
     // Notify admins of new request (G411-51)
+    const newRequestText = truncateForTelegram(request.freeText)
     notifyAdmins(
       {
         title: `New request from ${req.user.firstName} ${req.user.lastName}`,
-        body: request.urgency === 'HIGH' ? `${request.freeText}\nUrgent` : request.freeText,
-        link: `${process.env.FRONTEND_URL}/r/${request.publicId}`,
+        body: request.urgency === 'HIGH' ? `${newRequestText}\nUrgent` : newRequestText,
+        link: buildPermalink(request.publicId),
       },
       { telegram: true },
     ).catch((err) => {
@@ -1039,11 +1057,17 @@ router.post('/overdraft-request', requireAuth, async (req, res) => {
     })
 
     // Fire-and-forget notification to every admin — a push failure must
-    // never block the request itself.
-    notifyAdmins({
-      title: 'Overdraft request pending',
-      body: `${req.user.firstName} ${req.user.lastName} is asking for a one-time overdraft request.`,
-    }).catch((err) => {
+    // never block the request itself. Telegram added per Sibling review
+    // (G411-50): an overdraft request needs admin action same as a normal
+    // new request, so it gets the same treatment.
+    notifyAdmins(
+      {
+        title: `Overdraft request pending from ${req.user.firstName} ${req.user.lastName}`,
+        body: truncateForTelegram(request.freeText),
+        link: buildPermalink(request.publicId),
+      },
+      { telegram: true },
+    ).catch((err) => {
       console.error('Failed to notify admins of overdraft request:', err)
     })
 
@@ -1289,8 +1313,8 @@ router.post('/:id/messages', requireAuth, uploadImageField, async (req, res) => 
       notifyAdmins(
         {
           title: `New message from ${req.user.firstName} ${req.user.lastName}`,
-          body: `in ${existing.freeText}`,
-          link: `${process.env.FRONTEND_URL}/r/${existing.publicId}`,
+          body: `in ${truncateForTelegram(existing.freeText)}`,
+          link: buildPermalink(existing.publicId),
         },
         { telegram: true, excludeClerkId: req.user.clerkId },
       ).catch((err) => {
