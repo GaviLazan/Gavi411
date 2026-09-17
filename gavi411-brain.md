@@ -978,6 +978,64 @@ Reconciled. Every one of those is a place to hand control back, even
 when the applicable standing default says that *specific* step needs no
 extra ceremony on its own.
 
+### Decision #135 — a permalink-consume gate checked `needsProfileCompletion` unconditionally while the render logic it was supposed to mirror already carved out an admin exemption; two "silent home screen" reports across different accounts were one bug, not two (2026-09-17, G411-94)
+
+G411-94's first build passed 530+ automated tests and its own author's
+live-testing claims, but failed Gavi's actual live click-through twice —
+once as the request owner's account, once as admin — both reported as
+"the link just loads the home screen." The first fix (a real one:
+non-owner access correctly 404s, but was failing in total silence with
+no message) made the *non-owner* case look resolved, and it was tempting
+to treat the remaining admin failure as a second, unrelated bug. It
+wasn't. Root cause, found only after reproducing the exact scenario with
+a real Playwright sign-in against the "Second Party" test account
+(`CLERK_TEST_EMAIL`/`PASSWORD`/`OTP`, already sitting in `.env` for
+exactly this kind of automated repro) rather than reasoning further from
+static code reads: admin's account permanently carries a `pending-`
+phone-number placeholder by design (admin is exempt from the
+`CompleteProfile` screen, so it's never filled in) — but the new
+permalink-consume `useEffect`'s gate condition checked
+`needsProfileCompletion` with no such exemption, so the gate could never
+become `true` for admin. The render logic three lines away already had
+the correct exemption (`needsProfileCompletion && !isAdmin`); the new
+effect just didn't copy it.
+
+**The generalizable lesson**: when a new gate/effect is meant to fire
+under "the same conditions the main render logic already uses to decide
+the user is past all interstitials," write it by importing/deriving from
+that one real condition, not by hand-copying the boolean expression a
+second time. A hand-copied condition is a second source of truth that
+*looks* identical at review time and only diverges when one exemption
+case (here: admin) is added to one copy and not the other — exactly the
+shape of bug static reading is bad at catching, since both copies read
+as "obviously correct" in isolation.
+
+**Compounding pattern, worth flagging on its own**: the first version of
+this gate's test (`App.test.js`) was a disconnected duplicate copy of
+the predicate, not an import of the real one — so it asserted the buggy
+behavior (`needsProfileCompletion: true` → always `false`, no admin
+case) as correct, and passed, while the real app was broken. This is the
+exact failure class CLAUDE.md's rule 5/#125/#127/#129 already warn about
+for Haiku-authored dispatches ("a test can duplicate the logic it claims
+to cover into a local copy and test that copy against itself") — worth
+noting it isn't unique to a first-pass dispatch; a *fix* written directly
+by this session made the identical mistake before being caught by
+Gavi's live testing, not by review. Fixed by extracting the predicate
+into a real exported function (`canConsumeRequestPermalink` in
+`inviteToken.js`) imported by both the effect and its test, then
+mutation-tested (revert the fix in source, confirm the test fails) to
+prove the test now actually guards the real behavior rather than a copy
+of it.
+
+**Process note**: this required going past static code reading into an
+actual reproduction — Playwright, a real Clerk sign-in flow (email →
+password → email OTP, three distinct steps that needed inspecting the
+live DOM to get selectors right, not guessed from Clerk's docs), and
+watching real backend logs to confirm whether a request even reached the
+server. Two rounds of static "read the code, form a theory" failed to
+find this; the actual bug only surfaced once the exact scenario Gavi
+described was mechanically reproduced end to end.
+
 ## 7. Not Yet Discussed
  
 - Data model, architecture, tech decisions (schema itself not yet drafted — first task on deck).

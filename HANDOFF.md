@@ -12,6 +12,88 @@ accumulated. If something here turns out to matter long-term, promote it to
 
 ---
 
+## Where this session left off (2026-09-17, latest) — G411-94 (permalinks) built, Landed, awaiting merge go-ahead
+
+**Built the scoped plan from the previous entry below.** `Request.publicId`
+(unique, random, non-sequential, real `prisma migrate dev` migration, all 16
+existing rows backfilled), `GET /api/requests/by-public-id/:publicId`
+(reuses the existing `canAccessRequest`, 404s cleanly to non-owners), client
+capture/consume of `/r/<publicId>` URLs, copy-link button on
+`RequestDetail`, SPA fallback rewrite in `client/vercel.json`.
+
+**The hard requirement — signed-out click survives sign-in and lands on the
+request, not home — is confirmed live by Gavi, along with every other
+falsifier condition** (non-owner 404, owner/admin open, copy-link,
+refresh-in-place). Getting there took real back-and-forth: Gavi's own live
+testing (not the 530+ automated tests) surfaced the actual bug three times
+before it was right.
+
+**Real bug, not obvious from the first dispatch's own testing**: admin's
+account permanently carries a `pending-` phone placeholder (by design, admin
+is exempt from the CompleteProfile screen) — but the permalink-consume
+gate checked `needsProfileCompletion` unconditionally, so it could never
+fire for admin. The permalink silently never opened, for either the admin
+account or (independently, correctly) a non-owner test account, and Gavi's
+two "it just loads the home screen" reports read at first like two separate
+bugs — they were one bug. Root-caused via a real Playwright repro (signed in
+as the "Second Party" test account, `CLERK_TEST_EMAIL`/`PASSWORD`/`OTP` in
+`.env`, matching Gavi's own exact repro steps) once static reading stopped
+finding it. Fixed by extracting the gate into a real shared function
+(`canConsumeRequestPermalink` in `inviteToken.js`) carrying the same admin
+exemption the render logic already had, imported by both the effect and its
+test — the original test was a disconnected duplicate copy asserting the
+buggy behavior as correct, exactly the failure pattern CLAUDE.md's #5
+warns about. Two smaller live-testing findings fixed alongside it: a 404'd
+permalink used to fail in total silence (now a dismissible message), and a
+visible home-screen flash before the request "popped in" (now a loading
+state, verified via Playwright that home content never renders during the
+load).
+
+**Sibling review** (multi-angle, PR #114) found 2 more real issues, both
+fixed and pushed: a since-unreachable dead-code branch left over from the
+silent-404 fix, and `GET /by-public-id/:publicId` fetching a full message
+thread that was immediately discarded (client only ever reads `.id` before
+`RequestDetail` re-fetches the real detail) — trimmed to `select: { id,
+userId }`. Findings posted as real PR comments, not just chat. A handful of
+duplication/abstraction notes (a third near-identical stash/get/clear triple
+in `inviteToken.js`, the gate-predicate/render-ladder duplication,
+`openRequest`'s hardcoded `previousView`) were correctly judged as real but
+out of scope for this ticket — logged in the PR comment for whoever touches
+this area next (most likely G411-102), not fixed speculatively now.
+
+531/531 tests pass fresh, build clean. Jira: **Landed**, Scope/Falsifier
+already written pre-build, Evidence bar + full writeup added post-build
+(255-char field + a Jira comment for the detail). **Awaiting merge
+go-ahead — not yet Reconciled.**
+
+### Real state, right now
+Primary worktree on `main` at `80bcabd`, in sync with `origin/main`, clean.
+`Gavi411-agent-backend` worktree holds branch
+`agent-backend/G411-94-permalinks` (5 commits, pushed), PR #114 open
+against `main`. A dev-server pair (backend :3000, Vite :5173) was started
+from that worktree/branch this session for live testing — check whether
+it's still running before starting a new one
+([[gavi411-stray-dev-server-processes]]).
+
+### What's next, concretely
+1. **Merge PR #114** (Gavi's go-ahead, per wrap-up step 7) — then Jira
+   Landed → Reconciled immediately, no separate re-check.
+2. That unblocks both **G411-50**'s Telegram deep-link half and
+   **G411-102** (Web Push click-through) — both already have Jira comments
+   marking them blocked on G411-94. Neither started.
+3. Still Open and untouched under Epic 7: **G411-78** (aria-live region).
+   Also Open from an earlier session's live testing: **G411-101** (friend
+   home screen), **G411-103** (unread dot), **G411-104** (sort-by-urgency
+   bug).
+4. Real follow-up logged in PR #114's own review comment, not yet a ticket:
+   `openRequest()`'s hardcoded `previousView: 'list'` would give wrong
+   back-navigation if a future caller (most likely G411-102) invokes it
+   from inside the open/closed-requests screens rather than the home
+   screen. Worth a one-line check whoever picks up G411-102, not urgent
+   enough for its own ticket yet.
+
+---
+
 ## Where this session left off (2026-09-17, later) — G411-94 (permalinks) fully scoped, nothing built yet
 
 **Nothing is in flight. No uncommitted code, no open PRs.** G411-51 closed out
