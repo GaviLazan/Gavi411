@@ -42,30 +42,46 @@ Confirmed: "works, maybe a bit slower than I had anticipated but it's not
 supposed to be realtime" — expected, not a bug (30s window was the explicit
 tradeoff, not an accident).
 
+**Sibling review (4 parallel angles) on PR #116 found 3 real issues, all
+fixed in a second commit + pushed**: `refetch()` had no `res.ok` check or
+`.catch()` — a background poll hitting a 401 (expired session) or 404
+(revoked access) would silently store the error JSON via `setRequest()` as
+if it were a real request, corrupting the view with zero visible error.
+Real severity escalation caused by the polling itself: `refetch()`
+previously only ran right after the user's own fresh-session action, where
+this was near-impossible. Fixed to match the mount-load effect's
+already-proven pattern. Also added: a `cancelled` guard (same convention
+already used elsewhere in this file) so a stale in-flight fetch can't land
+after unmount/requestId-change, and `visibilitychange`-based pausing so a
+backgrounded/idle tab stops polling (real free-tier Render/Neon cost
+otherwise), with an immediate refetch on returning to the tab. Fix pass
+posted as a real PR comment, per CLAUDE.md rule 5.
+
 542/542 tests pass fresh (unaffected, client-only change), client build
-clean. Jira: **Implementing**, Falsifier/Evidence-required written
-pre-build, Evidence-bar-met added post-build. **Not yet Reviewing/Landed —
-Sibling review not yet run.**
+clean. Jira: **Landed**, Falsifier/Evidence-required/Evidence-bar-met all
+written against real final state. **Awaiting merge go-ahead — not yet
+Reconciled.**
 
 ### Real state, right now
 Primary worktree branched off `main` (`06114be` — G411-50 merged) onto
-`you/G411-92-detail-polling`, one commit (`c38bc3f`), pushed, **no PR open
-yet**. Dev servers (backend :3000, Vite :5173) still running from the
-G411-50 session earlier — check before starting new ones
+`you/G411-92-detail-polling` (2 commits: `c38bc3f` build, `3db2ecd`
+Sibling review fixes — plus one HANDOFF-only commit between), pushed, PR
+#116 open against `main`. Dev servers (backend :3000, Vite :5173) still
+running from the G411-50 session earlier — check before starting new ones
 ([[gavi411-stray-dev-server-processes]]).
 
 ### What's next, concretely
-1. Open a PR for `you/G411-92-detail-polling`, run Sibling review.
-2. On a clean review: Jira Reviewing → Landed, ask Gavi's merge go-ahead.
-3. **Then pick up G411-78** (aria-live region) — now has real content to
+1. **Merge PR #116** (Gavi's go-ahead, per wrap-up step 7) — then Jira
+   Landed → Reconciled immediately, no separate re-check.
+2. **Then pick up G411-78** (aria-live region) — now has real content to
    announce once G411-92 merges. Then **G411-102** (Web Push
    click-through, unblocked since G411-94 merged) and **G411-103** (unread
    dot) — this was Gavi's original stated order for this session (78, then
    102/103), just with G411-92 correctly inserted first.
-4. **G411-105** (slow permalink load, Vercel-only render-loop) still needs
+3. **G411-105** (slow permalink load, Vercel-only render-loop) still needs
    a dedicated investigation session — not urgent, see its own Jira
    description/comments.
-5. Also Open from an earlier session's live testing: **G411-101** (friend
+4. Also Open from an earlier session's live testing: **G411-101** (friend
    home screen), **G411-104** (sort-by-urgency bug).
 
 ---
