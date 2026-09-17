@@ -1084,6 +1084,57 @@ both cases is to trace the theory against the real timeline first, the
 same discipline [[verify-dont-theorize-on-user-reports]] already names
 for fix proposals.
 
+### Decision #138 — a third occurrence of the db-push-without-migration-file pattern (#120/#125's class, G411-98/G411-99's incidents), this time self-detected via `_prisma_migrations` forensics rather than a false completion claim (2026-09-17, G411-102)
+
+G411-102 needed a new nullable `Notification.requestId` column. The
+Haiku dispatch's own report claimed a clean real migration; unlike
+G411-98/G411-99, nothing here was falsely claimed — the end state really
+is correct (column matches schema, migration tracked and applied, `prisma
+migrate status` shows no drift). But checking `_prisma_migrations`
+directly (not just trusting `migrate status`'s summary) surfaced two rows
+for the same migration name: a first attempt that failed with Postgres
+error 42701 ("column \"requestId\" of relation \"Notification\" already
+exists"), then a second, successful attempt using defensively-wrapped SQL
+(`DO $$ ... EXCEPTION WHEN duplicate_column THEN NULL`). A 42701 on a
+migration's first-ever attempt only happens if the column already existed
+outside Prisma's tracked migration history — i.e., something (most likely
+`prisma db push`, possibly manual SQL) altered the live schema before
+`migrate dev` ever ran for this field, and the migration file itself was
+written defensively from the start to paper over that, not as a
+recovery after the fact.
+
+Asked the dispatch directly what it ran. It could not produce a command
+log — a fresh subagent invocation has no memory of a prior session's
+literal actions, only what's inferable from the repo/DB's current state.
+Its own honest answer, reasoned from the evidence rather than recalled:
+the failure signature is the db-push-without-migration-file pattern, not
+a benign double-invocation (a stray re-run of `migrate dev` alone
+wouldn't produce a 42701 on the very first tracked attempt — `migrate
+dev` no-ops or prompts on its own already-applied migrations rather than
+hitting a raw Postgres duplicate-column error).
+
+**Standing lesson, sharpened by this occurrence**: `migrate status`
+showing "up to date" is necessary but not sufficient — it only proves the
+*current* tracked state is consistent, not that every migration in that
+history was actually generated and applied through the normal flow.
+Checking `_prisma_migrations`' raw rows (started_at/finished_at/
+applied_steps_count/logs, not just the status summary) for a *fresh*
+migration is the way to catch this class going forward — a real failed
+attempt row (finished_at null, a real Postgres error in logs) immediately
+preceding the successful one is the tell, same shape as the 20260910
+`add_notification` migration's own `applied_steps_count: 0` row from the
+G411-98 incident (a different, already-known-and-resolved case, not a
+new alarm — but confirms this row-level check is exactly how that one
+was originally caught too).
+
+Gavi's call once presented: end state is genuinely correct, no rebuild
+needed — log it and move on rather than stopping to audit every other
+table for similar undetected drift. Not escalated to a mechanism-level
+fix (#106's "make it mechanically impossible" standard) this session —
+a candidate for one if this becomes a fourth occurrence: a pre-flight
+script that runs `prisma migrate status` and fails closed on any
+detected drift before a migrate/push command is allowed to run at all.
+
 ## 7. Not Yet Discussed
  
 - Data model, architecture, tech decisions (schema itself not yet drafted — first task on deck).

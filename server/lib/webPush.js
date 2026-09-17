@@ -51,6 +51,7 @@ export async function sendPushToUser(userId, payload) {
       userId,
       title: payload.title || '',
       body: payload.body || '',
+      requestId: payload.requestId ?? null,
     },
   }).catch((err) => console.error(`Failed to log notification for user ${userId}:`, err.message))
 

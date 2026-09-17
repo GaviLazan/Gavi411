@@ -71,6 +71,7 @@ export async function sendNudge(requestId, admin = null) {
   notifyUser(result.userId, {
     title: 'Reminder',
     body: NUDGE_ONE_TEXT,
+    requestId: requestId,
   }).catch((err) => {
     console.error('Failed to notify user of nudge:', err)
   })
@@ -136,6 +137,7 @@ export async function runAutoCloseCheck() {
       notifyUser(req.userId, {
         title: 'Request closed',
         body: 'Your request has been automatically closed due to inactivity',
+        requestId: req.id,
       }).catch((err) => {
         console.error('Failed to notify user of auto-close:', err)
       })
@@ -155,6 +157,7 @@ export async function runAutoCloseCheck() {
       notifyUser(req.userId, {
         title: 'Reminder',
         body: NUDGE_TWO_TEXT,
+        requestId: req.id,
       }).catch((err) => {
         console.error('Failed to notify user of nudge #2:', err)
       })

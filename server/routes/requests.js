@@ -771,7 +771,7 @@ router.patch('/:id', requireAuth, async (req, res) => {
 
     notifyUser(
       existing.userId,
-      { title: notifyTitle, body: notifyBody },
+      { title: notifyTitle, body: notifyBody, requestId: id },
       { excludeClerkId: req.user.clerkId },
     ).catch((err) => {
       console.error('Failed to notify user of status change:', err)
@@ -962,6 +962,7 @@ router.post('/', requireAuth, async (req, res) => {
         title: `New request from ${req.user.firstName} ${req.user.lastName}`,
         body: request.urgency === 'HIGH' ? `${request.freeText}\nUrgent` : request.freeText,
         link: buildPermalink(request.publicId),
+        requestId: request.id,
       },
       { telegram: true },
     ).catch((err) => {
@@ -1054,6 +1055,7 @@ router.post('/overdraft-request', requireAuth, async (req, res) => {
         title: `Overdraft request pending from ${req.user.firstName} ${req.user.lastName}`,
         body: request.freeText,
         link: buildPermalink(request.publicId),
+        requestId: request.id,
       },
       { telegram: true },
     ).catch((err) => {
@@ -1304,6 +1306,7 @@ router.post('/:id/messages', requireAuth, uploadImageField, async (req, res) => 
           title: `New message from ${req.user.firstName} ${req.user.lastName}`,
           body: `in ${existing.freeText}`,
           link: buildPermalink(existing.publicId),
+          requestId: existing.id,
         },
         { telegram: true, excludeClerkId: req.user.clerkId },
       ).catch((err) => {
@@ -1316,6 +1319,7 @@ router.post('/:id/messages', requireAuth, uploadImageField, async (req, res) => 
         {
           title: 'New message',
           body: 'Gavi sent you a new message',
+          requestId: existing.id,
         },
         { excludeClerkId: req.user.clerkId },
       ).catch((err) => {

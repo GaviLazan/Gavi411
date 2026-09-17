@@ -52,6 +52,7 @@ self.addEventListener('push', (event) => {
   event.waitUntil(
     self.registration.showNotification(data.title || 'Gavi411', {
       body: data.body || '',
+      data: { requestId: data.requestId ?? null },
     }),
   )
   // Tell any open tab a push arrived, so a list already on-screen (e.g.
@@ -60,4 +61,27 @@ self.addEventListener('push', (event) => {
   // reload. BroadcastChannel reaches every open tab/window at once,
   // unlike postMessage to a single client.
   new BroadcastChannel('gavi411-push').postMessage({ type: 'push' })
+})
+
+// G411-102: handle notification clicks to deep-link into the specific request
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close()
+  const requestId = event.notification.data?.requestId
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+      for (const client of clientList) {
+        if ('focus' in client) {
+          client.focus()
+          if (requestId != null) client.postMessage({ type: 'notification-click', requestId })
+          return
+        }
+      }
+      // No open client — open one. Cold-start case falls back to normal
+      // landing screen; the postMessage path above handles the
+      // already-running app case fully.
+      if (self.clients.openWindow) {
+        return self.clients.openWindow('/')
+      }
+    }),
+  )
 })

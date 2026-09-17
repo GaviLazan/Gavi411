@@ -75,7 +75,18 @@ describe('sendPushToUser', () => {
     await sendPushToUser('user_1', { title: 'Test title', body: 'Test body' })
 
     expect(prismaMock.notification.create).toHaveBeenCalledWith({
-      data: { userId: 'user_1', title: 'Test title', body: 'Test body' },
+      data: { userId: 'user_1', title: 'Test title', body: 'Test body', requestId: null },
+    })
+  })
+
+  it('writes a notification row with requestId when provided in payload', async () => {
+    prismaMock.pushSubscription.findMany.mockResolvedValue([])
+    prismaMock.notification.create.mockResolvedValue({ id: 1 })
+
+    await sendPushToUser('user_1', { title: 'Test title', body: 'Test body', requestId: 42 })
+
+    expect(prismaMock.notification.create).toHaveBeenCalledWith({
+      data: { userId: 'user_1', title: 'Test title', body: 'Test body', requestId: 42 },
     })
   })
 })

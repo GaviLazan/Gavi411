@@ -12,7 +12,80 @@ accumulated. If something here turns out to matter long-term, promote it to
 
 ---
 
-## Where this session left off (2026-09-17, latest) — G411-78 (aria-live region) built, Landed, awaiting merge go-ahead
+## Where this session left off (2026-09-17, latest) — G411-102 (notification click deep-link) built, Landed, awaiting merge go-ahead
+
+**Picked up G411-102** right after G411-78 merged/Reconciled. Scope came
+straight from the ticket's own two comments (the second one correcting
+the first, both from earlier this session/day) plus a real code check —
+`openRequest(requestId)` already existed in `App.jsx` (built during
+G411-94 specifically for this consumer), `Notification` model had no
+`requestId` field. Split matched the ticket's own resolved comment
+exactly: G411-94 (merged) owns the permalink mechanism, this ticket owns
+the notification data + service-worker click handler.
+
+**Built**: nullable `Notification.requestId` (real migration), threaded
+through `sendPushToUser`'s payload and the push JSON, added at the 8
+request-tied notify call sites (`requests.js` x5 — status change,
+new-request, overdraft-request, both directions of new-message;
+`autoClose.js` x3 — nudge #1, nudge #2, auto-close) — deliberately NOT
+added to `completeProfile.js`/`devices.js`'s admin device-linking
+notifications, which aren't about any specific request. `sw.js` gets a
+`notificationclick` handler: focus an already-open client and
+`postMessage` the requestId in, or open a fresh window if none exists
+(cold-start case intentionally falls back to the normal landing screen
+rather than deep-linking — a real, accepted, smaller gap; most real
+usage is tapping a notification while the PWA is already running in the
+background, which the focus+postMessage path covers). `App.jsx` listens
+for that postMessage and calls the existing `openRequest(id)`.
+
+**Real process finding during Sibling review, not a code bug — logged as
+decision #138 in `gavi411-brain.md`**: checking `_prisma_migrations`'
+raw rows directly (not just `migrate status`'s summary) showed the new
+`requestId` column had been added to the live DB outside the tracked
+migration flow before the migration file existed — a first apply attempt
+hit Postgres 42701 ("column already exists"), a second defensively-
+written attempt then succeeded. Same failure class as the G411-98/
+G411-99 incidents (`db push` instead of a real migration). Asked the
+dispatch directly; it had no command log to give (a fresh subagent has
+no memory of its own prior session), only the DB's own evidence, which
+points at db-push-without-migration rather than a benign double-run.
+**The end state is genuinely correct** — schema matches, migration
+tracked and applied, `prisma migrate status` shows no drift — so per
+Gavi's call this was logged and not rebuilt. Worth checking
+`_prisma_migrations`' raw rows (not just the status summary) on any
+future ticket that adds a migration, per the standing lesson now in
+brain.md #138.
+
+543/543 tests pass fresh (existing `notifyAdmins`/`notifyUser`
+call-argument assertions updated to the new real payload shape, not
+loosened; one new test on `sendPushToUser` covers the `requestId` write),
+client build clean. Jira: **Landed**, Claim/Falsifier/Evidence-required/
+Evidence-bar-met all written. **Awaiting merge go-ahead — not yet
+Reconciled.**
+
+### Real state, right now
+Primary worktree on branch `you/G411-102-notification-click` (2 commits:
+`d88fa77` build, `d602cfb` brain.md decision log), pushed, PR #118 open
+against `main`. Branched fresh off `main` at `c2af0bb` (post-G411-78
+merge). Dev servers (backend :3000, Vite :5173) — check whether an
+earlier session's pair is still running before starting a new one
+([[gavi411-stray-dev-server-processes]]).
+
+### What's next, concretely
+1. **Merge PR #118** (Gavi's go-ahead, per wrap-up step 7) — then Jira
+   Landed → Reconciled immediately, no separate re-check.
+2. **Then G411-103** (unread dot on the hamburger menu) — Gavi's
+   original stated order for this session (78, then 102/103), now on
+   its last piece.
+3. **G411-105** (slow permalink load, Vercel-only render-loop) still
+   needs a dedicated investigation session — not urgent, see its own Jira
+   description/comments.
+4. Also Open from an earlier session's live testing: **G411-101** (friend
+   home screen), **G411-104** (sort-by-urgency bug).
+
+---
+
+## Where this session left off (2026-09-17, earlier) — G411-78 (aria-live region) built, Landed, awaiting merge go-ahead
 
 **Picked up G411-78** (message thread aria-live region), the ticket HANDOFF
 already pointed to next once G411-92 merged. Confirmed via Jira: G411-92 is
