@@ -2505,7 +2505,12 @@ describe('PATCH /:id status change notification (G411-51)', () => {
 
 describe('GET /api/requests/by-public-id/:publicId', () => {
   const publicId = 'abc-123_DEF'
-  const requestWithPublicId = { ...sampleRequest, publicId }
+  // Route now selects only { id, userId } (Sibling review finding: the
+  // full MESSAGE_INCLUDE payload was fetched here and immediately
+  // discarded, since RequestDetail.jsx re-fetches the real detail via
+  // GET /:id right after) — mock the same minimal shape Prisma actually
+  // returns for this query.
+  const minimalRequestWithPublicId = { id: sampleRequest.id, userId: sampleRequest.userId }
 
   it('401s when unauthenticated', async () => {
     const res = await request(app).get(`/api/requests/by-public-id/${publicId}`)
@@ -2522,24 +2527,23 @@ describe('GET /api/requests/by-public-id/:publicId', () => {
     expect(res.body).toEqual({ error: 'Request not found' })
     expect(prismaMock.request.findUnique).toHaveBeenCalledWith({
       where: { publicId },
-      include: expect.anything(),
+      select: { id: true, userId: true },
     })
   })
 
-  it('returns the request when owner requests their own', async () => {
+  it('returns the request id when owner requests their own', async () => {
     currentUserId = OWNER
-    prismaMock.request.findUnique.mockResolvedValue(requestWithPublicId)
+    prismaMock.request.findUnique.mockResolvedValue(minimalRequestWithPublicId)
 
     const res = await request(app).get(`/api/requests/by-public-id/${publicId}`)
 
     expect(res.status).toBe(200)
-    expect(res.body.id).toBe(requestWithPublicId.id)
-    expect(res.body.publicId).toBe(publicId)
+    expect(res.body.id).toBe(minimalRequestWithPublicId.id)
   })
 
   it('returns 404 when non-owner requests (never leaks existence)', async () => {
     currentUserId = OTHER
-    prismaMock.request.findUnique.mockResolvedValue(requestWithPublicId)
+    prismaMock.request.findUnique.mockResolvedValue(minimalRequestWithPublicId)
 
     const res = await request(app).get(`/api/requests/by-public-id/${publicId}`)
 
@@ -2549,12 +2553,12 @@ describe('GET /api/requests/by-public-id/:publicId', () => {
 
   it('allows admin to view any request', async () => {
     currentUserId = ADMIN
-    prismaMock.request.findUnique.mockResolvedValue(requestWithPublicId)
+    prismaMock.request.findUnique.mockResolvedValue(minimalRequestWithPublicId)
 
     const res = await request(app).get(`/api/requests/by-public-id/${publicId}`)
 
     expect(res.status).toBe(200)
-    expect(res.body.id).toBe(requestWithPublicId.id)
+    expect(res.body.id).toBe(minimalRequestWithPublicId.id)
   })
 
   it('does not collide with the numeric :id route', async () => {
@@ -2564,14 +2568,14 @@ describe('GET /api/requests/by-public-id/:publicId', () => {
     // declaration order. This confirms /by-public-id/<publicId> reaches
     // the publicId handler correctly.
     const stringPublicId = 'abcd-EFGH_ijkl'
-    prismaMock.request.findUnique.mockResolvedValue({ ...requestWithPublicId, publicId: stringPublicId })
+    prismaMock.request.findUnique.mockResolvedValue(minimalRequestWithPublicId)
 
     const res = await request(app).get(`/api/requests/by-public-id/${stringPublicId}`)
 
     expect(res.status).toBe(200)
     expect(prismaMock.request.findUnique).toHaveBeenCalledWith({
       where: { publicId: stringPublicId },
-      include: expect.anything(),
+      select: { id: true, userId: true },
     })
   })
 })

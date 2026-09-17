@@ -892,9 +892,14 @@ router.post('/match', requireAuth, async (req, res) => {
 router.get('/by-public-id/:publicId', requireAuth, async (req, res) => {
   const { publicId } = req.params
 
+  // Just the id + whatever canAccessRequest needs — the client only ever
+  // uses request.id from this response before immediately re-fetching the
+  // real detail via GET /:id (RequestDetail.jsx), so the full
+  // MESSAGE_INCLUDE payload here was fetched and thrown away every time
+  // (Sibling review finding).
   const request = await prisma.request.findUnique({
     where: { publicId },
-    include: MESSAGE_INCLUDE,
+    select: { id: true, userId: true },
   })
 
   if (!request) {

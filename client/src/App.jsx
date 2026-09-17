@@ -583,17 +583,7 @@ function App() {
         ) : isSignedIn && pendingPermalink ? (
           <p>Loading…</p>
         ) : isSignedIn && unauthorized ? (
-          (() => {
-            const hadPermalink = getStashedRequestPermalink()
-            if (hadPermalink) clearStashedRequestPermalink()
-            return (
-              <p>
-                {hadPermalink
-                  ? 'You would need an invite from Gavi to view this request.'
-                  : 'You do not have permission to use Gavi411.'}
-              </p>
-            )
-          })()
+          <p>You do not have permission to use Gavi411.</p>
         ) : isSignedIn && recovery.token ? (
           <Recover
             token={recovery.token}
