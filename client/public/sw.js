@@ -54,4 +54,10 @@ self.addEventListener('push', (event) => {
       body: data.body || '',
     }),
   )
+  // Tell any open tab a push arrived, so a list already on-screen (e.g.
+  // an admin viewing Open requests when a friend's new request notifies
+  // them) can refetch instead of silently going stale until a manual
+  // reload. BroadcastChannel reaches every open tab/window at once,
+  // unlike postMessage to a single client.
+  new BroadcastChannel('gavi411-push').postMessage({ type: 'push' })
 })

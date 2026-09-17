@@ -19,6 +19,10 @@ const prismaMock = {
 
 vi.mock('./prisma.js', () => ({ prisma: prismaMock }))
 
+vi.mock('./notify.js', () => ({
+  notifyUser: vi.fn(async () => undefined),
+}))
+
 const { runAutoCloseCheck, sendNudge } = await import('./autoClose.js')
 
 beforeEach(() => {
@@ -164,5 +168,67 @@ describe('sendNudge', () => {
   it('throws if no admin account exists', async () => {
     prismaMock.user.findFirst.mockResolvedValue(null)
     await expect(sendNudge(5)).rejects.toThrow('No admin account found')
+  })
+})
+
+describe('Notifications for nudge and auto-close (G411-51)', () => {
+  it('sendNudge calls notifyUser after successfully sending nudge #1', async () => {
+    const { notifyUser } = await import('./notify.js')
+    prismaMock.request.updateMany.mockResolvedValue({ count: 1 })
+    prismaMock.message.create.mockResolvedValue({ id: 1 })
+    prismaMock.request.findUnique.mockResolvedValue({
+      id: 5,
+      userId: 'user_friend',
+      nudgedAt: new Date(),
+      message: [],
+    })
+
+    await sendNudge(5)
+
+    expect(notifyUser).toHaveBeenCalledWith(
+      'user_friend',
+      { title: 'Reminder', body: 'Hey, Gavi is waiting for your response' },
+    )
+  })
+
+  it('runAutoCloseCheck calls notifyUser when sending nudge #2', async () => {
+    const { notifyUser } = await import('./notify.js')
+    const nudgedAt = new Date(Date.now() - 8 * DAY_MS)
+    prismaMock.request.findMany.mockResolvedValue([
+      { id: 2, userId: 'user_friend', nudgedAt, nudgeTwoSentAt: null },
+    ])
+    prismaMock.request.update.mockResolvedValue({
+      id: 2,
+      userId: 'user_friend',
+      nudgeTwoSentAt: new Date(),
+    })
+
+    await runAutoCloseCheck()
+
+    expect(notifyUser).toHaveBeenCalledWith(
+      'user_friend',
+      { title: 'Reminder', body: 'Still haven\'t heard back — if I don\'t hear from you soon I\'ll likely go ahead and close this request.' },
+    )
+  })
+
+  it('runAutoCloseCheck calls notifyUser when auto-closing a request', async () => {
+    const { notifyUser } = await import('./notify.js')
+    const nudgedAt = new Date(Date.now() - 15 * DAY_MS)
+    const nudgeTwoSentAt = new Date(Date.now() - 8 * DAY_MS)
+    prismaMock.request.findMany.mockResolvedValue([
+      { id: 3, userId: 'user_friend', nudgedAt, nudgeTwoSentAt },
+    ])
+    // Fresh in-transaction status read before the CLOSED write
+    prismaMock.request.findUnique.mockResolvedValue({
+      id: 3,
+      status: 'WAITING_ON_USER',
+    })
+
+    await runAutoCloseCheck()
+
+    expect(notifyUser).toHaveBeenCalledWith(
+      'user_friend',
+      { title: 'Request closed', body: 'Your request has been automatically closed due to inactivity' },
+    )
   })
 })

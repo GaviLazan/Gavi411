@@ -9,7 +9,7 @@ import { CLOSED_STATUSES, RequestCard } from "./RequestList";
 // only the filter predicate and empty-state text differed). Reuses
 // RequestCard and CLOSED_STATUSES from RequestList to keep filtering
 // logic in one place.
-function FriendRequestsList({ status, onOpenRequest }) {
+function FriendRequestsList({ status, onOpenRequest, refreshToken }) {
   const [requests, setRequests] = useState(null);
   const [error, setError] = useState("");
   const [retryToken, setRetryToken] = useState(0);
@@ -31,7 +31,7 @@ function FriendRequestsList({ status, onOpenRequest }) {
     return () => {
       cancelled = true;
     };
-  }, [retryToken]);
+  }, [retryToken, refreshToken]);
   const retry = () => setRetryToken((t) => t + 1);
 
   const filtered = requests
