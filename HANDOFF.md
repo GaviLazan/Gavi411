@@ -12,7 +12,65 @@ accumulated. If something here turns out to matter long-term, promote it to
 
 ---
 
-## Where this session left off (2026-09-17, latest) — G411-50 (Telegram notifications) built, reviewed, fixed, Landed — awaiting merge go-ahead
+## Where this session left off (2026-09-17, latest) — G411-92 (RequestDetail live polling) built, Implementing, awaiting Sibling review
+
+**Picked up G411-78 (aria-live region for new messages), investigation
+redirected the actual pickup.** G411-78's own ticket text says it's
+meaningless to build without something live for it to announce — checked
+the real code and confirmed `RequestDetail` still only fetches once per
+`requestId` plus after the CURRENT user's own action; Web Push's existing
+`pushRefreshToken`/`BroadcastChannel` mechanism only refreshes the admin
+list screens (`AdminList`), not an already-open detail view. That gap was
+already filed as its own ticket, **G411-92**, Open under Messaging (G411-3)
+— not part of G411-78 or G411-102. Since G411-3 is an earlier epic than
+G411-7 (Notifications, where 78/102/103 live), picking up G411-92 first is
+both the dependency-correct order and the epic-order-correct one — no
+conflict. Gavi's call, once this was laid out.
+
+**Built**: `RequestDetail.jsx` now polls every 30s while mounted, reusing
+the existing `refetch()` function, cleared on unmount/`requestId` change.
+No WebSocket/SSE — matches CLAUDE.md's stated architecture, ticket's own
+suggested range (15-30s), picked 30s for lower DB/server load on the free
+tier given the actual harm from staleness is low (a rare, already-clearly-
+errored edge case, not real-time chat).
+
+No test harness exists for client components in this repo (no
+`@testing-library/react`, confirmed again) — verified live instead: Gavi
+opened the same request in two sessions, changed something in one, watched
+it appear in the other within the poll window without navigating away.
+Confirmed: "works, maybe a bit slower than I had anticipated but it's not
+supposed to be realtime" — expected, not a bug (30s window was the explicit
+tradeoff, not an accident).
+
+542/542 tests pass fresh (unaffected, client-only change), client build
+clean. Jira: **Implementing**, Falsifier/Evidence-required written
+pre-build, Evidence-bar-met added post-build. **Not yet Reviewing/Landed —
+Sibling review not yet run.**
+
+### Real state, right now
+Primary worktree branched off `main` (`06114be` — G411-50 merged) onto
+`you/G411-92-detail-polling`, one commit (`c38bc3f`), pushed, **no PR open
+yet**. Dev servers (backend :3000, Vite :5173) still running from the
+G411-50 session earlier — check before starting new ones
+([[gavi411-stray-dev-server-processes]]).
+
+### What's next, concretely
+1. Open a PR for `you/G411-92-detail-polling`, run Sibling review.
+2. On a clean review: Jira Reviewing → Landed, ask Gavi's merge go-ahead.
+3. **Then pick up G411-78** (aria-live region) — now has real content to
+   announce once G411-92 merges. Then **G411-102** (Web Push
+   click-through, unblocked since G411-94 merged) and **G411-103** (unread
+   dot) — this was Gavi's original stated order for this session (78, then
+   102/103), just with G411-92 correctly inserted first.
+4. **G411-105** (slow permalink load, Vercel-only render-loop) still needs
+   a dedicated investigation session — not urgent, see its own Jira
+   description/comments.
+5. Also Open from an earlier session's live testing: **G411-101** (friend
+   home screen), **G411-104** (sort-by-urgency bug).
+
+---
+
+## Where this session left off (2026-09-17, earlier) — G411-50 (Telegram notifications) built, reviewed, fixed, Landed — awaiting merge go-ahead
 
 **Built the non-blocked half of G411-50** (bot setup was already done in an
 earlier session; deep-link half was blocked on G411-94, which merged this
