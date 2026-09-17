@@ -63,15 +63,31 @@ corrected end-to-end state, not left stuck at the stale first
 Reconciled.
 
 ### Real state, right now
-Primary worktree on `main`, up to date with `origin/main` (`75481ee`).
-All 7 worktrees checked clean.
+Primary worktree on `main`, up to date with `origin/main` (`3cb47b2`,
+after the G411-102 docs-followup PR #121). All 7 worktrees checked clean.
 
 ### What's next, concretely
-1. **Two new tickets, just filed this session, neither started**:
-   a "refresh should keep the user where they are" fix and a "clear
-   notification list" button — both raised by Gavi right after G411-102's
-   fix-round wrapped. Neither scoped yet — STOP 1 (agree scope, Jira
-   Open → Implementing) needed before either starts.
+1. **Two new tickets filed this session, scope now LOCKED by Gavi
+   directly (not left open), neither started**:
+   - **G411-106** ("refresh drops the user back to home") — locked:
+     every screen (no per-screen allowlist), reload-survival only (must
+     NOT survive closing the tab/PWA — rules out `localStorage`,
+     `sessionStorage` is the right mechanism, matching the existing
+     permalink-stash precedent in the same file). Still open at pickup:
+     exactly what state to snapshot beyond `view`/`selectedRequestId`.
+   - **G411-107** ("Clear" button for notification history) — locked:
+     soft-clear only (a flag, not a hard DELETE — matches this app's
+     `User.isDeleted` convention; motivation is capping unbounded list
+     growth, not audit/retention), clear-all is the minimum bar
+     (per-row welcome but not required), **no confirm step** — Gavi's
+     explicit call, unlike this app's other destructive-action screens
+     which do use `ConfirmModal`.
+
+   Both parented under G411-7 (Notifications) at Gavi's explicit choice,
+   even though G411-106 isn't strictly notification-specific — neither
+   existing epic fit cleanly. Jira Open → Implementing still needed
+   before either starts, same as always — scope being locked isn't the
+   same as STOP 1 being done.
 2. **G411-105** (slow permalink load, Vercel-only render-loop) still
    needs a dedicated investigation session — not urgent, see its own Jira
    description/comments. Possibly related in spirit to this session's
