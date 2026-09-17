@@ -84,6 +84,7 @@ function App() {
   // nested inside HamburgerMenu — see PushNotificationToggle.jsx's comment.
   const [showPushDeniedHelp, setShowPushDeniedHelp] = useState(false)
   const [hamburgerOpen, setHamburgerOpen] = useState(false)
+  const [unreadCount, setUnreadCount] = useState(0)
   const [previousView, setPreviousView] = useState('list')
   const { theme, cycleTheme } = useTheme()
   const [isOnline, setIsOnline] = useState(true)
@@ -255,6 +256,21 @@ function App() {
       setPushRefreshToken((t) => t + 1)
     }
   }, [view])
+
+  // G411-103: unread-notification dot on the hamburger icon. Reuses
+  // pushRefreshToken (already bumps when a push arrives via the SW's
+  // BroadcastChannel, or on navigating to Open/Closed requests) rather
+  // than a separate timer poll — updates the moment a push lands in an
+  // open tab, plus once on load/sign-in, with no new polling.
+  useEffect(() => {
+    if (!isSignedIn || !tokenHandoffDone) return
+    fetch('/api/notifications/unread-count')
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data) setUnreadCount(data.count)
+      })
+      .catch(() => {})
+  }, [isSignedIn, tokenHandoffDone, pushRefreshToken])
   // G411-28 stage 4: a ?recover=<token>#<passphrase> link, stashed by
   // captureRecoveryParamsFromUrl() above the same way the signup token
   // is — read once here, doesn't need to react to later URL changes.
@@ -408,6 +424,7 @@ function App() {
             aria-label="Menu"
           >
             ☰
+            {unreadCount > 0 && <span className="hamburger-unread-dot" aria-hidden="true" />}
           </button>
         )}
         {/* Logo always clickable to exit views back to list/home screen,
@@ -706,7 +723,15 @@ function App() {
           (friend vs admin) and include navigation items + theme toggle. */}
       <HamburgerMenu
         open={hamburgerOpen}
-        onClose={() => setHamburgerOpen(false)}
+        onClose={() => {
+          setHamburgerOpen(false)
+          fetch('/api/notifications/unread-count')
+            .then((res) => (res.ok ? res.json() : null))
+            .then((data) => {
+              if (data) setUnreadCount(data.count)
+            })
+            .catch(() => {})
+        }}
       >
         {isSignedIn && (
           <>
