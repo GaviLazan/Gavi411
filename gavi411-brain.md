@@ -1135,6 +1135,69 @@ a candidate for one if this becomes a fourth occurrence: a pre-flight
 script that runs `prisma migrate status` and fails closed on any
 detected drift before a migrate/push command is allowed to run at all.
 
+### Decision #139 — "notification click" was mis-scoped on first pass to mean only the OS push popup; Gavi's actual intent included the in-app notification feed too, surfaced only by his live retest, not by re-reading the ticket text (2026-09-17, G411-102 reopened)
+
+G411-102 ("Notification click deep-links to the relevant request") was
+built and Reconciled reading its own description literally — "the push
+payload and service worker currently carry no URL" — as scoping the
+whole ticket to the OS/browser push notification's click behavior only.
+The in-app Notifications screen (`NotificationHistory.jsx`, reached via
+hamburger menu) was left with zero click behavior on its rows, which
+was never flagged as a gap during the original build or its Sibling
+review. Gavi's first retest report ("102 doesn't seem to work at all...
+clicking on any notification in the notification feed doesn't do
+anything") revealed this was his actual, reasonable reading of "notification
+click" all along — a ticket titled that broadly should cover both
+surfaces, not just the one the description happened to elaborate on in
+detail. **Reopened via Jira's Reconciled → Implementing global
+transition** (not silently patched against a "done" ticket) and fixed
+as new work in the same ticket rather than filing a fresh one, since it's
+squarely the same scope corrected, not an unrelated follow-up.
+
+**Second, separate real bug found in the same retest round**: the actual
+OS push notification click did nothing in Firefox unless the target
+window was already the OS-focused one. Root-caused (not guessed) via a
+research subagent confirming `WindowClient.focus()` can throw
+`InvalidAccessError` per spec without transient activation — the
+original code called `client.focus()` unguarded, so that throw killed
+the `.then()` callback before `client.postMessage(...)` ever ran,
+producing "nothing happens" rather than "navigates but doesn't visually
+focus" (confirmed via a direct diagnostic question to Gavi before
+assuming which). Fixed by wrapping `focus()` in its own try/catch so a
+focus failure no longer blocks the message.
+
+**A residual symptom after that fix — an OS-level spinning-cursor pause
+before the app becomes visible/focused — was correctly NOT chased
+further.** Traced to this machine's real desktop stack (GNOME on
+Wayland, checked via `$XDG_CURRENT_DESKTOP`/`loginctl`, not assumed) —
+Wayland's security model deliberately restricts a background
+application from force-raising its own window without direct user
+interaction, more strictly than X11 (where the equivalent research
+finding, Mozilla bug 1737965, was itself narrowly scoped to KDE/X11
+focus-stealing prevention, not a general cross-platform Firefox bug).
+Verified the part actually within the app's control — Gavi confirmed
+live that after the fix, the page genuinely does navigate to the right
+request despite the lingering cursor spin — and stopped there rather
+than trying to engineer around an OS-level permission boundary
+page-level JavaScript cannot override. **Standing lesson**: when a
+symptom looks like "nothing happens," check whether it's actually "the
+visible/cosmetic part fails but the underlying logic succeeds" before
+assuming the whole mechanism is broken — the fix target and the
+irreducible OS limitation were two different things bundled into one
+symptom report, and separating them (rather than either giving up
+entirely or chasing an unfixable OS restriction) was the right amount
+of investigation.
+
+**Also verified, not assumed**: "only works on more recent
+notifications" in the feed-click retest was confirmed correct, not a
+new bug — a direct DB query showed the exact migration-time boundary
+(rows before 2026-09-17 17:02 UTC genuinely have `requestId: null`,
+since those notifications were sent before the payload ever carried one;
+no backfill is possible, there's no data to recover). Matches the
+already-logged, deliberate scope of the original G411-102 migration —
+worth confirming with a real query rather than assuming from the
+symptom description alone, same discipline as #138 just above.
+
 ## 7. Not Yet Discussed
  
 - Data model, architecture, tech decisions (schema itself not yet drafted — first task on deck).

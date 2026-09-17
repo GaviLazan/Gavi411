@@ -12,7 +12,78 @@ accumulated. If something here turns out to matter long-term, promote it to
 
 ---
 
-## Where this session left off (2026-09-17, latest) — G411-102 (notification click deep-link) built, Landed, awaiting merge go-ahead
+## Where this session left off (2026-09-17, latest) — G411-102 reopened and re-fixed after live retest, merged, back to Reconciled
+
+**After G411-103 wrapped, Gavi reported G411-102 "doesn't seem to work
+at all"** — real, live-caught gap, not something either the original
+build or its Sibling review found. Two genuinely separate issues,
+untangled via direct questions rather than guessed at (full detail in
+brain.md #139):
+
+1. **In-app notification feed rows weren't clickable at all.** The
+   original G411-102 build only ever wired the OS push notification's
+   own click behavior — never the in-app Notifications screen
+   (`NotificationHistory.jsx`, hamburger menu). Gavi's actual intent for
+   "notification click" clearly included both surfaces, just never
+   stated that explicitly and the original scoping (mine) read the
+   ticket too narrowly. **Reopened G411-102 via Jira's Reconciled →
+   Implementing transition** (not silently patched against a closed
+   ticket) and fixed as the same ticket, not a new one. Fix: each row
+   with a real `requestId` (i.e. sent after the original migration) is
+   now clickable, mouse + keyboard, reusing the existing `openRequest`.
+
+2. **Firefox OS push click did nothing unless the window was already
+   focused.** Root-caused via research: `client.focus()` can throw
+   `InvalidAccessError` per spec without transient activation, and the
+   original code called it unguarded — the throw silently killed the
+   rest of the handler before `postMessage` ever ran. Fixed with a
+   try/catch around just the `focus()` call.
+
+**A residual OS-level cursor-spin after that fix was correctly not
+chased further** — traced to this machine's real desktop (GNOME on
+Wayland, confirmed via env vars, not assumed), which deliberately
+restricts a background app from force-raising its own window. Gavi
+confirmed live, after the fix, that the app genuinely does navigate to
+the right request despite the lingering spin — the actual bug (no
+navigation) is fixed; the cosmetic OS behavior is outside what
+page-level JS can control and was accepted as-is, not treated as
+unresolved.
+
+**"Only works on recent notifications" in the feed-click retest was
+verified correct, not a new bug** — a direct DB query confirmed the
+exact migration-time boundary: notifications sent before G411-102's
+original migration (2026-09-17 17:02 UTC) genuinely have `requestId:
+null` (no `requestId` existed to send at the time), no backfill
+possible or warranted.
+
+543/543 tests pass fresh, client build clean. PR #120 merged
+(`75481ee`). Jira: **re-transitioned Reconciled → Implementing →
+Landed → Reconciled** in this same session, reflecting the real
+corrected end-to-end state, not left stuck at the stale first
+Reconciled.
+
+### Real state, right now
+Primary worktree on `main`, up to date with `origin/main` (`75481ee`).
+All 7 worktrees checked clean.
+
+### What's next, concretely
+1. **Two new tickets, just filed this session, neither started**:
+   a "refresh should keep the user where they are" fix and a "clear
+   notification list" button — both raised by Gavi right after G411-102's
+   fix-round wrapped. Neither scoped yet — STOP 1 (agree scope, Jira
+   Open → Implementing) needed before either starts.
+2. **G411-105** (slow permalink load, Vercel-only render-loop) still
+   needs a dedicated investigation session — not urgent, see its own Jira
+   description/comments. Possibly related in spirit to this session's
+   Wayland-focus finding (both are "real but not fully fixable from this
+   codebase" classes of issue) but NOT the same root cause — don't
+   conflate them.
+3. Also Open from an earlier session's live testing: **G411-101** (friend
+   home screen), **G411-104** (sort-by-urgency bug).
+
+---
+
+## Where this session left off (2026-09-17, earlier) — G411-102 (notification click deep-link) built, Landed, awaiting merge go-ahead
 
 **Picked up G411-102** right after G411-78 merged/Reconciled. Scope came
 straight from the ticket's own two comments (the second one correcting
