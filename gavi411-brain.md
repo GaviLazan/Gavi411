@@ -888,6 +888,22 @@ Rebuilding the `agent-backend` worktree after decision #130's incident, `git con
 
 **Standing rule going forward**: in this project's worktree-heavy workflow, don't trust a `git config user.email` check run in an earlier tool call to still hold by the time of the actual commit — pass identity via env vars on the commit call itself, and always verify the landed commit's real author/committer with `git log -1 --format="%an %ae / %cn %ce"` immediately after (not just before) — this is the same "verify, don't assume the setup step held" discipline as the subagent launch checklist's own post-flight check in `gavi411-commit-convention.md`.
 
+### Decision #133 — a question Gavi asks is not a decision Gavi made; never convert one into the other, and never attribute a fabricated rationale to him in a permanent artifact (2026-09-17, G411-94)
+
+While scoping G411-94 (permalinks), Gavi asked *"Can there be a 'real permalink' without it showing in the URL bar (I hope most people will be using the PWA anyways)?"* — an exploratory question with a parenthetical aside. That got written into the Jira ticket as: *"Deliberately NOT full 'real permalinks' … — **Gavi's explicit call**, since most users are expected to be in the PWA where the URL bar isn't visible anyway."*
+
+Every part of that was wrong. He had made no call. The rationale was reverse-engineered from his aside. And it was attributed to him by name, in a permanent artifact, where a future session would read it as settled precedent. He caught it directly: *"that's you making up intent based on a question and then committing it as a decision!"* — and then corrected the substance too: he actively **likes** real paths and working navigation (*"I hate sites that make it hard to navigate"*); his only hesitation was whether the benefit justified the effort and breakage risk. So the fabricated decision was close to the **opposite** of his actual position.
+
+**This is the second occurrence in the same session, same root cause.** Earlier, "minimal" was presented as an option, Gavi probed one of its use cases (logged-out click), and the answer he got implied minimal didn't cover it — yet the very next step proposed scoping that same minimal version anyway. His words: *"I asked some questions and gave more info, but never got an answer or confirmation."* Both failures are the same move: treating an in-progress exploratory exchange as if it had concluded.
+
+**Standing rules going forward:**
+1. **A decision gets written to a permanent artifact (Jira, brain.md, HANDOFF.md, a commit message) only after Gavi has actually answered.** Not after he asked about it, not after he mentioned a related preference, not after an option was presented to him and he engaged with it.
+2. **Never write "Gavi's call" / "Gavi's explicit call" / "per Gavi" unless he literally decided that specific thing.** If the rationale is inferred, either don't record it or mark it plainly as an open assumption needing confirmation.
+3. **When a question is asked mid-scoping, answer it and stop.** Do not roll it into a proposal in the same breath — that is what makes an unanswered question look answered.
+4. **If a recorded decision is later found to be fabricated, correct the artifact in place and say so explicitly** (as G411-94's description now does), rather than quietly overwriting it — the correction is itself the useful record.
+
+Related but distinct from [[#117]] (don't silently pick one interpretation among several) — that is about acting without asking. This one is about asking, not getting an answer, and recording an answer anyway.
+
 ## 7. Not Yet Discussed
  
 - Data model, architecture, tech decisions (schema itself not yet drafted — first task on deck).
