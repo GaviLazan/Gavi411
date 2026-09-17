@@ -649,7 +649,11 @@ function RequestDetail({ requestId, onBack, isAdmin }) {
       )}
       {typeDetailRows(request.typeDetails)}
       {request.publicId && (
-        <div style={{ marginTop: "var(--space-3)", paddingTop: "var(--space-3)", borderTop: "1px solid var(--border)" }}>
+        // No border here — the preceding .review-row already carries its
+        // own bottom border (ReviewSummary.css's :last-child rule), which
+        // this div's presence pushes off "last," leaving a double line
+        // if this also draws one. review-summary's own flex gap is enough.
+        <div>
           <Button
             onClick={handleCopyPermalink}
             style={{ fontSize: 13 }}

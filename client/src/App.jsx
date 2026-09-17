@@ -31,6 +31,7 @@ import {
   captureRequestPermalinkFromUrl,
   getStashedRequestPermalink,
   clearStashedRequestPermalink,
+  canConsumeRequestPermalink,
 } from './lib/inviteToken'
 import { createAndUploadEscrowBackup, createAndUploadKeypair } from './lib/escrow'
 import { loadLinkedConversationKeys, wrapMissingConversationKeys } from './lib/deviceLinking'
@@ -307,11 +308,36 @@ function App() {
     setView('detail')
   }
 
+  // G411-94: a permalink that 404s (unknown id, or a request this user
+  // can't access) used to fail completely silently — the fetch's own
+  // .catch cleared the stash and did nothing else, so the user just saw
+  // the ordinary home screen with zero indication anything had happened,
+  // indistinguishable from a broken link. Surfaced live testing this
+  // exact case (Second Party opening a permalink to admin's request).
+  const [permalinkError, setPermalinkError] = useState(false)
+
   // G411-94: consume stashed request permalink URL once auth gates clear.
   // Only fires when ALL conditions are true: signed in, token handoff done,
-  // role resolved, profile complete, and no recovery in progress.
+  // role resolved, profile complete (admin exempt, matching the render
+  // gate at the `needsProfileCompletion && !isAdmin` branch below — admin's
+  // phoneNumber is permanently the pending- placeholder by design, so a
+  // plain `needsProfileCompletion` check here left this effect stuck
+  // forever for admin, silently never consuming any permalink), and no
+  // recovery in progress. Live-tested finding, not caught by any test —
+  // this repo's convention has no @testing-library/react to render the
+  // real gate combination.
   useEffect(() => {
-    if (!isSignedIn || !tokenHandoffDone || role === null || needsProfileCompletion || recovery.token) return
+    if (
+      !canConsumeRequestPermalink({
+        isSignedIn,
+        tokenHandoffDone,
+        role,
+        isAdmin,
+        needsProfileCompletion,
+        recoveryToken: recovery.token,
+      })
+    )
+      return
 
     const publicId = getStashedRequestPermalink()
     if (!publicId) return
@@ -319,9 +345,6 @@ function App() {
     fetch(`/api/requests/by-public-id/${encodeURIComponent(publicId)}`)
       .then((res) => {
         if (res.ok) return res.json()
-        if (res.status === 404) {
-          clearStashedRequestPermalink()
-        }
         throw new Error('Failed to load request')
       })
       .then((request) => {
@@ -331,10 +354,13 @@ function App() {
         }
       })
       .catch(() => {
-        // On error, clear the stale permalink so it doesn't re-fire
+        // On error (404, network failure, etc.) clear the stale permalink
+        // so it doesn't re-fire, and tell the user rather than silently
+        // dropping them on the home screen with no explanation.
         clearStashedRequestPermalink()
+        setPermalinkError(true)
       })
-  }, [isSignedIn, tokenHandoffDone, role, needsProfileCompletion, recovery.token])
+  }, [isSignedIn, tokenHandoffDone, role, isAdmin, needsProfileCompletion, recovery.token])
 
   // Admin's open request count for home screen display, derived from
   // AdminList's own already-fetched data (via onRequestsLoaded) instead
@@ -425,6 +451,12 @@ function App() {
           your messages may not be end-to-end encrypted, and if you lose this device you may not
           be able to recover them. Contact Gavi if this keeps happening.{' '}
           <button type="button" onClick={() => setEscrowBackupFailed(false)}>Dismiss</button>
+        </p>
+      )}
+      {permalinkError && (
+        <p role="alert" className="escrow-backup-warning">
+          That link doesn't lead anywhere — it may be wrong, or for a request you don't have access to.{' '}
+          <button type="button" onClick={() => setPermalinkError(false)}>Dismiss</button>
         </p>
       )}
       {/* G411-43: presence status banner for all signed-in users — shows

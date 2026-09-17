@@ -137,3 +137,28 @@ export function getStashedRequestPermalink() {
 export function clearStashedRequestPermalink() {
   sessionStorage.removeItem(PERMALINK_STORAGE_KEY)
 }
+
+// Gate for App.jsx's permalink-consume effect, extracted as a real,
+// imported pure function (not a duplicate copy in the test file) so a
+// change here can't silently drift from what the effect actually runs.
+// needsProfileCompletion is ignored for admin — admin's phoneNumber is
+// permanently the pending- placeholder by design (never filled in, since
+// admin is exempted from the CompleteProfile screen itself), so requiring
+// it here would leave this gate stuck closed forever for admin. Live-
+// testing found this exact bug: an admin permalink silently never opened.
+export function canConsumeRequestPermalink({
+  isSignedIn,
+  tokenHandoffDone,
+  role,
+  isAdmin,
+  needsProfileCompletion,
+  recoveryToken,
+}) {
+  return Boolean(
+    isSignedIn &&
+      tokenHandoffDone &&
+      role !== null &&
+      (!needsProfileCompletion || isAdmin) &&
+      !recoveryToken
+  )
+}
