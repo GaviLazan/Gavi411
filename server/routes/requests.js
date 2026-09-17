@@ -886,7 +886,8 @@ router.post('/match', requireAuth, async (req, res) => {
 })
 
 // GET /by-public-id/:publicId — lookup request by public permalink ID (G411-94).
-// Declared BEFORE the numeric /:id route so it matches first, avoiding collision.
+// No collision with GET /:id above: that route only matches a single path
+// segment, so it never sees a two-segment /by-public-id/<publicId> request.
 // Owner or admin only — same ownership check as GET /:id.
 router.get('/by-public-id/:publicId', requireAuth, async (req, res) => {
   const { publicId } = req.params

@@ -2559,14 +2559,10 @@ describe('GET /api/requests/by-public-id/:publicId', () => {
 
   it('does not collide with the numeric :id route', async () => {
     currentUserId = OWNER
-    // When someone hits /api/requests/123, it should go to the :id handler
-    // and pass a numeric ID check, not be rejected before reaching it.
-    // The /by-public-id/:publicId route is declared first in requests.js,
-    // so /by-public-id/123 would match it (integer publicId "123" is valid base64url).
-    // This test confirms the pattern is unambiguous: a real public ID won't
-    // look like a pure number since it's 16 base64url chars, but we verify
-    // the routes are in the right order by testing the key invariant:
-    // /by-public-id/<string> always reaches the publicId handler.
+    // GET /:id only ever matches a single path segment, so a two-segment
+    // path like /by-public-id/<publicId> can never reach it regardless of
+    // declaration order. This confirms /by-public-id/<publicId> reaches
+    // the publicId handler correctly.
     const stringPublicId = 'abcd-EFGH_ijkl'
     prismaMock.request.findUnique.mockResolvedValue({ ...requestWithPublicId, publicId: stringPublicId })
 

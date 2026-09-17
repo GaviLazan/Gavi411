@@ -518,12 +518,6 @@ function RequestDetail({ requestId, onBack, isAdmin }) {
     }
   }
 
-  // G411-82: text is encrypted client-side before it ever reaches the
-  // server, via the shared key derived from the other party's public
-  // key. A sender with no keypair yet (see prisma/schema.prisma's
-  // User.publicKey doc comment — a test/dev account created directly,
-  // never through a real invite-signup) or whose conversation partner
-  // has no public key yet gets a clear, blocking error instead of a
   // G411-94: copy permalink to clipboard with feedback
   function handleCopyPermalink() {
     if (!request?.publicId) return
@@ -534,6 +528,12 @@ function RequestDetail({ requestId, onBack, isAdmin }) {
     })
   }
 
+  // G411-82: text is encrypted client-side before it ever reaches the
+  // server, via the shared key derived from the other party's public
+  // key. A sender with no keypair yet (see prisma/schema.prisma's
+  // User.publicKey doc comment — a test/dev account created directly,
+  // never through a real invite-signup) or whose conversation partner
+  // has no public key yet gets a clear, blocking error instead of a
   // silent plaintext fallback — this app has no "device recovery" path
   // that makes plaintext an acceptable substitute, so it's not offered
   // as an option. Image bytes stay unencrypted (see conversationCrypto.js
@@ -649,7 +649,7 @@ function RequestDetail({ requestId, onBack, isAdmin }) {
       )}
       {typeDetailRows(request.typeDetails)}
       {request.publicId && (
-        <div style={{ marginTop: "var(--space-3)", paddingTop: "var(--space-3)", borderTop: "1px solid var(--border-color)" }}>
+        <div style={{ marginTop: "var(--space-3)", paddingTop: "var(--space-3)", borderTop: "1px solid var(--border)" }}>
           <Button
             onClick={handleCopyPermalink}
             style={{ fontSize: 13 }}
