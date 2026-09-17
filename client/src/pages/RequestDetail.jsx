@@ -349,19 +349,63 @@ function RequestDetail({ requestId, onBack, isAdmin }) {
   }
 
   function refetch() {
+    // Same res.ok check + swallow-on-failure as the mount-load effect
+    // above (Sibling review finding, G411-92): the 30s background poll
+    // below made a silent 401/404 response a real, reachable case (a
+    // stale/invalidated session sitting on an open tab) — previously
+    // refetch() only ran right after the user's own fresh-session
+    // action, where this was near-impossible. A failed poll just skips
+    // this tick rather than corrupting `request` with an error body.
     fetch(`/api/requests/${requestId}`)
-      .then((res) => res.json())
-      .then(setRequest);
+      .then((res) => {
+        if (!res.ok) throw new Error("failed");
+        return res.json();
+      })
+      .then(setRequest)
+      .catch(() => {});
   }
 
   // G411-92: the other party's changes (status/urgency/message) were
   // invisible until this view was left and re-entered — no polling, no
   // window-focus refetch. Lightweight interval only, no WebSocket/SSE
   // per CLAUDE.md's architecture decision. Cleared on unmount/requestId
-  // change so a closed/navigated-away view never keeps polling.
+  // change so a closed/navigated-away view never keeps polling. Paused
+  // while the tab is backgrounded (Sibling review finding) — a request
+  // left open and idle would otherwise keep hitting the free-tier
+  // backend/DB every 30s for a view nobody is looking at.
   useEffect(() => {
-    const interval = setInterval(refetch, 30000);
-    return () => clearInterval(interval);
+    let cancelled = false;
+    let interval = null;
+
+    function startPolling() {
+      if (interval) return;
+      interval = setInterval(() => {
+        if (!cancelled) refetch();
+      }, 30000);
+    }
+
+    function stopPolling() {
+      clearInterval(interval);
+      interval = null;
+    }
+
+    function handleVisibilityChange() {
+      if (document.visibilityState === "visible") {
+        refetch();
+        startPolling();
+      } else {
+        stopPolling();
+      }
+    }
+
+    if (document.visibilityState === "visible") startPolling();
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    return () => {
+      cancelled = true;
+      stopPolling();
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [requestId]);
 
