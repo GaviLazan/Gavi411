@@ -19,6 +19,13 @@ import { generatePublicId } from '../lib/publicId.js'
 
 const router = express.Router()
 
+// Sibling review finding (G411-50): FRONTEND_URL is only used to build a
+// Telegram deep link — if it's unset, omit the link rather than send a
+// broken "undefined/r/<publicId>" URL.
+export function buildPermalink(publicId) {
+  return process.env.FRONTEND_URL ? `${process.env.FRONTEND_URL}/r/${publicId}` : undefined
+}
+
 // memoryStorage — files stay in RAM as a Buffer just long enough to
 // forward to Cloudinary, never written to disk. Fine at a 10MB cap on a
 // free-tier backend; would need rethinking for anything larger (see
@@ -952,8 +959,9 @@ router.post('/', requireAuth, async (req, res) => {
     // Notify admins of new request (G411-51)
     notifyAdmins(
       {
-        title: 'New request',
-        body: `${req.user.firstName} ${req.user.lastName} submitted a new request`,
+        title: `New request from ${req.user.firstName} ${req.user.lastName}`,
+        body: request.urgency === 'HIGH' ? `${request.freeText}\nUrgent` : request.freeText,
+        link: buildPermalink(request.publicId),
       },
       { telegram: true },
     ).catch((err) => {
@@ -1038,11 +1046,17 @@ router.post('/overdraft-request', requireAuth, async (req, res) => {
     })
 
     // Fire-and-forget notification to every admin — a push failure must
-    // never block the request itself.
-    notifyAdmins({
-      title: 'Overdraft request pending',
-      body: `${req.user.firstName} ${req.user.lastName} is asking for a one-time overdraft request.`,
-    }).catch((err) => {
+    // never block the request itself. Telegram added per Sibling review
+    // (G411-50): an overdraft request needs admin action same as a normal
+    // new request, so it gets the same treatment.
+    notifyAdmins(
+      {
+        title: `Overdraft request pending from ${req.user.firstName} ${req.user.lastName}`,
+        body: request.freeText,
+        link: buildPermalink(request.publicId),
+      },
+      { telegram: true },
+    ).catch((err) => {
       console.error('Failed to notify admins of overdraft request:', err)
     })
 
@@ -1287,8 +1301,9 @@ router.post('/:id/messages', requireAuth, uploadImageField, async (req, res) => 
       // Friend sending a message — notify admin
       notifyAdmins(
         {
-          title: 'New message',
-          body: `${req.user.firstName} ${req.user.lastName} sent a new message`,
+          title: `New message from ${req.user.firstName} ${req.user.lastName}`,
+          body: `in ${existing.freeText}`,
+          link: buildPermalink(existing.publicId),
         },
         { telegram: true, excludeClerkId: req.user.clerkId },
       ).catch((err) => {

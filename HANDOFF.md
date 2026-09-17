@@ -12,7 +12,100 @@ accumulated. If something here turns out to matter long-term, promote it to
 
 ---
 
-## Where this session left off (2026-09-17, latest) — G411-94 (permalinks) built, Landed, awaiting merge go-ahead
+## Where this session left off (2026-09-17, latest) — G411-50 (Telegram notifications) built, reviewed, fixed, Landed — awaiting merge go-ahead
+
+**Built the non-blocked half of G411-50** (bot setup was already done in an
+earlier session; deep-link half was blocked on G411-94, which merged this
+session — see the entry below). `server/lib/notify.js`'s `sendTelegram` stub
+is now a real POST to the Telegram Bot API. Both `telegram: true` call sites
+in `server/routes/requests.js` (new request, new message from a friend, and
+— added during the fix pass below — overdraft request) pass a `link` built
+from `FRONTEND_URL` (new env var, pinned to `https://gavi411-ten.vercel.app`)
++ the request's `publicId` (G411-94's permalink). Message wording, locked
+with Gavi live in-session:
+- New request: `New request from <name>\n<freeText>\n\n<link>`, with an
+  `Urgent` line appended directly under `<freeText>` when `urgency === 'HIGH'`.
+- New message from a friend: `New message from <name>\nin <freeText>\n\n<link>`.
+- Overdraft request: `Overdraft request pending from <name>\n<freeText>\n\n<link>`.
+
+Telegram was already structurally admin-only (only `notifyAdmins` ever
+passes `telegram: true`) — confirmed, not changed.
+
+**Haiku wrote the first draft**, Sonnet reviewed the actual diff before
+trusting it. **Live-tested by Gavi, twice, locally.** First attempt hit an
+unrelated `PrismaClientValidationError: Unknown argument publicId` — stale
+generated Prisma Client on disk (schema had `publicId` from G411-94 a week
+before the client was regenerated in this environment); fixed with
+`npx prisma generate`, confirmed via `prisma migrate status` that no
+migration was actually missing (decision #136, brain.md). After that:
+notification arrived correctly, link opened the real request.
+
+**Real, not-yet-understood issue found and deliberately NOT fixed here**:
+tapping the Telegram link on the deployed Vercel app was slow (~10s first
+open, 1.53s+ second), with a real render-loop stack trace under the slow
+XHR. An initial cold-DB-connection theory didn't survive Gavi's own
+challenge (decision #137, brain.md — theory wasn't checked against the
+actual timeline before being stated) and didn't reproduce on
+`localhost:5173`. Filed as **G411-105** (parented under G411-57), not
+blocking G411-50's own falsifier.
+
+**Sibling review (4 parallel angles) on PR #115 found 6 real issues, all
+fixed in a second commit + pushed**: missing `await` on the Telegram send
+(could silently drop notifications on Render's free tier), unguarded
+`FRONTEND_URL` (would embed a literal `undefined/r/<publicId>` link if
+unset), no fail-loud guard for missing `TELEGRAM_BOT_TOKEN`/`CHAT_ID`
+(unlike `webPush.js`'s equivalent), overdraft-request notification missing
+the same Telegram+link treatment as its siblings (Gavi agreed to add it),
+unbounded `freeText` vs Telegram's 4096-char hard limit (safety cap only,
+not a product decision — Gavi was explicit he doesn't want message-length
+polish), and duplicated dispatch code. Fix pass posted as a real PR comment
+(not just chat), per CLAUDE.md rule 5.
+
+**Third commit, correcting the length-cap fix itself**: Gavi caught that
+the freeText cap added for finding #5 was a guessed static margin
+(`TELEGRAM_FREETEXT_LIMIT = 3900` in `requests.js`) rather than actually
+derived from the real `title`/`link` lengths it needed to leave room for —
+safe in practice, not correct by construction, and in the wrong file
+(`requests.js` can't know what `notify.js` will combine it with). Moved to
+`buildTelegramText(title, body, link)` in `notify.js`, computed from the
+real title/link at the point they're assembled — only `body` is truncated,
+by exactly what's needed, so the link always survives intact regardless of
+`freeText` length. `requests.js` no longer touches `freeText` at all.
+Two new tests directly verify the link-always-survives property.
+
+542/542 tests pass fresh, client build clean. Jira: **Landed**,
+Falsifier/Evidence-required/Evidence-bar-met all written against real
+final state. **Awaiting merge go-ahead — not yet Reconciled.**
+
+### Real state, right now
+Primary worktree on branch `you/G411-50-telegram-notifications` (4 commits:
+`808807d` build, `dc8e8f2` Sibling review fixes, `9b5b4f5` HANDOFF-only,
+`fd2430e` length-cap correction), pushed, PR #115 open against `main`. A
+dev-server pair (backend :3000, Vite :5173) was started from the primary
+worktree this session for live testing — check whether it's still running
+before starting a new one ([[gavi411-stray-dev-server-processes]]).
+
+### What's next, concretely
+1. **Merge PR #115** (Gavi's go-ahead, per wrap-up step 7) — then Jira
+   Landed → Reconciled immediately, no separate re-check.
+2. **G411-105** (slow permalink load, Vercel-only, real render-loop
+   evidence) needs a dedicated investigation session — see its Jira
+   description/comments for the full repro notes and suggested next steps.
+   Not urgent, but a real user-facing rough edge.
+3. Still Open and untouched under Epic 7: **G411-78** (aria-live region),
+   **G411-102** (Web Push click-through, now unblocked by G411-94's merge).
+   Also Open from an earlier session's live testing: **G411-101** (friend
+   home screen), **G411-103** (unread dot), **G411-104** (sort-by-urgency
+   bug).
+4. Real follow-up logged in PR #114's own review comment (G411-94), not
+   yet a ticket: `openRequest()`'s hardcoded `previousView: 'list'` would
+   give wrong back-navigation if a future caller (most likely G411-102)
+   invokes it from inside the open/closed-requests screens rather than the
+   home screen.
+
+---
+
+## Where this session left off (2026-09-17, earlier) — G411-94 (permalinks) built, Landed, awaiting merge go-ahead
 
 **Built the scoped plan from the previous entry below.** `Request.publicId`
 (unique, random, non-sequential, real `prisma migrate dev` migration, all 16

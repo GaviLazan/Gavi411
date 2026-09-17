@@ -1036,6 +1036,54 @@ server. Two rounds of static "read the code, form a theory" failed to
 find this; the actual bug only surfaced once the exact scenario Gavi
 described was mechanically reproduced end to end.
 
+### Decision #136 — a schema-vs-generated-client mismatch looks identical to a missing migration at the error message, but `prisma migrate status` distinguishes them instantly; don't guess which one it is (2026-09-17, G411-50)
+
+Live-testing G411-50 locally, the very first request submission threw
+`PrismaClientValidationError: Unknown argument publicId` — the exact
+shape of error you'd expect from a missing migration (G411-94 had added
+`Request.publicId` a session earlier). Gavi asked directly "could there
+be a missed migration?" before any fix was applied — the right question,
+and the one this session should have asked itself first rather than
+jumping to `npx prisma generate` on instinct. Checked with
+`npx prisma migrate status`: the real DB schema was already correct
+(G411-94's migration had genuinely applied, this being the same shared
+Neon DB dev and prod both use — no separate dev/prod split in this
+project). The actual cause was narrower: the **generated** Prisma Client
+on disk (`node_modules/@prisma/client`) was a week stale relative to
+`schema.prisma` (confirmed via file mtimes) — nobody had re-run
+`prisma generate` in this particular environment since G411-94 merged.
+`npx prisma generate` alone fixed it; no migration was missing or
+needed. **The generalizable lesson**: "Unknown argument `<newField>`" at
+the Prisma Client layer has two distinct real causes that produce
+identical error text — a genuinely missing migration (fix: write/apply
+one) or a stale generated client (fix: regenerate) — and `prisma migrate
+status` is the one-command way to tell them apart before touching
+anything. Don't default to either fix from the error message alone.
+
+### Decision #137 — "verify, don't theorize" ([[verify-dont-theorize-on-user-reports]]) applies to root-cause explanations mid-investigation, not just to proposed fixes; a plausible-sounding cause offered without checking it against the actual sequence of events wastes a round-trip when Gavi does the checking himself (2026-09-17, G411-50)
+
+After the Telegram permalink link loaded slowly on Vercel prod, this
+session's first explanation was Neon free-tier cold-start latency on the
+two sequential `/api/me` → `/by-public-id` fetches. It was presented with
+real supporting numbers (a live-measured ~620ms first-query connection
+cost) but without checking the one fact that would have falsified it
+immediately: Gavi had been actively submitting requests through the same
+backend moments before clicking the link, so the DB connection should
+already have been warm. Gavi caught this himself — "why would there be a
+cold start latency if I have been testing things" — rather than the
+session catching it before presenting the theory. The measurement was
+real; the theory built on top of it wasn't checked against the actual
+timeline before being stated as the explanation. **The generalizable
+lesson**: a root-cause theory needs to be checked against the specific
+sequence of events Gavi actually described (what happened right before,
+in what order) before being presented, not just supported by a plausible
+number pulled from an isolated test. Presenting an unchecked theory and
+letting Gavi falsify it is the same failure shape as proposing an
+unverified fix and letting him discover it doesn't work — the fix in
+both cases is to trace the theory against the real timeline first, the
+same discipline [[verify-dont-theorize-on-user-reports]] already names
+for fix proposals.
+
 ## 7. Not Yet Discussed
  
 - Data model, architecture, tech decisions (schema itself not yet drafted — first task on deck).

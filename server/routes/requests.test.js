@@ -782,7 +782,7 @@ describe('POST /api/requests/overdraft-request (G411-47)', () => {
   it('creates an OVERDRAFT_PENDING request with isOverdraft: true and deducts NOTHING', async () => {
     prismaMock.user.findUnique.mockResolvedValue({ creditBalance: 0, overdraftUsedAt: null })
     prismaMock.request.create.mockResolvedValue({
-      id: 1, freeText: 'help', userId: OWNER, status: 'OVERDRAFT_PENDING', isOverdraft: true,
+      id: 1, freeText: 'help', userId: OWNER, status: 'OVERDRAFT_PENDING', isOverdraft: true, publicId: 'abc123',
     })
     prismaMock.user.findMany.mockResolvedValue([{ clerkId: ADMIN }])
 
@@ -800,9 +800,36 @@ describe('POST /api/requests/overdraft-request (G411-47)', () => {
     )
   })
 
+  it('notifies admins via Telegram with a permalink (G411-50 Sibling review finding)', async () => {
+    const { notifyAdmins } = await import('../lib/notify.js')
+    prismaMock.user.findUnique.mockResolvedValue({ creditBalance: 0, overdraftUsedAt: null })
+    prismaMock.request.create.mockResolvedValue({
+      id: 1, freeText: 'help', userId: OWNER, status: 'OVERDRAFT_PENDING', isOverdraft: true, publicId: 'abc123',
+    })
+    prismaMock.user.findMany.mockResolvedValue([{ clerkId: ADMIN }])
+
+    const res = await request(app).post('/api/requests/overdraft-request').send({ freeText: 'help' })
+
+    expect(res.status).toBe(201)
+    expect(notifyAdmins).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: expect.stringContaining('Overdraft request pending'),
+        body: 'help',
+        link: expect.stringContaining('/r/abc123'),
+      }),
+      expect.objectContaining({ telegram: true }),
+    )
+  })
+
   it('stamps overdraftUsedAt on the user when a request is created', async () => {
     prismaMock.user.findUnique.mockResolvedValue({ creditBalance: 0, overdraftUsedAt: null })
-    prismaMock.request.create.mockResolvedValue({ id: 1, status: 'OVERDRAFT_PENDING', isOverdraft: true })
+    prismaMock.request.create.mockResolvedValue({
+      id: 1,
+      status: 'OVERDRAFT_PENDING',
+      isOverdraft: true,
+      freeText: 'help',
+      publicId: 'abc123',
+    })
     prismaMock.user.findMany.mockResolvedValue([])
 
     await request(app).post('/api/requests/overdraft-request').send({ freeText: 'help' })
@@ -837,7 +864,13 @@ describe('POST /api/requests/overdraft-request (G411-47)', () => {
     const lastMonth = new Date()
     lastMonth.setMonth(lastMonth.getMonth() - 1)
     prismaMock.user.findUnique.mockResolvedValue({ creditBalance: 0, overdraftUsedAt: lastMonth })
-    prismaMock.request.create.mockResolvedValue({ id: 1, status: 'OVERDRAFT_PENDING', isOverdraft: true })
+    prismaMock.request.create.mockResolvedValue({
+      id: 1,
+      status: 'OVERDRAFT_PENDING',
+      isOverdraft: true,
+      freeText: 'help',
+      publicId: 'abc123',
+    })
     prismaMock.user.findMany.mockResolvedValue([])
 
     const res = await request(app).post('/api/requests/overdraft-request').send({ freeText: 'help' })
@@ -2259,13 +2292,29 @@ describe('stripEmpty (G411-74 Sibling review finding)', () => {
   })
 })
 
+describe('buildPermalink (G411-50 Sibling review finding)', () => {
+  it('builds a /r/<publicId> URL from FRONTEND_URL', async () => {
+    vi.stubEnv('FRONTEND_URL', 'https://example.com')
+    const { buildPermalink } = await import('./requests.js')
+    expect(buildPermalink('abc123')).toBe('https://example.com/r/abc123')
+    vi.unstubAllEnvs()
+  })
+
+  it('returns undefined (omits the link) when FRONTEND_URL is unset', async () => {
+    vi.stubEnv('FRONTEND_URL', '')
+    const { buildPermalink } = await import('./requests.js')
+    expect(buildPermalink('abc123')).toBeUndefined()
+    vi.unstubAllEnvs()
+  })
+})
+
 describe('POST / request creation notification (G411-51)', () => {
   it('calls notifyAdmins with telegram flag when request is successfully created', async () => {
     const { notifyAdmins } = await import('../lib/notify.js')
     currentUserId = OWNER
 
     prismaMock.user.findMany.mockResolvedValue([{ clerkId: OWNER, role: 'USER', balance: 10 }])
-    prismaMock.request.create.mockResolvedValue({ id: 1, userId: OWNER })
+    prismaMock.request.create.mockResolvedValue({ id: 1, userId: OWNER, freeText: 'help me', publicId: 'abc123' })
     prismaMock.$transaction.mockImplementation((cb) => cb(prismaMock))
 
     const res = await request(app).post('/api/requests').send({
@@ -2275,9 +2324,61 @@ describe('POST / request creation notification (G411-51)', () => {
 
     expect(res.status).toBe(201)
     expect(notifyAdmins).toHaveBeenCalledWith(
-      expect.objectContaining({ title: 'New request' }),
+      expect.objectContaining({
+        title: expect.stringContaining('New request'),
+        body: 'help me',
+        link: expect.stringContaining('/r/abc123')
+      }),
       expect.objectContaining({ telegram: true }),
     )
+  })
+
+  it('prefixes body with "Urgent" when urgency is HIGH', async () => {
+    const { notifyAdmins } = await import('../lib/notify.js')
+    currentUserId = OWNER
+
+    prismaMock.user.findMany.mockResolvedValue([{ clerkId: OWNER, role: 'USER', balance: 10 }])
+    prismaMock.request.create.mockResolvedValue({
+      id: 1,
+      userId: OWNER,
+      freeText: 'help me',
+      publicId: 'abc123',
+      urgency: 'HIGH',
+    })
+    prismaMock.$transaction.mockImplementation((cb) => cb(prismaMock))
+
+    const res = await request(app).post('/api/requests').send({
+      freeText: 'help me',
+      urgency: 'HIGH',
+    })
+
+    expect(res.status).toBe(201)
+    expect(notifyAdmins).toHaveBeenCalledWith(
+      expect.objectContaining({ body: 'help me\nUrgent' }),
+      expect.objectContaining({ telegram: true }),
+    )
+  })
+
+  it('omits the link instead of sending a broken URL when FRONTEND_URL is unset', async () => {
+    vi.stubEnv('FRONTEND_URL', '')
+    const { notifyAdmins } = await import('../lib/notify.js')
+    currentUserId = OWNER
+
+    prismaMock.user.findMany.mockResolvedValue([{ clerkId: OWNER, role: 'USER', balance: 10 }])
+    prismaMock.request.create.mockResolvedValue({ id: 1, userId: OWNER, freeText: 'help me', publicId: 'abc123' })
+    prismaMock.$transaction.mockImplementation((cb) => cb(prismaMock))
+
+    const res = await request(app).post('/api/requests').send({
+      freeText: 'help me',
+      urgency: 'NORMAL',
+    })
+
+    expect(res.status).toBe(201)
+    expect(notifyAdmins).toHaveBeenCalledWith(
+      expect.objectContaining({ link: undefined }),
+      expect.objectContaining({ telegram: true }),
+    )
+    vi.unstubAllEnvs()
   })
 })
 
@@ -2286,7 +2387,7 @@ describe('POST /:id/messages notification (G411-51)', () => {
     const { notifyAdmins } = await import('../lib/notify.js')
     currentUserId = OWNER
 
-    const request1 = { id: 1, userId: OWNER, status: 'IN_QUEUE' }
+    const request1 = { id: 1, userId: OWNER, status: 'IN_QUEUE', freeText: 'original request', publicId: 'req123' }
     prismaMock.request.findUnique.mockResolvedValue(request1)
     prismaMock.message.create.mockResolvedValue({
       id: 1,
@@ -2301,7 +2402,11 @@ describe('POST /:id/messages notification (G411-51)', () => {
 
     expect(res.status).toBe(201)
     expect(notifyAdmins).toHaveBeenCalledWith(
-      expect.objectContaining({ title: 'New message' }),
+      expect.objectContaining({
+        title: expect.stringContaining('New message'),
+        body: 'in original request',
+        link: expect.stringContaining('/r/req123')
+      }),
       expect.objectContaining({ telegram: true }),
     )
   })
