@@ -2308,20 +2308,6 @@ describe('buildPermalink (G411-50 Sibling review finding)', () => {
   })
 })
 
-describe('truncateForTelegram (G411-50 Sibling review finding)', () => {
-  it('returns text unchanged when under the limit', async () => {
-    const { truncateForTelegram } = await import('./requests.js')
-    expect(truncateForTelegram('short text')).toBe('short text')
-  })
-
-  it('truncates text over Telegram\'s 4096-char message limit', async () => {
-    const { truncateForTelegram } = await import('./requests.js')
-    const longText = 'a'.repeat(5000)
-    const result = truncateForTelegram(longText)
-    expect(result.length).toBeLessThan(4096)
-  })
-})
-
 describe('POST / request creation notification (G411-51)', () => {
   it('calls notifyAdmins with telegram flag when request is successfully created', async () => {
     const { notifyAdmins } = await import('../lib/notify.js')

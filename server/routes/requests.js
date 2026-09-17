@@ -26,16 +26,6 @@ export function buildPermalink(publicId) {
   return process.env.FRONTEND_URL ? `${process.env.FRONTEND_URL}/r/${publicId}` : undefined
 }
 
-// Telegram's sendMessage has a hard 4096 UTF-8 character limit (Sibling
-// review finding, G411-50). freeText has no length limit elsewhere in the
-// app; this is a safety cap to stay under Telegram's real limit, not a
-// product decision about message length — leaves headroom for the
-// title/urgency line/link that get joined onto it in notify.js.
-const TELEGRAM_FREETEXT_LIMIT = 3900
-export function truncateForTelegram(text) {
-  return text.length > TELEGRAM_FREETEXT_LIMIT ? text.slice(0, TELEGRAM_FREETEXT_LIMIT) : text
-}
-
 // memoryStorage — files stay in RAM as a Buffer just long enough to
 // forward to Cloudinary, never written to disk. Fine at a 10MB cap on a
 // free-tier backend; would need rethinking for anything larger (see
@@ -967,11 +957,10 @@ router.post('/', requireAuth, async (req, res) => {
     })
 
     // Notify admins of new request (G411-51)
-    const newRequestText = truncateForTelegram(request.freeText)
     notifyAdmins(
       {
         title: `New request from ${req.user.firstName} ${req.user.lastName}`,
-        body: request.urgency === 'HIGH' ? `${newRequestText}\nUrgent` : newRequestText,
+        body: request.urgency === 'HIGH' ? `${request.freeText}\nUrgent` : request.freeText,
         link: buildPermalink(request.publicId),
       },
       { telegram: true },
@@ -1063,7 +1052,7 @@ router.post('/overdraft-request', requireAuth, async (req, res) => {
     notifyAdmins(
       {
         title: `Overdraft request pending from ${req.user.firstName} ${req.user.lastName}`,
-        body: truncateForTelegram(request.freeText),
+        body: request.freeText,
         link: buildPermalink(request.publicId),
       },
       { telegram: true },
@@ -1313,7 +1302,7 @@ router.post('/:id/messages', requireAuth, uploadImageField, async (req, res) => 
       notifyAdmins(
         {
           title: `New message from ${req.user.firstName} ${req.user.lastName}`,
-          body: `in ${truncateForTelegram(existing.freeText)}`,
+          body: `in ${existing.freeText}`,
           link: buildPermalink(existing.publicId),
         },
         { telegram: true, excludeClerkId: req.user.clerkId },

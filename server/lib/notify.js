@@ -22,12 +22,28 @@ function ensureTelegramConfigured() {
   }
 }
 
+// Telegram's sendMessage has a hard 4096 UTF-8 character limit. body is the
+// only unbounded piece (freeText has no length cap elsewhere in the app) —
+// title and link are always short and must always survive intact, so body
+// is truncated by however much the actual title/link/newlines need,
+// computed here where all three are actually known (Sibling review finding,
+// G411-50: a guessed static margin in the caller can't account for title
+// length varying with the admin's real name).
+const TELEGRAM_MESSAGE_LIMIT = 4096
+function buildTelegramText(title, body, link) {
+  const suffix = link ? `\n\n${link}` : ''
+  const overhead = title.length + 1 + suffix.length // +1 for the title/body newline
+  const maxBodyLength = TELEGRAM_MESSAGE_LIMIT - overhead
+  const truncatedBody = body.length > maxBodyLength ? body.slice(0, Math.max(0, maxBodyLength)) : body
+  return `${title}\n${truncatedBody}${suffix}`
+}
+
 // Real Telegram Bot API call (G411-50). Constructs a message from title/body/link
 // and POSTs to Telegram. Catches and logs errors internally so failures don't
 // propagate up to the caller.
 async function sendTelegram(payload) {
   const { title, body, link } = payload
-  const text = link ? `${title}\n${body}\n\n${link}` : `${title}\n${body}`
+  const text = buildTelegramText(title, body, link)
 
   try {
     ensureTelegramConfigured()

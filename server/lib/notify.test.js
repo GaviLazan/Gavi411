@@ -142,6 +142,38 @@ describe('notifyAdmins', () => {
     await expect(notifyAdmins(payload, { telegram: true })).resolves.toBeUndefined()
     expect(global.fetch).not.toHaveBeenCalled()
   })
+
+  it('truncates only the body when the full text would exceed Telegram\'s 4096-char limit, keeping title and link intact', async () => {
+    global.fetch.mockResolvedValue({ ok: true })
+    const payload = {
+      title: 'New request from Gavi Lazan',
+      body: 'a'.repeat(5000),
+      link: 'https://gavi411-ten.vercel.app/r/abc123',
+    }
+
+    await notifyAdmins(payload, { telegram: true })
+
+    const sentText = JSON.parse(global.fetch.mock.calls[0][1].body).text
+    expect(sentText.length).toBeLessThanOrEqual(4096)
+    expect(sentText.startsWith('New request from Gavi Lazan\n')).toBe(true)
+    expect(sentText.endsWith('\n\nhttps://gavi411-ten.vercel.app/r/abc123')).toBe(true)
+  })
+
+  it('does not truncate when the full text is under the limit', async () => {
+    global.fetch.mockResolvedValue({ ok: true })
+    const payload = {
+      title: 'New request from Gavi Lazan',
+      body: 'help me with something',
+      link: 'https://gavi411-ten.vercel.app/r/abc123',
+    }
+
+    await notifyAdmins(payload, { telegram: true })
+
+    const sentText = JSON.parse(global.fetch.mock.calls[0][1].body).text
+    expect(sentText).toBe(
+      'New request from Gavi Lazan\nhelp me with something\n\nhttps://gavi411-ten.vercel.app/r/abc123',
+    )
+  })
 })
 
 describe('notifyUser', () => {
