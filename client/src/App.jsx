@@ -308,6 +308,18 @@ function App() {
     setView('detail')
   }
 
+  // G411-102: listen for notification clicks from service worker to deep-link into a request
+  useEffect(() => {
+    if (!('serviceWorker' in navigator)) return
+    function handleMessage(event) {
+      if (event.data?.type === 'notification-click' && event.data.requestId != null) {
+        openRequest(event.data.requestId)
+      }
+    }
+    navigator.serviceWorker.addEventListener('message', handleMessage)
+    return () => navigator.serviceWorker.removeEventListener('message', handleMessage)
+  }, [])
+
   // G411-94: a permalink that 404s (unknown id, or a request this user
   // can't access) used to fail completely silently — the fetch's own
   // .catch cleared the stash and did nothing else, so the user just saw

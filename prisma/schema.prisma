@@ -157,6 +157,8 @@ model Notification {
   user      User      @relation(fields: [userId], references: [clerkId])
   title     String
   body      String
+  requestId Int?
+  request   Request?  @relation(fields: [requestId], references: [id], onDelete: SetNull)
   createdAt DateTime  @default(now())
   readAt    DateTime?
 }
@@ -256,6 +258,7 @@ model Request {
   message                Message[]
   note                   Note[]
   conversationDeviceKeys ConversationDeviceKey[]
+  notification           Notification[]
 }
 
 model Message {

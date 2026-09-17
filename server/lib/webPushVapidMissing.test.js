@@ -38,7 +38,7 @@ describe('sendPushToUser with missing VAPID config', () => {
     const { prisma } = await import('./prisma.js')
     await sendPushToUser('user_1', { title: 't', body: 'b' }).catch(() => {})
     expect(prisma.notification.create).toHaveBeenCalledWith({
-      data: { userId: 'user_1', title: 't', body: 'b' },
+      data: { userId: 'user_1', title: 't', body: 'b', requestId: null },
     })
   })
 })

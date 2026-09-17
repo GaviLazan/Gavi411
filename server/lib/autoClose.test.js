@@ -187,7 +187,7 @@ describe('Notifications for nudge and auto-close (G411-51)', () => {
 
     expect(notifyUser).toHaveBeenCalledWith(
       'user_friend',
-      { title: 'Reminder', body: 'Hey, Gavi is waiting for your response' },
+      { title: 'Reminder', body: 'Hey, Gavi is waiting for your response', requestId: 5 },
     )
   })
 
@@ -207,7 +207,7 @@ describe('Notifications for nudge and auto-close (G411-51)', () => {
 
     expect(notifyUser).toHaveBeenCalledWith(
       'user_friend',
-      { title: 'Reminder', body: 'Still haven\'t heard back — if I don\'t hear from you soon I\'ll likely go ahead and close this request.' },
+      { title: 'Reminder', body: 'Still haven\'t heard back — if I don\'t hear from you soon I\'ll likely go ahead and close this request.', requestId: 2 },
     )
   })
 
@@ -228,7 +228,7 @@ describe('Notifications for nudge and auto-close (G411-51)', () => {
 
     expect(notifyUser).toHaveBeenCalledWith(
       'user_friend',
-      { title: 'Request closed', body: 'Your request has been automatically closed due to inactivity' },
+      { title: 'Request closed', body: 'Your request has been automatically closed due to inactivity', requestId: 3 },
     )
   })
 })
