@@ -59,24 +59,31 @@ the same Telegram+link treatment as its siblings (Gavi agreed to add it),
 unbounded `freeText` vs Telegram's 4096-char hard limit (safety cap only,
 not a product decision — Gavi was explicit he doesn't want message-length
 polish), and duplicated dispatch code. Fix pass posted as a real PR comment
-(not just chat), per CLAUDE.md rule 5. The fix pass itself caught two
-pre-existing test-mock gaps (missing `freeText`/`publicId` on overdraft
-test mocks) via the new helpers correctly throwing/producing wrong output
-on incomplete mocks — fixed, with new direct unit tests added for both new
-helpers (`buildPermalink`, `truncateForTelegram`) plus the missing-env-var
-and overdraft-Telegram paths.
+(not just chat), per CLAUDE.md rule 5.
+
+**Third commit, correcting the length-cap fix itself**: Gavi caught that
+the freeText cap added for finding #5 was a guessed static margin
+(`TELEGRAM_FREETEXT_LIMIT = 3900` in `requests.js`) rather than actually
+derived from the real `title`/`link` lengths it needed to leave room for —
+safe in practice, not correct by construction, and in the wrong file
+(`requests.js` can't know what `notify.js` will combine it with). Moved to
+`buildTelegramText(title, body, link)` in `notify.js`, computed from the
+real title/link at the point they're assembled — only `body` is truncated,
+by exactly what's needed, so the link always survives intact regardless of
+`freeText` length. `requests.js` no longer touches `freeText` at all.
+Two new tests directly verify the link-always-survives property.
 
 542/542 tests pass fresh, client build clean. Jira: **Landed**,
 Falsifier/Evidence-required/Evidence-bar-met all written against real
 final state. **Awaiting merge go-ahead — not yet Reconciled.**
 
 ### Real state, right now
-Primary worktree on branch `you/G411-50-telegram-notifications` (2 commits:
-`808807d` build, `dc8e8f2` Sibling review fixes — plus one Jira-comment-only
-entry between), pushed, PR #115 open against `main`. A dev-server pair
-(backend :3000, Vite :5173) was started from the primary worktree this
-session for live testing — check whether it's still running before
-starting a new one ([[gavi411-stray-dev-server-processes]]).
+Primary worktree on branch `you/G411-50-telegram-notifications` (4 commits:
+`808807d` build, `dc8e8f2` Sibling review fixes, `9b5b4f5` HANDOFF-only,
+`fd2430e` length-cap correction), pushed, PR #115 open against `main`. A
+dev-server pair (backend :3000, Vite :5173) was started from the primary
+worktree this session for live testing — check whether it's still running
+before starting a new one ([[gavi411-stray-dev-server-processes]]).
 
 ### What's next, concretely
 1. **Merge PR #115** (Gavi's go-ahead, per wrap-up step 7) — then Jira
