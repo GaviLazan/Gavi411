@@ -12,7 +12,83 @@ accumulated. If something here turns out to matter long-term, promote it to
 
 ---
 
-## Where this session left off (2026-09-17, latest) — G411-92 (RequestDetail live polling) built, Implementing, awaiting Sibling review
+## Where this session left off (2026-09-17, latest) — G411-78 (aria-live region) built, Landed, awaiting merge go-ahead
+
+**Picked up G411-78** (message thread aria-live region), the ticket HANDOFF
+already pointed to next once G411-92 merged. Confirmed via Jira: G411-92 is
+genuinely Reconciled (already caught up with `git log`'s merge commit
+`bc617cc` before this session touched anything), G411-78 was genuinely Open
+under Epic 7 (Notifications) — parent stays there, not re-litigated this
+session (last session's rationale for parenting under Notifications rather
+than Messaging still holds: it's about *something live to announce*, which
+G411-92 now provides).
+
+**Built**: `MessageThread.jsx`'s message-list container gets `aria-live=
+"polite"` + `aria-relevant="additions"`, attached via `ref`+`useEffect`
+one tick after mount — not as a static JSX attribute — so a screen reader
+doesn't read out the entire existing history on first load, but does
+announce genuinely new messages arriving via G411-92's poll, the viewer's
+own send, or the other party's reply. No visual change, no focus change,
+deliberately `polite` not `role="alert"` (ticket's own explicit ask).
+Ponytail-scoped: no "N new messages" summary banner, no per-message live
+regions, no config — smallest correct diff per the ticket's own YAGNI
+framing.
+
+**Sibling review (Sonnet, this session) found 1 real bug in Haiku's first
+commit, fixed in a second commit + pushed**: the arming effect used an
+empty dependency array, intending "run once after first mount." But
+`MessageThread` early-returns a ref-less `<p>` for the empty-messages
+case — only the populated-thread `<div>` carries the ref. For a request
+that already has messages on load, this is fine (div exists on the first
+render, effect fires once, correctly attaches). But for a **brand-new
+request that starts at zero messages** — the exact case where the first
+message announcement matters most — the effect ran once against a null
+ref and then never ran again once the first message arrived and the
+component re-rendered into the populated branch. The very first message
+on a fresh request would have silently never been announced. Fixed by
+dropping the empty deps array (re-check on every render) and gating the
+actual `setAttribute` calls behind a separate `armed` ref so it still
+only attaches once — whichever render is genuinely the first one where
+the container exists. Finding posted as a real PR comment (#117), per
+CLAUDE.md rule 5, spot-checked via `gh api` that the posted body matched
+intent.
+
+No test harness for client components exists in this repo (confirmed
+again, same as every prior ticket touching client/) — this change had no
+extractable pure logic worth a Vitest file (pure ref/effect/JSX wiring),
+so per CLAUDE.md's testing convention no test was written; not a gap,
+just nothing to test in isolation here.
+
+542/542 tests pass fresh (re-run after the fix, not reused from Haiku's
+own report), client build clean. Jira: **Landed**, Claim/Falsifier/
+Evidence-required/Evidence-bar-met all written against real final state.
+**Awaiting merge go-ahead — not yet Reconciled.**
+
+### Real state, right now
+Primary worktree on branch `you/G411-78-aria-live-thread` (2 commits:
+`4447359` build, `513fd59` Sibling review fix), pushed, PR #117 open
+against `main`. Branched off `main` at `bc617cc` (post-G411-92-merge),
+so this PR is independent of any other in-flight work. Dev servers
+(backend :3000, Vite :5173) — check whether the G411-92 session's pair is
+still running before starting a new one
+([[gavi411-stray-dev-server-processes]]).
+
+### What's next, concretely
+1. **Merge PR #117** (Gavi's go-ahead, per wrap-up step 7) — then Jira
+   Landed → Reconciled immediately, no separate re-check.
+2. **Then G411-102** (Web Push click-through, unblocked since G411-94
+   merged) and **G411-103** (unread dot) — this was Gavi's original
+   stated order for the G411-92 session (78, then 102/103), now that 78
+   is done too.
+3. **G411-105** (slow permalink load, Vercel-only render-loop) still
+   needs a dedicated investigation session — not urgent, see its own Jira
+   description/comments.
+4. Also Open from an earlier session's live testing: **G411-101** (friend
+   home screen), **G411-104** (sort-by-urgency bug).
+
+---
+
+## Where this session left off (2026-09-17, earlier) — G411-92 (RequestDetail live polling) built, Implementing, awaiting Sibling review
 
 **Picked up G411-78 (aria-live region for new messages), investigation
 redirected the actual pickup.** G411-78's own ticket text says it's
