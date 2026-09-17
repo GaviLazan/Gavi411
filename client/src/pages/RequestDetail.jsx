@@ -354,6 +354,17 @@ function RequestDetail({ requestId, onBack, isAdmin }) {
       .then(setRequest);
   }
 
+  // G411-92: the other party's changes (status/urgency/message) were
+  // invisible until this view was left and re-entered — no polling, no
+  // window-focus refetch. Lightweight interval only, no WebSocket/SSE
+  // per CLAUDE.md's architecture decision. Cleared on unmount/requestId
+  // change so a closed/navigated-away view never keeps polling.
+  useEffect(() => {
+    const interval = setInterval(refetch, 30000);
+    return () => clearInterval(interval);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [requestId]);
+
   // G411-40: private admin-only notes. Fetched lazily — only once admin
   // actually opens the Notes tab (or side-by-side view, which always
   // shows it as a tab too) — not on every detail-page load, since most
