@@ -12,7 +12,71 @@ accumulated. If something here turns out to matter long-term, promote it to
 
 ---
 
-## Where this session left off (2026-09-17, latest) — G411-102 (notification click deep-link) built, Landed, awaiting merge go-ahead
+## Where this session left off (2026-09-17, latest) — G411-103 (unread-notification dot) built, Landed, awaiting merge go-ahead
+
+**Picked up G411-103** right after G411-102 merged/Reconciled — the last
+piece of Gavi's original stated order for this session (78, then
+102/103, now all three done). Backend endpoint (`GET /api/notifications/
+unread-count`) already existed, built ahead under G411-98 specifically
+for this future badge.
+
+**One real open call in the ticket, resolved live with Gavi via
+AskUserQuestion**: poll on a timer vs. reuse the existing
+`pushRefreshToken` signal (already bumps when a push notification
+arrives via the SW's `BroadcastChannel`, or on navigating to Open/Closed
+requests — no new polling infra). First answer needed a precision
+correction — Gavi asked "is pushRefreshToken every 30 seconds?" which it
+is not; clarified it's purely event-driven (instant on push arrival +
+once on load), NOT a timer, and would miss a notification that arrived
+while the tab was closed until next page load, unlike a G411-92-style
+30s poll which would also catch that. Gavi's call once that distinction
+was clear: `pushRefreshToken`-only, no timer.
+
+**Built**: small dot on the hamburger icon (`App.jsx`), shown when
+`unreadCount > 0`. Refetches unread count on `pushRefreshToken` change
+(covers push-arrival + initial sign-in) and again when the hamburger
+menu closes (since opening Notifications already calls `mark-all-read`
+server-side — closing the menu either way is a cheap, simple point to
+re-check rather than tracking which specific item was clicked). Dot uses
+`var(--accent)` — verified as a real, already-used token, not invented;
+notably the same one `NotificationHistory.jsx`'s own unread-row styling
+already uses, so the dot's color is visually consistent with that
+screen's existing "this is unread" language rather than a new one.
+
+543/543 tests pass fresh, client build clean. No test added — pure
+JSX/effect/CSS wiring, no extractable pure logic, matches this repo's
+standing no-@testing-library/react convention. Jira: **Landed**,
+Claim/Falsifier/Evidence-required/Evidence-bar-met all written.
+**Awaiting merge go-ahead — not yet Reconciled.**
+
+### Real state, right now
+Primary worktree on branch `you/G411-103-unread-dot` (1 commit:
+`56110de`), pushed, PR #119 open against `main`. Branched fresh off
+`main` at `a95e1fd` (post-G411-102 merge). Dev servers (backend :3000,
+Vite :5173) — check whether an earlier session's pair is still running
+before starting a new one ([[gavi411-stray-dev-server-processes]]).
+
+### What's next, concretely
+1. **Merge PR #119** (Gavi's go-ahead, per wrap-up step 7) — then Jira
+   Landed → Reconciled immediately, no separate re-check.
+2. That closes out Gavi's originally-stated order for this session
+   (78 → 102 → 103). Epic 7 (Notifications) still has **G411-50**
+   already Reconciled and **G411-49/51/78/98/94(shared)/102/103** all
+   Reconciled or Landed-pending-merge by this point — check Jira fresh
+   for what's genuinely still Open under Epic 7 before assuming it's
+   fully closed; don't assume from this list alone.
+3. **G411-105** (slow permalink load, Vercel-only render-loop) still
+   needs a dedicated investigation session — not urgent, see its own Jira
+   description/comments.
+4. Also Open from an earlier session's live testing: **G411-101** (friend
+   home screen), **G411-104** (sort-by-urgency bug).
+5. **Next pick agreed fresh at STOP 1** — don't assume the next ticket,
+   ask, per the normal ritual, same as always once a stated sequence like
+   this session's "78, 102, 103" completes.
+
+---
+
+## Where this session left off (2026-09-17, earlier) — G411-102 (notification click deep-link) built, Landed, awaiting merge go-ahead
 
 **Picked up G411-102** right after G411-78 merged/Reconciled. Scope came
 straight from the ticket's own two comments (the second one correcting
