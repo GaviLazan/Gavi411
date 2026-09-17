@@ -315,6 +315,12 @@ function App() {
   // indistinguishable from a broken link. Surfaced live testing this
   // exact case (Second Party opening a permalink to admin's request).
   const [permalinkError, setPermalinkError] = useState(false)
+  // G411-94: true from first render whenever a permalink is stashed and
+  // still unresolved — suppresses the home screen's real content so it
+  // doesn't visibly flash before the effect below can redirect into the
+  // request (live testing found this exact flash: home screen for a
+  // moment, then the request "popped in" once the lookup fetch resolved).
+  const [pendingPermalink, setPendingPermalink] = useState(() => Boolean(getStashedRequestPermalink()))
 
   // G411-94: consume stashed request permalink URL once auth gates clear.
   // Only fires when ALL conditions are true: signed in, token handoff done,
@@ -340,7 +346,10 @@ function App() {
       return
 
     const publicId = getStashedRequestPermalink()
-    if (!publicId) return
+    if (!publicId) {
+      setPendingPermalink(false)
+      return
+    }
 
     fetch(`/api/requests/by-public-id/${encodeURIComponent(publicId)}`)
       .then((res) => {
@@ -360,6 +369,7 @@ function App() {
         clearStashedRequestPermalink()
         setPermalinkError(true)
       })
+      .finally(() => setPendingPermalink(false))
   }, [isSignedIn, tokenHandoffDone, role, isAdmin, needsProfileCompletion, recovery.token])
 
   // Admin's open request count for home screen display, derived from
@@ -482,7 +492,7 @@ function App() {
             by construction. Moved inside <ClerkLoaded> so the guarantee is
             structural, matching how every other view already behaves. */}
         {role !== null && (
-          <div hidden={view !== 'list'}>
+          <div hidden={view !== 'list' || pendingPermalink}>
             {isAdmin ? (
               <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-3)", width: "100%", maxWidth: 560 }}>
                 <Button variant="primary" onClick={() => { setPreviousView('list'); setView('admin-create-request') }}>
@@ -569,6 +579,8 @@ function App() {
           </div>
         )}
         {isSignedIn && !tokenHandoffDone ? (
+          <p>Loading…</p>
+        ) : isSignedIn && pendingPermalink ? (
           <p>Loading…</p>
         ) : isSignedIn && unauthorized ? (
           (() => {
