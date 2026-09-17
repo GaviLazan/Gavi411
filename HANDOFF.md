@@ -12,7 +12,95 @@ accumulated. If something here turns out to matter long-term, promote it to
 
 ---
 
-## Where this session left off (2026-09-17, latest) — G411-94 (permalinks) built, Landed, awaiting merge go-ahead
+## Where this session left off (2026-09-17, latest) — G411-50 (Telegram notifications) built, Implementing, awaiting Sibling review
+
+**Built the non-blocked half of G411-50** (bot setup was already done in an
+earlier session; deep-link half was blocked on G411-94, which merged this
+session — see the entry below). `server/lib/notify.js`'s `sendTelegram` stub
+is now a real POST to the Telegram Bot API (`TELEGRAM_BOT_TOKEN`/
+`TELEGRAM_CHAT_ID`, both already in `.env`), fire-and-forget with errors
+caught internally so a Telegram outage never blocks request/message
+creation. Both `telegram: true` call sites in `server/routes/requests.js`
+(new request, new message from a friend) now pass a `link` built from
+`FRONTEND_URL` (new env var, `.env`/`.env.example`, pinned to
+`https://gavi411-ten.vercel.app` — the real prod domain) + the request's
+`publicId` (G411-94's permalink). Message wording, locked with Gavi
+live in-session:
+- New request: `New request from <name>\n<freeText>\n\n<link>`, with an
+  `Urgent` line appended directly under `<freeText>` when
+  `urgency === 'HIGH'`.
+- New message from a friend: `New message from <name>\nin <freeText>\n\n<link>`.
+
+Telegram was already structurally admin-only (only `notifyAdmins` ever
+passes `telegram: true`) — confirmed, not changed.
+
+**Haiku wrote the first draft** (notify.js real send + both call sites +
+tests), Sonnet reviewed the actual diff before trusting it — real,
+non-duplicated test coverage (asserts against the actual `global.fetch`
+mock, not a disconnected copy of the logic).
+
+**Live-tested by Gavi, twice, locally** (dev server started fresh this
+session — none had been running). First attempt hit an unrelated
+`PrismaClientValidationError: Unknown argument publicId` — stale generated
+Prisma Client on disk (schema had `publicId` from G411-94 a week before the
+client was last regenerated in this environment); fixed with
+`npx prisma generate`, not a migration issue (`prisma migrate status`
+confirmed the real DB schema was already correct — G411-94's real
+migration had already applied). After that: notification arrived correctly,
+link opened the real request (shared DB — a locally-created row is real
+prod data, no separate dev/prod DB split here).
+
+**Real, not-yet-understood issue found and deliberately NOT fixed here**:
+tapping the Telegram link on the deployed Vercel app sat on "loading..."
+for ~10s the first time, 1.53s+ the second. Console showed a large,
+repeating stack trace under the slow XHR — real evidence of a React
+render-loop, not just one slow request. An initial cold-DB-connection
+theory doesn't hold up (Gavi had been actively testing moments before)
+and it didn't reproduce on `localhost:5173` at all (loaded fast). Filed
+as **G411-105** (parented under G411-57 V2/Stretch, same parking spot
+G411-94 used before promotion) with the full evidence trail rather than
+guessed at further — not blocking G411-50, whose own functional falsifier
+is fully met. A related observation (URL bar doesn't reflect `/r/<publicId>`
+after the permalink resolves — likely expected, given the app has no real
+router, per G411-94's own findings) is noted as a comment on G411-105, not
+investigated separately.
+
+535/535 tests pass fresh, client build clean. Jira: **Implementing**,
+Falsifier/Evidence-required written pre-build, Evidence-bar-met added
+post-build. **Not yet Reviewing/Landed — Sibling review not yet run.**
+
+### Real state, right now
+Primary worktree branched off `main` (`2a9d181`) onto
+`you/G411-50-telegram-notifications`, one commit (`808807d`), **not yet
+pushed, no PR open yet**. A dev-server pair (backend :3000, Vite :5173)
+was started from the primary worktree this session for live testing —
+check whether it's still running before starting a new one
+([[gavi411-stray-dev-server-processes]]).
+
+### What's next, concretely
+1. Push `you/G411-50-telegram-notifications`, open a PR, run Sibling
+   review against the real diff (`git diff main...HEAD`).
+2. On a clean review: Jira Reviewing → Landed, ask Gavi's merge go-ahead
+   (wrap-up step 7).
+3. **G411-105** (slow permalink load, Vercel-only, real render-loop
+   evidence) needs a dedicated investigation session — see its Jira
+   description/comments for the full repro notes and suggested next
+   steps. Not urgent (functional falsifier for both G411-50 and G411-94
+   already met), but a real user-facing rough edge.
+4. Still Open and untouched under Epic 7: **G411-78** (aria-live region),
+   **G411-102** (Web Push click-through, now unblocked by G411-94's merge).
+   Also Open from an earlier session's live testing: **G411-101** (friend
+   home screen), **G411-103** (unread dot), **G411-104** (sort-by-urgency
+   bug).
+5. Real follow-up logged in PR #114's own review comment (G411-94), not
+   yet a ticket: `openRequest()`'s hardcoded `previousView: 'list'` would
+   give wrong back-navigation if a future caller (most likely G411-102)
+   invokes it from inside the open/closed-requests screens rather than the
+   home screen.
+
+---
+
+## Where this session left off (2026-09-17, earlier) — G411-94 (permalinks) built, Landed, awaiting merge go-ahead
 
 **Built the scoped plan from the previous entry below.** `Request.publicId`
 (unique, random, non-sequential, real `prisma migrate dev` migration, all 16
