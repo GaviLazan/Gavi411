@@ -952,8 +952,9 @@ router.post('/', requireAuth, async (req, res) => {
     // Notify admins of new request (G411-51)
     notifyAdmins(
       {
-        title: 'New request',
-        body: `${req.user.firstName} ${req.user.lastName} submitted a new request`,
+        title: `New request from ${req.user.firstName} ${req.user.lastName}`,
+        body: request.urgency === 'HIGH' ? `${request.freeText}\nUrgent` : request.freeText,
+        link: `${process.env.FRONTEND_URL}/r/${request.publicId}`,
       },
       { telegram: true },
     ).catch((err) => {
@@ -1287,8 +1288,9 @@ router.post('/:id/messages', requireAuth, uploadImageField, async (req, res) => 
       // Friend sending a message — notify admin
       notifyAdmins(
         {
-          title: 'New message',
-          body: `${req.user.firstName} ${req.user.lastName} sent a new message`,
+          title: `New message from ${req.user.firstName} ${req.user.lastName}`,
+          body: `in ${existing.freeText}`,
+          link: `${process.env.FRONTEND_URL}/r/${existing.publicId}`,
         },
         { telegram: true, excludeClerkId: req.user.clerkId },
       ).catch((err) => {

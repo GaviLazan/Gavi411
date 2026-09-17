@@ -9,11 +9,31 @@
 import { prisma } from './prisma.js'
 import { sendPushToUser } from './webPush.js'
 
-// Stub for G411-50 to wire in real Telegram bot send. Currently a no-op.
-// ponytail: stub until G411-50 wires the real Telegram bot send
-function sendTelegram(payload) {
-  // TODO: G411-50 implements real Telegram API call here
-  // For now: no-op, placeholder for later integration
+// Real Telegram Bot API call (G411-50). Constructs a message from title/body/link
+// and POSTs to Telegram. Catches and logs fetch errors internally so failures
+// don't propagate up to the caller.
+async function sendTelegram(payload) {
+  const { title, body, link } = payload
+  const text = link ? `${title}\n${body}\n\n${link}` : `${title}\n${body}`
+
+  try {
+    const response = await fetch(
+      `https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/sendMessage`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          chat_id: process.env.TELEGRAM_CHAT_ID,
+          text,
+        }),
+      },
+    )
+    if (!response.ok) {
+      console.error(`Telegram API error: ${response.status} ${response.statusText}`)
+    }
+  } catch (err) {
+    console.error('Failed to send Telegram message:', err.message)
+  }
 }
 
 // Notifies all admin users of an event via push notifications (and

@@ -2265,7 +2265,7 @@ describe('POST / request creation notification (G411-51)', () => {
     currentUserId = OWNER
 
     prismaMock.user.findMany.mockResolvedValue([{ clerkId: OWNER, role: 'USER', balance: 10 }])
-    prismaMock.request.create.mockResolvedValue({ id: 1, userId: OWNER })
+    prismaMock.request.create.mockResolvedValue({ id: 1, userId: OWNER, freeText: 'help me', publicId: 'abc123' })
     prismaMock.$transaction.mockImplementation((cb) => cb(prismaMock))
 
     const res = await request(app).post('/api/requests').send({
@@ -2275,7 +2275,37 @@ describe('POST / request creation notification (G411-51)', () => {
 
     expect(res.status).toBe(201)
     expect(notifyAdmins).toHaveBeenCalledWith(
-      expect.objectContaining({ title: 'New request' }),
+      expect.objectContaining({
+        title: expect.stringContaining('New request'),
+        body: 'help me',
+        link: expect.stringContaining('/r/abc123')
+      }),
+      expect.objectContaining({ telegram: true }),
+    )
+  })
+
+  it('prefixes body with "Urgent" when urgency is HIGH', async () => {
+    const { notifyAdmins } = await import('../lib/notify.js')
+    currentUserId = OWNER
+
+    prismaMock.user.findMany.mockResolvedValue([{ clerkId: OWNER, role: 'USER', balance: 10 }])
+    prismaMock.request.create.mockResolvedValue({
+      id: 1,
+      userId: OWNER,
+      freeText: 'help me',
+      publicId: 'abc123',
+      urgency: 'HIGH',
+    })
+    prismaMock.$transaction.mockImplementation((cb) => cb(prismaMock))
+
+    const res = await request(app).post('/api/requests').send({
+      freeText: 'help me',
+      urgency: 'HIGH',
+    })
+
+    expect(res.status).toBe(201)
+    expect(notifyAdmins).toHaveBeenCalledWith(
+      expect.objectContaining({ body: 'help me\nUrgent' }),
       expect.objectContaining({ telegram: true }),
     )
   })
@@ -2286,7 +2316,7 @@ describe('POST /:id/messages notification (G411-51)', () => {
     const { notifyAdmins } = await import('../lib/notify.js')
     currentUserId = OWNER
 
-    const request1 = { id: 1, userId: OWNER, status: 'IN_QUEUE' }
+    const request1 = { id: 1, userId: OWNER, status: 'IN_QUEUE', freeText: 'original request', publicId: 'req123' }
     prismaMock.request.findUnique.mockResolvedValue(request1)
     prismaMock.message.create.mockResolvedValue({
       id: 1,
@@ -2301,7 +2331,11 @@ describe('POST /:id/messages notification (G411-51)', () => {
 
     expect(res.status).toBe(201)
     expect(notifyAdmins).toHaveBeenCalledWith(
-      expect.objectContaining({ title: 'New message' }),
+      expect.objectContaining({
+        title: expect.stringContaining('New message'),
+        body: 'in original request',
+        link: expect.stringContaining('/r/req123')
+      }),
       expect.objectContaining({ telegram: true }),
     )
   })
