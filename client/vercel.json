@@ -3,6 +3,10 @@
     {
       "source": "/api/:path*",
       "destination": "https://gavi411-server.onrender.com/api/:path*"
+    },
+    {
+      "source": "/((?!api/).*)",
+      "destination": "/index.html"
     }
   ]
 }

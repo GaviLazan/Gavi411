@@ -28,6 +28,10 @@ import {
   captureRecoveryParamsFromUrl,
   getStashedRecoveryParams,
   clearStashedRecoveryParams,
+  captureRequestPermalinkFromUrl,
+  getStashedRequestPermalink,
+  clearStashedRequestPermalink,
+  canConsumeRequestPermalink,
 } from './lib/inviteToken'
 import { createAndUploadEscrowBackup, createAndUploadKeypair } from './lib/escrow'
 import { loadLinkedConversationKeys, wrapMissingConversationKeys } from './lib/deviceLinking'
@@ -45,6 +49,9 @@ captureInviteTokenFromUrl()
 // just as likely to be signed OUT (hitting the same OAuth hazard) as a
 // brand-new signup is.
 captureRecoveryParamsFromUrl()
+// G411-94: capture /r/<publicId> permalink URLs for later consumption
+// after sign-in completes (unlike invite tokens, the URL stays visible).
+captureRequestPermalinkFromUrl()
 
 const THEME_LABEL = { light: 'Light', dark: 'Dark' }
 
@@ -292,6 +299,79 @@ function App() {
     })
   }, [role])
 
+  // G411-94: open a request detail view given its real numeric ID.
+  // Factored as a named function so both the permalink-consume effect
+  // and future notification handlers (G411-102) can reuse it without duplication.
+  function openRequest(requestId) {
+    setSelectedRequestId(requestId)
+    setPreviousView('list')
+    setView('detail')
+  }
+
+  // G411-94: a permalink that 404s (unknown id, or a request this user
+  // can't access) used to fail completely silently — the fetch's own
+  // .catch cleared the stash and did nothing else, so the user just saw
+  // the ordinary home screen with zero indication anything had happened,
+  // indistinguishable from a broken link. Surfaced live testing this
+  // exact case (Second Party opening a permalink to admin's request).
+  const [permalinkError, setPermalinkError] = useState(false)
+  // G411-94: true from first render whenever a permalink is stashed and
+  // still unresolved — suppresses the home screen's real content so it
+  // doesn't visibly flash before the effect below can redirect into the
+  // request (live testing found this exact flash: home screen for a
+  // moment, then the request "popped in" once the lookup fetch resolved).
+  const [pendingPermalink, setPendingPermalink] = useState(() => Boolean(getStashedRequestPermalink()))
+
+  // G411-94: consume stashed request permalink URL once auth gates clear.
+  // Only fires when ALL conditions are true: signed in, token handoff done,
+  // role resolved, profile complete (admin exempt, matching the render
+  // gate at the `needsProfileCompletion && !isAdmin` branch below — admin's
+  // phoneNumber is permanently the pending- placeholder by design, so a
+  // plain `needsProfileCompletion` check here left this effect stuck
+  // forever for admin, silently never consuming any permalink), and no
+  // recovery in progress. Live-tested finding, not caught by any test —
+  // this repo's convention has no @testing-library/react to render the
+  // real gate combination.
+  useEffect(() => {
+    if (
+      !canConsumeRequestPermalink({
+        isSignedIn,
+        tokenHandoffDone,
+        role,
+        isAdmin,
+        needsProfileCompletion,
+        recoveryToken: recovery.token,
+      })
+    )
+      return
+
+    const publicId = getStashedRequestPermalink()
+    if (!publicId) {
+      setPendingPermalink(false)
+      return
+    }
+
+    fetch(`/api/requests/by-public-id/${encodeURIComponent(publicId)}`)
+      .then((res) => {
+        if (res.ok) return res.json()
+        throw new Error('Failed to load request')
+      })
+      .then((request) => {
+        if (request) {
+          openRequest(request.id)
+          clearStashedRequestPermalink()
+        }
+      })
+      .catch(() => {
+        // On error (404, network failure, etc.) clear the stale permalink
+        // so it doesn't re-fire, and tell the user rather than silently
+        // dropping them on the home screen with no explanation.
+        clearStashedRequestPermalink()
+        setPermalinkError(true)
+      })
+      .finally(() => setPendingPermalink(false))
+  }, [isSignedIn, tokenHandoffDone, role, isAdmin, needsProfileCompletion, recovery.token])
+
   // Admin's open request count for home screen display, derived from
   // AdminList's own already-fetched data (via onRequestsLoaded) instead
   // of a second independent /api/requests fetch (Sibling review finding,
@@ -383,6 +463,12 @@ function App() {
           <button type="button" onClick={() => setEscrowBackupFailed(false)}>Dismiss</button>
         </p>
       )}
+      {permalinkError && (
+        <p role="alert" className="escrow-backup-warning">
+          That link doesn't lead anywhere — it may be wrong, or for a request you don't have access to.{' '}
+          <button type="button" onClick={() => setPermalinkError(false)}>Dismiss</button>
+        </p>
+      )}
       {/* G411-43: presence status banner for all signed-in users — shows
           whether Gavi is currently available to respond. */}
       {isSignedIn && !isOnline && (
@@ -406,7 +492,7 @@ function App() {
             by construction. Moved inside <ClerkLoaded> so the guarantee is
             structural, matching how every other view already behaves. */}
         {role !== null && (
-          <div hidden={view !== 'list'}>
+          <div hidden={view !== 'list' || pendingPermalink}>
             {isAdmin ? (
               <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-3)", width: "100%", maxWidth: 560 }}>
                 <Button variant="primary" onClick={() => { setPreviousView('list'); setView('admin-create-request') }}>
@@ -493,6 +579,8 @@ function App() {
           </div>
         )}
         {isSignedIn && !tokenHandoffDone ? (
+          <p>Loading…</p>
+        ) : isSignedIn && pendingPermalink ? (
           <p>Loading…</p>
         ) : isSignedIn && unauthorized ? (
           <p>You do not have permission to use Gavi411.</p>

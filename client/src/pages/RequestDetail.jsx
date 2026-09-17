@@ -201,6 +201,8 @@ function RequestDetail({ requestId, onBack, isAdmin }) {
   // review finding, second round — createAndUploadKeypair() itself was
   // already generic, just never offered to a regular user anywhere).
   const [keypairStatus, setKeypairStatus] = useState("idle"); // 'idle' | 'working' | 'error'
+  // G411-94: copy-to-clipboard feedback — shows "Copied!" briefly when permalink link is copied
+  const [permalinkCopied, setPermalinkCopied] = useState(false)
 
   // One object URL per `image`, not recreated on every render (Sibling
   // review finding: was called inline in JSX, leaking a new blob URL on
@@ -516,6 +518,16 @@ function RequestDetail({ requestId, onBack, isAdmin }) {
     }
   }
 
+  // G411-94: copy permalink to clipboard with feedback
+  function handleCopyPermalink() {
+    if (!request?.publicId) return
+    const link = `${window.location.origin}/r/${request.publicId}`
+    navigator.clipboard.writeText(link).then(() => {
+      setPermalinkCopied(true)
+      setTimeout(() => setPermalinkCopied(false), 2000)
+    })
+  }
+
   // G411-82: text is encrypted client-side before it ever reaches the
   // server, via the shared key derived from the other party's public
   // key. A sender with no keypair yet (see prisma/schema.prisma's
@@ -636,6 +648,20 @@ function RequestDetail({ requestId, onBack, isAdmin }) {
         </div>
       )}
       {typeDetailRows(request.typeDetails)}
+      {request.publicId && (
+        // No border here — the preceding .review-row already carries its
+        // own bottom border (ReviewSummary.css's :last-child rule), which
+        // this div's presence pushes off "last," leaving a double line
+        // if this also draws one. review-summary's own flex gap is enough.
+        <div>
+          <Button
+            onClick={handleCopyPermalink}
+            style={{ fontSize: 13 }}
+          >
+            {permalinkCopied ? "Copied!" : "Copy link to request"}
+          </Button>
+        </div>
+      )}
     </Card>
   );
 

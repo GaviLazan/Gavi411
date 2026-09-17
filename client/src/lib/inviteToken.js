@@ -23,6 +23,7 @@ const STORAGE_KEY = 'gavi411-invite-token'
 const PASSPHRASE_STORAGE_KEY = 'gavi411-invite-passphrase'
 const RECOVER_TOKEN_STORAGE_KEY = 'gavi411-recover-token'
 const RECOVER_PASSPHRASE_STORAGE_KEY = 'gavi411-recover-passphrase'
+const PERMALINK_STORAGE_KEY = 'gavi411-request-permalink'
 
 // Strips both the query string and the fragment from the visible URL —
 // shared by both capture functions below so neither the invite token/
@@ -104,4 +105,60 @@ export function getStashedRecoveryParams() {
 export function clearStashedRecoveryParams() {
   sessionStorage.removeItem(RECOVER_TOKEN_STORAGE_KEY)
   sessionStorage.removeItem(RECOVER_PASSPHRASE_STORAGE_KEY)
+}
+
+// Regex to match request permalink URLs: /r/<publicId>
+// publicId is base64url (alphanumeric + - _), case-sensitive
+const PERMALINK_PATTERN = /^\/r\/([A-Za-z0-9_-]+)$/
+
+// Pure function to extract publicId from a pathname, returns null if no match
+export function extractPublicIdFromPath(pathname) {
+  const match = pathname.match(PERMALINK_PATTERN)
+  return match ? match[1] : null
+}
+
+// Called once on app load. If the URL path is /r/<publicId>, stash the
+// publicId in sessionStorage so it survives Clerk's OAuth round trip.
+// Unlike invite tokens, do NOT clear the URL — the permalink URL stays
+// visible in the address bar (deliberate design decision).
+export function captureRequestPermalinkFromUrl() {
+  const publicId = extractPublicIdFromPath(window.location.pathname)
+  if (!publicId) return
+
+  sessionStorage.setItem(PERMALINK_STORAGE_KEY, publicId)
+}
+
+export function getStashedRequestPermalink() {
+  return sessionStorage.getItem(PERMALINK_STORAGE_KEY)
+}
+
+// Called once the permalink has been resolved and the request detail
+// view is open, so it isn't re-fetched on every later render.
+export function clearStashedRequestPermalink() {
+  sessionStorage.removeItem(PERMALINK_STORAGE_KEY)
+}
+
+// Gate for App.jsx's permalink-consume effect, extracted as a real,
+// imported pure function (not a duplicate copy in the test file) so a
+// change here can't silently drift from what the effect actually runs.
+// needsProfileCompletion is ignored for admin — admin's phoneNumber is
+// permanently the pending- placeholder by design (never filled in, since
+// admin is exempted from the CompleteProfile screen itself), so requiring
+// it here would leave this gate stuck closed forever for admin. Live-
+// testing found this exact bug: an admin permalink silently never opened.
+export function canConsumeRequestPermalink({
+  isSignedIn,
+  tokenHandoffDone,
+  role,
+  isAdmin,
+  needsProfileCompletion,
+  recoveryToken,
+}) {
+  return Boolean(
+    isSignedIn &&
+      tokenHandoffDone &&
+      role !== null &&
+      (!needsProfileCompletion || isAdmin) &&
+      !recoveryToken
+  )
 }
