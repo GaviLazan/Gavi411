@@ -14,6 +14,7 @@ function MessageThread({ messages }) {
   // G411-78: aria-live region attached after mount to announce new
   // messages without re-announcing pre-existing history on load
   const containerRef = useRef(null);
+  const armed = useRef(false);
 
   // G411-78: arm aria-live after initial mount, one tick after React
   // has rendered all initial content to the DOM. This ensures that
@@ -22,12 +23,19 @@ function MessageThread({ messages }) {
   // but DO announce new additions on subsequent refetches (from G411-92's
   // polling). The attribute is added via ref, not static JSX, to make the
   // timing explicit and deterministic across browsers.
+  //
+  // Runs on every render (no dependency array) rather than once — the
+  // container only exists in the DOM once messages.length > 0 (see the
+  // empty-state early return below), so a thread that STARTS empty and
+  // then gets its first message needs this to re-check on that render,
+  // not just on the component's original mount.
   useEffect(() => {
-    if (containerRef.current) {
+    if (containerRef.current && !armed.current) {
       containerRef.current.setAttribute("aria-live", "polite");
       containerRef.current.setAttribute("aria-relevant", "additions");
+      armed.current = true;
     }
-  }, []);
+  });
 
   if (messages.length === 0) {
     return <p className="review-empty">No messages yet.</p>;
