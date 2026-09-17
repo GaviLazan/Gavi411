@@ -12,6 +12,10 @@
   border-radius: var(--radius-sm);
 }
 
+.notification-item-clickable {
+  cursor: pointer;
+}
+
 /* Unread marker for this one viewing — see NotificationHistory.jsx's own
    comment on why this is a local snapshot, not live server state. */
 .notification-item-unread {

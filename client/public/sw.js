@@ -71,7 +71,20 @@ self.addEventListener('notificationclick', (event) => {
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
       for (const client of clientList) {
         if ('focus' in client) {
-          client.focus()
+          // Firefox: focus() can throw InvalidAccessError when the window
+          // lacks transient activation (i.e. isn't already the OS-focused
+          // window) — a real, spec-level browser limitation, not
+          // something this code can force. Caught separately so a focus
+          // failure doesn't also block postMessage below — the app can
+          // still navigate to the right request even if the OS/WM won't
+          // visually raise the window for us.
+          try {
+            client.focus()
+          } catch {
+            // Focus failed (likely Firefox's transient-activation
+            // requirement) — fall through and still try to message the
+            // client below.
+          }
           if (requestId != null) client.postMessage({ type: 'notification-click', requestId })
           return
         }

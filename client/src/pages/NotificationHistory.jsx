@@ -11,7 +11,7 @@ import './NotificationHistory.css'
 // anyone could ever see it. `wasUnreadIds` is a local-only snapshot,
 // taken from the fetch response BEFORE the mark-all-read call, and never
 // re-derived from the server afterward.
-function NotificationHistory({ onBack }) {
+function NotificationHistory({ onBack, onOpenRequest }) {
   const [notifications, setNotifications] = useState([])
   const [wasUnreadIds, setWasUnreadIds] = useState(new Set())
   const [loading, setLoading] = useState(true)
@@ -42,7 +42,8 @@ function NotificationHistory({ onBack }) {
       })
   }, [])
 
-  function toggleUnread(notif) {
+  function toggleUnread(notif, event) {
+    if (event) event.stopPropagation()
     const isCurrentlyMarkedUnread = wasUnreadIds.has(notif.id)
     const method = isCurrentlyMarkedUnread ? 'mark-read' : 'mark-unread'
 
@@ -87,17 +88,27 @@ function NotificationHistory({ onBack }) {
         <ul className="notification-list">
           {notifications.map((notif) => {
             const isUnread = wasUnreadIds.has(notif.id)
+            const isClickable = notif.requestId != null
             return (
               <li
                 key={notif.id}
-                className={`notification-item${isUnread ? ' notification-item-unread' : ''}`}
+                className={`notification-item${isUnread ? ' notification-item-unread' : ''}${isClickable ? ' notification-item-clickable' : ''}`}
+                onClick={() => isClickable && onOpenRequest(notif.requestId)}
+                onKeyDown={(e) => {
+                  if (isClickable && (e.key === 'Enter' || e.key === ' ')) {
+                    e.preventDefault()
+                    onOpenRequest(notif.requestId)
+                  }
+                }}
+                role={isClickable ? 'button' : undefined}
+                tabIndex={isClickable ? 0 : undefined}
               >
                 <div className="notification-item-header">
                   <div className="notification-item-title">{notif.title}</div>
                   <button
                     type="button"
                     className="notification-item-toggle"
-                    onClick={() => toggleUnread(notif)}
+                    onClick={(e) => toggleUnread(notif, e)}
                   >
                     {isUnread ? 'Mark read' : 'Mark unread'}
                   </button>
