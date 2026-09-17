@@ -206,6 +206,7 @@ model ConversationDeviceKey {
 
 model Request {
   id             Int          @id @default(autoincrement())
+  publicId       String?      @unique
   status         Status       @default(IN_QUEUE)
   urgency        Urgency      @default(NORMAL)
   type           RequestType?

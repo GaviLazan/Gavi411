@@ -28,6 +28,9 @@ import {
   captureRecoveryParamsFromUrl,
   getStashedRecoveryParams,
   clearStashedRecoveryParams,
+  captureRequestPermalinkFromUrl,
+  getStashedRequestPermalink,
+  clearStashedRequestPermalink,
 } from './lib/inviteToken'
 import { createAndUploadEscrowBackup, createAndUploadKeypair } from './lib/escrow'
 import { loadLinkedConversationKeys, wrapMissingConversationKeys } from './lib/deviceLinking'
@@ -45,6 +48,9 @@ captureInviteTokenFromUrl()
 // just as likely to be signed OUT (hitting the same OAuth hazard) as a
 // brand-new signup is.
 captureRecoveryParamsFromUrl()
+// G411-94: capture /r/<publicId> permalink URLs for later consumption
+// after sign-in completes (unlike invite tokens, the URL stays visible).
+captureRequestPermalinkFromUrl()
 
 const THEME_LABEL = { light: 'Light', dark: 'Dark' }
 
@@ -292,6 +298,44 @@ function App() {
     })
   }, [role])
 
+  // G411-94: open a request detail view given its real numeric ID.
+  // Factored as a named function so both the permalink-consume effect
+  // and future notification handlers (G411-102) can reuse it without duplication.
+  function openRequest(requestId) {
+    setSelectedRequestId(requestId)
+    setPreviousView('list')
+    setView('detail')
+  }
+
+  // G411-94: consume stashed request permalink URL once auth gates clear.
+  // Only fires when ALL conditions are true: signed in, token handoff done,
+  // role resolved, profile complete, and no recovery in progress.
+  useEffect(() => {
+    if (!isSignedIn || !tokenHandoffDone || role === null || needsProfileCompletion || recovery.token) return
+
+    const publicId = getStashedRequestPermalink()
+    if (!publicId) return
+
+    fetch(`/api/requests/by-public-id/${encodeURIComponent(publicId)}`)
+      .then((res) => {
+        if (res.ok) return res.json()
+        if (res.status === 404) {
+          clearStashedRequestPermalink()
+        }
+        throw new Error('Failed to load request')
+      })
+      .then((request) => {
+        if (request) {
+          openRequest(request.id)
+          clearStashedRequestPermalink()
+        }
+      })
+      .catch(() => {
+        // On error, clear the stale permalink so it doesn't re-fire
+        clearStashedRequestPermalink()
+      })
+  }, [isSignedIn, tokenHandoffDone, role, needsProfileCompletion, recovery.token])
+
   // Admin's open request count for home screen display, derived from
   // AdminList's own already-fetched data (via onRequestsLoaded) instead
   // of a second independent /api/requests fetch (Sibling review finding,
@@ -495,7 +539,17 @@ function App() {
         {isSignedIn && !tokenHandoffDone ? (
           <p>Loading…</p>
         ) : isSignedIn && unauthorized ? (
-          <p>You do not have permission to use Gavi411.</p>
+          (() => {
+            const hadPermalink = getStashedRequestPermalink()
+            if (hadPermalink) clearStashedRequestPermalink()
+            return (
+              <p>
+                {hadPermalink
+                  ? 'You would need an invite from Gavi to view this request.'
+                  : 'You do not have permission to use Gavi411.'}
+              </p>
+            )
+          })()
         ) : isSignedIn && recovery.token ? (
           <Recover
             token={recovery.token}

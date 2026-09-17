@@ -201,6 +201,8 @@ function RequestDetail({ requestId, onBack, isAdmin }) {
   // review finding, second round — createAndUploadKeypair() itself was
   // already generic, just never offered to a regular user anywhere).
   const [keypairStatus, setKeypairStatus] = useState("idle"); // 'idle' | 'working' | 'error'
+  // G411-94: copy-to-clipboard feedback — shows "Copied!" briefly when permalink link is copied
+  const [permalinkCopied, setPermalinkCopied] = useState(false)
 
   // One object URL per `image`, not recreated on every render (Sibling
   // review finding: was called inline in JSX, leaking a new blob URL on
@@ -522,6 +524,16 @@ function RequestDetail({ requestId, onBack, isAdmin }) {
   // User.publicKey doc comment — a test/dev account created directly,
   // never through a real invite-signup) or whose conversation partner
   // has no public key yet gets a clear, blocking error instead of a
+  // G411-94: copy permalink to clipboard with feedback
+  function handleCopyPermalink() {
+    if (!request?.publicId) return
+    const link = `${window.location.origin}/r/${request.publicId}`
+    navigator.clipboard.writeText(link).then(() => {
+      setPermalinkCopied(true)
+      setTimeout(() => setPermalinkCopied(false), 2000)
+    })
+  }
+
   // silent plaintext fallback — this app has no "device recovery" path
   // that makes plaintext an acceptable substitute, so it's not offered
   // as an option. Image bytes stay unencrypted (see conversationCrypto.js
@@ -636,6 +648,16 @@ function RequestDetail({ requestId, onBack, isAdmin }) {
         </div>
       )}
       {typeDetailRows(request.typeDetails)}
+      {request.publicId && (
+        <div style={{ marginTop: "var(--space-3)", paddingTop: "var(--space-3)", borderTop: "1px solid var(--border-color)" }}>
+          <Button
+            onClick={handleCopyPermalink}
+            style={{ fontSize: 13 }}
+          >
+            {permalinkCopied ? "Copied!" : "Copy link to request"}
+          </Button>
+        </div>
+      )}
     </Card>
   );
 

@@ -2502,3 +2502,80 @@ describe('PATCH /:id status change notification (G411-51)', () => {
     )
   })
 })
+
+describe('GET /api/requests/by-public-id/:publicId', () => {
+  const publicId = 'abc-123_DEF'
+  const requestWithPublicId = { ...sampleRequest, publicId }
+
+  it('401s when unauthenticated', async () => {
+    const res = await request(app).get(`/api/requests/by-public-id/${publicId}`)
+    expect(res.status).toBe(401)
+  })
+
+  it('returns 404 when request not found', async () => {
+    currentUserId = OWNER
+    prismaMock.request.findUnique.mockResolvedValue(null)
+
+    const res = await request(app).get(`/api/requests/by-public-id/${publicId}`)
+
+    expect(res.status).toBe(404)
+    expect(res.body).toEqual({ error: 'Request not found' })
+    expect(prismaMock.request.findUnique).toHaveBeenCalledWith({
+      where: { publicId },
+      include: expect.anything(),
+    })
+  })
+
+  it('returns the request when owner requests their own', async () => {
+    currentUserId = OWNER
+    prismaMock.request.findUnique.mockResolvedValue(requestWithPublicId)
+
+    const res = await request(app).get(`/api/requests/by-public-id/${publicId}`)
+
+    expect(res.status).toBe(200)
+    expect(res.body.id).toBe(requestWithPublicId.id)
+    expect(res.body.publicId).toBe(publicId)
+  })
+
+  it('returns 404 when non-owner requests (never leaks existence)', async () => {
+    currentUserId = OTHER
+    prismaMock.request.findUnique.mockResolvedValue(requestWithPublicId)
+
+    const res = await request(app).get(`/api/requests/by-public-id/${publicId}`)
+
+    expect(res.status).toBe(404)
+    expect(res.body).toEqual({ error: 'Request not found' })
+  })
+
+  it('allows admin to view any request', async () => {
+    currentUserId = ADMIN
+    prismaMock.request.findUnique.mockResolvedValue(requestWithPublicId)
+
+    const res = await request(app).get(`/api/requests/by-public-id/${publicId}`)
+
+    expect(res.status).toBe(200)
+    expect(res.body.id).toBe(requestWithPublicId.id)
+  })
+
+  it('does not collide with the numeric :id route', async () => {
+    currentUserId = OWNER
+    // When someone hits /api/requests/123, it should go to the :id handler
+    // and pass a numeric ID check, not be rejected before reaching it.
+    // The /by-public-id/:publicId route is declared first in requests.js,
+    // so /by-public-id/123 would match it (integer publicId "123" is valid base64url).
+    // This test confirms the pattern is unambiguous: a real public ID won't
+    // look like a pure number since it's 16 base64url chars, but we verify
+    // the routes are in the right order by testing the key invariant:
+    // /by-public-id/<string> always reaches the publicId handler.
+    const stringPublicId = 'abcd-EFGH_ijkl'
+    prismaMock.request.findUnique.mockResolvedValue({ ...requestWithPublicId, publicId: stringPublicId })
+
+    const res = await request(app).get(`/api/requests/by-public-id/${stringPublicId}`)
+
+    expect(res.status).toBe(200)
+    expect(prismaMock.request.findUnique).toHaveBeenCalledWith({
+      where: { publicId: stringPublicId },
+      include: expect.anything(),
+    })
+  })
+})

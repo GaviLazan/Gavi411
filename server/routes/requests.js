@@ -15,6 +15,7 @@ import { sendNudge, MESSAGE_INCLUDE } from '../lib/autoClose.js'
 import { sendPushToUser } from '../lib/webPush.js'
 import { notifyAdmins, notifyUser } from '../lib/notify.js'
 import { isValidPhoneNumber, notifyAdminOfAccountDeletion } from './completeProfile.js'
+import { generatePublicId } from '../lib/publicId.js'
 
 const router = express.Router()
 
@@ -884,6 +885,28 @@ router.post('/match', requireAuth, async (req, res) => {
   }
 })
 
+// GET /by-public-id/:publicId — lookup request by public permalink ID (G411-94).
+// Declared BEFORE the numeric /:id route so it matches first, avoiding collision.
+// Owner or admin only — same ownership check as GET /:id.
+router.get('/by-public-id/:publicId', requireAuth, async (req, res) => {
+  const { publicId } = req.params
+
+  const request = await prisma.request.findUnique({
+    where: { publicId },
+    include: MESSAGE_INCLUDE,
+  })
+
+  if (!request) {
+    return res.status(404).json({ error: 'Request not found' })
+  }
+
+  if (!canAccessRequest(request, req.user)) {
+    return res.status(404).json({ error: 'Request not found' })
+  }
+
+  res.json(request)
+})
+
 // POST / — create a request + deduct credit (G411-23). Not covered here:
 // overdraft (G411-47), Telegram notify (G411-50/51), credit display (G411-45).
 router.post('/', requireAuth, async (req, res) => {
@@ -915,6 +938,7 @@ router.post('/', requireAuth, async (req, res) => {
           additionalInfo: additionalInfo || null,
           typeDetails: cleanedTypeDetails,
           userId: req.user.clerkId,
+          publicId: generatePublicId(),
         },
       })
     })
@@ -1002,6 +1026,7 @@ router.post('/overdraft-request', requireAuth, async (req, res) => {
           userId: req.user.clerkId,
           status: Status.OVERDRAFT_PENDING,
           isOverdraft: true,
+          publicId: generatePublicId(),
         },
       })
     })
@@ -1075,6 +1100,7 @@ router.post('/admin-create', requireAuth, requireAdmin, async (req, res) => {
           additionalInfo: additionalInfo || null,
           typeDetails: cleanedTypeDetails,
           userId,
+          publicId: generatePublicId(),
         },
       })
     })
