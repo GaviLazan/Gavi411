@@ -83,10 +83,11 @@ flowchart TD
   WP8 --> WP10
   WP9 --> WP10
   WP10 --> WP11[WP11 G411-116<br/>Cleanup pass]
-  WP11 --> WP12[WP12 Close-out<br/>re-critique, reconcile epics, deploy check]
+  WP11 --> WP115[WP11.5 G411-117<br/>Write README]
+  WP115 --> WP12[WP12 Close-out<br/>re-critique, reconcile epics, deploy check]
 ```
 
-Read top-down: WP0 and WP1 are cheap and protect everything after them. WP2 is the fan-out point — once tokens and primitives exist, WP3–WP9 can run in any order across sessions, though WP4 → WP5 and WP7 → WP8 are real dependencies. WP10 waits for every screen. WP11 (cleanup) waits for WP10 so it never cleans code about to be rewritten. WP12 is the wrap.
+Read top-down: WP0 and WP1 are cheap and protect everything after them. WP2 is the fan-out point — once tokens and primitives exist, WP3–WP9 can run in any order across sessions, though WP4 → WP5 and WP7 → WP8 are real dependencies. WP10 waits for every screen. WP11 (cleanup) waits for WP10 so it never cleans code about to be rewritten. WP11.5 (README) waits for WP11 so it documents the final structure, not one about to be restructured. WP12 is the wrap.
 
 | Package | Ticket | Size | Session |
 | --- | --- | --- | --- |
@@ -102,6 +103,7 @@ Read top-down: WP0 and WP1 are cheap and protect everything after them. WP2 is t
 | WP8 Credits ring | G411-113 | ½ | 8 |
 | WP10 Copy pass | G411-54, 55, 56 | 1 | 9 |
 | WP11 Cleanup pass | G411-116 | 2 | 10–11 |
+| WP11.5 Write README | G411-117 | ½ | 11 |
 | WP12 Close-out | (process) | ½ | 12 |
 
 WP9 is placed early on purpose: G411-107 adds a route and a migration that WP7 would otherwise restyle around mid-flight, and G411-106 touches `App.jsx` state that WP3/WP4 also touch — landing it first means one merge, not a rebase.
@@ -301,6 +303,21 @@ Three independent, already-scoped tickets. One session, three PRs, in this order
 
 **Falsifier (per PR):** `npm test` count unchanged (or changed only by named deletions of genuinely dead tests); `npm run build` clean; Playwright screenshots of home, intake step 1, request detail, profile, notifications at 390×844 **pixel-identical** before and after; comment lines ≤ 10% in every touched file; `grep -rn 'Sibling review\|G411-[0-9]' server client/src --include=*.js --include=*.jsx | grep -v test` returns nothing outside the E2E banner.
 
+### WP11.5 — Write project README (G411-117)
+
+**Goal:** a root `README.md` — the standard setup-and-orient doc a grader or new reader hits first. **Runs after WP11** (cleanup) so it documents the final, cleaned file structure rather than something about to be restructured, and **before WP12** (close-out) so it's in place for the final re-critique/deploy-check pass. Added at Gavi's request 2026-09-18.
+
+**Spec:**
+1. Setup/install steps (clone, `npm install` in root + `client/`, `npx prisma generate`).
+2. Required env vars (name + one-line purpose each — no real values; `.env.example` is the source of truth, this just points at it).
+3. Run scripts — dev servers (client + server), tests, build.
+4. Architecture overview / tech stack — React (Vite) client, Node/Express server, Prisma/Neon, Clerk auth, Cloudinary, Web Push — matching CLAUDE.md's Tech stack section, not duplicating its full detail.
+5. A short walkthrough section at the end — the app's real flow (friend intake → thread → admin cockpit → credits/notifications), enough for a grader to orient, not a full feature tour.
+
+**Not this package's job:** the finish-line plan, brain.md, or the E2E plan — those stay separate docs, README only links to them if useful.
+
+**Falsifier:** `README.md` exists at repo root; a reader with zero context can get the app running locally from it alone; no env var value (only names) appears in it.
+
 ### WP12 — Close-out
 
 1. Re-run `/impeccable critique` on `client/src`; target ≥ 30/40 with zero P0. Re-run `/impeccable audit` for a11y/contrast numbers. Fix anything red in one bounded pass.
@@ -313,15 +330,15 @@ Three independent, already-scoped tickets. One session, three PRs, in this order
 
 ## Jira housekeeping
 
-The nine new tickets were **filed 2026-09-18** (G411-108 … G411-116) and their parent fields verified live. Everything else in this table is still proposed, not executed. New tickets parent under **G411-9 (Copywriting & UI/UX Pass)** — the one Open epic whose scope this is, avoiding a reopen of any Reconciled epic (brain.md #108). Set the real parent field at creation. Aegis fields are written at each ticket's own pickup, never pre-filled.
+The nine new tickets were **filed 2026-09-18** (G411-108 … G411-116); a tenth, G411-117, filed 2026-09-18 (later) for WP11.5. All parent fields verified live. New tickets parent under **G411-9 (Copywriting & UI/UX Pass)** — the one Open epic whose scope this is, avoiding a reopen of any Reconciled epic (brain.md #108). Set the real parent field at creation. Aegis fields are written at each ticket's own pickup, never pre-filled.
 
 | Action | Ticket | Note |
 | --- | --- | --- |
-| Merge + Reconcile | G411-103 | PR #119, WP0 |
-| Re-parent → G411-57 + comment | G411-79, 83, 84, 85, 105 | "Parked to V2, not cancelled" |
-| Epic → Reconciled | G411-3 Messaging | after the re-parenting above empties it |
-| Close as superseded | G411-101 | comment links the WP4 ticket; Reconciled-as-cancelled like G411-68 |
-| Re-scope description | G411-77 | becomes WP2 (tokens + primitives), not "full pass" |
+| ✅ Merged + Reconciled | G411-103 | PR #119/#124, WP0 |
+| ✅ Re-parented → G411-57 + comment | G411-79, 83, 84, 85, 105 | "Parked to V2, not cancelled" |
+| ✅ Epic → Reconciled | G411-3 Messaging | re-parenting above emptied it |
+| ✅ Closed as superseded | G411-101 | comment links the WP4 ticket; Reconciled-as-cancelled like G411-68 |
+| Re-scope description | G411-77 | still open — becomes WP2 (tokens + primitives), not "full pass" |
 | ✅ Filed 2026-09-18 | **G411-108** — WP3 App bar, menu, presence avatar | under G411-9 |
 | ✅ Filed 2026-09-18 | **G411-109** — WP4 Friend home (lite conversation) | under G411-9; names G411-101 as superseded |
 | ✅ Filed 2026-09-18 | **G411-110** — WP5 Request detail restructure | under G411-9 |
@@ -331,6 +348,7 @@ The nine new tickets were **filed 2026-09-18** (G411-108 … G411-116) and their
 | ✅ Filed 2026-09-18 | **G411-114** — Full home-as-conversation (inline intake) | under G411-57; "after WP4, if time" |
 | ✅ Filed 2026-09-18 | **G411-115** — E2E escrow-only rebuild | under G411-57; points at `gavi411-e2e-encryption-plan.md` §2; first post-finish item |
 | ✅ Filed 2026-09-18 | **G411-116** — WP11 Codebase cleanup pass | under G411-9; runs after WP10, before close-out |
+| ✅ Filed 2026-09-18 | **G411-117** — WP11.5 Write project README | under G411-9; runs after WP11, before close-out |
 | Unchanged | G411-53, 54, 55, 56, 104, 106, 107 | already scoped; picked up per the order table |
 
 Epic rollups at each transition (jira-parent-rollup rule): G411-7 goes Reconciled once 106/107 land; G411-8 once 53 lands; G411-9 at WP12.
