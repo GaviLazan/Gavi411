@@ -12,6 +12,29 @@ accumulated. If something here turns out to matter long-term, promote it to
 
 ---
 
+## Where this session left off (2026-09-18, latest) — WP2 (G411-77, design tokens + primitives) built, Landed, awaiting merge go-ahead
+
+**Picked up WP2 at STOP 1**, re-scoped G411-77's stale "Full UI/UX pass" placeholder into the real WP2 spec first (Jira summary + description rewritten, Scope/Falsifier/Role/Evidence-required written pre-code). Haiku built: new tokens (`--accent-text`, `--danger`/`--danger-bg`, `--success` alias), retired `--accent-3`/`--social-bg`, flattened `--shadow`, global `:focus-visible` ring, body text 16px everywhere, `.meta`/`.content` utilities, button changes (ink-on-gold primary/secondary, `.btn-purple` → `.btn-ghost`, new `.btn-icon`), new `StatusChip`/`Icon` components (created, not wired into any screen yet — that's later packages' job), new `lib/format.js`/`lib/requestStatus.js`, `RequestCard` extracted to its own file, `RequestList.jsx` deleted (dead body), two pre-existing `--color-border`→`--border` bugs fixed, `DESIGN.md` updated. PR #127.
+
+**Sibling review found and fixed 3 real issues, all in the same PR**:
+1. **WCAG contrast bug, caught by actually running the falsifier's contrast script** (not trusting the spec's stated pairing): `.btn-primary`'s ink-on-gold text passed light mode (8.18:1) but failed dark mode badly (1.59:1) — dark mode's `--text-h` is near-white, dark mode's `--accent` is bright gold. Same bug class was latent in `StatusChip`'s gold/strong/success variants (unwired today, would have shipped broken). Confirmed the fix shape with Gavi (a dedicated token, not a scattered override) before applying: new `--on-accent: #221f19` token (fixed dark ink, same value both themes), applied everywhere text sits on a solid accent-family fill. All 5 real pairings re-verified ≥4.5:1 both themes.
+2. **Stale `DESIGN.md` content Haiku's own edit missed**: a whole Lavender/`button-purple` section (frontmatter YAML block + prose) still described lavender as live even though this same PR deletes `.btn-purple` from the CSS. Fixed the frontmatter and forward-looking prose; left the historical "this direction was revised..." narrative alone (decision record, not current guidance).
+3. **Manual falsifier check, run by Gavi on the Vercel preview** (tab through intake, confirm visible focus ring at every stop): found the credits badge in the header was the one element with no ring — because it was a plain `<span title="...">`, never focusable at all. Fixed with `tabIndex={0}` + `aria-label` carrying the same detail string, so keyboard/screen-reader users can now reach it too, not just mouse hover. Pre-existing gap from G411-100, fixed here directly per Gavi's call.
+
+Every finding posted as a real PR comment, per CLAUDE.md rule 5. 543/543 tests re-run fresh after each fix, build clean each time, CI (the new required check from WP1) green on the final commit. Jira: Landed, Scope/Falsifier/Evidence-bar-met all written against real final state. **Awaiting merge go-ahead — not yet Reconciled.**
+
+A `[impeccable@1]` design-system hook flagged 3 pre-existing lines in `index.css` (h2's responsive 20px, `code`'s 4px radius, `code`'s 15px font) as outside `DESIGN.md`'s documented scale — confirmed via `git diff main` that none are touched by this PR's diff at all. Left alone, not ignored via `hook-admin.mjs` either (not confident enough to call them sanctioned exceptions without a real audit) — flagged here as an open item for whoever next does design-system work. The hook also wants `/impeccable document` re-run since `DESIGN.md` changed — not run this session, not this ticket's job.
+
+### Real state, right now
+Primary worktree on branch `you/G411-77-design-tokens` (3 commits: `faf61aa` build, `776fda8` contrast fix, `7717aeb` credits accessibility fix), pushed, PR #127 open against `main`. All CI runs on the PR are green as of the latest commit.
+
+### What's next, concretely
+1. **Merge PR #127** (Gavi's go-ahead, per wrap-up step 7) — then Jira Landed → Reconciled.
+2. Then next pick per `gavi411-finish-line-plan.md`'s execution order: **WP3 (G411-108, app bar/menu/presence avatar)** or **WP9 (G411-104/106/107, small tickets)** — both depend only on WP2, can run in either order. Confirm with Gavi at STOP 1.
+3. Open item, not blocking: the 3 pre-existing `index.css` design-hook findings above, and the `/impeccable document` sidecar refresh — whoever next touches `index.css`/`DESIGN.md` for real should pick these up.
+
+---
+
 ## Where this session left off (2026-09-18, latest) — WP11.5 (G411-117, README) added to plan; WP1 (G411-53, CI pipeline) built, Landed, awaiting merge go-ahead
 
 **G411-117 filed** ("Write project README"), parented under G411-9, slotted as WP11.5 between WP11 (cleanup) and WP12 (close-out) in `gavi411-finish-line-plan.md` — mermaid graph, package table, and Jira housekeeping table all updated. Committed + merged via PR #125.
