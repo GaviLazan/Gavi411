@@ -801,6 +801,7 @@ describe('POST /api/requests/overdraft-request (G411-47)', () => {
   })
 
   it('notifies admins via Telegram with a permalink (G411-50 Sibling review finding)', async () => {
+    vi.stubEnv('FRONTEND_URL', 'https://example.com')
     const { notifyAdmins } = await import('../lib/notify.js')
     prismaMock.user.findUnique.mockResolvedValue({ creditBalance: 0, overdraftUsedAt: null })
     prismaMock.request.create.mockResolvedValue({
@@ -819,6 +820,7 @@ describe('POST /api/requests/overdraft-request (G411-47)', () => {
       }),
       expect.objectContaining({ telegram: true }),
     )
+    vi.unstubAllEnvs()
   })
 
   it('stamps overdraftUsedAt on the user when a request is created', async () => {
@@ -2310,6 +2312,7 @@ describe('buildPermalink (G411-50 Sibling review finding)', () => {
 
 describe('POST / request creation notification (G411-51)', () => {
   it('calls notifyAdmins with telegram flag when request is successfully created', async () => {
+    vi.stubEnv('FRONTEND_URL', 'https://example.com')
     const { notifyAdmins } = await import('../lib/notify.js')
     currentUserId = OWNER
 
@@ -2331,6 +2334,7 @@ describe('POST / request creation notification (G411-51)', () => {
       }),
       expect.objectContaining({ telegram: true }),
     )
+    vi.unstubAllEnvs()
   })
 
   it('prefixes body with "Urgent" when urgency is HIGH', async () => {
@@ -2384,6 +2388,7 @@ describe('POST / request creation notification (G411-51)', () => {
 
 describe('POST /:id/messages notification (G411-51)', () => {
   it('calls notifyAdmins when friend sends a message', async () => {
+    vi.stubEnv('FRONTEND_URL', 'https://example.com')
     const { notifyAdmins } = await import('../lib/notify.js')
     currentUserId = OWNER
 
@@ -2409,6 +2414,7 @@ describe('POST /:id/messages notification (G411-51)', () => {
       }),
       expect.objectContaining({ telegram: true }),
     )
+    vi.unstubAllEnvs()
   })
 
   it('calls notifyUser when admin sends a message to friend', async () => {
