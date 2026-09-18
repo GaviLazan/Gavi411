@@ -322,3 +322,11 @@ effect, not a separate fix.
 the product (Lifecycle, Cockpit, Credits, Notifications) resumes as the
 priority. E2E/escrow-only rebuild (§2) stays untouched until there's
 explicit time/decision to come back to it — not the current focus.
+
+**Formally cut for v1, 2026-09-18 (brain.md decision #140)**: the pause
+above is now a locked scope decision, not an open question — the
+~1-month budget is elapsed, E2E stays out of what ships. Nothing above
+changes: `E2E_ENABLED` stays `false`, no code removed, this doc's escrow-
+only design (§2) is still the target if/when work resumes. The
+escrow-only rebuild is the first post-finish item if time appears after
+the deadline.
