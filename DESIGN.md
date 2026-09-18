@@ -10,9 +10,11 @@ colors:
   code-bg: "#f5f3ea"
   gold: "#f2a900"
   gold-strong: "#d99400"
+  gold-text: "#946600"
+  on-accent: "#221f19"
   sage-green: "#6fae8f"
   sage-green-strong: "#4f8a6c"
-  lavender: "#9b8cce"
+  danger: "#b3261e"
 dark:
   body-text: "#b3b0aa"
   ink: "#f5f4f0"
@@ -22,9 +24,11 @@ dark:
   code-bg: "#212327"
   gold: "#ffb700"
   gold-strong: "#ffc933"
+  gold-text: "#ffb700"
+  on-accent: "#221f19"
   sage-green: "#6fae8f"
   sage-green-strong: "#8fc7ab"
-  lavender: "#b3a5e0"
+  danger: "#ff8a80"
 typography:
   h1:
     fontFamily: "'Rubik', system-ui, 'Segoe UI', Roboto, sans-serif"
@@ -70,14 +74,14 @@ spacing:
 components:
   button-primary:
     backgroundColor: "{colors.gold}"
-    textColor: "{colors.surface}"
+    textColor: "{colors.on-accent}"
     rounded: "{rounded.pill}"
     padding: "14px 28px"
   button-primary-hover:
     backgroundColor: "{colors.gold-strong}"
   button-secondary:
     backgroundColor: "transparent"
-    textColor: "{colors.gold}"
+    textColor: "{colors.ink}"
     rounded: "{rounded.pill}"
     padding: "14px 28px"
   button-success:
@@ -85,9 +89,9 @@ components:
     textColor: "{colors.surface}"
     rounded: "{rounded.pill}"
     padding: "14px 28px"
-  button-purple:
+  button-ghost:
     backgroundColor: "transparent"
-    textColor: "{colors.lavender}"
+    textColor: "{colors.body-text}"
     rounded: "{rounded.pill}"
     padding: "14px 28px"
   card:
@@ -121,7 +125,7 @@ This direction was revised directly by Gavi from an earlier forest-green/serif d
 
 **Key Characteristics:**
 - Warm cream page background (`#fbfaf6`), never stark white behind the whole viewport — only cards and inputs are pure white.
-- Gold (`#f2a900`) is the primary accent. Sage green and lavender are secondary/tertiary accents with specific, narrow jobs — not general-purpose alternatives to gold.
+- Gold (`#f2a900`) is the primary accent. Sage green is a secondary accent with a specific, narrow job — not a general-purpose alternative to gold. Lavender is retired.
 - No serif anywhere. Rubik (sans) for all headings and body text; Google Sans reserved solely for the literal "Gavi411" wordmark.
 - Everything interactive (buttons, chips) is a full pill; inputs/selects use the large-rounded (20px) card radius, not a pill — Gavi's explicit correction from an earlier pill-input pass.
 - Cards carry a soft ambient shadow and a hairline border, not a hard drop shadow.
@@ -129,16 +133,17 @@ This direction was revised directly by Gavi from an earlier forest-green/serif d
 
 ## Colors
 
-A warm-neutral ground with one confident primary accent (gold) and two narrower secondary accents (sage green, lavender).
+A warm-neutral ground with one confident primary accent (gold) and one narrower secondary accent (sage green).
 
 ### Primary
 - **Gold** (`#f2a900`, dark: `#ffb700`): the primary accent — primary button fill, chip-selected state, input focus ring/border, the "own message" chat bubble fill. Hover/active state darkens to Gold Strong (`#d99400`, dark: `#ffc933`).
+- **Gold Text** (`#946600`, dark: `#ffb700`): gold used as text color, never as a button fill background — for passing contrast on light backgrounds, or when text needs to read as gold specifically.
+- **On Accent** (`#221f19`, same in both themes): the text color for anything sitting directly on a solid accent-family fill (`.btn-primary`, `StatusChip`'s gold/strong/success variants) — a fixed dark ink, not `--text-h`, since `--text-h` is near-white in dark mode and would fail contrast against the bright dark-mode gold/sage fills underneath it.
 
 ### Secondary
 - **Sage Green** (`#6fae8f`, dark: `#6fae8f`): a narrower second accent — currently used only for the intake flow's "Submit" action (`.btn-success`), distinguishing it from the general-purpose gold CTA. Hover darkens to `#4f8a6c` (dark: `#8fc7ab`).
 
-### Tertiary
-- **Lavender** (`#9b8cce`, dark: `#b3a5e0`): a third, even narrower accent — currently used only for the intake flow's "Back" action (`.btn-purple`), an outline/ghost treatment (transparent fill, lavender text/border, `color-mix` wash on hover since no dedicated `-bg` token exists yet).
+Lavender (formerly a tertiary accent, `.btn-purple`) is retired — see Buttons below.
 
 ### Neutral
 - **Ink** (`#221f19`, dark: `#f5f4f0`): heading and high-emphasis text color.
@@ -148,7 +153,7 @@ A warm-neutral ground with one confident primary accent (gold) and two narrower 
 - **Hairline** (`#ece8dc`, dark: `#34363b`): card/input borders and dividers, barely-there against the page background.
 
 ### Named Rules
-**The One Lead Accent Rule.** Gold is the only accent used for general-purpose primary actions. Sage green and lavender are reserved for their two specific, already-assigned jobs (intake Submit / Back) — don't reach for them as a second "brand color" option elsewhere without a comparably specific reason.
+**The One Lead Accent Rule.** Gold is the only accent used for general-purpose primary actions. Sage green is reserved for its one specific, already-assigned job (intake Submit) — don't reach for it as a second "brand color" option elsewhere without a comparably specific reason. Lavender is retired.
 
 **The Dark-Mode-Is-Real Rule.** Every color token has a confirmed dark-mode value (see the `dark:` frontmatter block and `:root[data-theme="dark"]` / the `prefers-color-scheme` media query in `index.css`). New colors need a dark counterpart before shipping, not just a light one.
 
@@ -177,7 +182,7 @@ Within the intake flow and design-preview shell, a narrower 420px column is used
 Flat page background, soft ambient shadow under cards and the confirm-modal only — never a hard, high-contrast drop shadow. Depth is secondary to the border: the hairline border does most of the work of separating a surface from the page; the shadow just adds a little lift. The shadow token itself darkens/intensifies slightly in dark mode rather than staying a fixed value.
 
 ### Shadow Vocabulary
-- **Ambient** (light: `rgba(0,0,0,0.1) 0 10px 15px -3px, rgba(0,0,0,0.05) 0 4px 6px -2px`; dark: `rgba(0,0,0,0.4) 0 10px 15px -3px, rgba(0,0,0,0.25) 0 4px 6px -2px`): the only shadow in the system — cards, the confirm modal.
+- **Ambient** (light: `rgba(0, 0, 0, 0.06) 0 1px 2px`; dark: `rgba(0, 0, 0, 0.3) 0 1px 2px`): the only shadow in the system — cards, the confirm modal. Flattened (single layer, small blur) for a more subtle, refined depth effect.
 
 ## Shapes
 
@@ -190,10 +195,11 @@ Two form languages: **pill** (full border-radius, 999px) for anything you click 
 
 ### Buttons
 - **Shape:** full pill (999px radius)
-- **Primary:** gold fill (`#f2a900`), white text, 14px/28px padding, 600 weight; hover darkens to Gold Strong
-- **Secondary:** transparent fill, gold text, gold border at 40% opacity; hover fills with a faint gold wash (12% opacity)
+- **Primary:** gold fill (`#f2a900`), dark-ink text, 14px/28px padding, 600 weight; hover darkens to Gold Strong
+- **Secondary:** transparent fill, dark-ink text, gold border at 40% opacity; hover fills with a faint gold wash (12% opacity)
 - **Success** (intake flow "Submit" only): sage-green fill, white text; hover darkens to Sage Strong
-- **Purple/ghost** (intake flow "Back" only): transparent fill, lavender text/border; hover fills with a 12% lavender `color-mix` wash (kept as a mix rather than a fixed token so it stays correct across light/dark, since lavender itself changes value between themes)
+- **Ghost:** transparent fill, body text color; hover fills with a faint gold wash (12% opacity)
+- **Icon:** 44px pill button with icon, transparent fill, body text color; hover fills with a faint gold wash (12% opacity)
 - **Disabled:** 50% opacity, `cursor: not-allowed`, same shape/colors otherwise
 
 ### Chips
@@ -228,7 +234,7 @@ Two form languages: **pill** (full border-radius, 999px) for anything you click 
 - **Do** keep the page background cream (`#fbfaf6` / dark `#17181a`) and reserve the surface-white token for cards, inputs, and modals only.
 - **Do** use Rubik for everything except the literal wordmark, which uses Google Sans.
 - **Do** make every actionable trigger (button, chip, icon button) a full pill; every input, select, card, and modal a 20px-radius surface — never a pill input.
-- **Do** keep gold as the one general-purpose accent — reach for sage green or lavender only for their specific, already-assigned jobs (intake Submit / Back), not as an alternate "brand color."
+- **Do** keep gold as the one general-purpose accent — reach for sage green only for its specific, already-assigned job (intake Submit), not as an alternate "brand color."
 - **Do** give every new color token both a light and a dark value before shipping it.
 - **Do** pair every transition/animation with a `prefers-reduced-motion: reduce` fallback that disables it — every current motion pattern (step-card slide-in, collapsible expand/collapse) already does this; new motion should match.
 

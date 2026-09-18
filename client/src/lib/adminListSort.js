@@ -3,7 +3,7 @@
 // convention is lib/ logic gets tested, page components don't (no
 // component-test framework installed here).
 
-import { CLOSED_STATUSES } from "../pages/RequestList";
+import { CLOSED_STATUSES } from "./requestStatus";
 
 export const URGENCY_ORDER = { LOW: 0, NORMAL: 1, HIGH: 2 };
 export { CLOSED_STATUSES };

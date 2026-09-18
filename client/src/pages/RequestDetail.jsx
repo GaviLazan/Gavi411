@@ -4,7 +4,7 @@ import Button from "../components/Button";
 import Select from "../components/Select";
 import ConfirmModal from "../components/ConfirmModal";
 import MessageThread from "../components/MessageThread";
-import { statusLabel as labelize } from "./RequestList";
+import { statusLabel as labelize } from "../lib/requestStatus";
 // This page reuses ReviewSummary's .review-row/.review-label/.review-value
 // classes for its own read-only rows — imported directly (Sibling review
 // finding: it used to only work by relying on NewRequest.jsx importing

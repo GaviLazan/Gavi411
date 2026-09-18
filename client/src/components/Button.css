@@ -19,7 +19,7 @@
 
 .btn-primary {
   background: var(--accent);
-  color: var(--surface);
+  color: var(--on-accent);
 }
 
 .btn-primary:hover:not(:disabled) {
@@ -28,7 +28,7 @@
 
 .btn-secondary {
   background: transparent;
-  color: var(--accent);
+  color: var(--text-h);
   border-color: var(--accent-border);
 }
 
@@ -36,9 +36,7 @@
   background: var(--accent-bg);
 }
 
-/* Intake flow only (G411-64): Submit in green, Back in purple — Gavi's
-   call, using the --accent-2/--accent-3 tokens that already existed in
-   the palette but had no real use yet. */
+/* Intake flow only (G411-64): Submit in green — Gavi's call. */
 .btn-success {
   background: var(--accent-2);
   color: var(--surface);
@@ -48,15 +46,31 @@
   background: var(--accent-2-strong);
 }
 
-.btn-purple {
+.btn-ghost {
   background: transparent;
-  color: var(--accent-3);
-  border-color: var(--accent-3);
+  border: none;
+  color: var(--text);
 }
 
-.btn-purple:hover:not(:disabled) {
-  /* No --accent-3-bg token exists yet — color-mix stays correct in both
-     themes without hardcoding a literal that would be wrong in dark
-     mode (accent-3 itself changes between light/dark). */
-  background: color-mix(in srgb, var(--accent-3) 12%, transparent);
+.btn-ghost:hover:not(:disabled) {
+  background: var(--accent-bg);
+}
+
+.btn-icon {
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  min-height: 44px;
+  border-radius: var(--radius-pill);
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  color: var(--text);
+}
+
+.btn-icon:hover:not(:disabled) {
+  background: var(--accent-bg);
 }

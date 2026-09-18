@@ -3,7 +3,7 @@ import Card from "../components/Card";
 import Select from "../components/Select";
 import Input from "../components/Input";
 import Button from "../components/Button";
-import { statusLabel } from "./RequestList";
+import { statusLabel } from "../lib/requestStatus";
 import { timeSince, lastActivityAt, filterRequests, sortRequests, groupByPerson, matchesPlainFields } from "../lib/adminListSort";
 import { buildSearchIndex, searchIndex } from "../lib/searchIndex";
 import { loadLinkedConversationKeys } from "../lib/deviceLinking";
