@@ -12,6 +12,25 @@ accumulated. If something here turns out to matter long-term, promote it to
 
 ---
 
+## Where this session left off (2026-09-18, later) — WP0 (housekeeping) completed
+
+**`gavi411-finish-line-plan.md` is the source of order for what's next** — read it before picking the next package, don't re-derive from this file.
+
+WP0 was picked up half-done: PR #124 (G411-103, unread dot) had already merged onto `main` in a prior session, but the Jira/docs housekeeping around it hadn't run. Finished all six steps:
+
+1. PR #119/#124 (G411-103) merged — confirmed via `git log`. Jira transitioned Landed → Reconciled.
+2. G411-83, 84, 85, 79, 105 re-parented from G411-3 (Messaging) to G411-57 (V2/Stretch Backlog), each with a "parked to V2 per 2026-09-18 finish-line plan; not cancelled" comment. Epic G411-3 had no non-Reconciled children left, so it was transitioned Reconciled too.
+3. brain.md decision #140 logged: E2E cut for v1, parked not killed, escrow-only rebuild is first post-finish item, `E2E_ENABLED` stays false.
+4. brain.md decision #141 logged: visual-direction changes (ink-on-gold, lavender retired, sage limited to success states, shadow flattened) — execution lands in WP2, not logged as done here.
+5. G411-101 closed as superseded by G411-109 (Reconciled-as-cancelled, comment added, same pattern as G411-68).
+6. `gavi411-e2e-encryption-plan.md` §8 updated with a pointer to decision #140.
+
+**Real state, right now**: primary worktree on `main` at `f4be778`, all 6 agent worktrees clean (checked fresh this session). No open PRs. Nothing mid-work.
+
+**What's next, concretely**: WP1 (G411-53, CI pipeline) per the finish-line plan's execution order — cheapest real win, explicit course requirement, zero effort spent so far. Confirm with Gavi at STOP 1 before starting, per the normal ritual.
+
+---
+
 ## Where this session left off (2026-09-18) — full project audit + UI/UX critique + finish-line plan written; 8 tickets filed; NO code touched
 
 **Planning session, zero implementation.** Gavi asked for an audit of the

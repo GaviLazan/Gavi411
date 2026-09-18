@@ -1198,6 +1198,34 @@ already-logged, deliberate scope of the original G411-102 migration —
 worth confirming with a real query rather than assuming from the
 symptom description alone, same discipline as #138 just above.
 
+### Decision #140 — E2E messaging encryption is cut for v1, formally — parked, not killed (2026-09-18, finish-line plan)
+
+The paused state from decision #98 (§2 of `gavi411-e2e-encryption-plan.md`)
+is now a locked v1 scope decision, not just an open pause. Gavi's call
+during the 2026-09-18 audit/finish-line-plan session: with the ~1-month
+budget elapsed, E2E stays out of what ships. `E2E_ENABLED` stays `false`,
+no code removed — same decoupled-not-deleted posture §8 already
+describes. G411-83, 84, 85 (the real gaps found live-testing the E2E
+mechanism) re-parented from G411-3 (Messaging) to G411-57 (V2/Stretch),
+each with a "parked to V2, not cancelled" comment, closing out G411-3 to
+Reconciled. **The escrow-only rebuild (§2 of the e2e plan) is the first
+post-finish item if time appears after the deadline** — not scheduled,
+not triaged against anything else, just first in line for whenever "post
+deadline" actually happens.
+
+### Decision #141 — Visual-direction changes locked for the finish-line UI pass (2026-09-18)
+
+From the same session's `/impeccable critique` (score 21/40, snapshot at
+`.impeccable/critique/2026-09-17T21-01-20Z__client-src.md`) and Gavi's
+follow-up decisions: **ink-on-gold** as the primary text/surface
+pairing, **lavender retired** (`--accent-3` goes away as a UI color),
+**sage limited to success states only** (not general secondary-action
+use), **shadow flattened** (the existing two-layer blur in
+`client/src/index.css` gets simplified). These are direction, not
+execution — the actual token/CSS changes land in WP2 (`gavi411-finish-
+line-plan.md`, G411-77 re-scoped) and get documented into `DESIGN.md`
+as part of that package, not here.
+
 ## 7. Not Yet Discussed
  
 - Data model, architecture, tech decisions (schema itself not yet drafted — first task on deck).
