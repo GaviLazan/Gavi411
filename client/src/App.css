@@ -156,10 +156,21 @@ button.wordmark-button {
   display: flex;
   align-items: center;
   justify-content: center;
+  position: relative;
 }
 
 .hamburger-button:hover {
   color: var(--text-h);
+}
+
+.hamburger-unread-dot {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent);
 }
 
 .cl-footerAction {
