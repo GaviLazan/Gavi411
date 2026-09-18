@@ -12,6 +12,29 @@ accumulated. If something here turns out to matter long-term, promote it to
 
 ---
 
+## Where this session left off (2026-09-18, latest) — WP11.5 (G411-117, README) added to plan; WP1 (G411-53, CI pipeline) built, Landed, awaiting merge go-ahead
+
+**G411-117 filed** ("Write project README"), parented under G411-9, slotted as WP11.5 between WP11 (cleanup) and WP12 (close-out) in `gavi411-finish-line-plan.md` — mermaid graph, package table, and Jira housekeeping table all updated. Committed + merged via PR #125.
+
+**G411-53 (CI pipeline) built and Landed, PR #126 open, awaiting merge go-ahead.** Haiku wrote `.github/workflows/ci.yml` per the plan's pinned spec (checkout → setup-node@v4 node 22 → npm ci root+client → prisma generate → npm test → client build). Sonnet Sibling-reviewed by watching the real PR's own CI runs, not trusting local success:
+
+- **Round 1**: the workflow itself failed at 0s, 0 jobs — `cache-dependency-path: ['a', 'b']` (flow-style array) under `with:` isn't valid syntax for that action input. Fixed to the block-scalar list form.
+- **Round 2**: `npm test` then genuinely failed in CI (passed locally) — 3 tests in `requests.test.js` implicitly depended on the real `FRONTEND_URL` from the local `.env`, which CI never has (gitignored, machine-local — confirmed the worktree-symlink trick can't reach a GitHub-hosted runner, no file to point at). Fixed by having each test `vi.stubEnv('FRONTEND_URL', ...)` itself, matching the existing `buildPermalink` tests' own pattern in the same file. Verified with `env -i npm test` (fully stripped environment): 543/543 pass.
+- **Falsifier run**: pushed a throwaway failing assertion — check went red; reverted — check went green. Both commits kept in PR #126's history as the falsifier's own record.
+
+Every round posted as a real PR comment, not just chat, per CLAUDE.md rule 5. Jira: Landed, Claim/Falsifier/Role/Evidence-required/Evidence-bar-met all written against real final state.
+
+**Not yet done** (needs the merge first): wiring the CI job as a required status check on the `require-pr-for-main` ruleset (WP1's spec, last step) — do this right after merging, before Landed → Reconciled.
+
+### Real state, right now
+Primary worktree on branch `you/G411-53-ci-pipeline` (5 commits: `cb0757d` build, `df76fdf` YAML fix, `4b0e25f` test fix, `18019f2`+`d5d2745` falsifier throwaway+revert), pushed, PR #126 open against `main`. All CI runs on the PR are green as of the latest commit. All 6 agent worktrees clean (checked earlier this session).
+
+### What's next, concretely
+1. **Merge PR #126** (Gavi's go-ahead, per wrap-up step 7) — then add the CI job as a required status check on the ruleset, then Jira Landed → Reconciled.
+2. Then next pick per `gavi411-finish-line-plan.md`'s execution order: **WP2 (G411-77, design tokens + primitives)** — the fan-out point that everything from WP3 onward depends on. Confirm with Gavi at STOP 1, don't assume.
+
+---
+
 ## Where this session left off (2026-09-18, later) — WP0 (housekeeping) completed
 
 **`gavi411-finish-line-plan.md` is the source of order for what's next** — read it before picking the next package, don't re-derive from this file.
