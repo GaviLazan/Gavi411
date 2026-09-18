@@ -29,4 +29,3 @@ describe('generatePublicId', () => {
     expect(ids.size).toBe(1000)
   })
 })
-describe('CI falsifier throwaway', () => { it('deliberately fails', () => { expect(true).toBe(false) }) })
