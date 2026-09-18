@@ -12,7 +12,117 @@ accumulated. If something here turns out to matter long-term, promote it to
 
 ---
 
-## Where this session left off (2026-09-17, latest) — G411-102 reopened and re-fixed after live retest, merged, back to Reconciled
+## Where this session left off (2026-09-18) — full project audit + UI/UX critique + finish-line plan written; 8 tickets filed; NO code touched
+
+**Planning session, zero implementation.** Gavi asked for an audit of the
+whole project, then for the definition layer that follows from it. Three
+deliverables, all committed on this branch, plus eight new Jira tickets.
+**Nothing in `client/` or `server/` was modified this session.**
+
+### The three documents
+
+1. **`gavi411-full-project-audit.md`** — plan gaps, E2E assessment,
+   UI/UX findings, finish-line plan. Deliberately NOT built on the two
+   older gap-analysis docs (Gavi: "I don't fully trust them, they missed
+   crucial things"); re-derived from live Jira, the real code, and a
+   fresh test run. **Headline finding: the ~1-month budget is fully
+   elapsed** (started 2026-08-17), so the framing is triage, not
+   "finish properly."
+2. **The UI/UX section of that same file** — a real `/impeccable
+   critique` run (dual-agent: design-director review with 149 live
+   Playwright screenshots at 390×844 and 1280×800, light and dark, plus
+   a detector/overlay pass). **Score 21/40.** Snapshot persisted at
+   `.impeccable/critique/2026-09-17T21-01-20Z__client-src.md`. Gavi then
+   asked specifically whether the app "looks kinda ugly" — that answer
+   is the "Aesthetic pass" subsection: **not ugly, unfinished** (a
+   well-tokened wireframe; 56px wordmark eating the top third of every
+   phone screen is the single biggest tell).
+3. **`gavi411-finish-line-plan.md`** — the mini-PRD. Twelve work
+   packages WP0–WP12, ~12 sessions, dependency graph, per-package
+   files/spec/falsifier, Jira actions, and a guardrails table of the
+   dispatch failure modes this project has actually hit (#125/#127/
+   #129/#138). Its live twin is the Claude Doc "Gavi411 — Finish-Line
+   Plan"; **keep the two in sync if either is edited.**
+
+### Decisions Gavi locked this session (not yet in brain.md — WP0 logs them)
+
+- **E2E encryption is cut for v1**, but parked, not killed — resume if
+  time appears after the deadline. `E2E_ENABLED` stays `false`, no code
+  removed. Filed as **G411-115** under G411-57, explicitly "the first
+  post-finish item."
+- **Everything in the UI/UX critique is in scope**, no triage ordering
+  (his explicit call: "I don't understand why an order needs to be
+  decided, I'd like to tackle all issues surfaced"). Order in the plan
+  exists only because later packages restyle files earlier ones touch.
+- **Three IA additions accepted**: presence as Gavi's avatar, status as
+  a colored chip, credits as a "favors this month" ring.
+- **Friend home becomes a conversation index — the LITE version.** Gavi
+  avatar + presence header, one card per request (status chip +
+  last-message preview), closed collapsed under "Earlier", a "What's
+  up?" bar that opens the *existing* intake unchanged. Home is an index;
+  tapping a card enters that request's own thread. The full version
+  (intake rendered inline on the timeline) is **G411-114**, V2.
+- **Parked to V2**: G411-105 (Vercel permalink slowness), G411-79
+  (video/doc attachments).
+- **Copy pass runs last**, after the UI work — the status chip, app bar
+  and post-submit screen are where the new copy lives.
+
+### Jira — filed and verified this session
+
+Nine new tickets, parent fields confirmed live via JQL after creation
+(not assumed): **G411-108** app bar/menu/presence · **G411-109** friend
+home lite · **G411-110** request detail · **G411-111** intake +
+post-submit · **G411-112** native screens onto components ·
+**G411-113** credits ring · **G411-116** codebase cleanup pass (added
+at Gavi's request after the initial eight: strip history comments and
+placeholders, section headers, split oversized files; runs after the
+copy pass, doubles as the explain-everything review) — all under
+G411-9. **G411-114** full
+home-as-conversation · **G411-115** E2E escrow rebuild — both under
+G411-57.
+
+Every currently-open ticket was checked against the plan: all 20
+non-Done tasks have a home (built, parked, superseded, or scheduled).
+
+### Real state, right now
+
+Branch `you/finish-line-plan-and-audit` off `main` at `71ed66c`, one
+commit (this doc + the two plan files + the critique snapshot), plus a second
+commit adding WP11 (cleanup) to the plan. All 7
+worktrees were on their own branches and untouched. **No dev servers
+were started by this session** — Gavi's own Vite :5173 / API :3000 pair
+was running throughout and was deliberately left alone.
+
+### What's next, concretely — WP0, and it needs Gavi's go-ahead
+
+WP0 is the only package that is pure housekeeping, and **none of it has
+been done**:
+
+1. **Merge PR #119 (G411-103, unread dot)** — built, tested, Landed,
+   just never merged. Check `git worktree list` before any
+   `--delete-branch` (brain.md #130). Then Landed → Reconciled.
+2. **Re-parent G411-79, 83, 84, 85, 105 under G411-57** with a "parked
+   to V2, not cancelled" comment each. That empties G411-3 (Messaging)
+   → Epic to Reconciled.
+3. **Log two brain.md decisions**: the E2E cut, and the visual-direction
+   changes (ink-on-gold, lavender retired, sage limited to success
+   states, shadow flattened). Update
+   `gavi411-e2e-encryption-plan.md` §8 to point at the first.
+4. **Close G411-101** as superseded by G411-109 (Reconciled-as-cancelled,
+   same pattern as G411-68).
+5. **Re-scope G411-77's description** to WP2 (tokens + primitives), not
+   "full UI/UX pass."
+
+Then **WP1 (G411-53, CI pipeline)** — cheapest real win on the board and
+an explicit course requirement with zero effort spent so far.
+
+**Two things still need Gavi's decision, flagged at their own STOP 1**:
+the user-facing term for "request" (WP10/G411-54), and whether
+sub-screens show a back chevron instead of ☰ (WP3/G411-108).
+
+---
+
+## Where this session left off (2026-09-17, earlier) — G411-102 reopened and re-fixed after live retest, merged, back to Reconciled
 
 **After G411-103 wrapped, Gavi reported G411-102 "doesn't seem to work
 at all"** — real, live-caught gap, not something either the original
