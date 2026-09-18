@@ -460,25 +460,28 @@ function App() {
             >
               {fetchedUser?.username || user?.primaryEmailAddress?.emailAddress || user?.id}
             </button>
-            {!isAdmin && fetchedUser?.creditBalance !== undefined && (
-              <span
-                className="credit-balance"
-                title={(() => {
-                  const cap = CREDIT_CAP_BY_TIER[fetchedUser.groupTag] ?? CREDIT_CAP_BY_TIER.REGULAR
-                  // Resets always land at the start of a calendar month (the
-                  // 6-hourly reset job just fires sometime within that day,
-                  // not at an exact minute) — "Month 1st" is accurate without
-                  // implying a precision the job doesn't actually have.
-                  const now = new Date()
-                  const resetMonth = now.getDate() === 1
-                    ? now.toLocaleDateString('en-US', { month: 'long' })
-                    : new Date(now.getFullYear(), now.getMonth() + 1, 1).toLocaleDateString('en-US', { month: 'long' })
-                  return `${fetchedUser.creditBalance}/${cap} credits left, resets ${resetMonth} 1st`
-                })()}
-              >
-                {fetchedUser.creditBalance} credits
-              </span>
-            )}
+            {!isAdmin && fetchedUser?.creditBalance !== undefined && (() => {
+              const cap = CREDIT_CAP_BY_TIER[fetchedUser.groupTag] ?? CREDIT_CAP_BY_TIER.REGULAR
+              // Resets always land at the start of a calendar month (the
+              // 6-hourly reset job just fires sometime within that day,
+              // not at an exact minute) — "Month 1st" is accurate without
+              // implying a precision the job doesn't actually have.
+              const now = new Date()
+              const resetMonth = now.getDate() === 1
+                ? now.toLocaleDateString('en-US', { month: 'long' })
+                : new Date(now.getFullYear(), now.getMonth() + 1, 1).toLocaleDateString('en-US', { month: 'long' })
+              const detail = `${fetchedUser.creditBalance}/${cap} credits left, resets ${resetMonth} 1st`
+              return (
+                <span
+                  className="credit-balance"
+                  title={detail}
+                  tabIndex={0}
+                  aria-label={detail}
+                >
+                  {fetchedUser.creditBalance} credits
+                </span>
+              )
+            })()}
             {' '}
             <button type="button" onClick={() => signOut()}>Sign out</button>
           </span>
