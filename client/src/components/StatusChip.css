@@ -22,17 +22,17 @@
 
 .status-chip-gold {
   background: var(--accent);
-  color: var(--text-h);
+  color: var(--on-accent);
 }
 
 .status-chip-strong {
   background: var(--accent-strong);
-  color: var(--text-h);
+  color: var(--on-accent);
 }
 
 .status-chip-success {
   background: var(--accent-2);
-  color: var(--text-h);
+  color: var(--on-accent);
 }
 
 .status-chip-outline {

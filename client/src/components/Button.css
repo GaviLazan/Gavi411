@@ -19,7 +19,7 @@
 
 .btn-primary {
   background: var(--accent);
-  color: var(--text-h);
+  color: var(--on-accent);
 }
 
 .btn-primary:hover:not(:disabled) {
