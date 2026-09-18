@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import Card from "../components/Card";
 import Button from "../components/Button";
-import { CLOSED_STATUSES, RequestCard } from "./RequestList";
+import { CLOSED_STATUSES } from "../lib/requestStatus";
+import { RequestCard } from "./RequestCard";
 
 // Friend's open/closed requests list (G411-95 — extracted from
 // RequestList's toggle; open and closed were originally two near-

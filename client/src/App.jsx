@@ -18,7 +18,7 @@ import Button from './components/Button'
 import { useTheme } from './useTheme'
 import Recover from './pages/Recover'
 import FriendRequestsList from './pages/FriendRequestsList'
-import { CLOSED_STATUSES } from './pages/RequestList'
+import { CLOSED_STATUSES } from './lib/requestStatus'
 import {
   captureInviteTokenFromUrl,
   getStashedInviteToken,

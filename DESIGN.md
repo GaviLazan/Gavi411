@@ -133,6 +133,7 @@ A warm-neutral ground with one confident primary accent (gold) and two narrower 
 
 ### Primary
 - **Gold** (`#f2a900`, dark: `#ffb700`): the primary accent — primary button fill, chip-selected state, input focus ring/border, the "own message" chat bubble fill. Hover/active state darkens to Gold Strong (`#d99400`, dark: `#ffc933`).
+- **Gold Text** (`#946600`, dark: `#ffb700`): gold used as text color, never as a button fill background — for passing contrast on light backgrounds, or when text needs to read as gold specifically.
 
 ### Secondary
 - **Sage Green** (`#6fae8f`, dark: `#6fae8f`): a narrower second accent — currently used only for the intake flow's "Submit" action (`.btn-success`), distinguishing it from the general-purpose gold CTA. Hover darkens to `#4f8a6c` (dark: `#8fc7ab`).
@@ -177,7 +178,7 @@ Within the intake flow and design-preview shell, a narrower 420px column is used
 Flat page background, soft ambient shadow under cards and the confirm-modal only — never a hard, high-contrast drop shadow. Depth is secondary to the border: the hairline border does most of the work of separating a surface from the page; the shadow just adds a little lift. The shadow token itself darkens/intensifies slightly in dark mode rather than staying a fixed value.
 
 ### Shadow Vocabulary
-- **Ambient** (light: `rgba(0,0,0,0.1) 0 10px 15px -3px, rgba(0,0,0,0.05) 0 4px 6px -2px`; dark: `rgba(0,0,0,0.4) 0 10px 15px -3px, rgba(0,0,0,0.25) 0 4px 6px -2px`): the only shadow in the system — cards, the confirm modal.
+- **Ambient** (light: `rgba(0, 0, 0, 0.06) 0 1px 2px`; dark: `rgba(0, 0, 0, 0.3) 0 1px 2px`): the only shadow in the system — cards, the confirm modal. Flattened (single layer, small blur) for a more subtle, refined depth effect.
 
 ## Shapes
 
@@ -190,10 +191,11 @@ Two form languages: **pill** (full border-radius, 999px) for anything you click 
 
 ### Buttons
 - **Shape:** full pill (999px radius)
-- **Primary:** gold fill (`#f2a900`), white text, 14px/28px padding, 600 weight; hover darkens to Gold Strong
-- **Secondary:** transparent fill, gold text, gold border at 40% opacity; hover fills with a faint gold wash (12% opacity)
+- **Primary:** gold fill (`#f2a900`), dark-ink text, 14px/28px padding, 600 weight; hover darkens to Gold Strong
+- **Secondary:** transparent fill, dark-ink text, gold border at 40% opacity; hover fills with a faint gold wash (12% opacity)
 - **Success** (intake flow "Submit" only): sage-green fill, white text; hover darkens to Sage Strong
-- **Purple/ghost** (intake flow "Back" only): transparent fill, lavender text/border; hover fills with a 12% lavender `color-mix` wash (kept as a mix rather than a fixed token so it stays correct across light/dark, since lavender itself changes value between themes)
+- **Ghost:** transparent fill, body text color; hover fills with a faint gold wash (12% opacity)
+- **Icon:** 44px pill button with icon, transparent fill, body text color; hover fills with a faint gold wash (12% opacity)
 - **Disabled:** 50% opacity, `cursor: not-allowed`, same shape/colors otherwise
 
 ### Chips

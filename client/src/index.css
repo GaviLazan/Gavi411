@@ -35,14 +35,15 @@ html {
   --code-bg: #f5f3ea;
   --accent: #f2a900;
   --accent-strong: #d99400;
+  --accent-text: #946600;
   --accent-bg: rgba(242, 169, 0, 0.12);
   --accent-border: rgba(242, 169, 0, 0.4);
   --accent-2: #6fae8f;
   --accent-2-strong: #4f8a6c;
-  --accent-3: #9b8cce;
-  --social-bg: rgba(239, 236, 224, 0.5);
-  --shadow:
-    rgba(0, 0, 0, 0.1) 0 10px 15px -3px, rgba(0, 0, 0, 0.05) 0 4px 6px -2px;
+  --danger: #b3261e;
+  --danger-bg: rgba(179, 38, 30, 0.12);
+  --success: var(--accent-2);
+  --shadow: rgba(0, 0, 0, 0.06) 0 1px 2px;
 
   /* spacing scale — 4px base, matches the generous card padding seen
      throughout the inspo (Nexus AI cards, Serviqo stat tiles) */
@@ -71,7 +72,7 @@ html {
   --wordmark: 'Google Sans', var(--sans);
   --mono: ui-monospace, Consolas, monospace;
 
-  font: 18px/145% var(--sans);
+  font: 16px/145% var(--sans);
   letter-spacing: 0.18px;
   color-scheme: light dark;
   color: var(--text);
@@ -80,10 +81,6 @@ html {
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-
-  @media (max-width: 1024px) {
-    font-size: 16px;
-  }
 }
 
 /* Dark palette (G411-17). Originally OS-only via the media query below;
@@ -100,18 +97,15 @@ html {
     --code-bg: #212327;
     --accent: #ffb700;
     --accent-strong: #ffc933;
+    --accent-text: #ffb700;
     --accent-bg: rgba(255, 183, 0, 0.15);
     --accent-border: rgba(255, 183, 0, 0.45);
     --accent-2: #6fae8f;
     --accent-2-strong: #8fc7ab;
-    --accent-3: #b3a5e0;
-    --social-bg: rgba(33, 35, 39, 0.5);
-    --shadow:
-      rgba(0, 0, 0, 0.4) 0 10px 15px -3px, rgba(0, 0, 0, 0.25) 0 4px 6px -2px;
-  }
-
-  :root:not([data-theme="light"]) #social .button-icon {
-    filter: invert(1) brightness(2);
+    --danger: #ff8a80;
+    --danger-bg: rgba(255, 138, 128, 0.15);
+    --success: var(--accent-2);
+    --shadow: rgba(0, 0, 0, 0.3) 0 1px 2px;
   }
 }
 
@@ -125,18 +119,15 @@ html {
   --code-bg: #212327;
   --accent: #ffb700;
   --accent-strong: #ffc933;
+  --accent-text: #ffb700;
   --accent-bg: rgba(255, 183, 0, 0.15);
   --accent-border: rgba(255, 183, 0, 0.45);
   --accent-2: #6fae8f;
   --accent-2-strong: #8fc7ab;
-  --accent-3: #b3a5e0;
-  --social-bg: rgba(33, 35, 39, 0.5);
-  --shadow:
-    rgba(0, 0, 0, 0.4) 0 10px 15px -3px, rgba(0, 0, 0, 0.25) 0 4px 6px -2px;
-}
-
-:root[data-theme="dark"] #social .button-icon {
-  filter: invert(1) brightness(2);
+  --danger: #ff8a80;
+  --danger-bg: rgba(255, 138, 128, 0.15);
+  --success: var(--accent-2);
+  --shadow: rgba(0, 0, 0, 0.3) 0 1px 2px;
 }
 
 /* Explicit light override: base :root already carries the light token
@@ -163,12 +154,16 @@ body {
   margin: 0;
 }
 
+:focus-visible {
+  outline: 2px solid var(--accent-strong);
+  outline-offset: 2px;
+}
+
 #root {
   width: 1126px;
   max-width: 100%;
   margin: 0 auto;
   text-align: center;
-  border-inline: 1px solid var(--border);
   min-height: 100svh;
   display: flex;
   flex-direction: column;
@@ -217,4 +212,14 @@ code {
   line-height: 135%;
   padding: 4px 8px;
   background: var(--code-bg);
+}
+
+.meta {
+  font-size: 13px;
+  color: var(--text);
+}
+
+.content {
+  max-width: 640px;
+  margin: 0 auto;
 }

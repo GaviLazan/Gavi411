@@ -248,7 +248,7 @@ function ProfilePage({ user, onBack, onUpdated }) {
           </div>
 
           {/* G411-96: account deletion */}
-          <div style={{ marginTop: 'var(--space-5)', paddingTop: 'var(--space-3)', borderTop: '1px solid var(--color-border)' }}>
+          <div style={{ marginTop: 'var(--space-5)', paddingTop: 'var(--space-3)', borderTop: '1px solid var(--border)' }}>
             {!confirmingDelete ? (
               <button type="button" onClick={() => setConfirmingDelete(true)} style={{ color: '#d32f2f' }}>
                 Delete account

@@ -1,0 +1,42 @@
+.status-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
+  border-radius: var(--radius-pill);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.status-chip-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.status-chip-accent {
+  background: var(--accent-bg);
+  color: var(--text-h);
+}
+
+.status-chip-gold {
+  background: var(--accent);
+  color: var(--text-h);
+}
+
+.status-chip-strong {
+  background: var(--accent-strong);
+  color: var(--text-h);
+}
+
+.status-chip-success {
+  background: var(--accent-2);
+  color: var(--text-h);
+}
+
+.status-chip-outline {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text);
+}

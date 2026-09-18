@@ -42,7 +42,7 @@
 }
 
 .badge.deleted {
-  background-color: var(--color-border);
+  background-color: var(--border);
   color: var(--text);
 }
 
@@ -76,7 +76,7 @@
   flex: 0 1 auto;
   width: 80px;
   padding: var(--space-1);
-  border: 1px solid var(--color-border);
+  border: 1px solid var(--border);
   border-radius: 4px;
   font-size: 14px;
 }
