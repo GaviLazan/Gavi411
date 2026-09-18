@@ -26,6 +26,7 @@ This is the **definition layer**. It settles the calls that would otherwise stop
 - Three IA additions: **presence as Gavi's avatar** (replaces the offline text line), **status as a colored chip** everywhere (labels in Gavi's voice land in the copy pass; the chip lands now), **credits as a "favors this month" ring** (replaces the wrapping header number).
 - **Friend home, lite "conversation" version:** Gavi avatar + presence header, one card per request with status chip and last-message preview, closed requests collapsed under "Earlier," a "What's up?" bar at the bottom that opens the existing intake unchanged. Home is an index; tapping a card enters that request's own thread. **Supersedes G411-101.**
 - CI pipeline (G411-53), the copy pass (G411-54/55/56), and the small open tickets G411-104/106/107.
+- **A full codebase cleanup pass (G411-116), after the copy pass** — strip history comments and placeholders, add section headers, split the oversized files; behaviour byte-for-byte preserved. Added at Gavi's request 2026-09-18.
 
 **Parked to V2 (G411-57), not cut:**
 - **E2E encryption** — cut for v1, formally. G411-83/84/85 re-parent under G411-57 with a comment; `E2E_ENABLED` stays `false`; no code removed. The escrow-only rebuild (`gavi411-e2e-encryption-plan.md` §2) is the **first post-finish item** if time appears. Log as a brain.md decision.
@@ -63,7 +64,7 @@ This is the **definition layer**. It settles the calls that would otherwise stop
 
 ## Execution order
 
-Eleven packages, roughly ten sessions. The order is dictated by *what restyles what*: tokens before any screen, the app bar before any screen that loses its Back pill, the home before the detail (detail's back target changes), all UI before copy.
+Twelve packages, roughly twelve sessions. The order is dictated by *what restyles what*: tokens before any screen, the app bar before any screen that loses its Back pill, the home before the detail (detail's back target changes), all UI before copy.
 
 ```mermaid
 flowchart TD
@@ -81,10 +82,11 @@ flowchart TD
   WP7 --> WP10
   WP8 --> WP10
   WP9 --> WP10
-  WP10 --> WP11[WP11 Close-out<br/>re-critique, reconcile epics, deploy check]
+  WP10 --> WP11[WP11 G411-116<br/>Cleanup pass]
+  WP11 --> WP12[WP12 Close-out<br/>re-critique, reconcile epics, deploy check]
 ```
 
-Read top-down: WP0 and WP1 are cheap and protect everything after them. WP2 is the fan-out point — once tokens and primitives exist, WP3–WP9 can run in any order across sessions, though WP4 → WP5 and WP7 → WP8 are real dependencies. WP10 waits for every screen. WP11 is the wrap.
+Read top-down: WP0 and WP1 are cheap and protect everything after them. WP2 is the fan-out point — once tokens and primitives exist, WP3–WP9 can run in any order across sessions, though WP4 → WP5 and WP7 → WP8 are real dependencies. WP10 waits for every screen. WP11 (cleanup) waits for WP10 so it never cleans code about to be rewritten. WP12 is the wrap.
 
 | Package | Ticket | Size | Session |
 | --- | --- | --- | --- |
@@ -99,7 +101,8 @@ Read top-down: WP0 and WP1 are cheap and protect everything after them. WP2 is t
 | WP7 Native screens onto components | G411-112 | 1 | 8 |
 | WP8 Credits ring | G411-113 | ½ | 8 |
 | WP10 Copy pass | G411-54, 55, 56 | 1 | 9 |
-| WP11 Close-out | (process) | ½ | 10 |
+| WP11 Cleanup pass | G411-116 | 2 | 10–11 |
+| WP12 Close-out | (process) | ½ | 12 |
 
 WP9 is placed early on purpose: G411-107 adds a route and a migration that WP7 would otherwise restyle around mid-flight, and G411-106 touches `App.jsx` state that WP3/WP4 also touch — landing it first means one merge, not a rebase.
 
@@ -248,7 +251,7 @@ WP9 is placed early on purpose: G411-107 adds a route and a migration that WP7 w
 
 **Falsifier:** at balances 0, 3, 5 with cap 5 the ring arc is 0%, 60%, 100% (`stroke-dashoffset` computed); admin sees no ring.
 
-## Work packages WP9–WP11
+## Work packages WP9–WP12
 
 ### WP9 — Small tickets (G411-104, G411-106, G411-107)
 
@@ -274,7 +277,31 @@ Three independent, already-scoped tickets. One session, three PRs, in this order
 
 **Falsifier:** `grep -rn -i 'ticket' client/src server/lib server/routes` returns only code identifiers and comments, never a JSX string or notification body; Gavi reads the friend flow end to end and finds no enum-shaped label.
 
-### WP11 — Close-out
+### WP11 — Codebase cleanup pass (G411-116)
+
+**Goal:** a codebase a reader can navigate — Gavi for the course's "explain every line" requirement, a grader cold. Comments say *what this does and why it's shaped this way now*; they do not narrate how it got there. Behaviour is byte-for-byte preserved. **Runs after WP10** (so placeholders are already gone and nothing cleaned is about to be rewritten) and **before WP12** (so the final re-critique covers the cleaned code).
+
+**Why it's real, measured 2026-09-18 (non-test source):** comment density `auth.js` 135/225 lines (60%), `inviteToken.js` 60/164, `requests.js` 402/1340, `RequestDetail.jsx` 266/1066, `App.jsx` 188/855. **105** comments beginning "Sibling review finding…", **313** `G411-nn` references, 12 "decision #" citations, 96 mentions of Gavi by name — all in code comments; that history already lives in git log, PR comments, brain.md and Jira. 8 `ponytail:` markers, 25 "placeholder" mentions, 57 inline `style={{}}` blocks across 8 JSX files. `requests.js` is 1,340 lines (test: 2,686) carrying CRUD, messages, lifecycle, notes, overdraft and admin-user routes in one file. `RequestList.jsx` is the specimen: 16 comment lines above one exported constant.
+
+**Files:** everything under `server/` and `client/src/` except the E2E crypto modules' internals (bounded, not rewritten — see item 6).
+
+**Spec:**
+1. **Comments — delete history, keep intent.** Remove every "how it got this way" narration: "Sibling review finding", "Gavi's live catch", "used to… / originally…", ticket-number prefixes, decision citations. Keep, as one line each: a genuinely non-derivable *why* (the `AbortController` in the token-claim effect exists because StrictMode double-fires it — one sentence, not the paragraph), security invariants, anything a reader would otherwise get wrong. A why that truly needs a citation cites the brain.md decision number and nothing else. Target: comment lines ≤ 10% per file.
+2. **Section headers.** Files over ~300 lines get `// ── Section name ──` banners, one style defined once: `App.jsx` (state · bootstrap effects · view helpers · render), `requests.js` by route group, `RequestDetail.jsx`, `NewRequest.jsx`, tests by describe group. Navigation, not prose.
+3. **Split the oversized files — structure only.** `server/routes/requests.js` → `server/routes/requests/` one file per concern, `index.js` mounting them in the existing order (Express matching order preserved exactly — `by-public-id` before `/:id`). `requests.test.js` splits to mirror. `RequestDetail.jsx` → extract the admin controls block and friend lifecycle actions. `App.jsx` → extract the auth/bootstrap effect chain into `useSession()`; the header is already `AppBar` after WP3. Rule: extract only where a file exceeds ~400 lines *or* mixes two concerns; nothing for a single call site.
+4. **Inline styles → classes** — whatever `style={{}}` survives WP7 moves to the owning CSS file.
+5. **Placeholders and deferrals.** Run `/ponytail-debt` first; each `ponytail:` marker becomes a fix in the PR or a V2 ticket under G411-57, never left as-is. Any "placeholder" still present after WP10 is real copy now or removed.
+6. **Dormant E2E code stays but gets bounded** (parked, G411-115): every `E2E_ENABLED` check inside a live route handler routes through one helper; the crypto modules get one banner pointing at G411-115; no dormant branch interleaved with live logic.
+7. **Dead code.** Delete what WP2/WP4 left (`RequestList.jsx` remnant, `FriendRequestsList.jsx`), unused exports (`/repowise:dead-code` if the index is healthy, else grep every `export`), unused CSS classes.
+8. **Lint.** `oxlint` (already a client devDependency) across `server/` too, fix what it flags — only if zero-config; else skip.
+9. **Tests** follow the same comment rule; `describe`/`it` names stay descriptive — they are the documentation.
+10. `scripts/*.js` get a three-line header each (what, when to run, danger level).
+
+**Process — five PRs, one per area:** server routes · server lib + middleware · client pages · client components + lib · tests. **Gavi reviews each personally: this package doubles as the course's explain-everything pass.** Sonnet walks him through each file's new shape at STOP 3, not just a diff. Haiku does the mechanical comment deletion under the rule list; Sonnet defines each split file-by-file before dispatch.
+
+**Falsifier (per PR):** `npm test` count unchanged (or changed only by named deletions of genuinely dead tests); `npm run build` clean; Playwright screenshots of home, intake step 1, request detail, profile, notifications at 390×844 **pixel-identical** before and after; comment lines ≤ 10% in every touched file; `grep -rn 'Sibling review\|G411-[0-9]' server client/src --include=*.js --include=*.jsx | grep -v test` returns nothing outside the E2E banner.
+
+### WP12 — Close-out
 
 1. Re-run `/impeccable critique` on `client/src`; target ≥ 30/40 with zero P0. Re-run `/impeccable audit` for a11y/contrast numbers. Fix anything red in one bounded pass.
 2. Live pass on the deployed Vercel + Render build (pre-warm Render), phone in hand: sign-up via a fresh invite, intake, thread, notification tap, reload, dark mode.
@@ -286,7 +313,7 @@ Three independent, already-scoped tickets. One session, three PRs, in this order
 
 ## Jira housekeeping
 
-The eight new tickets were **filed 2026-09-18** (G411-108 … G411-115) and their parent fields verified live. Everything else in this table is still proposed, not executed. New tickets parent under **G411-9 (Copywriting & UI/UX Pass)** — the one Open epic whose scope this is, avoiding a reopen of any Reconciled epic (brain.md #108). Set the real parent field at creation. Aegis fields are written at each ticket's own pickup, never pre-filled.
+The nine new tickets were **filed 2026-09-18** (G411-108 … G411-116) and their parent fields verified live. Everything else in this table is still proposed, not executed. New tickets parent under **G411-9 (Copywriting & UI/UX Pass)** — the one Open epic whose scope this is, avoiding a reopen of any Reconciled epic (brain.md #108). Set the real parent field at creation. Aegis fields are written at each ticket's own pickup, never pre-filled.
 
 | Action | Ticket | Note |
 | --- | --- | --- |
@@ -303,9 +330,10 @@ The eight new tickets were **filed 2026-09-18** (G411-108 … G411-115) and thei
 | ✅ Filed 2026-09-18 | **G411-113** — WP8 Credits ring | under G411-9 |
 | ✅ Filed 2026-09-18 | **G411-114** — Full home-as-conversation (inline intake) | under G411-57; "after WP4, if time" |
 | ✅ Filed 2026-09-18 | **G411-115** — E2E escrow-only rebuild | under G411-57; points at `gavi411-e2e-encryption-plan.md` §2; first post-finish item |
+| ✅ Filed 2026-09-18 | **G411-116** — WP11 Codebase cleanup pass | under G411-9; runs after WP10, before close-out |
 | Unchanged | G411-53, 54, 55, 56, 104, 106, 107 | already scoped; picked up per the order table |
 
-Epic rollups at each transition (jira-parent-rollup rule): G411-7 goes Reconciled once 106/107 land; G411-8 once 53 lands; G411-9 at WP11.
+Epic rollups at each transition (jira-parent-rollup rule): G411-7 goes Reconciled once 106/107 land; G411-8 once 53 lands; G411-9 at WP12.
 
 ## Guardrails for the executing session
 
@@ -323,5 +351,6 @@ Every one of these has happened on this project at least once (brain.md #125, #1
 | Stale Prisma Client after a schema change | WP9 | `npx prisma generate`, then a real query touching the new column |
 | Scope creep inside a package | WP4–WP7 especially | diff touches only the files the package lists; anything else is a new ticket |
 | Copy polished early | WP2–WP9 | strings stay placeholder until WP10; a dispatch "improving" copy gets reverted |
+| "Cleanup" that changes behaviour | WP11 | the pixel-identical screenshot diff and unchanged test count are the gate; any logic change found mid-cleanup becomes a ticket, not a commit |
 
 **When something in this plan turns out to be wrong** (an ⚠ verify fails, a file moved, a shape differs): fix the spec in this doc and the `.md` in the same session, cite the reason, then dispatch. Don't hand Haiku a spec you know is off.

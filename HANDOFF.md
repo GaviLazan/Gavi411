@@ -37,8 +37,8 @@ deliverables, all committed on this branch, plus eight new Jira tickets.
    is the "Aesthetic pass" subsection: **not ugly, unfinished** (a
    well-tokened wireframe; 56px wordmark eating the top third of every
    phone screen is the single biggest tell).
-3. **`gavi411-finish-line-plan.md`** — the mini-PRD. Eleven work
-   packages WP0–WP11, ~10 sessions, dependency graph, per-package
+3. **`gavi411-finish-line-plan.md`** — the mini-PRD. Twelve work
+   packages WP0–WP12, ~12 sessions, dependency graph, per-package
    files/spec/falsifier, Jira actions, and a guardrails table of the
    dispatch failure modes this project has actually hit (#125/#127/
    #129/#138). Its live twin is the Claude Doc "Gavi411 — Finish-Line
@@ -69,11 +69,15 @@ deliverables, all committed on this branch, plus eight new Jira tickets.
 
 ### Jira — filed and verified this session
 
-Eight new tickets, parent fields confirmed live via JQL after creation
+Nine new tickets, parent fields confirmed live via JQL after creation
 (not assumed): **G411-108** app bar/menu/presence · **G411-109** friend
 home lite · **G411-110** request detail · **G411-111** intake +
 post-submit · **G411-112** native screens onto components ·
-**G411-113** credits ring — all under G411-9. **G411-114** full
+**G411-113** credits ring · **G411-116** codebase cleanup pass (added
+at Gavi's request after the initial eight: strip history comments and
+placeholders, section headers, split oversized files; runs after the
+copy pass, doubles as the explain-everything review) — all under
+G411-9. **G411-114** full
 home-as-conversation · **G411-115** E2E escrow rebuild — both under
 G411-57.
 
@@ -83,7 +87,8 @@ non-Done tasks have a home (built, parked, superseded, or scheduled).
 ### Real state, right now
 
 Branch `you/finish-line-plan-and-audit` off `main` at `71ed66c`, one
-commit (this doc + the two plan files + the critique snapshot). All 7
+commit (this doc + the two plan files + the critique snapshot), plus a second
+commit adding WP11 (cleanup) to the plan. All 7
 worktrees were on their own branches and untouched. **No dev servers
 were started by this session** — Gavi's own Vite :5173 / API :3000 pair
 was running throughout and was deliberately left alone.
