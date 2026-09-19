@@ -366,6 +366,7 @@ Two things carry forward from the old regime:
 | `gavi411-task-list-source.md` | Original hour-costed backlog used to populate Jira; Jira is live now |
 | `gavi411-e2e-encryption-plan.md` | Living doc for the paused E2E work — read before touching messaging/encryption |
 | `gavi411-post-deadline-learning-backlog.md` | Post-deadline study list — doesn't affect how you build now |
+| `gavi411-playwright-signin.md` | Working recipe for driving Clerk sign-in with Playwright — read before writing a login-flow test script |
 
 ## Standing facts
 
