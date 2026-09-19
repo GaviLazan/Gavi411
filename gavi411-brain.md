@@ -1274,6 +1274,14 @@ a silent-override footgun the moment a second caller passes that prop —
 worth grepping for on any shared primitive before assuming "it's worked
 until now" means "it's correct."
 
+### Decision #144 — Fourth occurrence of a migration marked applied without its SQL running (2026-09-19, G411-107)
+
+`npx prisma migrate status` reported "Database schema is up to date!" — but the live DB genuinely had no `clearedAt` column (`information_schema.columns` confirmed 7 columns, not 8), and every notification route 500'd for real once the API server restarted with the regenerated Prisma client. Not caught by the earlier `migrate status` check alone — same standing lesson as #138: **check `_prisma_migrations`'s raw rows, not just the summary.** Doing so found `20260919_add_notification_cleared_at` recorded with `finished_at` set but `applied_steps_count: 0` — marked finished without its `ALTER TABLE` ever actually executing. Same row also showed the real historical cause of #138's own finding still sitting there (`20260917200153_add_notification_request_id`'s failed-then-recovered log), confirming this project's dispatches keep hitting variants of "mark it applied without really applying it," not one-off flukes.
+
+Since Prisma refused `migrate resolve --rolled-back` (the row wasn't in a *failed* state, just falsely-finished), the fix was to run the exact same `ALTER TABLE` the migration file already specifies directly against the real DB — making reality match what the tracker already (incorrectly) claimed, confirmed by re-querying `information_schema.columns` and re-running `migrate status` after. Gavi's explicit go-ahead obtained before running raw DDL against the live database (the auto-mode classifier itself blocked the first attempt, correctly, as a live-DB schema mutation).
+
+**Standing lesson, now hit a fourth time (#98, #99, #138, this one)**: `migrate status` alone is not sufficient evidence a migration really ran — verify with a real query against the actual table (`information_schema.columns`, or the specific column in question) whenever a route touching a newly-migrated field is about to go live, not just before merge. Worth eventually asking whichever dispatch is doing migration work to paste its exact `npx prisma migrate dev` invocation and output directly into its report, since none of these four incidents has ever come with a real command log to diagnose from after the fact.
+
 ## 7. Not Yet Discussed
  
 - Data model, architecture, tech decisions (schema itself not yet drafted — first task on deck).

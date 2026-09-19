@@ -12,9 +12,10 @@ const router = express.Router()
 // Deliberately unread-count-unaware for this ticket (the status is
 // part of the readAt field itself, not a separate UI). `readAt` is the
 // real tracking field — null means unread, set to a date means read.
+// G411-107: excludes cleared notifications (clearedAt is set).
 router.get('/', requireAuth, async (req, res) => {
   const notifications = await prisma.notification.findMany({
-    where: { userId: req.user.clerkId },
+    where: { userId: req.user.clerkId, clearedAt: null },
     orderBy: { createdAt: 'desc' },
     take: 50,
   })
@@ -23,11 +24,13 @@ router.get('/', requireAuth, async (req, res) => {
 })
 
 // GET /unread-count — count of unread notifications for the signed-in user.
+// G411-107: excludes cleared notifications (clearedAt is set).
 router.get('/unread-count', requireAuth, async (req, res) => {
   const count = await prisma.notification.count({
     where: {
       userId: req.user.clerkId,
       readAt: null,
+      clearedAt: null,
     },
   })
 
@@ -44,6 +47,24 @@ router.post('/mark-all-read', requireAuth, async (req, res) => {
     },
     data: {
       readAt: new Date(),
+    },
+  })
+
+  res.json({ ok: true })
+})
+
+// POST /clear-all — soft-clear all notifications for the signed-in user
+// (G411-107). Sets clearedAt to now for every row where clearedAt is null,
+// regardless of readAt. Cleared notifications are excluded from the normal
+// listing (/api/notifications) and unread count (/api/notifications/unread-count).
+router.post('/clear-all', requireAuth, async (req, res) => {
+  await prisma.notification.updateMany({
+    where: {
+      userId: req.user.clerkId,
+      clearedAt: null,
+    },
+    data: {
+      clearedAt: new Date(),
     },
   })
 

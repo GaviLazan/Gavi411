@@ -62,6 +62,9 @@ const THEME_LABEL = { light: 'Light', dark: 'Dark' }
 // package for. Used only for the credit-balance tooltip's "x/y" cap.
 const CREDIT_CAP_BY_TIER = { LIMITED: 2, REGULAR: 5, CLOSE: 7 }
 
+// G411-106: sessionStorage keys for persisting view state across reloads
+const VIEW_STORAGE_KEY = 'gavi411_view_state'
+
 // G411-66: gate real content behind Clerk auth state.
 // NOTE: this project's installed package is "@clerk/react" (a lower-level
 // package), not "@clerk/clerk-react" — it does not export SignedIn/SignedOut
@@ -77,8 +80,32 @@ const CREDIT_CAP_BY_TIER = { LIMITED: 2, REGULAR: 5, CLOSE: 7 }
 function App() {
   const { isSignedIn, user } = useUser()
   const { signOut } = useClerk()
-  const [view, setView] = useState('list') // 'list' | 'new' | 'install-help' | 'detail' | 'invite-admin' | 'trigger-admin' | 'admin-create-request' | 'profile' | 'user-management' | 'notification-history' | 'open-requests' | 'closed-requests'
-  const [selectedRequestId, setSelectedRequestId] = useState(null)
+  // G411-106: restore view state from sessionStorage on mount, but only if
+  // no permalink is being consumed (permalink flow takes precedence)
+  const [view, setView] = useState(() => {
+    const hasPermalink = Boolean(getStashedRequestPermalink())
+    if (hasPermalink) return 'list'
+    try {
+      const saved = sessionStorage.getItem(VIEW_STORAGE_KEY)
+      if (saved) {
+        const { view: savedView } = JSON.parse(saved)
+        return savedView || 'list'
+      }
+    } catch {}
+    return 'list'
+  })
+  const [selectedRequestId, setSelectedRequestId] = useState(() => {
+    const hasPermalink = Boolean(getStashedRequestPermalink())
+    if (hasPermalink) return null
+    try {
+      const saved = sessionStorage.getItem(VIEW_STORAGE_KEY)
+      if (saved) {
+        const { selectedRequestId: savedId } = JSON.parse(saved)
+        return savedId || null
+      }
+    } catch {}
+    return null
+  })
   const [newRequestHasText, setNewRequestHasText] = useState(false)
   const [showLogoDiscardConfirm, setShowLogoDiscardConfirm] = useState(false)
   // G411-49 fix: DeniedHelpDialog must render as a top-level sibling, not
@@ -90,7 +117,17 @@ function App() {
   // handleBack) instead of a plain setView when view === 'profile'.
   const profilePageRef = useRef(null)
   const [unreadCount, setUnreadCount] = useState(0)
-  const [previousView, setPreviousView] = useState('list')
+  // G411-106: restore previousView from sessionStorage on mount
+  const [previousView, setPreviousView] = useState(() => {
+    try {
+      const saved = sessionStorage.getItem(VIEW_STORAGE_KEY)
+      if (saved) {
+        const { previousView: savedPrevious } = JSON.parse(saved)
+        return savedPrevious || 'list'
+      }
+    } catch {}
+    return 'list'
+  })
   const { theme, cycleTheme } = useTheme()
   const [isOnline, setIsOnline] = useState(true)
   const [presenceToggling, setPresenceToggling] = useState(false)
@@ -319,6 +356,15 @@ function App() {
       if (key) wrapMissingConversationKeys(key)
     })
   }, [role])
+
+  // G411-106: persist view state to sessionStorage whenever it changes
+  useEffect(() => {
+    sessionStorage.setItem(VIEW_STORAGE_KEY, JSON.stringify({
+      view,
+      selectedRequestId,
+      previousView,
+    }))
+  }, [view, selectedRequestId, previousView])
 
   // G411-94: open a request detail view given its real numeric ID.
   // Factored as a named function so both the permalink-consume effect
@@ -678,7 +724,7 @@ function App() {
           ) : view === 'user-management' ? (
             <UserManagement />
           ) : view === 'notification-history' ? (
-            <NotificationHistory onBack={() => setView('list')} onOpenRequest={openRequest} />
+            <NotificationHistory onBack={() => setView('list')} onOpenRequest={openRequest} onCleared={() => setUnreadCount(0)} />
           ) : view === 'profile' ? (
             <ProfilePage
               ref={profilePageRef}

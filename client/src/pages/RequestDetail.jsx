@@ -152,7 +152,15 @@ function RequestDetail({ requestId, isAdmin }) {
   // Admin-only tab state (G411-38) — friends never see tabs, so this is
   // simply unused/ignored on their path rather than gated behind isAdmin
   // at declaration (cheaper than conditionally calling useState).
-  const [adminTab, setAdminTab] = useState("details");
+  // G411-106: persist tab selection per-request to sessionStorage
+  const [adminTab, setAdminTab] = useState(() => {
+    try {
+      const key = `gavi411_admin_tab_${requestId}`
+      const saved = sessionStorage.getItem(key)
+      if (saved) return saved
+    } catch {}
+    return "details"
+  });
   // Details/Thread side-by-side toggle — defaults on for a wide viewport
   // (matches the codebase's one existing breakpoint, App.css/index.css),
   // off for narrow, but admin can flip it either way regardless of
@@ -347,6 +355,12 @@ function RequestDetail({ requestId, isAdmin }) {
       setDeviceLinkStatus("error");
     }
   }
+
+  // G411-106: persist adminTab to sessionStorage whenever it changes
+  useEffect(() => {
+    const key = `gavi411_admin_tab_${requestId}`
+    sessionStorage.setItem(key, adminTab)
+  }, [adminTab, requestId])
 
   function refetch() {
     // Same res.ok check + swallow-on-failure as the mount-load effect

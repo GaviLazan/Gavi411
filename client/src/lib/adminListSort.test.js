@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { timeSince, lastActivityAt, filterRequests, sortRequests, groupByPerson, matchesPlainFields } from "./adminListSort";
+import { timeSince, lastActivityAt, filterRequests, sortRequests, filterByUrgency, groupByPerson, matchesPlainFields } from "./adminListSort";
 
 describe("timeSince", () => {
   it("formats minutes for a recent timestamp", () => {
@@ -60,33 +60,54 @@ describe("filterRequests", () => {
 });
 
 describe("sortRequests", () => {
-  it("sorts by urgency descending, oldest-first within a band (default)", () => {
+  it("sorts by createdAt oldest first when order is 'oldest'", () => {
     const requests = [
-      { id: 1, urgency: "LOW", createdAt: "2026-01-02T00:00:00.000Z" },
-      { id: 2, urgency: "HIGH", createdAt: "2026-01-03T00:00:00.000Z" },
-      { id: 3, urgency: "HIGH", createdAt: "2026-01-01T00:00:00.000Z" },
-      { id: 4, urgency: "NORMAL", createdAt: "2026-01-01T00:00:00.000Z" },
+      { id: 1, createdAt: "2026-01-02T00:00:00.000Z" },
+      { id: 2, createdAt: "2026-01-03T00:00:00.000Z" },
+      { id: 3, createdAt: "2026-01-01T00:00:00.000Z" },
     ];
-    // HIGH band: id 3 (older) before id 2 (newer). Then NORMAL, then LOW.
-    expect(sortRequests(requests, "urgency").map((r) => r.id)).toEqual([3, 2, 4, 1]);
+    expect(sortRequests(requests, "oldest").map((r) => r.id)).toEqual([3, 1, 2]);
   });
 
-  it("sorts by age, newest first", () => {
+  it("sorts by createdAt newest first when order is 'newest'", () => {
     const requests = [
-      { id: 1, urgency: "LOW", createdAt: "2026-01-01T00:00:00.000Z" },
-      { id: 2, urgency: "HIGH", createdAt: "2026-01-03T00:00:00.000Z" },
-      { id: 3, urgency: "NORMAL", createdAt: "2026-01-02T00:00:00.000Z" },
+      { id: 1, createdAt: "2026-01-02T00:00:00.000Z" },
+      { id: 2, createdAt: "2026-01-03T00:00:00.000Z" },
+      { id: 3, createdAt: "2026-01-01T00:00:00.000Z" },
     ];
-    expect(sortRequests(requests, "age").map((r) => r.id)).toEqual([2, 3, 1]);
+    expect(sortRequests(requests, "newest").map((r) => r.id)).toEqual([2, 1, 3]);
   });
 
   it("does not mutate the input array", () => {
     const requests = [
-      { id: 1, urgency: "LOW", createdAt: "2026-01-01T00:00:00.000Z" },
-      { id: 2, urgency: "HIGH", createdAt: "2026-01-02T00:00:00.000Z" },
+      { id: 1, createdAt: "2026-01-01T00:00:00.000Z" },
+      { id: 2, createdAt: "2026-01-02T00:00:00.000Z" },
     ];
     const original = [...requests];
-    sortRequests(requests, "urgency");
+    sortRequests(requests, "oldest");
+    expect(requests).toEqual(original);
+  });
+});
+
+describe("filterByUrgency", () => {
+  const requests = [
+    { id: 1, urgency: "HIGH" },
+    { id: 2, urgency: "LOW" },
+    { id: 3, urgency: "HIGH" },
+    { id: 4, urgency: "NORMAL" },
+  ];
+
+  it("returns only HIGH urgency requests when urgentOnly is true", () => {
+    expect(filterByUrgency(requests, true).map((r) => r.id)).toEqual([1, 3]);
+  });
+
+  it("returns all requests when urgentOnly is false", () => {
+    expect(filterByUrgency(requests, false)).toEqual(requests);
+  });
+
+  it("does not mutate the input array", () => {
+    const original = [...requests];
+    filterByUrgency(requests, true);
     expect(requests).toEqual(original);
   });
 });

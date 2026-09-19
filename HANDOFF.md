@@ -12,7 +12,31 @@ accumulated. If something here turns out to matter long-term, promote it to
 
 ---
 
-## Where this session left off (2026-09-19, latest) — WP3 (G411-108, app bar/menu/presence) built, Landed, awaiting merge go-ahead
+## Where this session left off (2026-09-19, latest) — WP9 (G411-104/106/107, small tickets) built, Landed, awaiting merge go-ahead
+
+**Picked up WP9 at STOP 1** — all three tickets pulled fresh from Jira since two had locked scope from an earlier session and one turned out to be stale. G411-104's actual diagnosis ("urgency isn't a real sort key") was wrong on re-investigation — `adminListSort.js`'s comparator already sorted urgency-first correctly, per decision #46. Live-testing with Gavi surfaced the real problem instead: urgency-sort forced oldest-first with no way to reverse it, and "new" vs "urgent" were wrongly treated as opposites in one dropdown. **Re-scoped G411-104 in Jira before any code**, per Gavi's explicit ask to make sure the ticket was properly updated (scope + Aegis fields), not just the code.
+
+**Final locked scope, all three**:
+- **G411-104**: Sort dropdown drops urgency as a sort mode entirely (just Newest/Oldest, plain `createdAt`). New "Urgent only" checkbox, independent of sort direction. Persistent colored dot on every card regardless of sort/filter/checkbox state — red (`--danger`) for HIGH, green (`--success`) for LOW, none for NORMAL, reusing WP2's tokens.
+- **G411-106**: `App.jsx`'s `view`/`selectedRequestId`/`previousView` persisted to sessionStorage, restored on mount (permalink-consume flow still takes precedence). `RequestDetail`'s admin tab (Details/Thread vs Notes) persisted per-`requestId`. **Scope grew once live**: Gavi asked whether AdminList's Sort/Group/Urgent-only should also survive a reload — yes, added (own sessionStorage key; `filter` deliberately excluded since it's a controlled prop reflecting real navigation, not a preference).
+- **G411-107**: `Notification.clearedAt` (new nullable column, real migration), `POST /clear-all` mirroring `mark-all-read`'s exact shape, `GET /` and `GET /unread-count` both exclude cleared rows. "Clear" button on `NotificationHistory.jsx`, no confirm step. **One more fix after initial live-test**: Clear didn't zero the hamburger's unread dot immediately (only on the next background refetch) — added an `onCleared` callback prop so `App.jsx`'s `unreadCount` clears the instant the action succeeds.
+
+**Real incident during live testing, logged as brain.md decision #144 — the fourth occurrence of this exact failure class (#98, #99, #138, now this one)**: after restarting the API server to pick up the new route + regenerated Prisma client, every notification endpoint 500'd with `column "clearedAt" does not exist`, even though `npx prisma migrate status` reported "up to date" the whole time. Checked the raw `_prisma_migrations` row per the standing #138 lesson: `20260919_add_notification_cleared_at` was recorded `finished_at` set but `applied_steps_count: 0` — marked applied without its SQL ever actually running. Fixed by running the exact `ALTER TABLE` from the migration file directly against the live Neon DB (Gavi's explicit go-ahead obtained first — this is a live-DB schema mutation, and the auto-mode classifier correctly blocked the first unattended attempt). Verified after via a real `information_schema.columns` query, not just `migrate status` again.
+
+Haiku built the first draft for all three; Sibling review (this session) confirmed everything matched spec on first read — no bugs found in the actual diff, only the migration-application gap above (which is an infrastructure/tooling issue, not a code bug) and the unread-dot follow-up (a real UX gap Gavi caught live, fixed same session). 554/554 tests pass fresh (11 new: 5 for G411-104's sort/filter split, 6 for G411-107's clear-all + cleared-exclusion), client build clean. Jira: all three **Landed**, Evidence-bar-met written against real final state. **Awaiting merge go-ahead — not yet Reconciled.**
+
+### Real state, right now
+Primary worktree on branch `you/WP9-sort-reload-clear` (uncommitted — wrap-up step 6 in progress). Files touched: `client/src/App.jsx`, `client/src/lib/adminListSort.js`/`.test.js`, `client/src/pages/AdminList.jsx`, `client/src/pages/NotificationHistory.jsx`, `client/src/pages/RequestDetail.jsx`, `prisma/schema.prisma` + new migration `20260919_add_notification_cleared_at`, `server/routes/notifications.js`/`.test.js`. The live Neon DB itself was directly patched this session (see incident above) — already reflected in the schema/migration files, nothing further needed there. No PR opened yet.
+
+### What's next, concretely
+1. **Commit, open the PR, ask Gavi for the merge go-ahead** (wrap-up steps 6-7 — not yet done as of this write).
+2. Once merged: Jira Landed → Reconciled for all three, immediately (steps 1-4 already covered it).
+3. Then next pick per `gavi411-finish-line-plan.md`'s execution order: **WP4 (G411-109, friend home lite)** — now unblocked since both WP2 and WP3 have landed. Confirm with Gavi at STOP 1.
+4. Still open, not blocking: the pre-existing `index.css` design-hook findings (flagged repeatedly, nobody's picked them up yet), the `/impeccable document` sidecar refresh, and `NotificationHistory.jsx`'s own "← Back" button — now redundant with WP3's app-bar back chevron but was never in scope for WP3 (which only cleaned up the 3 pages that had a *visible* Back button) or WP9 — worth a one-line cleanup whenever that file is next touched for real.
+
+---
+
+## Where this session left off (2026-09-19, earlier) — WP3 (G411-108, app bar/menu/presence) built, Landed, awaiting merge go-ahead
 
 **Picked up WP3 at STOP 1** — scope confirmed with Gavi (back-chevron-on-sub-screens per the plan's own default), Jira transitioned Open → Implementing, Scope/Falsifier/Role written pre-code. Haiku built the first draft: 56px app bar (☰ / wordmark / avatar chip), hamburger menu regrouped into You/Requests/Setup, `GET /api/presence` extended with admin's firstName+profilePic.
 

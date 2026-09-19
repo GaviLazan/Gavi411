@@ -4,7 +4,7 @@ import Select from "../components/Select";
 import Input from "../components/Input";
 import Button from "../components/Button";
 import { statusLabel } from "../lib/requestStatus";
-import { timeSince, lastActivityAt, filterRequests, sortRequests, groupByPerson, matchesPlainFields } from "../lib/adminListSort";
+import { timeSince, lastActivityAt, filterRequests, sortRequests, filterByUrgency, groupByPerson, matchesPlainFields } from "../lib/adminListSort";
 import { buildSearchIndex, searchIndex } from "../lib/searchIndex";
 import { loadLinkedConversationKeys } from "../lib/deviceLinking";
 import { seedLinkedConversationKeys } from "../lib/conversationCrypto";
@@ -34,8 +34,8 @@ import { seedLinkedConversationKeys } from "../lib/conversationCrypto";
 // page components don't).
 
 const SORT_OPTIONS = [
-  { value: "urgency", label: "Urgency (oldest first)" },
-  { value: "age", label: "Age (newest first)" },
+  { value: "newest", label: "Newest first" },
+  { value: "oldest", label: "Oldest first" },
 ];
 
 const FILTER_OPTIONS = [
@@ -85,9 +85,37 @@ function AdminRequestRow({ request, onClick }) {
           {/* dir="auto" (Sibling review finding): firstName/lastName are
               freeform Clerk profile fields, same category as freeText
               below — can contain Hebrew, need correct bidi rendering. */}
-          <p dir="auto" style={{ fontWeight: 600 }}>
-            {friendName}
-            {request.type ? ` · ${statusLabel(request.type)}` : ""}
+          <p dir="auto" style={{ fontWeight: 600, display: "flex", alignItems: "center", gap: "var(--space-1)" }}>
+            {request.urgency === "HIGH" && (
+              <span
+                style={{
+                  display: "inline-block",
+                  width: 8,
+                  height: 8,
+                  borderRadius: "50%",
+                  background: "var(--danger)",
+                  flexShrink: 0,
+                }}
+                aria-hidden="true"
+              />
+            )}
+            {request.urgency === "LOW" && (
+              <span
+                style={{
+                  display: "inline-block",
+                  width: 8,
+                  height: 8,
+                  borderRadius: "50%",
+                  background: "var(--success)",
+                  flexShrink: 0,
+                }}
+                aria-hidden="true"
+              />
+            )}
+            <span>
+              {friendName}
+              {request.type ? ` · ${statusLabel(request.type)}` : ""}
+            </span>
           </p>
           <p dir="auto" style={{ color: "var(--text)", fontSize: 14, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
             {request.freeText}
@@ -106,13 +134,32 @@ function AdminRequestRow({ request, onClick }) {
   );
 }
 
+// G411-106: sessionStorage key for the sort/group/urgent-only list
+// preferences (not `filter` -- that's a controlled prop synced from
+// App.jsx's own navigation state, not a local preference).
+const LIST_PREFS_STORAGE_KEY = "gavi411_admin_list_prefs";
+
+function loadListPrefs() {
+  try {
+    const saved = sessionStorage.getItem(LIST_PREFS_STORAGE_KEY);
+    if (saved) return JSON.parse(saved);
+  } catch {}
+  return {};
+}
+
 function AdminList({ onOpenRequest, onNewRequest, filter: filterProp, onRequestsLoaded, refreshToken }) {
   const [requests, setRequests] = useState(null);
   const [error, setError] = useState("");
-  const [sort, setSort] = useState("urgency");
+  const [sort, setSort] = useState(() => loadListPrefs().sort ?? "newest");
   const [filter, setFilter] = useState(filterProp ?? "open");
-  const [group, setGroup] = useState("none");
+  const [group, setGroup] = useState(() => loadListPrefs().group ?? "none");
+  const [urgentOnly, setUrgentOnly] = useState(() => loadListPrefs().urgentOnly ?? false);
   const [retryToken, setRetryToken] = useState(0);
+
+  // G411-106: persist sort/group/urgentOnly whenever any of them change.
+  useEffect(() => {
+    sessionStorage.setItem(LIST_PREFS_STORAGE_KEY, JSON.stringify({ sort, group, urgentOnly }));
+  }, [sort, group, urgentOnly]);
 
   // `filter` is a real controlled prop from App.jsx (G411-95): this
   // component is now kept mounted once (hidden, not unmounted) across
@@ -231,8 +278,8 @@ function AdminList({ onOpenRequest, onNewRequest, filter: filterProp, onRequests
     if (matchingRequestIds) {
       return requests.filter((r) => matchingRequestIds.has(r.id));
     }
-    return sortRequests(filterRequests(requests, filter), sort);
-  }, [requests, filter, sort, matchingRequestIds]);
+    return sortRequests(filterByUrgency(filterRequests(requests, filter), urgentOnly), sort);
+  }, [requests, filter, sort, urgentOnly, matchingRequestIds]);
 
   // One shape either way — a list of groups, ungrouped is just one group
   // holding everything (Sibling review finding: two near-identical render
@@ -302,10 +349,14 @@ function AdminList({ onOpenRequest, onNewRequest, filter: filterProp, onRequests
           at top, not tucked behind a toggle. Disabled during an active
           search — search shows every match regardless of sort/filter/
           group, same reasoning RequestList's own search used. */}
-      <div style={{ display: "flex", gap: "var(--space-3)", flexWrap: "wrap" }}>
+      <div style={{ display: "flex", gap: "var(--space-3)", flexWrap: "wrap", alignItems: "center" }}>
         <Select id="admin-sort" label="Sort" options={SORT_OPTIONS} value={sort} onChange={(e) => setSort(e.target.value)} disabled={!!matchingRequestIds} />
         <Select id="admin-filter" label="Filter" options={FILTER_OPTIONS} value={filter} onChange={(e) => setFilter(e.target.value)} disabled={!!matchingRequestIds} />
         <Select id="admin-group" label="Group" options={GROUP_OPTIONS} value={group} onChange={(e) => setGroup(e.target.value)} disabled={!!matchingRequestIds} />
+        <label style={{ display: "flex", gap: "var(--space-1)", alignItems: "center", cursor: "pointer" }}>
+          <input type="checkbox" checked={urgentOnly} onChange={(e) => setUrgentOnly(e.target.checked)} disabled={!!matchingRequestIds} />
+          <span>Urgent only</span>
+        </label>
       </div>
 
       {sorted.length === 0 && (

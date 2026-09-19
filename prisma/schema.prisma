@@ -161,6 +161,7 @@ model Notification {
   request   Request?  @relation(fields: [requestId], references: [id], onDelete: SetNull)
   createdAt DateTime  @default(now())
   readAt    DateTime?
+  clearedAt DateTime?
 }
 
 // Multi-device support (G411-28's device-linking, 2026-09-01). `User.
