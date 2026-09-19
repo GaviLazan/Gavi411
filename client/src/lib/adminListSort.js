@@ -38,20 +38,22 @@ export function filterRequests(requests, filter) {
   return requests.filter((r) => (filter === "closed" ? isClosed(r) : !isClosed(r)));
 }
 
-// Urgency descending, then createdAt ascending as the tiebreak within
-// each urgency band (decision #46: "urgency oldest-first default").
-export function sortRequests(requests, sort) {
+// Sort by creation date: "oldest" ascending, "newest" descending.
+// Urgency filtering is now separate (see filterByUrgency).
+export function sortRequests(requests, order) {
   const copy = [...requests];
-  if (sort === "urgency") {
-    copy.sort((a, b) => {
-      const urgencyDiff = URGENCY_ORDER[b.urgency] - URGENCY_ORDER[a.urgency];
-      if (urgencyDiff !== 0) return urgencyDiff;
-      return new Date(a.createdAt) - new Date(b.createdAt);
-    });
-  } else {
-    copy.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-  }
+  copy.sort((a, b) => {
+    const diff = new Date(a.createdAt) - new Date(b.createdAt);
+    return order === "oldest" ? diff : -diff;
+  });
   return copy;
+}
+
+// Filter to only HIGH urgency requests if urgentOnly is true,
+// otherwise return all requests unchanged.
+export function filterByUrgency(requests, urgentOnly) {
+  if (!urgentOnly) return requests;
+  return requests.filter((r) => r.urgency === "HIGH");
 }
 
 // Plaintext-field match against a request's name/title/type — no

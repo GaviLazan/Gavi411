@@ -11,7 +11,7 @@ import './NotificationHistory.css'
 // anyone could ever see it. `wasUnreadIds` is a local-only snapshot,
 // taken from the fetch response BEFORE the mark-all-read call, and never
 // re-derived from the server afterward.
-function NotificationHistory({ onBack, onOpenRequest }) {
+function NotificationHistory({ onBack, onOpenRequest, onCleared }) {
   const [notifications, setNotifications] = useState([])
   const [wasUnreadIds, setWasUnreadIds] = useState(new Set())
   const [loading, setLoading] = useState(true)
@@ -60,6 +60,20 @@ function NotificationHistory({ onBack, onOpenRequest }) {
       .catch(() => setError('Failed to update notification'))
   }
 
+  // G411-107: clear all notifications
+  async function handleClearAll() {
+    try {
+      const res = await fetch('/api/notifications/clear-all', { method: 'POST' })
+      if (!res.ok) throw new Error('Failed to clear notifications')
+      setNotifications([])
+      setWasUnreadIds(new Set())
+      setError(null)
+      onCleared?.()
+    } catch {
+      setError('Failed to clear notifications')
+    }
+  }
+
   const formatDate = (dateString) => {
     return new Date(dateString).toLocaleDateString('en-GB', {
       day: '2-digit',
@@ -72,9 +86,16 @@ function NotificationHistory({ onBack, onOpenRequest }) {
 
   return (
     <Card style={{ width: '100%', textAlign: 'start' }}>
-      <Button variant="secondary" onClick={onBack}>
-        ← Back
-      </Button>
+      <div style={{ display: 'flex', gap: 'var(--space-2)', marginBottom: 'var(--space-3)' }}>
+        <Button variant="secondary" onClick={onBack}>
+          ← Back
+        </Button>
+        {!loading && notifications.length > 0 && (
+          <Button variant="secondary" onClick={handleClearAll}>
+            Clear
+          </Button>
+        )}
+      </div>
 
       {error && <p className="notification-history-error">Error: {error}</p>}
 
