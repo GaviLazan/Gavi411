@@ -12,7 +12,30 @@ accumulated. If something here turns out to matter long-term, promote it to
 
 ---
 
-## Where this session left off (2026-09-19, latest) — WP9 (G411-104/106/107, small tickets) built, Landed, awaiting merge go-ahead
+## Where this session left off (2026-09-19, latest) — G411-118 (message composer Enter/Ctrl+Enter) built, Landed, awaiting merge go-ahead
+
+**Off-plan pickup**, not from the finish-line plan's WP sequence — Gavi asked directly, with no pre-existing ticket. Filed fresh as G411-118, parented under G411-7 (Notifications) at his explicit choice (it's the current open epic being worked; G411-3/Messaging, the more obviously-fitting parent, is already Reconciled and re-opening it wasn't warranted just because the touched code lives there — same reasoning as brain.md's standing "filing a new ticket" rule).
+
+**Scope**: the message-thread compose textarea in `RequestDetail.jsx` (shared by friend and admin views) had no keyboard shortcut — Enter just inserted a newline, sending required clicking the arrow button. Now: Enter sends (calls the existing `sendMessage()`), Ctrl+Enter/Cmd+Enter/Shift+Enter all insert a newline instead. Explicitly scoped away from the separate admin-only Notes textarea in the same file (different feature, own Save button, no send semantics).
+
+**Real bug caught only by testing against a real browser, not just unit tests**: the first implementation assumed Ctrl+Enter's "native default" (not calling `preventDefault()`) would insert a newline the way Shift+Enter's genuinely does — but a `<textarea>`'s only native newline-inserting key is unmodified Enter; Ctrl+Enter's un-prevented default is nothing. Verified via real Playwright automation against the second-party test account (full email→password→OTP Clerk sign-in, then hamburger menu → Open requests → a real request's message thread): Ctrl+Enter produced zero newlines with the first implementation. Fixed by explicitly inserting `\n` at the cursor position via `setDraft` (this is a controlled textarea) for Ctrl/Cmd+Enter specifically, leaving Shift+Enter untouched since its native behavior was already correct.
+
+**Real process note, not a code issue**: the Playwright sign-in flow that failed twice earlier this same session (assumed a wrong Google-OAuth path, gave up as "blocked") worked immediately once the actual DOM was inspected instead of guessed at — Gavi caught that this was a self-inflicted process gap, not a real Clerk obstacle, and pushed back on accepting "blocked" as an explanation. Worth remembering for any future login-flow automation in this repo: **inspect the real DOM/selectors before writing a driver script, don't assume a shape and then call a wrong assumption a blocker.** The actual working flow: fill `#identifier-field` → click the `Continue` button scoped by exact accessible name (not `form button[type=submit]`, which matches a hidden decoy submit) → fill the password field if presented → for a `+clerk_test` email, type the fixed `CLERK_TEST_OTP` value via real keystrokes (`page.keyboard.type`, not `.fill()`, which skips the auto-advance between the 6 digit boxes) into the first OTP box.
+
+554/554 tests pass fresh, client build clean. Jira: **Landed**, Scope/Falsifier/Evidence-bar-met all written against real final state, verified via the Playwright run above (not just unit tests). **Awaiting merge go-ahead — not yet Reconciled. Gavi wants to do one more manual test on the open PR himself before merging.**
+
+### Real state, right now
+Primary worktree on branch `you/G411-118-message-enter-send` (uncommitted — wrap-up step 6 in progress, PR not yet opened per Gavi's explicit request to pause before the merge ask this time). One file changed: `client/src/pages/RequestDetail.jsx`. Dev servers (Vite :5173, API :3000) were running through this session's Playwright testing — API was restarted once earlier this session (WP9's migration incident), should still be up; check before starting new ones.
+
+### What's next, concretely
+1. **Gavi does a final manual test on the PR/branch himself** before giving the merge go-ahead — this session is paused here at his request, not stuck.
+2. Once he confirms: open the PR, ask for merge go-ahead (wrap-up steps 6-7's remainder), then Landed → Reconciled.
+3. Then next pick per `gavi411-finish-line-plan.md`'s execution order: **WP4 (G411-109, friend home lite)** — unblocked since WP2/WP3 both landed. Confirm with Gavi at STOP 1.
+4. Still open, not blocking: pre-existing `index.css` design-hook findings, `/impeccable document` refresh, `NotificationHistory.jsx`'s redundant "← Back" button (all flagged repeatedly, nobody's picked them up).
+
+---
+
+## Where this session left off (2026-09-19, earlier) — WP9 (G411-104/106/107, small tickets) built, Landed, awaiting merge go-ahead
 
 **Picked up WP9 at STOP 1** — all three tickets pulled fresh from Jira since two had locked scope from an earlier session and one turned out to be stale. G411-104's actual diagnosis ("urgency isn't a real sort key") was wrong on re-investigation — `adminListSort.js`'s comparator already sorted urgency-first correctly, per decision #46. Live-testing with Gavi surfaced the real problem instead: urgency-sort forced oldest-first with no way to reverse it, and "new" vs "urgent" were wrongly treated as opposites in one dropdown. **Re-scoped G411-104 in Jira before any code**, per Gavi's explicit ask to make sure the ticket was properly updated (scope + Aegis fields), not just the code.
 

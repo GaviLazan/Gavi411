@@ -806,6 +806,31 @@ function RequestDetail({ requestId, isAdmin }) {
               e.target.style.height = "auto";
               e.target.style.height = `${e.target.scrollHeight}px`;
             }}
+            // G411-118: Enter sends (matching the send-arrow button).
+            // Ctrl/Cmd+Enter inserts a newline explicitly -- a textarea's
+            // native default for a MODIFIED Enter is nothing (no newline),
+            // not a fallback newline, so this can't just be "don't call
+            // preventDefault" the way Shift+Enter's native behavior can.
+            // Shift+Enter needs no handling: browsers already insert a
+            // newline for it natively.
+            onKeyDown={(e) => {
+              if (e.key !== "Enter") return;
+              if (e.shiftKey) return;
+              if (e.ctrlKey || e.metaKey) {
+                e.preventDefault();
+                const el = e.target;
+                const start = el.selectionStart;
+                const end = el.selectionEnd;
+                const next = draft.slice(0, start) + "\n" + draft.slice(end);
+                setDraft(next);
+                requestAnimationFrame(() => {
+                  el.selectionStart = el.selectionEnd = start + 1;
+                });
+                return;
+              }
+              e.preventDefault();
+              sendMessage();
+            }}
             placeholder="Message…"
           />
           {/* One button slot: camera (opens the file picker) when the box
