@@ -19,6 +19,7 @@ import Icon from './components/Icon'
 import { useTheme } from './useTheme'
 import Recover from './pages/Recover'
 import FriendRequestsList from './pages/FriendRequestsList'
+import FriendHome from './pages/FriendHome'
 import { CLOSED_STATUSES } from './lib/requestStatus'
 import {
   captureInviteTokenFromUrl,
@@ -775,7 +776,7 @@ function App() {
             // role to actually resolve avoids ever mounting the wrong one.
             <p>Loading…</p>
           ) : view === 'list' ? (
-            null
+            !isAdmin && <FriendHome refreshToken={roleRetryToken + pushRefreshToken} onOpenRequest={(id) => { setSelectedRequestId(id); setPreviousView('list'); setView('detail'); }} onCompose={() => setView('new')} />
           ) : (
             // Fallback for any unmapped view state (shouldn't occur, but
             // preserves existing behavior for safety)
@@ -855,31 +856,35 @@ function App() {
             {/* Open requests — routes to AdminList for admin, FriendRequestsList
                 for friends (branches on isAdmin at render time below, not
                 here — both roles navigate the same way). */}
-            <button
-              type="button"
-              className="hamburger-menu-item"
-              onClick={() => {
-                setPreviousView('list')
-                setView('open-requests')
-                setHamburgerOpen(false)
-              }}
-            >
-              Open requests
-            </button>
+            {isAdmin && (
+              <button
+                type="button"
+                className="hamburger-menu-item"
+                onClick={() => {
+                  setPreviousView('list')
+                  setView('open-requests')
+                  setHamburgerOpen(false)
+                }}
+              >
+                Open requests
+              </button>
+            )}
 
             {/* Closed requests — same split as above, AdminList vs
                 FriendRequestsList decided at render time. */}
-            <button
-              type="button"
-              className="hamburger-menu-item"
-              onClick={() => {
-                setPreviousView('list')
-                setView('closed-requests')
-                setHamburgerOpen(false)
-              }}
-            >
-              Closed requests
-            </button>
+            {isAdmin && (
+              <button
+                type="button"
+                className="hamburger-menu-item"
+                onClick={() => {
+                  setPreviousView('list')
+                  setView('closed-requests')
+                  setHamburgerOpen(false)
+                }}
+              >
+                Closed requests
+              </button>
+            )}
 
             {/* Group "Setup" */}
             <div className="hamburger-menu-divider" />

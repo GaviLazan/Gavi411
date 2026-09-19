@@ -159,10 +159,12 @@ describe('GET /api/requests', () => {
 
   // G411-28 admin search index — opt-in bulk messages include.
   // G411-37: by default (no ?include=messages), an admin gets only the
-  // single most recent message's createdAt — not full message bodies —
+  // single most recent message — not full message bodies —
   // so the admin list's "time since last activity" column has a real
   // timestamp without paying for every message on every list load.
-  it('includes only the latest message timestamp by default, not full messages, for an admin', async () => {
+  // G411-109: now also includes content and userId for both admin and friend
+  // callers, for the friend home screen's last-message preview + sender attribution.
+  it('includes only the latest message with content and userId by default, not full messages, for an admin', async () => {
     currentUserId = ADMIN
     prismaMock.request.findMany.mockResolvedValue([sampleRequest])
 
@@ -172,7 +174,7 @@ describe('GET /api/requests', () => {
     expect(call.include.message).toEqual({
       orderBy: { createdAt: 'desc' },
       take: 1,
-      select: { createdAt: true },
+      select: { createdAt: true, content: true, userId: true },
     })
   })
 
@@ -186,14 +188,19 @@ describe('GET /api/requests', () => {
     expect(call.include.message).toEqual({ orderBy: { createdAt: 'asc' } })
   })
 
-  it('ignores ?include=messages for a non-admin', async () => {
+  it('ignores ?include=messages for a non-admin, but still includes the last message', async () => {
     currentUserId = OWNER
     prismaMock.request.findMany.mockResolvedValue([sampleRequest])
 
     await request(app).get('/api/requests?include=messages')
 
     const call = prismaMock.request.findMany.mock.calls[0][0]
-    expect(call.include).toBeUndefined()
+    // Non-admin always gets the last message include, just not the full ?include=messages opt-in
+    expect(call.include.message).toEqual({
+      orderBy: { createdAt: 'desc' },
+      take: 1,
+      select: { createdAt: true, content: true, userId: true },
+    })
   })
 
   // G411-37 admin list screen: every admin list render needs the friend's
@@ -212,14 +219,36 @@ describe('GET /api/requests', () => {
     })
   })
 
-  it('does not include user for a non-admin', async () => {
+  it('does not include user for a non-admin, but includes the last message', async () => {
     currentUserId = OWNER
     prismaMock.request.findMany.mockResolvedValue([sampleRequest])
 
     await request(app).get('/api/requests')
 
     const call = prismaMock.request.findMany.mock.calls[0][0]
-    expect(call.include).toBeUndefined()
+    // Non-admin gets last message (G411-109) but not user info (still admin-only)
+    expect(call.include.message).toEqual({
+      orderBy: { createdAt: 'desc' },
+      take: 1,
+      select: { createdAt: true, content: true, userId: true },
+    })
+    expect(call.include.user).toBeUndefined()
+  })
+
+  // G411-109: friends now get the last message include (with content and userId)
+  // for the friend home screen's last-message preview + sender attribution.
+  it('includes the last message with content and userId for a non-admin', async () => {
+    currentUserId = OWNER
+    prismaMock.request.findMany.mockResolvedValue([sampleRequest])
+
+    await request(app).get('/api/requests')
+
+    const call = prismaMock.request.findMany.mock.calls[0][0]
+    expect(call.include.message).toEqual({
+      orderBy: { createdAt: 'desc' },
+      take: 1,
+      select: { createdAt: true, content: true, userId: true },
+    })
   })
 })
 

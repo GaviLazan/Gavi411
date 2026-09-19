@@ -118,6 +118,12 @@
           "client/src/App.css"
         ],
         "createdAt": "2026-09-18T14:10:22.657Z"
+      },
+      {
+        "rule": "design-system-radius",
+        "value": "24px",
+        "createdAt": "2026-09-19T19:36:31.530Z",
+        "reason": "pill-shaped composer bar, intentional design choice for G411-109"
       }
     ]
   }
