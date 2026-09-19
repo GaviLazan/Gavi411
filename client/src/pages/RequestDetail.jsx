@@ -147,7 +147,7 @@ const ADMIN_TABS = [
   { value: "notes", label: "Notes" },
 ];
 
-function RequestDetail({ requestId, onBack, isAdmin }) {
+function RequestDetail({ requestId, isAdmin }) {
   const [request, setRequest] = useState(null);
   // Admin-only tab state (G411-38) — friends never see tabs, so this is
   // simply unused/ignored on their path rather than gated behind isAdmin
@@ -666,7 +666,6 @@ function RequestDetail({ requestId, onBack, isAdmin }) {
     return (
       <Card>
         <p>{error}</p>
-        <Button onClick={onBack}>Back</Button>
       </Card>
     );
   }
@@ -880,7 +879,6 @@ function RequestDetail({ requestId, onBack, isAdmin }) {
     const canDowngradeUrgency = request.urgency === "HIGH";
     return (
       <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-4)", width: "100%", maxWidth: 420 }}>
-        <Button variant="secondary" onClick={onBack}>← Back</Button>
         {(canCancel || canSelfSolve || canClose || canDowngradeUrgency) && (
           <div style={{ display: "flex", flexWrap: "wrap", gap: "var(--space-2)" }}>
             {canClose && (
@@ -934,8 +932,6 @@ function RequestDetail({ requestId, onBack, isAdmin }) {
   const statusOptions = ADMIN_STATUS_OPTIONS[request.status] ?? [];
   return (
     <div className="admin-detail-shell" style={{ display: "flex", flexDirection: "column", gap: "var(--space-4)", width: "100%", maxWidth: sideBySide ? 900 : 420 }}>
-      <Button variant="secondary" onClick={onBack}>← Back</Button>
-
       <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-2)" }}>
         <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", justifyContent: "space-between", gap: "var(--space-3)" }}>
           <div style={{ display: "flex", alignItems: "center", gap: "var(--space-2)", flexWrap: "wrap" }}>

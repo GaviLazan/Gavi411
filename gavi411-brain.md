@@ -1226,6 +1226,54 @@ execution — the actual token/CSS changes land in WP2 (`gavi411-finish-
 line-plan.md`, G411-77 re-scoped) and get documented into `DESIGN.md`
 as part of that package, not here.
 
+### Decision #142 — WP3 (G411-108) app-bar nav model: one back chevron, not ☰-becomes-chevron (2026-09-19)
+
+The finish-line plan's own written proposal for WP3 (☰ home-only, replaced
+by a back chevron on sub-screens) was tried, live-tested, and **rejected by
+Gavi twice over** before landing on the actual final shape: **☰ stays
+visible on every screen** (menu access isn't home-only), and a **separate,
+consistent back-chevron slot** sits to the left of the wordmark on every
+non-home screen — one control, same place, everywhere, replacing all
+per-screen "Back" buttons rather than duplicating them. Two real
+constraints drove the correction, not just preference:
+
+1. **☰ can never visually become a chevron while the menu is open.** The
+   hamburger menu is a native `<dialog>` in modal mode (`showModal()`),
+   which puts it in the browser's top-layer — nothing outside the dialog,
+   app-bar buttons included, can be seen or clicked while it's open. An
+   icon-swap on the app-bar's own ☰ button is structurally invisible; the
+   close affordance has to live inside the dialog's own content instead.
+2. **A single "one back control" design only works if screens have no
+   real exit-time side effects.** `ProfilePage` doesn't — it syncs
+   Clerk-modal edits back to Prisma on the way out (G411-80). Lifting that
+   through a generic `setView` in the app bar would have silently
+   regressed G411-80's fix. Solved via `forwardRef`/`useImperativeHandle`
+   so the shared control still calls each screen's real exit logic, not
+   a lowest-common-denominator navigation call.
+
+**Standing lesson for any future shared-control consolidation**: before
+replacing N per-screen controls with one shared one, grep every one of
+those N call sites for side effects beyond plain navigation — a shared
+control that silently drops one screen's real logic is a regression, not
+a simplification.
+
+### Decision #143 — Real `Button.jsx` bug found and fixed during WP3 (2026-09-19)
+
+`Button({ variant, type, children, ...rest })` rendered
+`className={`btn btn-${variant}`} {...rest}` — since `{...rest}` spreads
+*after* the computed `className` in JSX, any caller passing its own
+`className` prop silently replaced `btn btn-${variant}` entirely, not
+merged with it. Zero existing callers hit this before WP3 (nothing had
+ever passed `className` to `Button`); WP3's own avatar-chip and
+hamburger-menu-close-button usages were the first, and both rendered as
+unstyled default `<button>` chrome (black text, grey box) as a result —
+caught live by Gavi, not in code review. Fixed to merge classes:
+`` `btn btn-${variant}${className ? ` ${className}` : ''}` ``. **Standing
+lesson**: a prop-spread placed after a computed prop of the same name is
+a silent-override footgun the moment a second caller passes that prop —
+worth grepping for on any shared primitive before assuming "it's worked
+until now" means "it's correct."
+
 ## 7. Not Yet Discussed
  
 - Data model, architecture, tech decisions (schema itself not yet drafted — first task on deck).

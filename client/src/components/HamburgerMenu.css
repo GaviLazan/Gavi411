@@ -55,6 +55,10 @@
   box-shadow: var(--shadow);
 }
 
+.hamburger-menu-close {
+  align-self: flex-end;
+}
+
 @keyframes slideIn {
   from {
     transform: translateX(-100%);
@@ -81,10 +85,11 @@
   }
 }
 
-/* Menu items (buttons/sections) */
+/* Menu items (buttons/sections) — G411-108: flex row with icon + label */
 .hamburger-menu-item {
   display: flex;
   align-items: center;
+  gap: var(--space-2);
   padding: var(--space-3) 0;
   background: none;
   border: none;
@@ -99,6 +104,10 @@
 
 .hamburger-menu-item:hover {
   color: var(--text-h);
+}
+
+.hamburger-menu-item svg {
+  flex-shrink: 0;
 }
 
 /* No error color exists in DESIGN.md yet — matches MessageThread.css's

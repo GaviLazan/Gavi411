@@ -10,9 +10,9 @@ import './Button.css'
 //   screen's "Edit Profile" outline pattern).
 // variant/type are the only props — extend here if a real need shows up,
 // not speculatively.
-function Button({ variant = 'primary', type = 'button', children, ...rest }) {
+function Button({ variant = 'primary', type = 'button', className, children, ...rest }) {
   return (
-    <button type={type} className={`btn btn-${variant}`} {...rest}>
+    <button type={type} className={`btn btn-${variant}${className ? ` ${className}` : ''}`} {...rest}>
       {children}
     </button>
   )
