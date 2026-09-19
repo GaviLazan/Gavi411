@@ -1282,6 +1282,17 @@ Since Prisma refused `migrate resolve --rolled-back` (the row wasn't in a *faile
 
 **Standing lesson, now hit a fourth time (#98, #99, #138, this one)**: `migrate status` alone is not sufficient evidence a migration really ran — verify with a real query against the actual table (`information_schema.columns`, or the specific column in question) whenever a route touching a newly-migrated field is about to go live, not just before merge. Worth eventually asking whichever dispatch is doing migration work to paste its exact `npx prisma migrate dev` invocation and output directly into its report, since none of these four incidents has ever come with a real command log to diagnose from after the fact.
 
+### Decision #145 — Playwright + Clerk sign-in: the working recipe, and a self-inflicted process gap (2026-09-19, G411-118)
+
+Twice in the same session, a Playwright script aimed at the second-party test account failed and was wrongly reported as "blocked" by something about Clerk — both times the real cause was a guessed-at selector never checked against the actual rendered DOM first (an ambiguous `button:has-text("Continue")` matching a Google-OAuth-flow element the first time, a hidden decoy `form button[type="submit"]` the second). Gavi pushed back directly on treating a bad first guess as evidence of a real obstacle. Once the DOM was actually inspected, sign-in worked immediately.
+
+**The real, working recipe for automating this account's login** (Clerk dev-mode, a `+clerk_test` email that accepts a fixed OTP without real delivery):
+1. `page.fill('#identifier-field', EMAIL)`, then click the Continue button by exact accessible name — `page.getByRole('button', { name: 'Continue', exact: true })` — NOT any `button[type=submit]` selector (Clerk renders a hidden decoy submit for keyboard support that resolves but is never visible/clickable) and NOT a loose text match (a "Continue with Google" button also matches `:has-text("Continue")`).
+2. If a password field appears (`#password-field`), fill it and click the same scoped Continue button again.
+3. Clerk then shows a 6-box one-time-code screen ("Check your email"). These are real separate `<input>` elements that auto-advance on genuine keystrokes — `.fill()` on the first box does NOT trigger the advance, so the full code silently only lands in box one. Instead: click the first box, then `page.keyboard.type(OTP, { delay: 100 })` to type the whole `CLERK_TEST_OTP` value as real sequential keystrokes.
+
+**Standing lesson**: before writing a driver script against unfamiliar UI (this app's own screens or a third-party auth flow alike), inspect the actual rendered DOM/accessible names first — screenshot it, list its real inputs/buttons — rather than guessing a selector from what the flow "should" look like and calling the first timeout a hard blocker. A wrong assumption reported as "blocked" wastes more time than the 30 seconds an actual DOM inspection costs.
+
 ## 7. Not Yet Discussed
  
 - Data model, architecture, tech decisions (schema itself not yet drafted — first task on deck).

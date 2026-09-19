@@ -40,6 +40,10 @@
 .message-bubble {
   padding: var(--space-2) var(--space-3);
   word-break: break-word;
+  /* G411-118: preserve real newlines from Ctrl/Cmd+Enter without losing
+     the existing wrap behavior for long lines (plain `pre` would cause
+     horizontal scroll instead of wrapping). */
+  white-space: pre-wrap;
 }
 
 /* G411-93: system messages (nudges) are centered, no bubble, visually
