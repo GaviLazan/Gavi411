@@ -32,6 +32,9 @@ const prismaMock = {
     findUnique: vi.fn(),
     upsert: vi.fn(),
   },
+  user: {
+    findFirst: vi.fn(),
+  },
 }
 
 vi.mock('../lib/prisma.js', () => ({ prisma: prismaMock }))
@@ -50,22 +53,54 @@ beforeEach(() => {
 describe('GET /api/presence', () => {
   it('succeeds with no auth at all', async () => {
     prismaMock.presence.findUnique.mockResolvedValue({ id: 'singleton', isOnline: true })
+    prismaMock.user.findFirst.mockResolvedValue(null)
     const res = await request(app).get('/api/presence')
     expect(res.status).toBe(200)
   })
 
   it('returns the isOnline value from the DB when the row exists', async () => {
     prismaMock.presence.findUnique.mockResolvedValue({ id: 'singleton', isOnline: false })
+    prismaMock.user.findFirst.mockResolvedValue(null)
     const res = await request(app).get('/api/presence')
     expect(res.status).toBe(200)
-    expect(res.body).toEqual({ id: 'singleton', isOnline: false })
+    expect(res.body).toEqual({ id: 'singleton', isOnline: false, admin: null })
   })
 
   it('defaults to { isOnline: true } when the row does not exist', async () => {
     prismaMock.presence.findUnique.mockResolvedValue(null)
+    prismaMock.user.findFirst.mockResolvedValue(null)
     const res = await request(app).get('/api/presence')
     expect(res.status).toBe(200)
-    expect(res.body).toEqual({ isOnline: true })
+    expect(res.body).toEqual({ isOnline: true, admin: null })
+  })
+
+  // G411-108: verify admin's firstName and profilePic are included in response
+  it('includes admin firstName and profilePic in response', async () => {
+    prismaMock.presence.findUnique.mockResolvedValue({ id: 'singleton', isOnline: true })
+    prismaMock.user.findFirst.mockResolvedValue({
+      firstName: 'Gavi',
+      profilePic: 'https://example.com/photo.jpg',
+    })
+    const res = await request(app).get('/api/presence')
+    expect(res.status).toBe(200)
+    expect(res.body.admin).toEqual({
+      firstName: 'Gavi',
+      profilePic: 'https://example.com/photo.jpg',
+    })
+  })
+
+  // G411-108: verify email and phoneNumber are NOT in response
+  it('does not include email or phoneNumber anywhere in response', async () => {
+    prismaMock.presence.findUnique.mockResolvedValue({ id: 'singleton', isOnline: true })
+    prismaMock.user.findFirst.mockResolvedValue({
+      firstName: 'Gavi',
+      profilePic: 'https://example.com/photo.jpg',
+    })
+    const res = await request(app).get('/api/presence')
+    expect(res.status).toBe(200)
+    const jsonString = JSON.stringify(res.body)
+    expect(jsonString).not.toContain('email')
+    expect(jsonString).not.toContain('phoneNumber')
   })
 })
 

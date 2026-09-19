@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
+import Button from './Button'
+import Icon from './Icon'
 import './HamburgerMenu.css'
 
 // Hamburger navigation menu (G411-95). Slides out from the left,
@@ -62,11 +64,20 @@ function HamburgerMenu({ open, onClose, children }) {
   return (
     <dialog
       ref={ref}
+      id="app-menu"
+      aria-label="Menu"
       className={`hamburger-menu${closing ? ' hamburger-menu-closing' : ''}`}
       onCancel={handleCancel}
       onClick={handleBackdropClick}
     >
       <div className="hamburger-menu-content">
+        {/* G411-108: close button lives inside the dialog's own content —
+            the app bar's ☰ button sits outside the native top-layer this
+            <dialog> occupies once open, so it can't be seen or clicked
+            while the menu is open; this is the real close affordance. */}
+        <Button variant="icon" onClick={onClose} aria-label="Close menu" className="hamburger-menu-close">
+          <Icon name="close" />
+        </Button>
         {children}
       </div>
     </dialog>

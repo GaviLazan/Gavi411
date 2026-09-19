@@ -26,7 +26,7 @@ export function creditInputToDelta(input, currentBalance) {
   return isExplicitDelta ? parsed : parsed - currentBalance
 }
 
-function UserManagement({ onBack }) {
+function UserManagement() {
   const [users, setUsers] = useState(null)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(true)
@@ -193,8 +193,8 @@ function UserManagement({ onBack }) {
   }
 
   if (loading) return <p>Loading users…</p>
-  if (error) return <div style={{ color: '#d32f2f' }}><p>Error: {error}</p><Button onClick={onBack}>Back</Button></div>
-  if (!users || users.length === 0) return <div><p>No users to manage.</p><Button onClick={onBack}>Back</Button></div>
+  if (error) return <div style={{ color: '#d32f2f' }}><p>Error: {error}</p></div>
+  if (!users || users.length === 0) return <div><p>No users to manage.</p></div>
 
   return (
     <div className="user-management">
@@ -366,8 +366,6 @@ function UserManagement({ onBack }) {
           )
         })}
       </div>
-
-      <Button onClick={onBack}>Back</Button>
     </div>
   )
 }

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useUser, useClerk, SignIn, SignUp, ClerkLoaded, ClerkLoading } from '@clerk/react'
 import './App.css'
 import NewRequest from './pages/NewRequest'
@@ -15,6 +15,7 @@ import NotificationHistory from './pages/NotificationHistory'
 import ConfirmModal from './components/ConfirmModal'
 import HamburgerMenu from './components/HamburgerMenu'
 import Button from './components/Button'
+import Icon from './components/Icon'
 import { useTheme } from './useTheme'
 import Recover from './pages/Recover'
 import FriendRequestsList from './pages/FriendRequestsList'
@@ -84,6 +85,10 @@ function App() {
   // nested inside HamburgerMenu — see PushNotificationToggle.jsx's comment.
   const [showPushDeniedHelp, setShowPushDeniedHelp] = useState(false)
   const [hamburgerOpen, setHamburgerOpen] = useState(false)
+  // G411-108: lets the app-bar back button trigger ProfilePage's real exit
+  // logic (Clerk sync, when actually needed — see ProfilePage's own
+  // handleBack) instead of a plain setView when view === 'profile'.
+  const profilePageRef = useRef(null)
   const [unreadCount, setUnreadCount] = useState(0)
   const [previousView, setPreviousView] = useState('list')
   const { theme, cycleTheme } = useTheme()
@@ -413,26 +418,51 @@ function App() {
 
   return (
     <div className="design-preview">
-      {/* G411-95: hamburger-menu navigation redesign. Header now shows:
-          hamburger icon (left) - logo (center) - account indicator (right) */}
-      <div className="header-row">
+      {/* G411-108: Fixed 56px app bar — ☰ (menu, stays visible on every
+          screen; the dialog's own close button handles closing it, since
+          showModal()'s top-layer means an app-bar button can't be seen or
+          clicked while it's open) — back chevron (sub-screens only, one
+          consistent app-bar-level control, left of the wordmark) —
+          wordmark (center) — avatar chip (right). */}
+      <div className="app-bar">
         {isSignedIn && (
-          <button
-            type="button"
-            className="hamburger-button"
+          <Button
+            variant="icon"
             onClick={() => setHamburgerOpen(true)}
             aria-label="Menu"
+            aria-expanded={hamburgerOpen}
+            aria-controls="app-menu"
           >
-            ☰
+            <Icon name="menu" />
             {unreadCount > 0 && <span className="hamburger-unread-dot" aria-hidden="true" />}
-          </button>
+          </Button>
         )}
-        {/* Logo always clickable to exit views back to list/home screen,
-            with same confirm-if-typed logic on the new-request intake. */}
+
+        {/* Back chevron — one consistent app-bar-level back control for
+            every sub-screen, left of the wordmark. Mirrors each screen's
+            own onBack prop exactly (see the setView calls passed as
+            onBack below) rather than introducing separate logic. */}
+        {isSignedIn && view !== 'list' && (
+          <Button
+            variant="icon"
+            onClick={() => {
+              if (view === 'profile') {
+                profilePageRef.current?.handleBack()
+              } else {
+                setView(view === 'detail' || view === 'admin-create-request' ? previousView : 'list')
+              }
+            }}
+            aria-label="Back"
+          >
+            <Icon name="back" />
+          </Button>
+        )}
+
+        {/* Center slot: wordmark with same navigation logic as before */}
         {view === 'new' ? (
           <button
             type="button"
-            className="wordmark wordmark-button"
+            className="wordmark wordmark-app-bar wordmark-button"
             onClick={() => {
               if (newRequestHasText) {
                 setShowLogoDiscardConfirm(true);
@@ -444,47 +474,33 @@ function App() {
             Gavi411
           </button>
         ) : view === 'list' ? (
-          <h1 className="wordmark">Gavi411</h1>
+          <h1 className="wordmark wordmark-app-bar">Gavi411</h1>
         ) : (
-          <button type="button" className="wordmark wordmark-button" onClick={() => setView('list')}>
+          <button type="button" className="wordmark wordmark-app-bar wordmark-button" onClick={() => setView('list')}>
             Gavi411
           </button>
         )}
-        {/* Account indicator stays in right corner, unchanged from original */}
+
+        {/* Right slot: avatar chip button */}
         {isSignedIn && (
-          <span className="account-indicator">
-            <button
-              type="button"
-              className="account-indicator-trigger"
-              onClick={() => setView('profile')}
-            >
-              {fetchedUser?.username || user?.primaryEmailAddress?.emailAddress || user?.id}
-            </button>
-            {!isAdmin && fetchedUser?.creditBalance !== undefined && (() => {
-              const cap = CREDIT_CAP_BY_TIER[fetchedUser.groupTag] ?? CREDIT_CAP_BY_TIER.REGULAR
-              // Resets always land at the start of a calendar month (the
-              // 6-hourly reset job just fires sometime within that day,
-              // not at an exact minute) — "Month 1st" is accurate without
-              // implying a precision the job doesn't actually have.
-              const now = new Date()
-              const resetMonth = now.getDate() === 1
-                ? now.toLocaleDateString('en-US', { month: 'long' })
-                : new Date(now.getFullYear(), now.getMonth() + 1, 1).toLocaleDateString('en-US', { month: 'long' })
-              const detail = `${fetchedUser.creditBalance}/${cap} credits left, resets ${resetMonth} 1st`
-              return (
-                <span
-                  className="credit-balance"
-                  title={detail}
-                  tabIndex={0}
-                  aria-label={detail}
-                >
-                  {fetchedUser.creditBalance} credits
-                </span>
-              )
-            })()}
-            {' '}
-            <button type="button" onClick={() => signOut()}>Sign out</button>
-          </span>
+          <Button
+            variant="icon"
+            onClick={() => setView('profile')}
+            className="avatar-chip"
+            title={fetchedUser?.username || user?.primaryEmailAddress?.emailAddress || user?.id}
+          >
+            {fetchedUser?.profilePic ? (
+              <img
+                src={fetchedUser.profilePic}
+                alt=""
+                style={{ width: '32px', height: '32px', borderRadius: '50%', objectFit: 'cover' }}
+              />
+            ) : (
+              <span className="avatar-initials">
+                {(fetchedUser?.username || user?.primaryEmailAddress?.emailAddress || user?.id)?.charAt(0).toUpperCase() || '?'}
+              </span>
+            )}
+          </Button>
         )}
       </div>
       {escrowBackupFailed && (
@@ -501,12 +517,14 @@ function App() {
           <button type="button" onClick={() => setPermalinkError(false)}>Dismiss</button>
         </p>
       )}
-      {/* G411-43: presence status banner for all signed-in users — shows
-          whether Gavi is currently available to respond. */}
-      {isSignedIn && !isOnline && (
-        <p role="status" className="presence-offline-notice">
-          Offline — replies may be delayed
-        </p>
+      {/* G411-108: presence status chip (G411-43 original, styled in WP3) —
+          shows whether Gavi is currently available. Reuses StatusChip.css's
+          outline styling (.status-chip + .status-chip-outline). Suppressed
+          on home screen (view === 'list') per spec. */}
+      {isSignedIn && !isOnline && view !== 'list' && (
+        <span role="status" className="status-chip status-chip-outline">
+          Gavi's offline — replies may wait
+        </span>
       )}
       <ClerkLoading>Loading…</ClerkLoading>
       <ClerkLoaded>
@@ -658,11 +676,12 @@ function App() {
           ) : view === 'admin-create-request' ? (
             <AdminCreateRequest onBack={() => setView(previousView)} />
           ) : view === 'user-management' ? (
-            <UserManagement onBack={() => setView('list')} />
+            <UserManagement />
           ) : view === 'notification-history' ? (
             <NotificationHistory onBack={() => setView('list')} onOpenRequest={openRequest} />
           ) : view === 'profile' ? (
             <ProfilePage
+              ref={profilePageRef}
               user={fetchedUser}
               onBack={() => setView('list')}
               onUpdated={(updatedUser) => {
@@ -672,7 +691,7 @@ function App() {
               }}
             />
           ) : view === 'detail' ? (
-            <RequestDetail requestId={selectedRequestId} onBack={() => setView(previousView)} isAdmin={isAdmin} />
+            <RequestDetail requestId={selectedRequestId} isAdmin={isAdmin} />
           ) : view === 'open-requests' ? (
             // Admin renders via the persistent hidden AdminList div
             // above instead (real reason in that div's comment) — this
@@ -738,18 +757,9 @@ function App() {
       >
         {isSignedIn && (
           <>
-            {/* Profile */}
-            <button
-              type="button"
-              className="hamburger-menu-item"
-              onClick={() => {
-                setView('profile')
-                setHamburgerOpen(false)
-              }}
-            >
-              Profile
-            </button>
-
+            {/* Group "You" */}
+            {/* Profile is reachable via the app-bar avatar chip (G411-108) —
+                not duplicated here as a menu item. */}
             {/* Notification history — visible to everyone (friend and admin) */}
             <button
               type="button"
@@ -759,8 +769,12 @@ function App() {
                 setHamburgerOpen(false)
               }}
             >
+              <Icon name="bell" size={20} />
               Notifications
             </button>
+
+            {/* Group "Requests" */}
+            <div className="hamburger-menu-divider" />
 
             {/* Triggers — admin-only, right after Profile per spec (Gavi's
                 call: Presence/Invites moved to the admin home screen
@@ -821,6 +835,9 @@ function App() {
               Closed requests
             </button>
 
+            {/* Group "Setup" */}
+            <div className="hamburger-menu-divider" />
+
             {/* Installing on iPhone — was RequestList's own link before
                 G411-95 removed RequestList from the friend home screen;
                 moved here so it stays reachable rather than becoming
@@ -844,6 +861,7 @@ function App() {
                 supported. Disabled if notifications are denied in browser
                 settings. States: denied (can't fix from JS) / unsubscribed
                 (clickable "Enable") / subscribed (clickable "Disable"). */}
+
             <PushNotificationToggle
               isSignedIn={isSignedIn}
               onClose={() => setHamburgerOpen(false)}
@@ -851,7 +869,6 @@ function App() {
             />
 
             {/* Theme toggle — shown to everyone */}
-            <div className="hamburger-menu-divider" />
             <button
               type="button"
               className="hamburger-menu-theme-toggle"

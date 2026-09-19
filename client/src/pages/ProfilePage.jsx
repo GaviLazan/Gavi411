@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef, forwardRef, useImperativeHandle } from 'react'
 import { useUser, useClerk } from '@clerk/react'
 import './CompleteProfile.css'
 
@@ -9,9 +9,18 @@ import './CompleteProfile.css'
 // password, connected accounts, sign-out-other-devices) — Gavi's call: we
 // don't rebuild any of that, "Update account info" opens Clerk's own UI for
 // it. Only phone gets its own small edit flow, right here.
-function ProfilePage({ user, onBack, onUpdated }) {
+//
+// G411-108: exposes handleBack via ref so App.jsx's app-bar back button can
+// trigger this screen's real exit logic (the Clerk sync below) instead of
+// a plain setView — this screen no longer renders its own Back button.
+const ProfilePage = forwardRef(function ProfilePage({ user, onBack, onUpdated }, ref) {
   const { user: clerkUser } = useUser()
   const { openUserProfile, signOut } = useClerk()
+  // G411-108: only sync-from-Clerk on the way out if the user actually
+  // opened Clerk's own modal this visit — Gavi's live catch that the sync
+  // fired (and blocked navigation on it) unconditionally, even when
+  // nothing could have changed.
+  const openedClerkModal = useRef(false)
   const [editingPhone, setEditingPhone] = useState(false)
   const [dialCode, setDialCode] = useState('+972')
   const [localNumber, setLocalNumber] = useState('')
@@ -101,21 +110,28 @@ function ProfilePage({ user, onBack, onUpdated }) {
   // in the app that sends someone to Clerk's modal — so a same-session
   // edit is caught without waiting for a reload. The server diffs
   // against Prisma and only writes what actually changed.
-  async function handleBack() {
-    try {
-      const res = await fetch('/api/me/sync-from-clerk', { method: 'POST' })
-      if (res.ok) {
-        const data = await res.json()
-        if (data.changed) {
-          onUpdated(data.user)
-          await clerkUser?.reload()
-        }
-      }
-    } catch {
-      // Best-effort — a failed sync shouldn't block navigating back.
-    }
+  function handleBack() {
+    // Navigate immediately — the sync (when it runs at all) is a
+    // best-effort background catch-up, not something worth making the
+    // user wait on every exit for (Gavi's live catch).
     onBack()
+    if (!openedClerkModal.current) return
+    openedClerkModal.current = false
+    fetch('/api/me/sync-from-clerk', { method: 'POST' })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data?.changed) {
+          onUpdated(data.user)
+          clerkUser?.reload()
+        }
+      })
+      .catch(() => {
+        // Best-effort — a failed sync shouldn't block anything, we've
+        // already navigated away.
+      })
   }
+
+  useImperativeHandle(ref, () => ({ handleBack }))
 
   function startEditingPhone() {
     setError(null)
@@ -236,14 +252,11 @@ function ProfilePage({ user, onBack, onUpdated }) {
                 Gavi's call: no need to duplicate a UI Clerk already does
                 well. Only phone (Clerk-unsupported for Israeli numbers)
                 gets a custom edit flow, below. */}
-            <button type="button" onClick={() => openUserProfile()}>
+            <button type="button" onClick={() => { openedClerkModal.current = true; openUserProfile() }}>
               Update account info
             </button>
             <button type="button" onClick={startEditingPhone}>
               Update phone number
-            </button>
-            <button type="button" onClick={handleBack}>
-              Back
             </button>
           </div>
 
@@ -321,6 +334,6 @@ function ProfilePage({ user, onBack, onUpdated }) {
       )}
     </div>
   )
-}
+})
 
 export default ProfilePage

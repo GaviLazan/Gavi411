@@ -12,21 +12,28 @@ import { prisma } from '../lib/prisma.js'
 
 const router = express.Router()
 
-// GET / — read the current online/offline state.
+// GET / — read the current online/offline state and admin's public info.
 // No auth required — friends need to see this to know if Gavi's available.
 router.get('/', async (req, res) => {
   const presence = await prisma.presence.findUnique({
     where: { id: 'singleton' },
   })
+
+  // Fetch admin's public-safe fields (firstName, profilePic only)
+  const admin = await prisma.user.findFirst({
+    where: { role: 'ADMIN', isDeleted: false },
+    select: { firstName: true, profilePic: true },
+  })
+
   // This branch IS reachable, not just defensive dead code: the migration
   // only creates the table, it never seeds a row, and seed.js has no
   // Presence insert either — so any fresh/newly-migrated DB has no row
   // until the first admin PATCH. Default to online rather than erroring
   // out and blocking the entire app in that window.
   if (!presence) {
-    return res.json({ isOnline: true })
+    return res.json({ isOnline: true, admin: admin || null })
   }
-  res.json(presence)
+  res.json({ ...presence, admin: admin || null })
 })
 
 // PATCH / — set the online/offline state. Admin-only.

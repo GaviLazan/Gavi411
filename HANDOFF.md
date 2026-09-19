@@ -12,6 +12,32 @@ accumulated. If something here turns out to matter long-term, promote it to
 
 ---
 
+## Where this session left off (2026-09-19, latest) — WP3 (G411-108, app bar/menu/presence) built, Landed, awaiting merge go-ahead
+
+**Picked up WP3 at STOP 1** — scope confirmed with Gavi (back-chevron-on-sub-screens per the plan's own default), Jira transitioned Open → Implementing, Scope/Falsifier/Role written pre-code. Haiku built the first draft: 56px app bar (☰ / wordmark / avatar chip), hamburger menu regrouped into You/Requests/Setup, `GET /api/presence` extended with admin's firstName+profilePic.
+
+**Sibling review (this session) found and fixed real issues in the first draft**: 6 menu items sharing the identical generic `menu` icon (visually meaningless — left icon-less instead per the "no fit, don't force one" rule), deleted historical explanatory comments restored, a dead `'request-detail'` view-name branch removed, orphaned `.header-row`/`.account-indicator*`/`.hamburger-button`/`.credit-balance` CSS removed, wordmark's `22px` size corrected to DESIGN.md's real H2 scale (24px/20px — the original spec text's `22px` wasn't actually derived from the type ramp, on me for not checking before writing it into Jira).
+
+**Then several rounds of Gavi's own live testing surfaced real design/architecture corrections, not just polish** — full detail in brain.md decisions #142/#143, short version:
+1. **Nav model changed twice.** First tried the plan's own written default (☰ home-only, replaced by a chevron on sub-screens) — Gavi caught that he'd expected ☰ to stay visible everywhere and only toggle to a close-affordance while the menu itself was open. That model turned out to be structurally impossible: the hamburger menu is a native `<dialog>` in modal mode (`showModal()`), which puts it in the browser's top-layer — an app-bar button can't be seen or clicked while the dialog is open, full stop. Landed on the real final shape: ☰ always visible (opens the menu; the dialog gets its own internal close button), plus a single consistent back-chevron slot left of the wordmark on every non-home screen, replacing every screen's own per-page "Back" button (was missing on ~5 screens in an earlier pass, since only 3 had a *visible* "Back" button to begin with).
+2. **ProfilePage has real exit-time side effects** (G411-80's sync-Clerk-edits-to-Prisma) that a naive shared back button would have silently regressed — solved via `forwardRef`/`useImperativeHandle` so the app-bar control still calls each screen's real exit logic.
+3. **That sync itself had a real bug surfaced live**: fired unconditionally on every exit from Profile (even with zero edits) and blocked navigation on the round-trip. Fixed: gated on the user actually having opened Clerk's modal that visit, and fire-and-forget (navigate immediately, sync — when it runs at all — happens after, in the background). Traced and explained the residual risk (a same-server POST, display-data only, capped staleness window) rather than silently picking a mitigation; Gavi accepted the current shape after that tradeoff was laid out explicitly.
+4. **Real `Button.jsx` bug, unrelated to the ticket's own scope but surfaced by it**: `{...rest}` was spread after the computed `className`, so any caller passing its own `className` silently lost `btn btn-${variant}` entirely — this is exactly why the ✕ close button and (potentially) the avatar chip rendered as unstyled default-button chrome. Fixed to merge classes.
+5. **Wordmark box/outline regression**: the two clickable wordmark variants lost the `wordmark-button` chrome-reset class partway through the session's own edits — caught live, restored.
+
+Every finding from Gavi's live testing was addressed same-session, not deferred. 545/545 tests pass fresh (2 new presence tests), client build clean, confirmed via a full Sibling-review diff read (not just the automated checks) before wrap-up. Jira: **Landed**, description rewritten to match real final scope (not the original proposal), Evidence-bar-met written against real final state. **Awaiting merge go-ahead — not yet Reconciled.**
+
+### Real state, right now
+Primary worktree on branch `you/G411-108-app-bar-presence`, uncommitted (all changes staged/unstaged in the working tree, not yet committed — wrap-up step 6 in progress). Files touched: `client/src/App.jsx`, `App.css`, `components/Button.jsx`, `components/HamburgerMenu.jsx/.css`, `pages/ProfilePage.jsx`, `pages/UserManagement.jsx`, `pages/RequestDetail.jsx`, `server/routes/presence.js`/`.test.js`, plus `.impeccable/config.json` (one sanctioned ignore: `design-system-font-size=20px` scoped to `App.css`, the H2 mobile-scale wordmark size). No PR opened yet.
+
+### What's next, concretely
+1. **Commit this branch's changes, open the PR, then ask Gavi for the merge go-ahead** (wrap-up steps 6-7 — not yet done as of this write).
+2. Once merged: Jira Landed → Reconciled immediately (steps 1-4 already covered it, no separate re-check).
+3. Then next pick per `gavi411-finish-line-plan.md`'s execution order: **WP9 (G411-104/106/107, small tickets)** or **WP4 (G411-109, friend home lite)** — WP4 depends on WP3 (this ticket), WP9 only depends on WP2. Confirm with Gavi at STOP 1, don't assume.
+4. Open item, not blocking: the 3 pre-existing `index.css` design-hook findings flagged in the WP2 entry below, and the `/impeccable document` sidecar refresh — still nobody's picked these up.
+
+---
+
 ## Where this session left off (2026-09-18, latest) — WP2 (G411-77, design tokens + primitives) built, Landed, awaiting merge go-ahead
 
 **Picked up WP2 at STOP 1**, re-scoped G411-77's stale "Full UI/UX pass" placeholder into the real WP2 spec first (Jira summary + description rewritten, Scope/Falsifier/Role/Evidence-required written pre-code). Haiku built: new tokens (`--accent-text`, `--danger`/`--danger-bg`, `--success` alias), retired `--accent-3`/`--social-bg`, flattened `--shadow`, global `:focus-visible` ring, body text 16px everywhere, `.meta`/`.content` utilities, button changes (ink-on-gold primary/secondary, `.btn-purple` → `.btn-ghost`, new `.btn-icon`), new `StatusChip`/`Icon` components (created, not wired into any screen yet — that's later packages' job), new `lib/format.js`/`lib/requestStatus.js`, `RequestCard` extracted to its own file, `RequestList.jsx` deleted (dead body), two pre-existing `--color-border`→`--border` bugs fixed, `DESIGN.md` updated. PR #127.
