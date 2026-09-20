@@ -7,7 +7,6 @@ export default function FriendHome({ refreshToken, onOpenRequest, onCompose }) {
   const [requests, setRequests] = useState(null);
   const [error, setError] = useState("");
   const [retryToken, setRetryToken] = useState(0);
-  const [presence, setPresence] = useState(null);
 
   // Fetch requests
   useEffect(() => {
@@ -28,23 +27,6 @@ export default function FriendHome({ refreshToken, onOpenRequest, onCompose }) {
       cancelled = true;
     };
   }, [retryToken, refreshToken]);
-
-  // Fetch presence (public, no auth required)
-  useEffect(() => {
-    let cancelled = false;
-    async function load() {
-      try {
-        const res = await fetch("/api/presence");
-        if (res.ok) {
-          const data = await res.json();
-          if (!cancelled) setPresence(data);
-        }
-      } catch {
-        // Silently fail — presence is informational only
-      }
-    }
-    load();
-  }, []);
 
   const retry = () => setRetryToken((t) => t + 1);
 
@@ -74,24 +56,6 @@ export default function FriendHome({ refreshToken, onOpenRequest, onCompose }) {
 
   return (
     <div className="friend-home">
-      {/* Presence header */}
-      {presence && (
-        <div className="friend-home-header">
-          {presence.admin?.profilePic ? (
-            <img src={presence.admin.profilePic} alt="Gavi" className="friend-home-avatar" />
-          ) : (
-            <div className="friend-home-avatar-placeholder" />
-          )}
-          <div className="friend-home-header-text">
-            <p className="friend-home-name">Gavi</p>
-            <p className="friend-home-presence">
-              {presence.isOnline ? "online" : "offline — replies may wait"}
-            </p>
-          </div>
-          <div className={`friend-home-presence-dot ${presence.isOnline ? "online" : "offline"}`} />
-        </div>
-      )}
-
       {/* Loading state */}
       {requests === null && (
         <p>Loading…</p>
@@ -105,7 +69,7 @@ export default function FriendHome({ refreshToken, onOpenRequest, onCompose }) {
       )}
 
       {/* Open requests list */}
-      {requests !== null && !isEmpty && sortedOpen && (
+      {requests !== null && !isEmpty && sortedOpen && sortedOpen.length > 0 && (
         <div className="friend-home-open-list">
           {sortedOpen.map((req) => {
             const lastMsg = req.message && req.message.length > 0 ? req.message[0] : null;
@@ -114,22 +78,17 @@ export default function FriendHome({ refreshToken, onOpenRequest, onCompose }) {
             const meta = timeSince(lastActivityAt(req));
 
             return (
-              <div
+              <RequestCard
                 key={req.id}
+                request={req}
                 onClick={() => onOpenRequest(req.id)}
-                className="friend-home-request-card-wrapper"
-              >
-                <RequestCard
-                  request={req}
-                  onClick={() => onOpenRequest(req.id)}
-                  showStatusChip
-                  showLastMessage={!!preview}
-                  showMeta
-                  lastMessageSender={sender}
-                  lastMessagePreview={preview}
-                  meta={meta}
-                />
-              </div>
+                showStatusChip
+                showLastMessage={!!preview}
+                showMeta
+                lastMessageSender={sender}
+                lastMessagePreview={preview}
+                meta={meta}
+              />
             );
           })}
         </div>
@@ -153,15 +112,24 @@ export default function FriendHome({ refreshToken, onOpenRequest, onCompose }) {
         </details>
       )}
 
-      {/* Composer bar at bottom */}
-      <button
-        type="button"
-        className="friend-home-composer-bar"
-        onClick={onCompose}
-      >
-        <span>What's up?</span>
-        <span className="friend-home-send-icon">→</span>
-      </button>
+      {/* Composer: a fixed overlay pinned to the bottom of the viewport.
+          Its background carries the fade — a 100px gradient band ending
+          fully opaque at the button's top edge, then solid page
+          background from there down to the screen edge — so the list
+          fades out into it and stays hidden below, rather than
+          reappearing beside or under the button. */}
+      {requests !== null && (
+        <div className="friend-home-composer-fixed">
+          <button
+            type="button"
+            className="friend-home-composer-bar"
+            onClick={onCompose}
+          >
+            <span>What's up?</span>
+            <span className="friend-home-send-icon">→</span>
+          </button>
+        </div>
+      )}
     </div>
   );
 }

@@ -1,70 +1,17 @@
 .friend-home {
   display: flex;
   flex-direction: column;
+  align-items: center;
   gap: var(--space-4);
   padding: var(--space-4);
   width: 100%;
-  max-width: 640px;
-  margin: 0 auto;
   position: relative;
-  padding-bottom: 80px;
-}
-
-.friend-home-header {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  padding: var(--space-4);
-  background-color: var(--bg-secondary);
-  border-radius: var(--radius);
-}
-
-.friend-home-avatar {
-  width: 48px;
-  height: 48px;
-  border-radius: 50%;
-  object-fit: cover;
-  flex-shrink: 0;
-}
-
-.friend-home-avatar-placeholder {
-  width: 48px;
-  height: 48px;
-  border-radius: 50%;
-  background-color: var(--border);
-  flex-shrink: 0;
-}
-
-.friend-home-header-text {
-  flex: 1;
-  min-width: 0;
-}
-
-.friend-home-name {
-  margin: 0;
-  font-weight: 600;
-  font-size: 16px;
-}
-
-.friend-home-presence {
-  margin: 0;
-  font-size: 13px;
-  color: var(--text-secondary);
-}
-
-.friend-home-presence-dot {
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  flex-shrink: 0;
-}
-
-.friend-home-presence-dot.online {
-  background-color: var(--success);
-}
-
-.friend-home-presence-dot.offline {
-  background-color: var(--border);
+  /* Clears the fixed composer overlay's real footprint (25px bottom
+     offset + button height + fade zone above it) so the last real card
+     can scroll fully clear of it, not end up permanently hidden
+     underneath. Verified against the actual rendered button height, not
+     assumed. */
+  padding-bottom: 180px;
 }
 
 .friend-home-error {
@@ -79,10 +26,8 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
-}
-
-.friend-home-request-card-wrapper {
-  cursor: pointer;
+  width: 100%;
+  max-width: 420px;
 }
 
 .friend-home-request-card {
@@ -116,51 +61,87 @@
   margin-bottom: var(--space-3);
 }
 
-.friend-home-composer-bar {
+/* Full-width overlay pinned to the bottom of the viewport, spanning
+   from 100px above the button's top edge all the way down to the screen
+   edge. Its background is one continuous paint: a 100px gradient band
+   that reaches fully opaque --bg exactly at the button's top edge, then
+   solid --bg for the whole remaining height. That's what makes the list
+   disappear rather than merely dim — past the button's top edge there
+   is opaque page background over it, all the way down, so no card is
+   ever visible beside or below the button.
+
+   `position: fixed` (not sticky): sticky only pins the element's own
+   box, it does not stop siblings from scrolling past underneath it, so
+   cards kept reappearing below the button. Fixed makes this a real
+   floor at every scroll position.
+
+   Spans the full viewport width (not capped at the 420px column) so a
+   card can't peek out past the overlay's sides — the button inside it
+   is what's capped at 420px. */
+.friend-home-composer-fixed {
   position: fixed;
-  bottom: 0;
   left: 0;
   right: 0;
-  padding: var(--space-3);
-  padding-bottom: calc(var(--space-3) + env(safe-area-inset-bottom));
-  max-width: 640px;
+  bottom: 0;
+  /* 100px gradient band + the button's own row (its height plus the
+     25px it sits above the screen edge). The gradient occupies exactly
+     the top 100px; everything below is solid. */
+  padding-top: 100px;
+  padding-bottom: calc(25px + env(safe-area-inset-bottom));
+  /* Band is the full 100px of padding-top, but reaches fully opaque at
+     75px in — i.e. 25px ABOVE the button's top edge — and stays solid
+     from there down through the button to the screen edge. Fading over
+     75px instead of the full 100 makes it come in faster, and the last
+     25px before the button is already solid. */
+  background: linear-gradient(
+    to bottom,
+    transparent 0,
+    var(--bg) 75px,
+    var(--bg) 100%
+  );
+  /* The overlay itself swallows clicks so cards hidden underneath it
+     aren't invisibly interactive; the button re-enables them for
+     itself below. */
+  pointer-events: none;
+  z-index: 1;
+}
+
+.friend-home-composer-bar {
+  position: relative;
+  /* Re-enable interaction on the button only — its parent overlay is
+     pointer-events: none so the hidden cards underneath stay
+     non-interactive. */
+  pointer-events: auto;
+  width: calc(100% - 2 * var(--space-4));
+  max-width: 420px;
   margin: 0 auto;
-  left: 50%;
-  transform: translateX(-50%);
+  padding: var(--space-3);
   border: none;
-  background: none;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: var(--space-2);
   font-size: 16px;
-  color: var(--text-secondary);
-  background-color: var(--bg-secondary);
-  border: 1px solid var(--border);
+  box-sizing: border-box;
+  /* Matches .btn-primary (Button.css) — same accent fill as "+ New
+     request" used to be, so the composer bar reads as its replacement. */
+  background-color: var(--accent);
+  color: var(--on-accent);
   border-radius: 24px;
-  transition: background-color 0.2s, color 0.2s;
+  transition: background-color 0.2s;
 }
 
 .friend-home-composer-bar:hover {
-  background-color: var(--bg-tertiary);
-  color: var(--text);
+  background-color: var(--accent-strong);
 }
 
 .friend-home-send-icon {
   font-size: 18px;
 }
 
-@media (max-width: 640px) {
-  .friend-home {
-    max-width: 100%;
-    border-radius: 0;
-  }
-
+@media (max-width: 420px) {
   .friend-home-composer-bar {
-    max-width: 100%;
     border-radius: 0;
-    padding: var(--space-3) var(--space-4);
-    padding-bottom: calc(var(--space-3) + env(safe-area-inset-bottom));
   }
 }

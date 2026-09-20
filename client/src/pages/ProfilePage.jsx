@@ -258,6 +258,13 @@ const ProfilePage = forwardRef(function ProfilePage({ user, onBack, onUpdated },
             <button type="button" onClick={startEditingPhone}>
               Update phone number
             </button>
+            {/* Sign out — regression from G411-108 (WP3's app-bar redesign
+                dropped the old header account-indicator's Sign out button
+                and never gave it a new home); ProfilePage already imports
+                signOut from useClerk() above, just never called it. */}
+            <button type="button" onClick={() => signOut()}>
+              Sign out
+            </button>
           </div>
 
           {/* G411-96: account deletion */}

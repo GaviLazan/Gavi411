@@ -11,7 +11,7 @@ import './NotificationHistory.css'
 // anyone could ever see it. `wasUnreadIds` is a local-only snapshot,
 // taken from the fetch response BEFORE the mark-all-read call, and never
 // re-derived from the server afterward.
-function NotificationHistory({ onBack, onOpenRequest, onCleared }) {
+function NotificationHistory({ onOpenRequest, onCleared }) {
   const [notifications, setNotifications] = useState([])
   const [wasUnreadIds, setWasUnreadIds] = useState(new Set())
   const [loading, setLoading] = useState(true)
@@ -86,16 +86,13 @@ function NotificationHistory({ onBack, onOpenRequest, onCleared }) {
 
   return (
     <Card style={{ width: '100%', textAlign: 'start' }}>
-      <div style={{ display: 'flex', gap: 'var(--space-2)', marginBottom: 'var(--space-3)' }}>
-        <Button variant="secondary" onClick={onBack}>
-          ← Back
-        </Button>
-        {!loading && notifications.length > 0 && (
+      {!loading && notifications.length > 0 && (
+        <div style={{ display: 'flex', gap: 'var(--space-2)', marginBottom: 'var(--space-3)' }}>
           <Button variant="secondary" onClick={handleClearAll}>
             Clear
           </Button>
-        )}
-      </div>
+        </div>
+      )}
 
       {error && <p className="notification-history-error">Error: {error}</p>}
 
