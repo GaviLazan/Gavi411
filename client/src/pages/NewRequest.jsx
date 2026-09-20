@@ -384,11 +384,6 @@ function NewRequest({ onDone, onExit, onFreeTextChange, isOnline }) {
   return (
     <div className="step-viewport">
       <Card key={step === "fields" ? `fields-${fieldStepIndex}` : step} className="step-slide-enter">
-        {step !== "done" && (
-          <button type="button" className="exit-flow" onClick={handleExit} aria-label="Cancel and go back" tabIndex={2}>
-            ×
-          </button>
-        )}
         {step === "describe" && (
           <>
             <h2>How can I help?</h2>
@@ -410,11 +405,27 @@ function NewRequest({ onDone, onExit, onFreeTextChange, isOnline }) {
               }}
               dir="auto"
             />
+            {/* Exit button rendered after the field in DOM order (not
+                just top-of-Card, per the other steps below) so Tab
+                reaches the field first — an explicit tabIndex would
+                have jumped it to the FRONT of tab order instead
+                (positive tabIndex values are visited before any
+                tabIndex=0/unset element, regardless of DOM position),
+                the opposite of what's needed here. */}
+            <button type="button" className="exit-flow" onClick={handleExit} aria-label="Cancel and go back">
+              ×
+            </button>
             {submitError && <p style={{ color: "#b3261e" }}>{submitError}</p>}
             <Button variant="primary" onClick={handleContinue}>
               Continue
             </Button>
           </>
+        )}
+
+        {step !== "describe" && step !== "done" && (
+          <button type="button" className="exit-flow" onClick={handleExit} aria-label="Cancel and go back">
+            ×
+          </button>
         )}
 
         {step === "chips" && (
