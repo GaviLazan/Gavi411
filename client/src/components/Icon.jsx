@@ -16,6 +16,10 @@ const PATHS = {
   // strokeLinecap="round" on a zero-length segment renders as a circle
   // the width of the stroke).
   more: 'M5 12h0M12 12h0M19 12h0',
+  // Single filled dot, same zero-length-stroke trick as "more" above —
+  // used for "mark unread" (the visual unread marker is itself a dot,
+  // so the action icon matches what it produces).
+  dot: 'M12 12h0',
 }
 
 export default function Icon({ name, size = 24, label, ...rest }) {

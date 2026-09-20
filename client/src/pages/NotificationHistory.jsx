@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
 import Card from '../components/Card'
 import Button from '../components/Button'
+import Icon from '../components/Icon'
+import { formatDayLabel, formatTime } from '../lib/format'
 import './NotificationHistory.css'
 
 // Notification history page (G411-98) — shows all notifications sent to
@@ -11,6 +13,14 @@ import './NotificationHistory.css'
 // anyone could ever see it. `wasUnreadIds` is a local-only snapshot,
 // taken from the fetch response BEFORE the mark-all-read call, and never
 // re-derived from the server afterward.
+//
+// G411-112: onto the design system. Flat list items instead of
+// cards-inside-a-card; the unread marker is now a bold title + leading
+// dot rather than a 3px gold left border (flagged as an "AI-UI tell").
+// The row's own open-request action and the mark-unread toggle are now
+// sibling buttons, not a button nested inside a clickable <li> —
+// nested interactive elements are an accessibility problem the old
+// markup had (a <button> inside an element with its own role="button").
 function NotificationHistory({ onOpenRequest, onCleared }) {
   const [notifications, setNotifications] = useState([])
   const [wasUnreadIds, setWasUnreadIds] = useState(new Set())
@@ -42,8 +52,7 @@ function NotificationHistory({ onOpenRequest, onCleared }) {
       })
   }, [])
 
-  function toggleUnread(notif, event) {
-    if (event) event.stopPropagation()
+  function toggleUnread(notif) {
     const isCurrentlyMarkedUnread = wasUnreadIds.has(notif.id)
     const method = isCurrentlyMarkedUnread ? 'mark-read' : 'mark-unread'
 
@@ -74,71 +83,77 @@ function NotificationHistory({ onOpenRequest, onCleared }) {
     }
   }
 
-  const formatDate = (dateString) => {
-    return new Date(dateString).toLocaleDateString('en-GB', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    })
-  }
-
   return (
-    <Card style={{ width: '100%', textAlign: 'start' }}>
-      {!loading && notifications.length > 0 && (
-        <div style={{ display: 'flex', gap: 'var(--space-2)', marginBottom: 'var(--space-3)' }}>
-          <Button variant="secondary" onClick={handleClearAll}>
-            Clear
-          </Button>
-        </div>
-      )}
+    <div className="notification-history">
+      <Card>
+        {!loading && notifications.length > 0 && (
+          <div className="notification-history-header">
+            <h2>Notifications</h2>
+            <Button type="button" variant="secondary" onClick={handleClearAll}>
+              Clear
+            </Button>
+          </div>
+        )}
 
-      {error && <p className="notification-history-error">Error: {error}</p>}
+        {error && <p role="alert" className="notification-history-error">Error: {error}</p>}
 
-      {loading && <p className="notification-history-status">Loading notifications...</p>}
+        {loading && <p className="notification-history-status">Loading notifications…</p>}
 
-      {!loading && !error && notifications.length === 0 && (
-        <p className="notification-history-status">No notifications yet</p>
-      )}
+        {!loading && !error && notifications.length === 0 && (
+          <p className="notification-history-status">No notifications yet</p>
+        )}
 
-      {!loading && !error && notifications.length > 0 && (
-        <ul className="notification-list">
-          {notifications.map((notif) => {
-            const isUnread = wasUnreadIds.has(notif.id)
-            const isClickable = notif.requestId != null
-            return (
-              <li
-                key={notif.id}
-                className={`notification-item${isUnread ? ' notification-item-unread' : ''}${isClickable ? ' notification-item-clickable' : ''}`}
-                onClick={() => isClickable && onOpenRequest(notif.requestId)}
-                onKeyDown={(e) => {
-                  if (isClickable && (e.key === 'Enter' || e.key === ' ')) {
-                    e.preventDefault()
-                    onOpenRequest(notif.requestId)
-                  }
-                }}
-                role={isClickable ? 'button' : undefined}
-                tabIndex={isClickable ? 0 : undefined}
-              >
-                <div className="notification-item-header">
-                  <div className="notification-item-title">{notif.title}</div>
-                  <button
+        {!loading && !error && notifications.length > 0 && (
+          <ul className="notification-list">
+            {notifications.map((notif) => {
+              const isUnread = wasUnreadIds.has(notif.id)
+              const isClickable = notif.requestId != null
+              return (
+                <li key={notif.id} className="notification-item">
+                  {isClickable ? (
+                    <button
+                      type="button"
+                      className="notification-item-open"
+                      onClick={() => onOpenRequest(notif.requestId)}
+                    >
+                      <NotificationBody notif={notif} isUnread={isUnread} />
+                    </button>
+                  ) : (
+                    <div className="notification-item-open">
+                      <NotificationBody notif={notif} isUnread={isUnread} />
+                    </div>
+                  )}
+                  <Button
                     type="button"
+                    variant="icon"
                     className="notification-item-toggle"
-                    onClick={(e) => toggleUnread(notif, e)}
+                    onClick={() => toggleUnread(notif)}
+                    aria-label={isUnread ? 'Mark read' : 'Mark unread'}
                   >
-                    {isUnread ? 'Mark read' : 'Mark unread'}
-                  </button>
-                </div>
-                <div className="notification-item-body">{notif.body}</div>
-                <div className="notification-item-date">{formatDate(notif.createdAt)}</div>
-              </li>
-            )
-          })}
-        </ul>
-      )}
-    </Card>
+                    <Icon name={isUnread ? 'check' : 'dot'} size={18} />
+                  </Button>
+                </li>
+              )
+            })}
+          </ul>
+        )}
+      </Card>
+    </div>
+  )
+}
+
+function NotificationBody({ notif, isUnread }) {
+  return (
+    <>
+      <div className="notification-item-title-row">
+        {isUnread && <span className="notification-item-dot" aria-hidden="true" />}
+        <span className={`notification-item-title${isUnread ? ' notification-item-title-unread' : ''}`}>
+          {notif.title}
+        </span>
+      </div>
+      <div className="notification-item-body">{notif.body}</div>
+      <div className="meta">{formatDayLabel(notif.createdAt)} · {formatTime(notif.createdAt)}</div>
+    </>
   )
 }
 
