@@ -2,7 +2,7 @@
    the wrapper clips horizontal overflow so the incoming card visibly
    slides/fades in from the right, instead of the flow being one card
    that grows/shrinks per step.
-   Same width as App.css's ".design-preview .card" rule — without this,
+   Same width as App.css's ".app-shell .card" rule — without this,
    the viewport div has no intrinsic width of its own (it's not a .card),
    so it was collapsing narrower than the .card inside it and clipping
    real content (caught live by Gavi on desktop).

@@ -1325,6 +1325,16 @@ Confirmed with Gavi this needed a real design-system change, not a local overrid
 
 **Standing lesson**: a component matching its own documented design-system spec exactly is not proof it's actually usable — DESIGN.md itself can encode a real touch-accessibility gap (hover-only affordance) that only live testing on a real device/viewport surfaces, never a code review of the diff against the spec.
 
+### Decision #150 — `.app-shell` children default to shrink-wrap, not stretch; an unbreakable string anywhere silently blows out the whole page on mobile (2026-09-20, G411-111 post-merge)
+
+Gavi caught live on his real phone (not reproducible via local browser simulation) that a request with no spaces in its text broke the entire admin page layout — cards and surrounding UI extending past both screen edges, the browser auto-zooming the whole page out to compensate. Several real wrong turns before the actual cause, instructive on their own: removing `AdminRequestRow`'s width cap "fixed" the symptom locally but let the row overflow the real viewport (caught and reverted, commit `5d919ed`, rather than layered over with another guess); "open vs closed" looked like the pattern but was a red herring (Gavi's own correction) — the real variable was just which specific requests happened to contain unbreakable text.
+
+**Real root cause**: `.app-shell` (App.css, the app's real top-level page wrapper — renamed from the stale `.design-preview` in the same pass) uses `align-items: center`, so its direct children shrink-wrap to their own content instead of stretching to the shell's width. A child containing a string with no spaces sizes itself to the string's full unwrapped width — measured 510px inside a 390px viewport in a faithful local reproduction of the real DOM chain — dragging the whole page wider than the screen. The same exposure exists one level down: `.app-shell .card` is itself a flex container whose children also default to `min-width: auto` (= min-content), so unbreakable text inside any card pushes past the card's own edges too, independent of the shell-level fix.
+
+**Standing lesson**: a flex item's default minimum size is its content's min-content width, not zero — `width`/`max-width` alone never override that; only an explicit `min-width: 0` does. Fixed once, structurally, rather than per-component: `.app-shell > *` and `.app-shell .card > *` both get `max-width: 100%; min-width: 0`. Any future screen or card added under this wrapper inherits the containment automatically — no need to remember this per new component. If a *new* top-level flex wrapper is ever introduced elsewhere in the app, it needs the same treatment; this isn't a global reset, it's scoped to `.app-shell`.
+
+**Process lesson, logged because it recurred twice in one session**: local browser simulation cannot substitute for testing on real mobile hardware for this class of bug (viewport-relative overflow, browser auto-zoom behavior) — Gavi's explicit correction both times an attempt was made to verify a fix locally instead of waiting for his real-device test. Stack changes one at a time and let each be confirmed before the next, rather than bundling multiple guesses into what looks like a single fix.
+
 ## 7. Not Yet Discussed
  
 - Data model, architecture, tech decisions (schema itself not yet drafted — first task on deck).

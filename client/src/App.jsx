@@ -464,7 +464,7 @@ function App() {
   }
 
   return (
-    <div className="design-preview">
+    <div className="app-shell">
       {/* G411-108: Fixed 56px app bar — ☰ (menu, stays visible on every
           screen; the dialog's own close button handles closing it, since
           showModal()'s top-layer means an app-bar button can't be seen or

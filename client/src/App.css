@@ -1,4 +1,4 @@
-.design-preview {
+.app-shell {
   /* No top padding: it would offset the sticky .app-bar down the page,
      making the bar travel that distance before sticking instead of
      being pinned from the start. The bar carries its own top padding
@@ -9,11 +9,32 @@
   align-items: center;
 }
 
-/* .design-preview itself stays full width/centered (reverted — capping
+/* `align-items: center` above means every direct child SHRINK-WRAPS to its
+   own content instead of stretching to the shell's width. For a child
+   containing an unbreakable string (freeText with no spaces, a long URL),
+   that content width is the full unwrapped string — so the child grows
+   past the viewport and drags the whole page with it. Real symptom on a
+   phone (Gavi, live): cards AND the surrounding UI extend past both screen
+   edges, and the browser zooms the page out to compensate. The screen
+   wrappers in App.jsx (`<div hidden={...}>`) are plain unstyled divs, so
+   they had nothing stopping this.
+
+   `max-width: 100%` caps each child at the shell's content box; `min-width:
+   0` lets it actually shrink below its min-content width so the inner
+   ellipsis/overflow-wrap rules can finally engage. Applied here once rather
+   than per-screen — every child of the shell is a screen wrapper with the
+   same exposure. The app bar never showed the bug because
+   .wordmark-with-presence already carries its own min-width: 0. */
+.app-shell > * {
+  max-width: 100%;
+  min-width: 0;
+}
+
+/* .app-shell itself stays full width/centered (reverted — capping
    the whole page wrapper at 420px squeezed the entire desktop layout
    into a phone-width column, not just the card content). The actual
    bug: .theme-toggle's align-self:flex-end had no consistent width to
-   align against, since .design-preview's content box resizes per
+   align against, since .app-shell's content box resizes per
    screen — it visually floated away from the card underneath it
    (caught live by Gavi). Fix: give the header row (wordmark + toggle)
    the same 420px column the card already uses, via a wrapper in
@@ -35,7 +56,7 @@
      replaces. Needs its own background: a transparent sticky bar would
      let cards scroll visibly underneath it.
 
-     padding-top replaces the top padding removed from .design-preview:
+     padding-top replaces the top padding removed from .app-shell:
      as the wrapper's padding it pushed the bar down the page, so the
      bar visibly travelled that distance before sticking. Carried here
      instead, the bar is pinned from scroll position 0 while the space
@@ -173,7 +194,7 @@ button.wordmark-button {
   padding: 0;
 }
 
-.design-preview .card {
+.app-shell .card {
   width: 100%;
   max-width: 420px;
   display: flex;
@@ -181,7 +202,18 @@ button.wordmark-button {
   gap: var(--space-4);
 }
 
-.design-preview-actions {
+/* Same reason as `.app-shell > *` above, one level down: a card is a flex
+   container, so its children default to `min-width: auto` (= min-content)
+   and an unbreakable string inside one pushes past the card's own edges
+   rather than wrapping or truncating. Capping every card child here means
+   each card's existing text rules (ellipsis on the admin row,
+   overflow-wrap on RequestCard) actually get a bounded box to work in. */
+.app-shell .card > * {
+  max-width: 100%;
+  min-width: 0;
+}
+
+.app-shell-actions {
   display: flex;
   justify-content: center;
   gap: var(--space-3);
