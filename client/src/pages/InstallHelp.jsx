@@ -1,27 +1,45 @@
-import { useEffect, useState } from "react";
 import Card from "../components/Card";
-import Button from "../components/Button";
 
-// Renders client/public/install-ios.md as a real page (G411-67 — the
-// file existed with content but nothing linked to it). Plain <pre>, no
-// markdown-render dependency — this is intentionally low-priority
-// polish, not worth adding a library for.
-function InstallHelp({ onBack }) {
-  const [text, setText] = useState("");
-
-  useEffect(() => {
-    fetch("/install-ios.md")
-      .then((res) => res.text())
-      .then(setText)
-      .catch(() => setText("Couldn't load this page."));
-  }, []);
-
+// Real page (G411-67 — the file existed with content but nothing linked
+// to it). Previously fetched and rendered client/public/install-ios.md as
+// raw <pre> text — literal `**bold**` markers, backticks, and an internal
+// dev-facing "ponytail: this is a placeholder" footer were all visible to
+// real friends. G411-112: real JSX, structure only — final copy lands in
+// WP10. No in-page Back button: the app bar's own chevron already covers
+// every non-'list' view, including this one (App.jsx line ~492).
+function InstallHelp() {
   return (
     <Card style={{ width: "100%", textAlign: "start" }}>
-      <Button variant="secondary" onClick={onBack}>
-        ← Back
-      </Button>
-      <pre style={{ whiteSpace: "pre-wrap", font: "inherit" }}>{text}</pre>
+      <h2>Installing on iPhone</h2>
+      <p>
+        iOS Safari doesn't show an automatic install prompt the way Android
+        or desktop Chrome does — it has to be done manually via the Share
+        sheet.
+      </p>
+      <ol>
+        <li>
+          Open the site in <strong>Safari</strong> (not Chrome or Firefox on
+          iOS — only Safari can install PWAs).
+        </li>
+        <li>
+          Tap the <strong>Share</strong> icon (the square with an arrow
+          pointing up).
+        </li>
+        <li>
+          Scroll down and tap <strong>Add to Home Screen</strong>.
+        </li>
+        <li>
+          Tap <strong>Add</strong> in the top-right corner.
+        </li>
+      </ol>
+      <p>
+        The app icon now appears on your home screen and opens without
+        Safari's address bar.
+      </p>
+      <p className="meta">
+        Note: this install step is required before push notifications can
+        work on iPhone.
+      </p>
     </Card>
   );
 }

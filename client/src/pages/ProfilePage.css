@@ -1,0 +1,81 @@
+/* G411-112: Profile onto the design system — same Card layout for every
+   account, friend or admin, since this is always the signed-in user's own
+   data. */
+.profile-page {
+  width: 100%;
+  max-width: 420px;
+  margin: 0 auto;
+}
+
+.profile-avatar-row {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-4);
+}
+
+.profile-avatar {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.profile-avatar-fallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--border);
+  color: var(--text-h);
+  font-weight: 600;
+  font-size: 18px;
+}
+
+.profile-info-rows {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+}
+
+.profile-info-row {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.profile-phone-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+}
+
+.profile-actions {
+  display: flex;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.profile-signout {
+  margin-top: var(--space-4);
+  width: 100%;
+}
+
+.profile-error {
+  color: var(--danger);
+  margin: 0;
+}
+
+.profile-delete-section {
+  margin-top: var(--space-5);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--border);
+}
+
+.profile-delete-confirm {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}

@@ -1,6 +1,10 @@
 import { useState, useEffect, useRef, forwardRef, useImperativeHandle } from 'react'
 import { useUser, useClerk } from '@clerk/react'
-import './CompleteProfile.css'
+import Card from '../components/Card'
+import Button from '../components/Button'
+import Input from '../components/Input'
+import Select from '../components/Select'
+import './ProfilePage.css'
 
 // Profile page (G411-80) — lets a friend view their account and update the
 // one field Clerk can't manage: phone number (Clerk doesn't support Israeli
@@ -13,6 +17,10 @@ import './CompleteProfile.css'
 // G411-108: exposes handleBack via ref so App.jsx's app-bar back button can
 // trigger this screen's real exit logic (the Clerk sync below) instead of
 // a plain setView — this screen no longer renders its own Back button.
+//
+// G411-112: onto the design system (Card/Button/Input/Select) — same
+// layout for every account, friend or admin, since this is always the
+// signed-in user's own data, never account-specific.
 const ProfilePage = forwardRef(function ProfilePage({ user, onBack, onUpdated }, ref) {
   const { user: clerkUser } = useUser()
   const { openUserProfile, signOut } = useClerk()
@@ -216,129 +224,126 @@ const ProfilePage = forwardRef(function ProfilePage({ user, onBack, onUpdated },
     setDeleteError(null)
   }
 
-  return (
-    <div className="complete-profile">
-      <h1>Profile</h1>
+  const displayName = [user?.firstName, user?.lastName].filter(Boolean).join(' ') || '(not set)'
+  const initials = `${user?.firstName?.[0] ?? ''}${user?.lastName?.[0] ?? ''}`.toUpperCase() || '?'
 
-      <div style={{ marginBottom: 'var(--space-3)' }}>
-        <div style={{ marginBottom: 'var(--space-1)' }}>
-          <strong>Name:</strong> {[user?.firstName, user?.lastName].filter(Boolean).join(' ') || '(not set)'}
-        </div>
-        <div style={{ marginBottom: 'var(--space-1)' }}>
-          <strong>Username:</strong> {user?.username || '(not set)'}
-        </div>
-        <div style={{ marginBottom: 'var(--space-1)' }}>
-          <strong>Email:</strong> {user?.email || '(not set)'}
-        </div>
-        <div style={{ marginBottom: 'var(--space-1)' }}>
-          <strong>Profile picture:</strong>
+  return (
+    <div className="profile-page">
+      <Card>
+        <div className="profile-avatar-row">
           {user?.profilePic ? (
-            <img src={user.profilePic} alt="Profile" style={{ width: 80, height: 80, borderRadius: '50%', objectFit: 'cover', marginLeft: 'var(--space-1)' }} />
+            <img src={user.profilePic} alt="" className="profile-avatar" />
           ) : (
-            <span style={{ marginLeft: 'var(--space-1)' }}>Not set</span>
+            <div className="profile-avatar profile-avatar-fallback" aria-hidden="true">{initials}</div>
+          )}
+          <h2 dir="auto">{displayName}</h2>
+        </div>
+
+        <div className="profile-info-rows">
+          <div className="profile-info-row">
+            <span className="meta">Username</span>
+            <span dir="auto">{user?.username || '(not set)'}</span>
+          </div>
+          <div className="profile-info-row">
+            <span className="meta">Email</span>
+            <span dir="auto">{user?.email || '(not set)'}</span>
+          </div>
+          {!editingPhone && (
+            <div className="profile-info-row">
+              <span className="meta">Phone</span>
+              <span>{formatPhoneNumber(user?.phoneNumber) || '(not set)'}</span>
+            </div>
           )}
         </div>
-      </div>
 
-      {!editingPhone ? (
-        <>
-          <div style={{ marginBottom: 'var(--space-3)' }}>
-            <strong>Phone:</strong> {formatPhoneNumber(user?.phoneNumber) || '(not set)'}
-          </div>
+        {editingPhone && (
+          <form onSubmit={handleSubmit} className="profile-phone-form">
+            <Select
+              id="profile-dial-code"
+              label="Phone number"
+              options={dialCodeOptions.map((opt) => ({ value: opt.code, label: `${opt.country} (${opt.code})` }))}
+              value={dialCode}
+              onChange={(e) => setDialCode(e.target.value)}
+            />
+            <Input
+              id="profile-local-number"
+              type="tel"
+              value={localNumber}
+              onChange={(e) => setLocalNumber(e.target.value)}
+              placeholder={getPlaceholder()}
+            />
 
-          <div style={{ display: 'flex', gap: 'var(--space-2)', flexWrap: 'wrap' }}>
+            {error && <p role="alert" className="profile-error">{error}</p>}
+
+            <div className="profile-actions">
+              <Button type="submit" variant="primary" disabled={submitting}>
+                {submitting ? 'Saving…' : 'Save'}
+              </Button>
+              <Button type="button" variant="ghost" onClick={cancelEditingPhone} disabled={submitting}>
+                Cancel
+              </Button>
+            </div>
+          </form>
+        )}
+
+        {!editingPhone && (
+          <div className="profile-actions">
             {/* Name/username/email/photo/password/connected-accounts/
                 device-sign-out all live in Clerk's own account modal —
                 Gavi's call: no need to duplicate a UI Clerk already does
                 well. Only phone (Clerk-unsupported for Israeli numbers)
-                gets a custom edit flow, below. */}
-            <button type="button" onClick={() => { openedClerkModal.current = true; openUserProfile() }}>
+                gets a custom edit flow, above. */}
+            <Button type="button" variant="secondary" onClick={() => { openedClerkModal.current = true; openUserProfile() }}>
               Update account info
-            </button>
-            <button type="button" onClick={startEditingPhone}>
+            </Button>
+            <Button type="button" variant="secondary" onClick={startEditingPhone}>
               Update phone number
-            </button>
-            {/* Sign out — regression from G411-108 (WP3's app-bar redesign
-                dropped the old header account-indicator's Sign out button
-                and never gave it a new home); ProfilePage already imports
-                signOut from useClerk() above, just never called it. */}
-            <button type="button" onClick={() => signOut()}>
-              Sign out
-            </button>
+            </Button>
           </div>
+        )}
 
-          {/* G411-96: account deletion */}
-          <div style={{ marginTop: 'var(--space-5)', paddingTop: 'var(--space-3)', borderTop: '1px solid var(--border)' }}>
+        {!editingPhone && (
+          <Button type="button" variant="ghost" onClick={() => signOut()} className="profile-signout">
+            Sign out
+          </Button>
+        )}
+
+        {/* G411-96: account deletion */}
+        {!editingPhone && (
+          <div className="profile-delete-section">
             {!confirmingDelete ? (
-              <button type="button" onClick={() => setConfirmingDelete(true)} style={{ color: '#d32f2f' }}>
+              <Button type="button" variant="danger-text" onClick={() => setConfirmingDelete(true)}>
                 Delete account
-              </button>
+              </Button>
             ) : (
-              <div>
+              <div className="profile-delete-confirm">
                 <p>This will permanently delete your account. Type your first name to confirm.</p>
-                <input
+                <Input
+                  id="profile-delete-confirm-name"
                   type="text"
                   value={confirmText}
                   onChange={(e) => setConfirmText(e.target.value)}
                   placeholder="Enter your first name"
-                  style={{ marginBottom: 'var(--space-2)' }}
                 />
-                {deleteError && <p role="alert" style={{ color: '#d32f2f' }}>{deleteError}</p>}
-                <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
-                  <button
+                {deleteError && <p role="alert" className="profile-error">{deleteError}</p>}
+                <div className="profile-actions">
+                  <Button
                     type="button"
+                    variant="danger-primary"
                     onClick={handleDeleteAccount}
                     disabled={submitting || confirmText.trim().toLowerCase() !== (user?.firstName?.toLowerCase() ?? '')}
-                    style={{ color: '#d32f2f' }}
                   >
                     {submitting ? 'Deleting…' : 'Delete my account'}
-                  </button>
-                  <button type="button" onClick={cancelDelete} disabled={submitting}>
+                  </Button>
+                  <Button type="button" variant="ghost" onClick={cancelDelete} disabled={submitting}>
                     Cancel
-                  </button>
+                  </Button>
                 </div>
               </div>
             )}
           </div>
-        </>
-      ) : (
-        <form onSubmit={handleSubmit}>
-          <div className="phone-section">
-            <label>
-              Phone number
-              <div className="phone-input-group">
-                <select
-                  value={dialCode}
-                  onChange={(e) => setDialCode(e.target.value)}
-                >
-                  {dialCodeOptions.map((opt) => (
-                    <option key={opt.country} value={opt.code}>
-                      {opt.country} ({opt.code})
-                    </option>
-                  ))}
-                </select>
-                <input
-                  type="tel"
-                  value={localNumber}
-                  onChange={(e) => setLocalNumber(e.target.value)}
-                  placeholder={getPlaceholder()}
-                />
-              </div>
-            </label>
-          </div>
-
-          {error && <p role="alert">{error}</p>}
-
-          <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
-            <button type="submit" disabled={submitting}>
-              {submitting ? 'Saving…' : 'Save'}
-            </button>
-            <button type="button" onClick={cancelEditingPhone} disabled={submitting}>
-              Cancel
-            </button>
-          </div>
-        </form>
-      )}
+        )}
+      </Card>
     </div>
   )
 })
