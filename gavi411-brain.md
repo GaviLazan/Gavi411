@@ -1335,6 +1335,16 @@ Gavi caught live on his real phone (not reproducible via local browser simulatio
 
 **Process lesson, logged because it recurred twice in one session**: local browser simulation cannot substitute for testing on real mobile hardware for this class of bug (viewport-relative overflow, browser auto-zoom behavior) — Gavi's explicit correction both times an attempt was made to verify a fix locally instead of waiting for his real-device test. Stack changes one at a time and let each be confirmed before the next, rather than bundling multiple guesses into what looks like a single fix.
 
+### Decision #151 — G411-112 live-testing found 3 real items, all deliberately deferred to v2, not fixed in-ticket (2026-09-20, G411-112)
+
+Gavi's live testing of the G411-112 batch (TriggerAdmin, InviteAdmin, AdminCreateRequest, AdminList width fix) surfaced three items, each explicitly called "note for v2" rather than blocking this ticket:
+
+1. **InviteAdmin still has the centering/alignment issue** the AdminList width fix (560px → 420px) was meant to address — the same class of bug, a different screen, root cause not yet found for this one.
+2. **The "Group" dropdown on the open-requests screen wraps to its own line** in the persistent sort/filter/group row (`AdminList.jsx`) — a real layout bug, unrelated to the width fix above.
+3. **AdminCreateRequest has no way to create a request for a friend who hasn't signed up yet** — the friend dropdown only lists existing users. Confirmed with Gavi this means literally that (someone pre-invite/pre-signup), not a UI-navigation gap. This was assumed in scope by Gavi going in; turned out not to be part of G411-44's original build. Needs a real ticket, not a G411-112 fix — creating a request for a non-existent user is new backend/data-model work (what does `userId` even point to?), not a redesign-onto-components task.
+
+**Standing lesson**: none of these three were treated as this ticket's problem to fix on the spot — Gavi's own "note for v2, move on" for the first two, and this session's own read that AdminCreateRequest's gap is out of a redesign ticket's scope, both align with STOP 2 (a discovered gap is not automatically this ticket's to close). G411-5 (Admin Cockpit) is already Reconciled, so none of these could go there per decision #108 — filed instead as real children of **G411-57 (V2/Stretch Backlog)**: **G411-119** (InviteAdmin alignment), **G411-120** (Group dropdown wrap), **G411-121** (create-request-for-not-yet-signed-up-user). Real tickets, not just comments left on G411-112 for someone to rediscover later.
+
 ## 7. Not Yet Discussed
  
 - Data model, architecture, tech decisions (schema itself not yet drafted — first task on deck).

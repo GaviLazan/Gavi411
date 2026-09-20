@@ -1,86 +1,90 @@
+/* G411-112: onto the design system — layout only, Card/Button/Input/Select
+   handle their own styling. Column matches the shared 420px width every
+   other screen uses (see App.css .app-shell .card). */
 .user-management {
-  padding: var(--space-4);
-  max-width: 900px;
+  width: 100%;
+  max-width: 420px;
   margin: 0 auto;
 }
 
-.user-management h1 {
-  margin-bottom: var(--space-4);
+.user-management-error {
+  color: var(--danger);
+  margin: 0 0 var(--space-3);
 }
 
 .users-list {
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
-  margin-bottom: var(--space-4);
 }
 
 .user-card {
-  padding: var(--space-3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
 }
 
 .user-header {
   display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: var(--space-2);
+  align-items: center;
+  flex-wrap: wrap;
   gap: var(--space-2);
+  min-width: 0;
 }
 
 .user-name {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.user-badge {
+  font-size: 12px;
+  font-weight: 600;
+  padding: 4px 12px;
+  border-radius: var(--radius-pill);
+  flex-shrink: 0;
+}
+
+.user-badge-deleted {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text);
+}
+
+.user-badge-blocked {
+  background: var(--danger-bg);
+  color: var(--danger);
+}
+
+.user-section {
   display: flex;
-  align-items: center;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.user-credit-row {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-2);
+}
+
+.user-credit-row .field {
+  flex: 1;
+  min-width: 0;
+}
+
+.user-info-form {
+  border-top: 1px solid var(--border);
+  padding-top: var(--space-2);
+}
+
+.user-actions {
+  display: flex;
   gap: var(--space-2);
   flex-wrap: wrap;
 }
 
-.badge {
-  font-size: 12px;
-  padding: 4px 8px;
-  border-radius: 4px;
-  font-weight: 600;
-}
-
-.badge.deleted {
-  background-color: var(--border);
-  color: var(--text);
-}
-
-.badge.blocked {
-  background-color: #ffe0e0;
-  color: #d32f2f;
-}
-
-.user-section {
-  margin-bottom: var(--space-3);
-}
-
-.user-section label {
-  display: block;
-  font-weight: 600;
-  margin-bottom: var(--space-1);
-}
-
-.user-section p {
-  margin: var(--space-1) 0;
-  font-size: 14px;
-}
-
-.credit-adjustment {
-  display: flex;
-  gap: var(--space-2);
-  align-items: center;
-}
-
-.credit-adjustment input {
-  flex: 0 1 auto;
-  width: 80px;
-  padding: var(--space-1);
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  font-size: 14px;
-}
-
-.credit-adjustment button {
-  flex: 0 0 auto;
+.user-delete-confirm {
+  border-top: 1px solid var(--border);
+  padding-top: var(--space-2);
 }
