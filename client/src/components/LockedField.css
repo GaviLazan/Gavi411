@@ -4,8 +4,6 @@
    edit" rather than "already an input". */
 .locked-field {
   display: flex;
-  flex-direction: column;
-  gap: 2px;
   width: 100%;
   text-align: start;
   background: none;
@@ -21,6 +19,13 @@
   justify-content: space-between;
   align-items: center;
   gap: var(--space-2);
+  width: 100%;
+}
+
+.locked-field-content > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
 }
 
 .locked-field:hover,
