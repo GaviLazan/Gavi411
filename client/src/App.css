@@ -1,5 +1,9 @@
 .design-preview {
-  padding: var(--space-6);
+  /* No top padding: it would offset the sticky .app-bar down the page,
+     making the bar travel that distance before sticking instead of
+     being pinned from the start. The bar carries its own top padding
+     instead, so the visual spacing is unchanged. */
+  padding: 0 var(--space-6) var(--space-6);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -24,12 +28,54 @@
   width: 100%;
   gap: var(--space-2);
   margin-bottom: var(--space-2);
-  position: relative;
+  /* Sticky, not relative — the bar used to scroll away with the page
+     (G411-108 built its layout but never its scroll behavior). Sticky
+     still establishes a containing block for the absolutely-positioned
+     .hamburger-unread-dot, so it's a drop-in for the `relative` it
+     replaces. Needs its own background: a transparent sticky bar would
+     let cards scroll visibly underneath it.
+
+     padding-top replaces the top padding removed from .design-preview:
+     as the wrapper's padding it pushed the bar down the page, so the
+     bar visibly travelled that distance before sticking. Carried here
+     instead, the bar is pinned from scroll position 0 while the space
+     above its content is unchanged. box-sizing keeps the declared 56px
+     as the content row's height, with the padding added above it. */
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--bg);
+  padding-top: var(--space-6);
+  box-sizing: content-box;
 }
 
 .app-bar .btn-icon {
   flex-shrink: 0;
   position: relative;
+}
+
+.wordmark-with-presence {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+/* Invisible same-width placeholder on the right whenever the back
+   chevron renders on the left (every non-home screen) — without it,
+   the bar has 2 fixed items on the left (hamburger + chevron) but only
+   1 on the right (avatar), so the flex:1 wordmark's centered position
+   shifts right to balance that asymmetry. True `position: absolute`
+   centering was tried instead and rejected: at narrow widths the
+   wordmark visibly overlapped the chevron, since absolutely-positioned
+   elements don't push each other out of the way the way flex items do.
+   This keeps normal flex flow, where overlap isn't structurally
+   possible — the wordmark shrinks/ellipses before it can collide. */
+.app-bar-chevron-spacer {
+  width: 44px;
+  flex-shrink: 0;
 }
 
 .app-bar .wordmark-app-bar {
@@ -38,13 +84,30 @@
   font-size: 24px;
   line-height: 1.18;
   letter-spacing: -0.24px;
-  flex: 1;
-  text-align: center;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   margin: 0;
   padding: 0;
+}
+
+.app-bar-presence-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.app-bar-presence-dot.online {
+  background-color: var(--success);
+}
+
+.app-bar-presence-dot.offline {
+  /* --border (1.17:1 light / 1.47:1 dark against the page bg) is by
+     design a barely-there hairline color, not a status signal — reusing
+     --danger instead (6.26:1 / 7.78:1), same token StatusChip's
+     HIGH-urgency dot already uses. */
+  background-color: var(--danger);
 }
 
 @media (max-width: 1024px) {

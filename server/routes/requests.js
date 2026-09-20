@@ -127,8 +127,12 @@ export function stripEmpty(details) {
 // `?include=messages` is NOT also requested — that path already carries
 // every message ordered ascending, so its last entry IS the last
 // message; no need to also attach this narrower duplicate.
+//
+// Extended for G411-109 (friend home lite): now also includes content and
+// userId for both admin and friend callers, so friends can render the
+// last-message preview line and sender attribution in FriendHome.
 const LAST_MESSAGE_ONLY_INCLUDE = {
-  message: { orderBy: { createdAt: 'desc' }, take: 1, select: { createdAt: true } },
+  message: { orderBy: { createdAt: 'desc' }, take: 1, select: { createdAt: true, content: true, userId: true } },
 }
 router.get('/', requireAuth, async (req, res) => {
   try {
@@ -139,12 +143,10 @@ router.get('/', requireAuth, async (req, res) => {
     const requests = await prisma.request.findMany({
       where,
       orderBy: { createdAt: 'desc' },
-      ...(isAdmin && {
-        include: {
-          user: { select: { firstName: true, lastName: true, profilePic: true } },
-          ...(includeMessages ? MESSAGE_INCLUDE : LAST_MESSAGE_ONLY_INCLUDE),
-        },
-      }),
+      include: {
+        ...(isAdmin && { user: { select: { firstName: true, lastName: true, profilePic: true } } }),
+        ...(includeMessages ? MESSAGE_INCLUDE : LAST_MESSAGE_ONLY_INCLUDE),
+      },
     })
 
     res.json(requests)

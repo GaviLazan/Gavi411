@@ -19,6 +19,7 @@ import Icon from './components/Icon'
 import { useTheme } from './useTheme'
 import Recover from './pages/Recover'
 import FriendRequestsList from './pages/FriendRequestsList'
+import FriendHome from './pages/FriendHome'
 import { CLOSED_STATUSES } from './lib/requestStatus'
 import {
   captureInviteTokenFromUrl,
@@ -504,30 +505,54 @@ function App() {
           </Button>
         )}
 
-        {/* Center slot: wordmark with same navigation logic as before */}
-        {view === 'new' ? (
-          <button
-            type="button"
-            className="wordmark wordmark-app-bar wordmark-button"
-            onClick={() => {
-              if (newRequestHasText) {
-                setShowLogoDiscardConfirm(true);
-                return;
-              }
-              setView('list');
-            }}
-          >
-            Gavi411
-          </button>
-        ) : view === 'list' ? (
-          <h1 className="wordmark wordmark-app-bar">Gavi411</h1>
-        ) : (
-          <button type="button" className="wordmark wordmark-app-bar wordmark-button" onClick={() => setView('list')}>
-            Gavi411
-          </button>
-        )}
+        {/* Center slot: wordmark with same navigation logic as before, plus
+            a presence dot grouped right next to it (G411-109 — moved off
+            FriendHome's own header so that slot is free for the future
+            credits ring, G411-113). Wrapped together so the pair centers
+            as one unit regardless of which wordmark variant renders below
+            — a dot placed as a plain flex sibling would center-anchor to
+            the wordmark's own flex:1 box and land at the far edge of the
+            bar instead of beside the text. `title` gives hover-to-reveal
+            status text natively, no tooltip JS needed. Dot shown for
+            every signed-in user, admin and friend alike, same as the old
+            inline chip this replaces. */}
+        <span className="wordmark-with-presence">
+          {view === 'new' ? (
+            <button
+              type="button"
+              className="wordmark wordmark-app-bar wordmark-button"
+              onClick={() => {
+                if (newRequestHasText) {
+                  setShowLogoDiscardConfirm(true);
+                  return;
+                }
+                setView('list');
+              }}
+            >
+              Gavi411
+            </button>
+          ) : view === 'list' ? (
+            <h1 className="wordmark wordmark-app-bar">Gavi411</h1>
+          ) : (
+            <button type="button" className="wordmark wordmark-app-bar wordmark-button" onClick={() => setView('list')}>
+              Gavi411
+            </button>
+          )}
+          {isSignedIn && (
+            <span
+              className={`app-bar-presence-dot ${isOnline ? 'online' : 'offline'}`}
+              role="status"
+              title={isOnline ? 'Gavi411 available' : 'Gavi411 offline — replies may wait'}
+              aria-label={isOnline ? 'Gavi411 available' : 'Gavi411 offline — replies may wait'}
+            />
+          )}
+        </span>
 
-        {/* Right slot: avatar chip button */}
+        {/* Right slot: avatar chip button, plus a same-width invisible
+            spacer whenever the back chevron shows on the left — keeps
+            the wordmark's flex:1 centering balanced 2-vs-2 instead of
+            shifting right against an unmatched 3rd left-side icon. */}
+        {isSignedIn && view !== 'list' && <span className="app-bar-chevron-spacer" aria-hidden="true" />}
         {isSignedIn && (
           <Button
             variant="icon"
@@ -562,15 +587,6 @@ function App() {
           That link doesn't lead anywhere — it may be wrong, or for a request you don't have access to.{' '}
           <button type="button" onClick={() => setPermalinkError(false)}>Dismiss</button>
         </p>
-      )}
-      {/* G411-108: presence status chip (G411-43 original, styled in WP3) —
-          shows whether Gavi is currently available. Reuses StatusChip.css's
-          outline styling (.status-chip + .status-chip-outline). Suppressed
-          on home screen (view === 'list') per spec. */}
-      {isSignedIn && !isOnline && view !== 'list' && (
-        <span role="status" className="status-chip status-chip-outline">
-          Gavi's offline — replies may wait
-        </span>
       )}
       <ClerkLoading>Loading…</ClerkLoading>
       <ClerkLoaded>
@@ -639,11 +655,9 @@ function App() {
                 </div>
               </div>
             ) : (
-              <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-3)", width: "100%", maxWidth: 420 }}>
-                <Button variant="primary" onClick={() => setView('new')}>
-                  + New request
-                </Button>
-              </div>
+              // Friend's own "+ New request" removed (G411-109) — FriendHome's
+              // composer bar ("What's up?") replaces it below.
+              null
             )}
           </div>
         )}
@@ -724,7 +738,7 @@ function App() {
           ) : view === 'user-management' ? (
             <UserManagement />
           ) : view === 'notification-history' ? (
-            <NotificationHistory onBack={() => setView('list')} onOpenRequest={openRequest} onCleared={() => setUnreadCount(0)} />
+            <NotificationHistory onOpenRequest={openRequest} onCleared={() => setUnreadCount(0)} />
           ) : view === 'profile' ? (
             <ProfilePage
               ref={profilePageRef}
@@ -775,7 +789,7 @@ function App() {
             // role to actually resolve avoids ever mounting the wrong one.
             <p>Loading…</p>
           ) : view === 'list' ? (
-            null
+            !isAdmin && <FriendHome refreshToken={roleRetryToken + pushRefreshToken} onOpenRequest={(id) => { setSelectedRequestId(id); setPreviousView('list'); setView('detail'); }} onCompose={() => setView('new')} />
           ) : (
             // Fallback for any unmapped view state (shouldn't occur, but
             // preserves existing behavior for safety)
@@ -819,8 +833,12 @@ function App() {
               Notifications
             </button>
 
-            {/* Group "Requests" */}
-            <div className="hamburger-menu-divider" />
+            {/* Group "Requests" — admin-only now that friends' Open/Closed
+                links live on FriendHome instead (G411-109); divider would
+                otherwise leave an empty gap between it and "Setup" for
+                friends specifically (admin's own render is unaffected,
+                its four items still populate this group). */}
+            {isAdmin && <div className="hamburger-menu-divider" />}
 
             {/* Triggers — admin-only, right after Profile per spec (Gavi's
                 call: Presence/Invites moved to the admin home screen
@@ -855,31 +873,35 @@ function App() {
             {/* Open requests — routes to AdminList for admin, FriendRequestsList
                 for friends (branches on isAdmin at render time below, not
                 here — both roles navigate the same way). */}
-            <button
-              type="button"
-              className="hamburger-menu-item"
-              onClick={() => {
-                setPreviousView('list')
-                setView('open-requests')
-                setHamburgerOpen(false)
-              }}
-            >
-              Open requests
-            </button>
+            {isAdmin && (
+              <button
+                type="button"
+                className="hamburger-menu-item"
+                onClick={() => {
+                  setPreviousView('list')
+                  setView('open-requests')
+                  setHamburgerOpen(false)
+                }}
+              >
+                Open requests
+              </button>
+            )}
 
             {/* Closed requests — same split as above, AdminList vs
                 FriendRequestsList decided at render time. */}
-            <button
-              type="button"
-              className="hamburger-menu-item"
-              onClick={() => {
-                setPreviousView('list')
-                setView('closed-requests')
-                setHamburgerOpen(false)
-              }}
-            >
-              Closed requests
-            </button>
+            {isAdmin && (
+              <button
+                type="button"
+                className="hamburger-menu-item"
+                onClick={() => {
+                  setPreviousView('list')
+                  setView('closed-requests')
+                  setHamburgerOpen(false)
+                }}
+              >
+                Closed requests
+              </button>
+            )}
 
             {/* Group "Setup" */}
             <div className="hamburger-menu-divider" />

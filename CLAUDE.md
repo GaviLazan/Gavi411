@@ -162,7 +162,12 @@ in the same turn instead of days later.
      ambiguity with Gavi at STOP 2 *before* dispatch. The handoff must be
      fully specified — exact files, routes, test cases — plus an explicit
      instruction to make the conservative choice and report, not ask,
-     once dispatched.
+     once dispatched. **Must name the exact branch and instruct
+     `git checkout -b` as its own first step, before any file write**
+     (#146 — a dispatch that only describes *what* to build, with branch
+     creation left as an assumed habit rather than a written instruction,
+     committed straight onto `main`; caught before any push reached
+     `origin`, but the gap was in the prompt, not a bypassed safeguard).
    - **Haiku codes**: Agent tool, `model: "haiku"`, foregrounded
      (`run_in_background: false`) since review depends on its output.
      Implements and tests; makes no architectural calls.
@@ -366,6 +371,7 @@ Two things carry forward from the old regime:
 | `gavi411-task-list-source.md` | Original hour-costed backlog used to populate Jira; Jira is live now |
 | `gavi411-e2e-encryption-plan.md` | Living doc for the paused E2E work — read before touching messaging/encryption |
 | `gavi411-post-deadline-learning-backlog.md` | Post-deadline study list — doesn't affect how you build now |
+| `gavi411-playwright-signin.md` | Working recipe for driving Clerk sign-in with Playwright — read before writing a login-flow test script |
 
 ## Standing facts
 
