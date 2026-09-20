@@ -79,7 +79,7 @@ function AdminRequestRow({ request, onClick }) {
   const friendName = user ? `${user.firstName} ${user.lastName}` : "Unknown";
   return (
     <button type="button" className="request-card-button" onClick={onClick}>
-      <Card style={{ width: "100%", maxWidth: 420, minWidth: 0, boxSizing: "border-box", textAlign: "start", display: "flex", flexDirection: "row", gap: "var(--space-3)", alignItems: "center" }}>
+      <Card style={{ width: "100%", textAlign: "start", display: "flex", gap: "var(--space-3)", alignItems: "center" }}>
         <Avatar user={user} />
         <div style={{ flex: 1, minWidth: 0 }}>
           {/* dir="auto" (Sibling review finding): firstName/lastName are
