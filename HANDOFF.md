@@ -12,7 +12,7 @@ accumulated. If something here turns out to matter long-term, promote it to
 
 ---
 
-## Where this session left off (2026-09-20, latest) — G411-110 (WP5, request detail restructure) built, Landed, awaiting merge go-ahead
+## Where this session left off (2026-09-20, latest) — G411-110 (WP5, request detail restructure) merged and Reconciled
 
 **Picked up G411-110 at STOP 1** right after confirming G411-109 (WP4) was already merged/Reconciled (its HANDOFF entry below was stale — corrected at pickup, see that entry's own note). Two real ambiguities resolved with Gavi before dispatch, per STOP 2 — not silently interpreted:
 1. The ticket's overflow menu names 3 items (Copy link, No longer urgent, Cancel request) but the friend view actually has a 4th conditional action ("Mark self-solved") the ticket never mentions — Gavi's call: group it into the overflow menu too, alongside Cancel request.
@@ -30,17 +30,15 @@ accumulated. If something here turns out to matter long-term, promote it to
 
 **Falsifier verified via real Playwright, later in the session, after Gavi pushed back on accepting "browser not installed" as a stopping point**: the MCP Playwright server insists on the `chrome` channel at a fixed path (`/opt/google/chrome/chrome`, needs `sudo` to install, unavailable in this sandbox) — but `npx playwright install chromium` (no sudo needed) had already silently succeeded earlier, and a standalone Node script using the `playwright` npm package directly (already a `client/` devDependency) can launch that installed Chromium build without touching the `chrome` channel at all. Script followed `gavi411-playwright-signin.md`'s recipe exactly, ran against the real dev server: compose bar's bounding box bottom (844) exactly equals the 390×844 viewport height — visible with zero scroll; overflow menu opens on click; message timestamp renders as `09:53` (short form). Screenshots confirmed visually too. Script + screenshots were throwaway, cleaned up after (not committed).
 
-555/555 tests pass fresh, client build clean, `oxlint` clean on every touched file after every round. Jira: **Landed**, Scope/Evidence-bar-met rewritten against real final state (materially different from the original ticket text in several places — see the description for the full list: Mark-self-solved in the menu, Confirm-resolved's real final placement, the compose-bar's sibling-not-child structure, the dropped admin status-pill). **Awaiting merge go-ahead — not yet Reconciled.**
+555/555 tests pass fresh, client build clean, `oxlint` clean on every touched file after every round. PR #132 merged as `be29011` (regular merge commit, `gh pr merge --merge --admin` after the required `test` CI check passed). Jira: **Reconciled**. Scope/Evidence-bar-met rewritten against real final state (materially different from the original ticket text in several places — see the description for the full list: Mark-self-solved in the menu, Confirm-resolved's real final placement, the compose-bar's sibling-not-child structure, the dropped admin status-pill). Parent Epic G411-9 correctly stays **Open** — WP6 onward still has children under it.
 
 ### Real state, right now
-Primary worktree on branch `you/G411-110-request-detail-restructure`, 3 commits (`700450f` the Haiku draft, `9548107` the hooks-order fix, `d85d137` the live-testing fix round) — **not pushed, no PR opened yet**. `main` untouched. Dev servers (Vite :5173, API :3000) were already running from a prior session at pickup — confirmed both responding (200) before use, left running. Note: two `node server.js` processes were observed (PIDs from 07:06 and 09:30) — likely one stray from an earlier session, not cleaned up this session, worth a check next time per [[gavi411-stray-dev-server-processes]].
+Primary worktree back on `main`, fast-forwarded clean to `be29011` (matches `origin/main`). All 6 `Gavi411-agent-*` worktrees checked clean (`git status --short` empty in every one) — they sit on their own older feature branches, not tracking `main`, so no fast-forward expected there. Dev servers (Vite :5173, API :3000) still running from earlier in this session. Note: two `node server.js` processes were observed at pickup (PIDs from 07:06 and 09:30) — likely one stray from an earlier session, still not cleaned up, worth a check next time per [[gavi411-stray-dev-server-processes]].
 
 ### What's next, concretely
-1. **Push the branch, open the PR, ask Gavi for the merge go-ahead** (wrap-up steps 7-8 — not yet done as of this write).
-2. Once merged: Jira Landed → Reconciled immediately, no separate re-check.
-3. Then next pick per `gavi411-finish-line-plan.md`'s execution order — WP6 (G411-111, intake polish) is next per the plan's dependency graph, but confirm with Gavi at STOP 1, don't assume.
-4. Still open, not blocking: the pre-existing `index.css` design-hook findings, the `/impeccable document` sidecar refresh, the stray dev-server process noted above.
-5. Worth fixing eventually, not urgent: Playwright's Chromium isn't installed in this environment (`npx playwright install chrome`) — blocked live-viewport falsifier verification this session; Gavi's own manual testing substituted, but a working local Playwright setup would let future sessions verify falsifiers like this one without needing Gavi's own real-device round-trips every time.
+1. Per `gavi411-finish-line-plan.md`'s dependency graph, **WP6 (G411-111, intake polish + post-submit)** is next in line — but per STOP 4, a clean merge never implies "start the next one." Confirm explicitly with Gavi at STOP 1 before picking it up, don't assume.
+2. Still open, not blocking: the pre-existing `index.css` design-hook findings, the `/impeccable document` sidecar refresh, the stray dev-server process noted above.
+3. The MCP Playwright tool still needs the real `chrome` channel installed (`sudo`, not available in this sandbox) and will keep failing on its own — but a standalone script using the `playwright` npm package directly against the already-installed `chromium` build works fine (see brain.md #148). Worth remembering next time a falsifier needs a live browser check, so "MCP tool failed" doesn't get reported as "Playwright unavailable" again.
 
 ---
 
