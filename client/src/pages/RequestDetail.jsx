@@ -4,7 +4,9 @@ import Button from "../components/Button";
 import Select from "../components/Select";
 import ConfirmModal from "../components/ConfirmModal";
 import MessageThread from "../components/MessageThread";
+import StatusChip from "../components/StatusChip";
 import { statusLabel as labelize } from "../lib/requestStatus";
+import { formatDate, formatTime, formatDayLabel } from "../lib/format";
 // This page reuses ReviewSummary's .review-row/.review-label/.review-value
 // classes for its own read-only rows — imported directly (Sibling review
 // finding: it used to only work by relying on NewRequest.jsx importing
@@ -783,7 +785,7 @@ function RequestDetail({ requestId, isAdmin }) {
           </div>
         )}
         {sendError && <p className="message-send-error" role="alert">{sendError}</p>}
-        <div className="message-compose">
+        <div className="message-compose message-compose-sticky">
           <input
             ref={fileInputRef}
             type="file"
@@ -916,32 +918,24 @@ function RequestDetail({ requestId, isAdmin }) {
     const canSelfSolve = FRIEND_SELF_SOLVABLE_FROM.includes(request.status);
     const canClose = FRIEND_CLOSABLE_FROM.includes(request.status);
     const canDowngradeUrgency = request.urgency === "HIGH";
+    const hasMenuItems = (canCancel || canSelfSolve || canDowngradeUrgency || request.publicId);
+    const [menuOpen, setMenuOpen] = useState(false);
+    const menuRef = useRef(null);
+
+    // Close menu on outside click
+    useEffect(() => {
+      if (!menuOpen) return;
+      function handleClickOutside(e) {
+        if (menuRef.current && !menuRef.current.contains(e.target)) {
+          setMenuOpen(false);
+        }
+      }
+      document.addEventListener("mousedown", handleClickOutside);
+      return () => document.removeEventListener("mousedown", handleClickOutside);
+    }, [menuOpen]);
+
     return (
       <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-4)", width: "100%", maxWidth: 420 }}>
-        {(canCancel || canSelfSolve || canClose || canDowngradeUrgency) && (
-          <div style={{ display: "flex", flexWrap: "wrap", gap: "var(--space-2)" }}>
-            {canClose && (
-              <Button onClick={() => applyStatus("CLOSED")} disabled={statusSaving}>
-                Confirm — this is resolved
-              </Button>
-            )}
-            {canCancel && (
-              <Button variant="secondary" onClick={() => setConfirmStatus("CANCELLED")} disabled={statusSaving}>
-                Cancel request
-              </Button>
-            )}
-            {canSelfSolve && (
-              <Button variant="secondary" onClick={() => setConfirmStatus("SELF_SOLVED")} disabled={statusSaving}>
-                Mark self-solved
-              </Button>
-            )}
-            {canDowngradeUrgency && (
-              <Button variant="secondary" onClick={handleDowngradeUrgency} disabled={statusSaving}>
-                No longer urgent
-              </Button>
-            )}
-          </div>
-        )}
         {statusError && <p className="message-send-error" role="alert">{statusError}</p>}
         <ConfirmModal
           open={confirmStatus !== null}
@@ -950,8 +944,116 @@ function RequestDetail({ requestId, isAdmin }) {
           onCancel={() => setConfirmStatus(null)}
           busy={statusSaving}
         />
-        {detailsCard}
+
+        {/* Header row: status chip, type, urgency, date, overflow menu */}
+        <div style={{ display: "flex", alignItems: "center", gap: "var(--space-2)", flexWrap: "wrap" }}>
+          <StatusChip status={request.status} />
+          {request.type && <span>{labelize(request.type)}</span>}
+          {request.urgency === "HIGH" && <span>{labelize(request.urgency)}</span>}
+          <span style={{ fontSize: 14, opacity: 0.7 }}>{formatDate(request.createdAt)}</span>
+
+          {hasMenuItems && (
+            <div style={{ position: "relative", marginLeft: "auto" }} ref={menuRef}>
+              <button
+                className="btn-icon"
+                onClick={() => setMenuOpen(!menuOpen)}
+                aria-label="More options"
+                type="button"
+              >
+                ⋯
+              </button>
+              {menuOpen && (
+                <div role="menu" className="request-detail-menu">
+                  {request.publicId && (
+                    <button
+                      type="button"
+                      role="menuitem"
+                      onClick={() => {
+                        handleCopyPermalink();
+                        setMenuOpen(false);
+                      }}
+                    >
+                      {permalinkCopied ? "Copied!" : "Copy link to request"}
+                    </button>
+                  )}
+                  {canDowngradeUrgency && (
+                    <button
+                      type="button"
+                      role="menuitem"
+                      onClick={() => {
+                        handleDowngradeUrgency();
+                        setMenuOpen(false);
+                      }}
+                    >
+                      No longer urgent
+                    </button>
+                  )}
+                  {canSelfSolve && (
+                    <button
+                      type="button"
+                      role="menuitem"
+                      onClick={() => {
+                        setConfirmStatus("SELF_SOLVED");
+                        setMenuOpen(false);
+                      }}
+                    >
+                      Mark self-solved
+                    </button>
+                  )}
+                  {canCancel && (
+                    <button
+                      type="button"
+                      role="menuitem"
+                      onClick={() => {
+                        setConfirmStatus("CANCELLED");
+                        setMenuOpen(false);
+                      }}
+                    >
+                      Cancel request
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Request title */}
+        <h2 className="request-detail-title">{request.freeText}</h2>
+
+        {/* Collapsible details */}
+        <Card className="review-summary">
+          <details>
+            <summary>Details</summary>
+            <div className="review-row">
+              <span className="review-label">Issue/Request</span>
+              <span className="review-value" dir="auto">{request.freeText}</span>
+            </div>
+            {request.type && (
+              <div className="review-row">
+                <span className="review-label">Type</span>
+                <span className="review-value">{labelize(request.type)}</span>
+              </div>
+            )}
+            {request.additionalInfo && (
+              <div className="review-row">
+                <span className="review-label">Anything else</span>
+                <span className="review-value" dir="auto">{request.additionalInfo}</span>
+              </div>
+            )}
+            {typeDetailRows(request.typeDetails)}
+          </details>
+        </Card>
+
+        {/* Messages thread */}
         {threadCard}
+
+        {/* Close confirmation button (shown only when appropriate) */}
+        {canClose && (
+          <Button variant="success" onClick={() => applyStatus("CLOSED")} disabled={statusSaving}>
+            Confirm — this is resolved
+          </Button>
+        )}
       </div>
     );
   }
@@ -978,11 +1080,11 @@ function RequestDetail({ requestId, isAdmin }) {
             {statusOptions.length > 0 && (
               <Select
                 aria-label="Change status"
-                value=""
+                value={request.status}
                 onChange={(e) => handleStatusSelect(e.target.value)}
                 disabled={statusSaving}
                 options={[
-                  { value: "", label: statusSaving ? "Saving…" : "Change to…" },
+                  { value: request.status, label: statusSaving ? "Saving…" : labelize(request.status) },
                   ...statusOptions.map((s) => ({ value: s, label: labelize(s) })),
                 ]}
               />

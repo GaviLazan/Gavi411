@@ -174,3 +174,12 @@
   font-size: 12px;
   line-height: 1;
 }
+
+/* Day divider between messages from different days */
+.message-day-divider {
+  text-align: center;
+  margin: var(--space-4) 0 var(--space-3);
+  font-size: 14px;
+  color: var(--text);
+  opacity: 0.6;
+}
