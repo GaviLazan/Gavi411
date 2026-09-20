@@ -9,6 +9,27 @@
   align-items: center;
 }
 
+/* `align-items: center` above means every direct child SHRINK-WRAPS to its
+   own content instead of stretching to the shell's width. For a child
+   containing an unbreakable string (freeText with no spaces, a long URL),
+   that content width is the full unwrapped string — so the child grows
+   past the viewport and drags the whole page with it. Real symptom on a
+   phone (Gavi, live): cards AND the surrounding UI extend past both screen
+   edges, and the browser zooms the page out to compensate. The screen
+   wrappers in App.jsx (`<div hidden={...}>`) are plain unstyled divs, so
+   they had nothing stopping this.
+
+   `max-width: 100%` caps each child at the shell's content box; `min-width:
+   0` lets it actually shrink below its min-content width so the inner
+   ellipsis/overflow-wrap rules can finally engage. Applied here once rather
+   than per-screen — every child of the shell is a screen wrapper with the
+   same exposure. The app bar never showed the bug because
+   .wordmark-with-presence already carries its own min-width: 0. */
+.app-shell > * {
+  max-width: 100%;
+  min-width: 0;
+}
+
 /* .app-shell itself stays full width/centered (reverted — capping
    the whole page wrapper at 420px squeezed the entire desktop layout
    into a phone-width column, not just the card content). The actual
