@@ -6,7 +6,7 @@ export function RequestCard({ request, onClick, showStatusChip, showLastMessage,
   return (
     <button type="button" className="request-card-button" onClick={onClick}>
       <Card style={{ width: "100%", textAlign: "start" }}>
-        <p dir="auto" style={{ fontWeight: 600, whiteSpace: "pre-wrap" }}>
+        <p dir="auto" style={{ fontWeight: 600, whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>
           {request.freeText}
         </p>
         <div style={{ display: "flex", alignItems: "center", gap: "var(--space-2)", marginTop: "var(--space-2)" }}>

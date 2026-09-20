@@ -1,4 +1,4 @@
-.design-preview {
+.app-shell {
   /* No top padding: it would offset the sticky .app-bar down the page,
      making the bar travel that distance before sticking instead of
      being pinned from the start. The bar carries its own top padding
@@ -9,11 +9,11 @@
   align-items: center;
 }
 
-/* .design-preview itself stays full width/centered (reverted — capping
+/* .app-shell itself stays full width/centered (reverted — capping
    the whole page wrapper at 420px squeezed the entire desktop layout
    into a phone-width column, not just the card content). The actual
    bug: .theme-toggle's align-self:flex-end had no consistent width to
-   align against, since .design-preview's content box resizes per
+   align against, since .app-shell's content box resizes per
    screen — it visually floated away from the card underneath it
    (caught live by Gavi). Fix: give the header row (wordmark + toggle)
    the same 420px column the card already uses, via a wrapper in
@@ -35,7 +35,7 @@
      replaces. Needs its own background: a transparent sticky bar would
      let cards scroll visibly underneath it.
 
-     padding-top replaces the top padding removed from .design-preview:
+     padding-top replaces the top padding removed from .app-shell:
      as the wrapper's padding it pushed the bar down the page, so the
      bar visibly travelled that distance before sticking. Carried here
      instead, the bar is pinned from scroll position 0 while the space
@@ -173,7 +173,7 @@ button.wordmark-button {
   padding: 0;
 }
 
-.design-preview .card {
+.app-shell .card {
   width: 100%;
   max-width: 420px;
   display: flex;
@@ -181,7 +181,7 @@ button.wordmark-button {
   gap: var(--space-4);
 }
 
-.design-preview-actions {
+.app-shell-actions {
   display: flex;
   justify-content: center;
   gap: var(--space-3);
