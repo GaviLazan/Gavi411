@@ -38,3 +38,16 @@
   min-width: 0;
   overflow-wrap: anywhere;
 }
+
+.trigger-admin-row .field {
+  flex: 1;
+  min-width: 0;
+}
+
+.trigger-admin-row .btn-icon {
+  flex-shrink: 0;
+}
+
+.trigger-admin-icon-danger {
+  color: var(--danger);
+}

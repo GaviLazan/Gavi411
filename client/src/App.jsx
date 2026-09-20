@@ -735,7 +735,7 @@ function App() {
           ) : view === 'trigger-admin' ? (
             <TriggerAdmin />
           ) : view === 'admin-create-request' ? (
-            <AdminCreateRequest onBack={() => setView(previousView)} />
+            <AdminCreateRequest />
           ) : view === 'user-management' ? (
             <UserManagement />
           ) : view === 'notification-history' ? (

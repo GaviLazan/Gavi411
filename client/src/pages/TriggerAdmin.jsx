@@ -3,6 +3,7 @@ import Card from '../components/Card'
 import Button from '../components/Button'
 import Input from '../components/Input'
 import Select from '../components/Select'
+import Icon from '../components/Icon'
 import './TriggerAdmin.css'
 
 // Trigger/keyword admin UI (G411-42) — live-editable list feeding the
@@ -128,15 +129,23 @@ function TriggerAdmin() {
                     onChange={(e) => setEditValue(e.target.value)}
                     autoFocus
                   />
-                  <Button type="button" variant="primary" onClick={() => handleSaveEdit(t.id)}>Save</Button>
-                  <Button type="button" variant="ghost" onClick={() => setEditingId(null)}>Cancel</Button>
+                  <Button type="button" variant="icon" onClick={() => handleSaveEdit(t.id)} aria-label="Save">
+                    <Icon name="check" />
+                  </Button>
+                  <Button type="button" variant="icon" onClick={() => setEditingId(null)} aria-label="Cancel">
+                    <Icon name="close" />
+                  </Button>
                 </>
               ) : (
                 <>
                   <span className="trigger-admin-keyword" dir="auto">{t.keyword}</span>
                   <span className="meta">{t.requestType}</span>
-                  <Button type="button" variant="secondary" onClick={() => startEdit(t)}>Edit</Button>
-                  <Button type="button" variant="danger-text" onClick={() => handleDelete(t.id)}>Delete</Button>
+                  <Button type="button" variant="icon" onClick={() => startEdit(t)} aria-label="Edit">
+                    <Icon name="edit" size={18} />
+                  </Button>
+                  <Button type="button" variant="icon" className="trigger-admin-icon-danger" onClick={() => handleDelete(t.id)} aria-label="Delete">
+                    <Icon name="trash" size={18} />
+                  </Button>
                 </>
               )}
             </li>
