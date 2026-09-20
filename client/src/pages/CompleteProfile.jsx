@@ -17,7 +17,11 @@ import './CompleteProfile.css'
 function CompleteProfile({ currentProfilePic, onComplete }) {
   const { user } = useUser()
   const fileInputRef = useRef(null)
-  const [dialCode, setDialCode] = useState('+972') // Israel default
+  // Holds the option's own id (unique even when two options share a
+  // calling code, e.g. US/CA both +1) — the Select needs a value that's
+  // actually unique per option; the calling code itself is derived via
+  // dialCodeOptions.find() wherever needed, see `dialCode` below.
+  const [dialCodeId, setDialCodeId] = useState('IL') // Israel default
   const [localNumber, setLocalNumber] = useState('')
   const [selectedPhotoUrl, setSelectedPhotoUrl] = useState(currentProfilePic || null)
   const [photoError, setPhotoError] = useState(null)
@@ -30,14 +34,16 @@ function CompleteProfile({ currentProfilePic, onComplete }) {
   const [error, setError] = useState(null)
 
   const dialCodeOptions = [
-    { code: '+972', country: 'Israel' },
-    { code: '+1', country: 'United States' },
-    { code: '+1', country: 'Canada' },
-    { code: '+44', country: 'United Kingdom' },
-    { code: '+33', country: 'France' },
-    { code: '+49', country: 'Germany' },
-    { code: '+61', country: 'Australia' },
+    { id: 'IL', code: '+972', country: 'Israel' },
+    { id: 'US', code: '+1', country: 'United States' },
+    { id: 'CA', code: '+1', country: 'Canada' },
+    { id: 'GB', code: '+44', country: 'United Kingdom' },
+    { id: 'FR', code: '+33', country: 'France' },
+    { id: 'DE', code: '+49', country: 'Germany' },
+    { id: 'AU', code: '+61', country: 'Australia' },
   ]
+
+  const dialCode = dialCodeOptions.find((opt) => opt.id === dialCodeId)?.code ?? '+972'
 
   // Determine placeholder text based on selected country
   const getPlaceholder = () => {
@@ -141,9 +147,9 @@ function CompleteProfile({ currentProfilePic, onComplete }) {
             <Select
               id="complete-profile-dial-code"
               label="Phone number"
-              options={dialCodeOptions.map((opt) => ({ value: opt.code, label: `${opt.country} (${opt.code})` }))}
-              value={dialCode}
-              onChange={(e) => setDialCode(e.target.value)}
+              options={dialCodeOptions.map((opt) => ({ value: opt.id, label: `${opt.country} (${opt.code})` }))}
+              value={dialCodeId}
+              onChange={(e) => setDialCodeId(e.target.value)}
             />
             <Input
               id="complete-profile-local-number"

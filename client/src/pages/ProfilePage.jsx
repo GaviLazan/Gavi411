@@ -30,7 +30,11 @@ const ProfilePage = forwardRef(function ProfilePage({ user, onBack, onUpdated },
   // nothing could have changed.
   const openedClerkModal = useRef(false)
   const [editingPhone, setEditingPhone] = useState(false)
-  const [dialCode, setDialCode] = useState('+972')
+  // Holds the option's own id (unique even when two options share a
+  // calling code, e.g. US/CA both +1) — the Select needs a value that's
+  // actually unique per option; the calling code itself is derived via
+  // dialCodeOptions.find() wherever needed, see `dialCode` below.
+  const [dialCodeId, setDialCodeId] = useState('IL')
   const [localNumber, setLocalNumber] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState(null)
@@ -44,14 +48,21 @@ const ProfilePage = forwardRef(function ProfilePage({ user, onBack, onUpdated },
   // digits, not 3 — a bug caught live (Gavi) in an earlier version of this
   // formatter that sliced 3 and produced "+972544-284668" instead of the
   // correct "+972 54-4284668".
+  // id is the Select's own option value/key — distinct per country even
+  // when two share a calling code (US/Canada both +1), since a native
+  // <select> can't distinguish two <option>s with the same value (Sibling
+  // review finding: the shared Select component keys by value, so the old
+  // two bare "+1" entries collided — same country ambiguity a raw <select>
+  // already had, just now a real key/value collision instead of a silent
+  // one). code is still the actual dial code used everywhere else.
   const dialCodeOptions = [
-    { code: '+972', country: 'Israel', group: (d) => d.length > 2 ? [d.slice(0, 2), d.slice(2)].join('-') : d },
-    { code: '+1', country: 'United States', group: groupNanp },
-    { code: '+1', country: 'Canada', group: groupNanp },
-    { code: '+44', country: 'United Kingdom', group: (d) => d.length > 4 ? [d.slice(0, 4), d.slice(4)].join(' ') : d },
-    { code: '+33', country: 'France', group: (d) => d.match(/.{1,2}/g)?.join(' ') ?? d },
-    { code: '+49', country: 'Germany', group: (d) => d.length > 3 ? [d.slice(0, 3), d.slice(3)].join(' ') : d },
-    { code: '+61', country: 'Australia', group: (d) => d.match(/.{1,3}/g)?.join(' ') ?? d },
+    { id: 'IL', code: '+972', country: 'Israel', group: (d) => d.length > 2 ? [d.slice(0, 2), d.slice(2)].join('-') : d },
+    { id: 'US', code: '+1', country: 'United States', group: groupNanp },
+    { id: 'CA', code: '+1', country: 'Canada', group: groupNanp },
+    { id: 'GB', code: '+44', country: 'United Kingdom', group: (d) => d.length > 4 ? [d.slice(0, 4), d.slice(4)].join(' ') : d },
+    { id: 'FR', code: '+33', country: 'France', group: (d) => d.match(/.{1,2}/g)?.join(' ') ?? d },
+    { id: 'DE', code: '+49', country: 'Germany', group: (d) => d.length > 3 ? [d.slice(0, 3), d.slice(3)].join(' ') : d },
+    { id: 'AU', code: '+61', country: 'Australia', group: (d) => d.match(/.{1,3}/g)?.join(' ') ?? d },
   ]
 
   // NANP (US/Canada): XXX-XXX-XXXX.
@@ -59,6 +70,8 @@ const ProfilePage = forwardRef(function ProfilePage({ user, onBack, onUpdated },
     if (d.length !== 10) return d
     return `${d.slice(0, 3)}-${d.slice(3, 6)}-${d.slice(6)}`
   }
+
+  const dialCode = dialCodeOptions.find((opt) => opt.id === dialCodeId)?.code ?? '+972'
 
   function matchDialCode(phoneNumber) {
     return [...dialCodeOptions]
@@ -72,7 +85,7 @@ const ProfilePage = forwardRef(function ProfilePage({ user, onBack, onUpdated },
     if (!user?.phoneNumber) return
     const knownCode = matchDialCode(user.phoneNumber)
     if (knownCode) {
-      setDialCode(knownCode.code)
+      setDialCodeId(knownCode.id)
       setLocalNumber(user.phoneNumber.slice(knownCode.code.length))
     } else {
       // Fallback for an unrecognized/local-only stored format.
@@ -152,7 +165,7 @@ const ProfilePage = forwardRef(function ProfilePage({ user, onBack, onUpdated },
     if (user?.phoneNumber) {
       const knownCode = matchDialCode(user.phoneNumber)
       if (knownCode) {
-        setDialCode(knownCode.code)
+        setDialCodeId(knownCode.id)
         setLocalNumber(user.phoneNumber.slice(knownCode.code.length))
       } else {
         setLocalNumber(user.phoneNumber)
@@ -261,9 +274,9 @@ const ProfilePage = forwardRef(function ProfilePage({ user, onBack, onUpdated },
             <Select
               id="profile-dial-code"
               label="Phone number"
-              options={dialCodeOptions.map((opt) => ({ value: opt.code, label: `${opt.country} (${opt.code})` }))}
-              value={dialCode}
-              onChange={(e) => setDialCode(e.target.value)}
+              options={dialCodeOptions.map((opt) => ({ value: opt.id, label: `${opt.country} (${opt.code})` }))}
+              value={dialCodeId}
+              onChange={(e) => setDialCodeId(e.target.value)}
             />
             <Input
               id="profile-local-number"
