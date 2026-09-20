@@ -12,7 +12,35 @@ accumulated. If something here turns out to matter long-term, promote it to
 
 ---
 
-## Where this session left off (2026-09-20, latest) — G411-111 (WP6, intake polish + post-submit) built, Landed, merged, Reconciled
+## Where this session left off (2026-09-20, latest) — G411-111 post-merge overflow fix (PR #135), awaiting merge go-ahead
+
+**After G411-111 merged and Reconciled** (see entry below), Gavi found a real bug live on his phone that neither the merged PR's testing nor his own earlier manual pass caught: a request with no spaces in its text (`asfasfjkhasfklnmasf/lkmas/...`) visibly overflowed the request-list card on the friend side, and — worse — broke the whole admin page layout on real mobile (cards and surrounding UI extending past both screen edges, the browser auto-zooming out to compensate). Not reproducible via local browser simulation; needed his real device.
+
+**Real diagnostic path, several wrong turns before the actual root cause, all instructive**:
+1. First fix: `RequestCard.jsx`'s freeText `<p>` got `whiteSpace: pre-wrap` in the earlier merged PR but never `overflow-wrap` — fixed, Gavi confirmed this part worked (friend list + post-submit screen both use `RequestCard`).
+2. Chasing the *admin* side of the same report led to a real, separate bug: `AdminList.jsx`'s row (`AdminRequestRow`) was rendering as a vertical stack instead of its intended horizontal row — traced to `.app-shell .card` (App.css) setting `flex-direction: column` as a page-level default that silently governed every `.card` in the tree, including this list row, which only set `display: flex` inline (never `flexDirection`). Renamed the misleadingly-named `.design-preview` wrapper to `.app-shell` in the same pass (Gavi's call: "if we're fixing the root cause we should also fix the stupid naming").
+3. **First attempted fix was wrong** — removed the row's `max-width: 420` entirely, which fixed the direction but let the whole row overflow the mobile viewport instead of containing the text inside it. Gavi caught this live and it was **reverted** (commit `5d919ed`) rather than layered over — a correction made explicit this session: stacking sequential unverified guesses instead of confirming each one, and no ability to test real mobile locally (browser simulation ≠ real device), means testing has to stay with Gavi, not attempted locally.
+4. **Actual root cause, found by reproducing the real DOM chain instead of guessing at the card**: `.app-shell` uses `align-items: center`, so its direct children (App.jsx's `<div hidden={...}>` screen wrappers) shrink-wrap to their own content instead of stretching — a child containing an unbreakable string sized itself to the string's full unwrapped width (measured 510px inside a 390px viewport in a faithful local reproduction), dragging the whole page wider than the screen. This is *why* it looked like "open vs closed" earlier in the session (a red herring Gavi corrected directly) — it's actually "which specific requests happen to contain unbreakable text," irrespective of filter. Fixed once at the shell level: `.app-shell > *` and `.app-shell .card > *` both get `max-width: 100%; min-width: 0` — applies to every screen and every card in the app, not a per-component patch.
+5. **Final piece**: even with the shell fixed, text still visibly overflowed the card itself (screenshotted) — the admin row's `flex-direction: row` fix from step 2/3 needed to be re-applied (it had been reverted alongside the wrong `max-width` removal) — restored just that part, kept the 420px cap this time.
+
+**Gavi's explicit call on the outcome**: "imperfect, but works enough to move on" — not pursued further this session.
+
+555/555 tests pass fresh, build clean at every step, CI green. PR #135 (`you/G411-111-followup-overflow-fix`, 4 real commits after the revert) — **awaiting merge go-ahead, not yet asked this turn**. Jira: G411-111 stays Reconciled (a same-day follow-up fix on an already-closed ticket, not new scope needing its own child) — Evidence-bar-met field updated with a short note.
+
+**Also this session, unrelated small task**: admin's Clerk profile picture wasn't showing — `User.profilePic` only ever syncs from Clerk once, at account creation (`server/middleware/auth.js`, already flagged there as a `ponytail:` gap: "only synced at creation... add a user.updated webhook if that drift becomes a real problem"). Admin's row predates having a Clerk avatar, so it was permanently `null`. Fixed with a one-time manual backfill (fetched the real `imageUrl` via the Clerk Backend API, wrote it directly to the DB row) per Gavi's explicit choice over building the real sync — the underlying gap is unchanged, still flagged in the code for whenever it becomes worth building for real.
+
+### Real state, right now
+Branch `you/G411-111-followup-overflow-fix` pushed, PR #135 open against `main`, CI green, Vercel preview deployed and live-tested by Gavi on his real phone. Not yet merged.
+
+### What's next, concretely
+1. **Ask Gavi for the merge go-ahead on PR #135** — not yet done as of this write (next action).
+2. Once merged: no Jira transition needed (G411-111 already Reconciled; this was a follow-up fix, not a new child).
+3. **Then WP7 (G411-112, native screens onto components)** — Gavi's original instruction from earlier this session, already scoped and explained at STOP 1, paused mid-flight for this overflow bug. Resume there directly, don't re-propose or re-confirm scope — it was already agreed.
+4. Still open, not blocking: the pre-existing `index.css` design-hook findings, the `/impeccable document` sidecar refresh, the "only syncs profilePic at account creation" gap noted above (already flagged in code, not rebuilt).
+
+---
+
+## Where this session left off (2026-09-20, earlier) — G411-111 (WP6, intake polish + post-submit) built, Landed, merged, Reconciled
 
 **Real process note first**: this session opened with Gavi's specific instruction "WP 7 start" (G411-112) — instead of starting WP7, this session checked the finish-line plan's dependency order, saw WP6/G411-111 was next, and proposed G411-111 at STOP 1 instead, which Gavi approved without realizing it wasn't what he'd asked for. Caught later in the session when Gavi asked what he'd actually requested at the start. His correction, saved as its own memory: a specific named instruction (a ticket number, a WP step) is not itself an ambiguity for STOP 1 to resolve — don't silently substitute a different item and present the swap as a proposal. G411-111 was already fully built, tested, and landed by the time this was caught, so per Gavi's explicit direction it was finished and merged rather than discarded — WP7/G411-112 is this session's very next pickup, for real this time.
 
