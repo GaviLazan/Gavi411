@@ -10,6 +10,11 @@ const PATHS = {
   edit: 'M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5z',
   plus: 'M12 5v14M5 12h14',
   chevron: 'M9 18l6-6-6-6',
+  // Three dots, drawn as zero-length round-capped strokes (the same
+  // trick a fill:none stroke-based icon set needs to draw a filled dot —
+  // strokeLinecap="round" on a zero-length segment renders as a circle
+  // the width of the stroke).
+  more: 'M5 12h0M12 12h0M19 12h0',
 }
 
 export default function Icon({ name, size = 24, label, ...rest }) {

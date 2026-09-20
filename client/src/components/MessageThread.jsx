@@ -1,5 +1,6 @@
 import { useUser } from "@clerk/react";
 import { useRef, useEffect } from "react";
+import { formatTime, formatDayLabel } from "../lib/format";
 import "./MessageThread.css";
 
 // Real thread UI (G411-25), replacing G411-24's throwaway review-row list.
@@ -43,36 +44,40 @@ function MessageThread({ messages }) {
 
   return (
     <div className="message-thread" ref={containerRef}>
-      {messages.map((m) => {
+      {messages.map((m, i) => {
         const isOwn = m.userId === user?.id;
-        // G411-93: system messages (nudges) are rendered centered and
-        // visually distinct from real chat messages
-        if (m.isSystem) {
-          return (
-            <div className="message-row message-system" key={m.id}>
-              <div className="message-system-content" dir="auto">
-                {m.content}
-              </div>
-              <span className="message-time">
-                {new Date(m.createdAt).toLocaleString("en-GB")}
-              </span>
-            </div>
-          );
-        }
+        const prevMessage = messages[i - 1];
+        const showDayDivider = !prevMessage || new Date(prevMessage.createdAt).toDateString() !== new Date(m.createdAt).toDateString();
+
         return (
-          <div className={`message-row ${isOwn ? "message-own" : "message-other"}`} key={m.id}>
-            <div className="message-bubble" dir="auto">
-              {m.content}
-              {m.imageUrl && <img className="message-image" src={m.imageUrl} alt="Attached image" />}
-            </div>
-            {/* en-GB pins dd/mm/yyyy explicitly (Gavi: dates should default
-                to dd/mm/yyyy, not mm/dd/yyyy) — bare toLocaleString() used
-                the browser's own locale, which reads mm/dd/yyyy on a
-                US-configured browser regardless of who's actually using
-                the app. */}
-            <span className="message-time">
-              {new Date(m.createdAt).toLocaleString("en-GB")}
-            </span>
+          <div key={m.id}>
+            {showDayDivider && (
+              <div className="message-day-divider">
+                {formatDayLabel(m.createdAt)}
+              </div>
+            )}
+            {/* G411-93: system messages (nudges) are rendered centered and
+                visually distinct from real chat messages */}
+            {m.isSystem ? (
+              <div className="message-row message-system">
+                <div className="message-system-content" dir="auto">
+                  {m.content}
+                </div>
+                <span className="message-time">
+                  {formatTime(m.createdAt)}
+                </span>
+              </div>
+            ) : (
+              <div className={`message-row ${isOwn ? "message-own" : "message-other"}`}>
+                <div className="message-bubble" dir="auto">
+                  {m.content}
+                  {m.imageUrl && <img className="message-image" src={m.imageUrl} alt="Attached image" />}
+                </div>
+                <span className="message-time">
+                  {formatTime(m.createdAt)}
+                </span>
+              </div>
+            )}
           </div>
         );
       })}

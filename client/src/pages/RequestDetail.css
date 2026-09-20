@@ -58,3 +58,76 @@
 .admin-layout-toggle:hover {
   background: var(--accent-bg);
 }
+
+/* Friend view header title — truncated to one line */
+.request-detail-title {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin: 0;
+}
+
+/* Overflow menu for friend view */
+.request-detail-menu {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  min-width: 180px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  z-index: 10;
+}
+
+.request-detail-menu button {
+  display: block;
+  width: 100%;
+  padding: var(--space-2) var(--space-3);
+  text-align: left;
+  background: none;
+  border: none;
+  font: inherit;
+  cursor: pointer;
+  color: var(--text);
+  font-size: 14px;
+}
+
+.request-detail-menu button:hover {
+  background: var(--accent-bg);
+}
+
+.request-detail-menu button:first-child {
+  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+}
+
+.request-detail-menu button:last-child {
+  border-radius: 0 0 var(--radius-sm) var(--radius-sm);
+}
+
+/* Sticky compose bar — G411-110: rendered as threadCard's sibling, NOT
+   inside its Card, so this sticks to the real viewport/scroll-container
+   edge rather than the Card's own padded inner edge (a sticky element
+   inside a padded Card only sticks to the Card's own box, leaving the
+   Card's bottom padding/radius/shadow trailing past it and boxing the
+   bar's page-background color inside the Card's surface color — the
+   "weird box" from live testing). Full-width bar with its own padding on
+   all sides now that it's not borrowing the Card's. */
+.message-compose-sticky {
+  position: sticky;
+  bottom: 0;
+  background: var(--bg);
+  padding: var(--space-4) 0;
+  z-index: 5;
+}
+
+/* .message-compose's own margin-top (var(--space-4), MessageThread.css)
+   would otherwise stack with this class's padding-top above, doubling
+   the pre-scroll gap versus the post-scroll one (Gavi, live testing:
+   ~40px pre-scroll vs ~12px post-scroll — visibly mismatched). Two-class
+   selector beats the single-class rule on specificity regardless of
+   stylesheet import order, so this is the one gap that applies both
+   pre- and post-scroll. */
+.message-compose.message-compose-sticky {
+  margin-top: 0;
+}
