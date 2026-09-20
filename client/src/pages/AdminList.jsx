@@ -79,7 +79,15 @@ function AdminRequestRow({ request, onClick }) {
   const friendName = user ? `${user.firstName} ${user.lastName}` : "Unknown";
   return (
     <button type="button" className="request-card-button" onClick={onClick}>
-      <Card style={{ width: "100%", textAlign: "start", display: "flex", gap: "var(--space-3)", alignItems: "center" }}>
+      {/* flexDirection is set explicitly because `.app-shell .card`
+          (App.css) declares `flex-direction: column` for page-level
+          cards, and this inline style previously set only `display:
+          flex` — so the class won for direction and turned this row
+          into a vertical stack. In a column container `align-items`
+          runs on the horizontal axis and the text child sizes to its
+          own content, so a freeText with no spaces overflowed the card
+          on both sides (Gavi, live on mobile). */}
+      <Card style={{ width: "100%", textAlign: "start", display: "flex", flexDirection: "row", gap: "var(--space-3)", alignItems: "center" }}>
         <Avatar user={user} />
         <div style={{ flex: 1, minWidth: 0 }}>
           {/* dir="auto" (Sibling review finding): firstName/lastName are

@@ -202,6 +202,17 @@ button.wordmark-button {
   gap: var(--space-4);
 }
 
+/* Same reason as `.app-shell > *` above, one level down: a card is a flex
+   container, so its children default to `min-width: auto` (= min-content)
+   and an unbreakable string inside one pushes past the card's own edges
+   rather than wrapping or truncating. Capping every card child here means
+   each card's existing text rules (ellipsis on the admin row,
+   overflow-wrap on RequestCard) actually get a bounded box to work in. */
+.app-shell .card > * {
+  max-width: 100%;
+  min-width: 0;
+}
+
 .app-shell-actions {
   display: flex;
   justify-content: center;
