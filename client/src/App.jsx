@@ -731,9 +731,9 @@ function App() {
           ) : view === 'install-help' ? (
             <InstallHelp />
           ) : view === 'invite-admin' ? (
-            <InviteAdmin onBack={() => setView('list')} />
+            <InviteAdmin />
           ) : view === 'trigger-admin' ? (
-            <TriggerAdmin onBack={() => setView('list')} />
+            <TriggerAdmin />
           ) : view === 'admin-create-request' ? (
             <AdminCreateRequest onBack={() => setView(previousView)} />
           ) : view === 'user-management' ? (

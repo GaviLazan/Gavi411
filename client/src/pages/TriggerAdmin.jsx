@@ -1,13 +1,22 @@
 import { useEffect, useState } from 'react'
+import Card from '../components/Card'
+import Button from '../components/Button'
+import Input from '../components/Input'
+import Select from '../components/Select'
+import './TriggerAdmin.css'
 
 // Trigger/keyword admin UI (G411-42) — live-editable list feeding the
-// matching engine (G411-19). Same minimal, unstyled pattern as
-// InviteAdmin.jsx: a form to add, an inline edit/delete per row, no
-// separate confirm step (rename/delete of a keyword is easily reversed
-// by typing it back in, unlike an invite or a request status change).
+// matching engine (G411-19). Same minimal pattern as InviteAdmin.jsx: a
+// form to add, an inline edit/delete per row, no separate confirm step
+// (rename/delete of a keyword is easily reversed by typing it back in,
+// unlike an invite or a request status change).
+//
+// G411-112: onto the design system (Card/Button/Input/Select). No in-page
+// Back button — the app bar's own chevron already covers every non-'list'
+// view (see InstallHelp.jsx).
 const REQUEST_TYPES = ['TRAVEL', 'RESEARCH', 'PURCHASE', 'TECH_SUPPORT', 'INFO', 'GENERAL']
 
-function TriggerAdmin({ onBack }) {
+function TriggerAdmin() {
   const [triggers, setTriggers] = useState([])
   const [keyword, setKeyword] = useState('')
   const [requestType, setRequestType] = useState(REQUEST_TYPES[0])
@@ -85,52 +94,55 @@ function TriggerAdmin({ onBack }) {
 
   return (
     <div className="trigger-admin">
-      <button type="button" onClick={onBack}>&larr; Back</button>
-      <h2>Trigger keywords</h2>
+      <Card>
+        <h2>Trigger keywords</h2>
 
-      <form onSubmit={handleAdd}>
-        <input
-          type="text"
-          placeholder="Keyword or phrase"
-          value={keyword}
-          onChange={(e) => setKeyword(e.target.value)}
-          dir="auto"
-          required
-        />
-        <select value={requestType} onChange={(e) => setRequestType(e.target.value)}>
-          {REQUEST_TYPES.map((t) => (
-            <option key={t} value={t}>{t}</option>
+        <form onSubmit={handleAdd} className="trigger-admin-form">
+          <Input
+            id="trigger-admin-keyword"
+            type="text"
+            placeholder="Keyword or phrase"
+            value={keyword}
+            onChange={(e) => setKeyword(e.target.value)}
+            required
+          />
+          <Select
+            id="trigger-admin-type"
+            options={REQUEST_TYPES.map((t) => ({ value: t, label: t }))}
+            value={requestType}
+            onChange={(e) => setRequestType(e.target.value)}
+          />
+          <Button type="submit" variant="primary">Add</Button>
+        </form>
+        {error && <p role="alert" className="trigger-admin-error">{error}</p>}
+
+        <ul className="trigger-admin-list">
+          {triggers.map((t) => (
+            <li key={t.id} className="trigger-admin-row">
+              {editingId === t.id ? (
+                <>
+                  <Input
+                    id={`trigger-admin-edit-${t.id}`}
+                    type="text"
+                    value={editValue}
+                    onChange={(e) => setEditValue(e.target.value)}
+                    autoFocus
+                  />
+                  <Button type="button" variant="primary" onClick={() => handleSaveEdit(t.id)}>Save</Button>
+                  <Button type="button" variant="ghost" onClick={() => setEditingId(null)}>Cancel</Button>
+                </>
+              ) : (
+                <>
+                  <span className="trigger-admin-keyword" dir="auto">{t.keyword}</span>
+                  <span className="meta">{t.requestType}</span>
+                  <Button type="button" variant="secondary" onClick={() => startEdit(t)}>Edit</Button>
+                  <Button type="button" variant="danger-text" onClick={() => handleDelete(t.id)}>Delete</Button>
+                </>
+              )}
+            </li>
           ))}
-        </select>
-        <button type="submit">Add</button>
-      </form>
-      {error && <p role="alert">{error}</p>}
-
-      <ul>
-        {triggers.map((t) => (
-          <li key={t.id}>
-            {editingId === t.id ? (
-              <>
-                <input
-                  type="text"
-                  value={editValue}
-                  onChange={(e) => setEditValue(e.target.value)}
-                  dir="auto"
-                  autoFocus
-                />
-                <button type="button" onClick={() => handleSaveEdit(t.id)}>Save</button>
-                <button type="button" onClick={() => setEditingId(null)}>Cancel</button>
-              </>
-            ) : (
-              <>
-                <span dir="auto">{t.keyword}</span> — {t.requestType}{' '}
-                <button type="button" onClick={() => startEdit(t)}>Edit</button>
-                <button type="button" onClick={() => handleDelete(t.id)}>Delete</button>
-              </>
-            )}
-          </li>
-        ))}
-      </ul>
+        </ul>
+      </Card>
     </div>
   )
 }
