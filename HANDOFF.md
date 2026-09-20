@@ -12,7 +12,31 @@ accumulated. If something here turns out to matter long-term, promote it to
 
 ---
 
-## Where this session left off (2026-09-20, latest) — G411-111 post-merge overflow fix (PR #135), awaiting merge go-ahead
+## Where this session left off (2026-09-20, latest) — G411-112 (WP7, native screens onto components) mid-flight, context handoff, NOT at a wrap-up stop
+
+**Real process change this session, standing until told otherwise**: Gavi retired the Haiku/Sonnet coding split ([[haiku-sonnet-coding-split-default]] superseded) — Haiku had been introducing real issues on recent tickets (G411-111 especially, several bugs Sibling review caught, one Haiku claimed fixed in its own report but wasn't). New default, saved as [[sonnet-writes-opus-tests-no-playwright]]: **Sonnet writes the implementation directly** (not dispatched), **Opus writes checks/mock tests**, **Gavi does all visual/manual testing himself** — no Playwright, no local browser simulation from Claude, especially for anything mobile/viewport-shaped (see the same session's [[no-local-testing-for-mobile-viewport-bugs]] and brain.md decision #150 — local simulation genuinely missed the real overflow bug once already).
+
+**Picked up G411-112 at STOP 1** — this was the session's actual original ask ("WP 7 start"), paused mid-session for the G411-111 overflow bug (now merged, see entry below), resumed here for real. Two real corrections to the ticket's stale text, both Gavi's direct call, both written into the Jira description before any code (STOP 1/STOP 2 order respected):
+1. **ProfilePage is NOT admin-specific** — ticket text read ambiguously; clarified it's always the signed-in user's own data, same layout for every account.
+2. **CompleteProfile drops "Gavi's avatar" and the explanatory phone-number copy line** — the avatar concept was already replaced app-wide by a presence dot as of G411-109 (a photo here would be inconsistent), and friends already know who Gavi is without a line explaining why the number is needed ("they know me, that's stupid" — Gavi). `--color-border` "line 251" reference in the original ticket text was also stale (file has since been rewritten, no such typo currently exists in ProfilePage) — dropped that sub-item rather than invent a fix for a bug that isn't there.
+
+**Built and checkpointed (commit `8d6d964`, pushed to `you/G411-112-native-screens`, no PR opened yet)**: `ProfilePage.jsx/.css` (new danger-text/danger-primary Button variants added to `Button.css` for the 2-step delete-account confirm), `CompleteProfile.jsx/.css` (photo picker moved to the established `fileInputRef` + hidden-input pattern from `RequestDetail.jsx`'s compose box), `InstallHelp.jsx` (was rendering `client/public/install-ios.md` as raw `<pre>` text — literal `**bold**` markers and an internal "ponytail: this is a placeholder" dev note were visible to real friends; now real JSX, file deleted; also dropped its own redundant in-page "← Back" button since the app bar's chevron already covers every non-'list' view). 555/555 tests fresh, build clean, lint clean on every touched file at every step.
+
+**Gavi tested these three live and confirmed they work** — one open clarifying question from his test (what the "Continue button" on CompleteProfile refers to — answered inline, likely just terminology, not a missing element; worth a second look if it turns out to actually be missing).
+
+### Real state, right now
+Branch `you/G411-112-native-screens`, 1 commit, pushed, **no PR opened yet** — this ticket is genuinely mid-flight, not at any wrap-up stop. Jira: **Implementing** (transitioned at STOP 1, Scope/Claim/Falsifier/Role/Evidence-required all written — description corrected for the two items above). Dev servers (Vite :5173, API :3000) running, primary worktree on this branch.
+
+**Remaining in this ticket, not yet started**: `TriggerAdmin.jsx`, `InviteAdmin.jsx` (large — invite CSV export, device-linking crypto flow, admin keypair bootstrap, all real live logic to preserve, not just markup), `AdminCreateRequest.jsx/.css`, `UserManagement.jsx/.css`, `NotificationHistory.jsx/.css` (~900 lines surveyed but not yet touched). Paused deliberately at this checkpoint (Gavi's choice, offered as an option) rather than building all 8 files before any testing.
+
+### What's next, concretely
+1. **Resume G411-112 directly** — scope is already agreed, Jira already at Implementing, don't re-propose or re-confirm. Continue with `TriggerAdmin.jsx`/`InviteAdmin.jsx` next (both surveyed already this session, not yet rewritten).
+2. Once all 8 files are done: run the ticket's own Falsifier (`grep -rn "<button" client/src/pages | grep -v 'className="btn'` returns nothing outside `Button.jsx`; `grep -rn 'color-border\|#ccc\|#d32f2f\|#ffe0e0' client/src` returns nothing), open the PR, wrap up normally (Jira Reviewing → Landed → merge ask → Reconciled).
+3. Still open, not blocking: the pre-existing `index.css` design-hook findings, the `/impeccable document` sidecar refresh, `ConfirmModal.jsx`'s own stray `variant="purple"` (found this session, out of this ticket's file scope, not fixed).
+
+---
+
+## Where this session left off (2026-09-20, earlier) — G411-111 post-merge overflow fix (PR #135), awaiting merge go-ahead
 
 **After G411-111 merged and Reconciled** (see entry below), Gavi found a real bug live on his phone that neither the merged PR's testing nor his own earlier manual pass caught: a request with no spaces in its text (`asfasfjkhasfklnmasf/lkmas/...`) visibly overflowed the request-list card on the friend side, and — worse — broke the whole admin page layout on real mobile (cards and surrounding UI extending past both screen edges, the browser auto-zooming out to compensate). Not reproducible via local browser simulation; needed his real device.
 
