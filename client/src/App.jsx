@@ -723,7 +723,8 @@ function App() {
         ) : isSignedIn ? (
           view === 'new' ? (
             <NewRequest
-              onDone={() => { setNewRequestHasText(false); setView('list'); setRoleRetryToken((t) => t + 1); }}
+              isOnline={isOnline}
+              onDone={(requestId) => { setNewRequestHasText(false); setRoleRetryToken((t) => t + 1); if (requestId) { openRequest(requestId); } else { setView('list'); } }}
               onExit={() => { setNewRequestHasText(false); setView('list'); }}
               onFreeTextChange={(v) => setNewRequestHasText(!!v)}
             />

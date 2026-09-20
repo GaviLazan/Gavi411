@@ -1,15 +1,20 @@
 /* Step-card slide transition (G411-64). Each step gets its own .card;
-   the wrapper clips overflow so the incoming card visibly slides/fades
-   in from the right, instead of the flow being one card that
-   grows/shrinks per step.
+   the wrapper clips horizontal overflow so the incoming card visibly
+   slides/fades in from the right, instead of the flow being one card
+   that grows/shrinks per step.
    Same width as App.css's ".design-preview .card" rule — without this,
    the viewport div has no intrinsic width of its own (it's not a .card),
    so it was collapsing narrower than the .card inside it and clipping
-   real content via overflow:hidden (caught live by Gavi on desktop). */
+   real content (caught live by Gavi on desktop).
+   G411-111: narrowed from overflow:hidden to overflow-x only, plus a
+   little padding, so the card's own box-shadow is no longer clipped on
+   the vertical edges — the horizontal clip that fixed the original
+   collapse bug above is unchanged. */
 .step-viewport {
   width: 100%;
   max-width: 420px;
-  overflow: hidden;
+  overflow-x: hidden;
+  padding: 4px;
 }
 
 /* Scoped to this flow's own card, not every .card in the app — the
@@ -29,6 +34,15 @@
    widths from "Back"/"Skip" vs "Back"/"Continue"). */
 .step-nav .btn {
   flex: 1;
+}
+
+/* Auto-growing textarea on the describe step (G411-111) — same pattern
+   as RequestDetail.jsx's message-textarea (G411-25). */
+.describe-textarea {
+  resize: none;
+  min-height: auto;
+  font-family: inherit;
+  line-height: inherit;
 }
 
 /* Exit-the-whole-flow control (G411-64, Gavi's ask) — top-right of the

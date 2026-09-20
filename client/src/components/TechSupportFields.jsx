@@ -31,13 +31,15 @@ export const EMPTY_TECH_SUPPORT_DETAILS = {
   helpStyle: "",
 };
 
-function TechSupportFields({ value, onChange, urgency, onUrgencyChange, urgencyOptions }) {
+function TechSupportFields({ value, onChange, urgency, onUrgencyChange, urgencyOptions, stepNumber, stepTotal }) {
   function set(field, fieldValue) {
     onChange({ ...value, [field]: fieldValue });
   }
 
   return (
     <>
+      <h2>What happened?</h2>
+      {stepNumber && stepTotal && <p className="meta">Step {stepNumber} of {stepTotal}</p>}
       <Input
         label="Device / platform"
         placeholder="e.g. iPhone, Windows laptop, Android tablet"

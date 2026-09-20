@@ -1,6 +1,5 @@
 import { useState } from "react";
 import Card from "../components/Card";
-import Input from "../components/Input";
 import Button from "../components/Button";
 import {
   TravelUrgencyCard,
@@ -15,6 +14,7 @@ import DisambiguationChips from "../components/DisambiguationChips";
 import GeneralFollowupFields from "../components/GeneralFollowupFields";
 import ReviewSummary from "../components/ReviewSummary";
 import ConfirmModal from "../components/ConfirmModal";
+import { RequestCard } from "./RequestCard";
 import "../components/ReviewSummary.css";
 import "./NewRequest.css";
 
@@ -43,8 +43,9 @@ const ALL_TYPES = Object.keys(TYPE_LABELS).filter((t) => t !== "GENERAL");
 // review screen G411-64). Matching runs once on Continue (not
 // live-debounced, per Gavi).
 // onDone (G411-67): called after a successful submit's "back to my
-// requests" action — was previously a dead end.
-function NewRequest({ onDone, onExit, onFreeTextChange }) {
+// requests" action — was previously a dead end. G411-111: now accepts
+// an optional requestId to open the created request directly.
+function NewRequest({ onDone, onExit, onFreeTextChange, isOnline }) {
   const [freeText, setFreeTextState] = useState("");
   // Reports freeText up to App.jsx (Gavi's ask: the header logo should
   // also be a working exit control during this flow, not just the
@@ -73,6 +74,7 @@ function NewRequest({ onDone, onExit, onFreeTextChange }) {
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
   const [submitted, setSubmitted] = useState(false);
+  const [createdRequest, setCreatedRequest] = useState(null);
   const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
   // G411-47: set when a normal submit 402s specifically on "still have
   // credits available"-style insufficient balance — offers "Request
@@ -155,7 +157,7 @@ function NewRequest({ onDone, onExit, onFreeTextChange }) {
   // (they don't need to know they're "step 2 of 4").
   function fieldSteps() {
     if (selectedType === "TRAVEL") {
-      return [
+      const steps = [
         <TravelUrgencyCard
           key="urgency"
           value={travelDetails}
@@ -163,14 +165,17 @@ function NewRequest({ onDone, onExit, onFreeTextChange }) {
           urgency={urgency}
           onUrgencyChange={setUrgency}
           urgencyOptions={URGENCY_OPTIONS}
+          stepNumber={1}
+          stepTotal={4}
         />,
-        <TravelDatesCard key="dates" value={travelDetails} onChange={setTravelDetails} />,
-        <TravelPreferencesCard key="preferences" value={travelDetails} onChange={setTravelDetails} />,
-        <TravelBookingsCard key="bookings" value={travelDetails} onChange={setTravelDetails} />,
+        <TravelDatesCard key="dates" value={travelDetails} onChange={setTravelDetails} stepNumber={2} stepTotal={4} />,
+        <TravelPreferencesCard key="preferences" value={travelDetails} onChange={setTravelDetails} stepNumber={3} stepTotal={4} />,
+        <TravelBookingsCard key="bookings" value={travelDetails} onChange={setTravelDetails} stepNumber={4} stepTotal={4} />,
       ];
+      return steps;
     }
     if (selectedType === "PURCHASE") {
-      return [
+      const steps = [
         <PurchaseFields
           key="purchase"
           value={purchaseDetails}
@@ -178,11 +183,14 @@ function NewRequest({ onDone, onExit, onFreeTextChange }) {
           urgency={urgency}
           onUrgencyChange={setUrgency}
           urgencyOptions={URGENCY_OPTIONS}
+          stepNumber={1}
+          stepTotal={1}
         />,
       ];
+      return steps;
     }
     if (selectedType === "TECH_SUPPORT") {
-      return [
+      const steps = [
         <TechSupportFields
           key="tech"
           value={techSupportDetails}
@@ -190,12 +198,15 @@ function NewRequest({ onDone, onExit, onFreeTextChange }) {
           urgency={urgency}
           onUrgencyChange={setUrgency}
           urgencyOptions={URGENCY_OPTIONS}
+          stepNumber={1}
+          stepTotal={1}
         />,
       ];
+      return steps;
     }
     // RESEARCH/INFO (no dedicated fields per PRD) share the same
     // additionalInfo field/state.
-    return [
+    const steps = [
       <GeneralFollowupFields
         key="general"
         additionalInfo={additionalInfo}
@@ -203,8 +214,11 @@ function NewRequest({ onDone, onExit, onFreeTextChange }) {
         urgency={urgency}
         onUrgencyChange={setUrgency}
         urgencyOptions={URGENCY_OPTIONS}
+        stepNumber={1}
+        stepTotal={1}
       />,
     ];
+    return steps;
   }
 
   // Whether the CURRENT field card has any of its own optional content
@@ -296,6 +310,8 @@ function NewRequest({ onDone, onExit, onFreeTextChange }) {
 
       // Credit deducted, Gavi notified via Telegram — both server-side,
       // nothing to do here beyond showing the confirmation.
+      const created = await res.json();
+      setCreatedRequest(created);
       setSubmitted(true);
       setStep("done");
       // The request is safely submitted — there's nothing left to discard,
@@ -338,6 +354,8 @@ function NewRequest({ onDone, onExit, onFreeTextChange }) {
         return;
       }
 
+      const created = await res.json();
+      setCreatedRequest(created);
       setOverdraftEligible(false);
       setOverdraftPending(true);
       setStep("done");
@@ -366,30 +384,64 @@ function NewRequest({ onDone, onExit, onFreeTextChange }) {
   return (
     <div className="step-viewport">
       <Card key={step === "fields" ? `fields-${fieldStepIndex}` : step} className="step-slide-enter">
-        {step !== "done" && (
-          <button type="button" className="exit-flow" onClick={handleExit} aria-label="Cancel and go back">
-            ×
-          </button>
-        )}
         {step === "describe" && (
           <>
             <h2>How can I help?</h2>
-            <Input
+            <textarea
+              className="field-input describe-textarea"
               placeholder="Give a short description of what's up"
+              rows={1}
               value={freeText}
               onChange={(e) => setFreeText(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  e.preventDefault();
-                  handleContinue();
-                }
+              onInput={(e) => {
+                e.target.style.height = "auto";
+                e.target.style.height = `${e.target.scrollHeight}px`;
               }}
+              onKeyDown={(e) => {
+                if (e.key !== "Enter") return;
+                if (e.shiftKey) return; // native newline
+                if (e.ctrlKey || e.metaKey) {
+                  // Same as RequestDetail.jsx's message compose box
+                  // (G411-118): a textarea's native un-prevented default
+                  // for a MODIFIED Enter is nothing, not a newline, so
+                  // this has to insert one explicitly.
+                  e.preventDefault();
+                  const el = e.target;
+                  const start = el.selectionStart;
+                  const end = el.selectionEnd;
+                  const next = freeText.slice(0, start) + "\n" + freeText.slice(end);
+                  setFreeText(next);
+                  requestAnimationFrame(() => {
+                    el.selectionStart = el.selectionEnd = start + 1;
+                  });
+                  return;
+                }
+                e.preventDefault();
+                handleContinue();
+              }}
+              dir="auto"
             />
+            {/* Exit button rendered after the field in DOM order (not
+                just top-of-Card, per the other steps below) so Tab
+                reaches the field first — an explicit tabIndex would
+                have jumped it to the FRONT of tab order instead
+                (positive tabIndex values are visited before any
+                tabIndex=0/unset element, regardless of DOM position),
+                the opposite of what's needed here. */}
+            <button type="button" className="exit-flow" onClick={handleExit} aria-label="Cancel and go back">
+              ×
+            </button>
             {submitError && <p style={{ color: "#b3261e" }}>{submitError}</p>}
             <Button variant="primary" onClick={handleContinue}>
               Continue
             </Button>
           </>
+        )}
+
+        {step !== "describe" && step !== "done" && (
+          <button type="button" className="exit-flow" onClick={handleExit} aria-label="Cancel and go back">
+            ×
+          </button>
         )}
 
         {step === "chips" && (
@@ -406,7 +458,7 @@ function NewRequest({ onDone, onExit, onFreeTextChange }) {
               onNoneOfThese={handleNoneOfThese}
             />
             <div className="step-nav">
-              <Button variant="purple" onClick={handleChipsBack}>
+              <Button variant="ghost" onClick={handleChipsBack}>
                 Back
               </Button>
               <Button variant="primary" onClick={handleChipContinue} disabled={!pickedChip}>
@@ -426,7 +478,7 @@ function NewRequest({ onDone, onExit, onFreeTextChange }) {
                 Back already covers it. */}
             {steps[fieldStepIndex]}
             <div className="step-nav">
-              <Button variant="purple" onClick={handleFieldStepBack}>
+              <Button variant="ghost" onClick={handleFieldStepBack}>
                 Back
               </Button>
               <Button variant="primary" onClick={handleFieldStepContinue}>
@@ -477,7 +529,7 @@ function NewRequest({ onDone, onExit, onFreeTextChange }) {
                 else in this flow. */}
             <div className="step-nav">
               <Button
-                variant="purple"
+                variant="ghost"
                 onClick={() => {
                   setFieldStepIndex(fieldSteps().length - 1);
                   setStep("fields");
@@ -485,28 +537,42 @@ function NewRequest({ onDone, onExit, onFreeTextChange }) {
               >
                 Back
               </Button>
-              <Button variant="success" onClick={handleSubmit} disabled={submitting}>
+              <Button variant="primary" onClick={handleSubmit} disabled={submitting}>
                 {submitting ? "Submitting…" : "Submit"}
               </Button>
             </div>
           </>
         )}
 
-        {step === "done" && submitted && (
+        {step === "done" && submitted && createdRequest && (
           <>
-            <p>Thanks — your request is in! Gavi's been notified.</p>
-            <Button variant="primary" onClick={onDone}>
-              Back to my requests
-            </Button>
+            <h2>Request sent!</h2>
+            <RequestCard request={createdRequest} showStatusChip onClick={() => onDone(createdRequest.id)} />
+            <p className="meta">{isOnline ? "Gavi's online — he'll see this soon" : "Gavi's offline right now — he'll get to it soon"}</p>
+            <div className="step-nav">
+              <Button variant="ghost" onClick={() => onDone()}>
+                Back home
+              </Button>
+              <Button variant="primary" onClick={() => onDone(createdRequest.id)}>
+                Open request
+              </Button>
+            </div>
           </>
         )}
 
-        {step === "done" && overdraftPending && (
+        {step === "done" && overdraftPending && createdRequest && (
           <>
-            <p>Sent — Gavi will review your overdraft request.</p>
-            <Button variant="primary" onClick={onDone}>
-              Back to my requests
-            </Button>
+            <h2>Request sent!</h2>
+            <RequestCard request={createdRequest} showStatusChip onClick={() => onDone(createdRequest.id)} />
+            <p className="meta">Gavi will review your overdraft request.</p>
+            <div className="step-nav">
+              <Button variant="ghost" onClick={() => onDone()}>
+                Back home
+              </Button>
+              <Button variant="primary" onClick={() => onDone(createdRequest.id)}>
+                Open request
+              </Button>
+            </div>
           </>
         )}
       </Card>

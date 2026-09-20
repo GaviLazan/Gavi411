@@ -12,9 +12,11 @@ import Select from "./Select";
 // G411-64: this is its own sliding card now (NONE/RESEARCH/INFO all
 // share it), so urgency joins it rather than falling back to a shared
 // global field outside any card.
-function GeneralFollowupFields({ additionalInfo, onAdditionalInfoChange, urgency, onUrgencyChange, urgencyOptions }) {
+function GeneralFollowupFields({ additionalInfo, onAdditionalInfoChange, urgency, onUrgencyChange, urgencyOptions, stepNumber, stepTotal }) {
   return (
     <>
+      <h2>Anything else?</h2>
+      {stepNumber && stepTotal && <p className="meta">Step {stepNumber} of {stepTotal}</p>}
       <Input
         label="Anything else I should know?"
         placeholder="Provide any additional details"
