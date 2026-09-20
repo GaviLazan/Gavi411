@@ -105,12 +105,29 @@
   border-radius: 0 0 var(--radius-sm) var(--radius-sm);
 }
 
-/* Sticky compose bar */
+/* Sticky compose bar — G411-110: rendered as threadCard's sibling, NOT
+   inside its Card, so this sticks to the real viewport/scroll-container
+   edge rather than the Card's own padded inner edge (a sticky element
+   inside a padded Card only sticks to the Card's own box, leaving the
+   Card's bottom padding/radius/shadow trailing past it and boxing the
+   bar's page-background color inside the Card's surface color — the
+   "weird box" from live testing). Full-width bar with its own padding on
+   all sides now that it's not borrowing the Card's. */
 .message-compose-sticky {
   position: sticky;
   bottom: 0;
   background: var(--bg);
-  border-top: 1px solid var(--border);
-  padding-top: var(--space-3);
+  padding: var(--space-4) 0;
   z-index: 5;
+}
+
+/* .message-compose's own margin-top (var(--space-4), MessageThread.css)
+   would otherwise stack with this class's padding-top above, doubling
+   the pre-scroll gap versus the post-scroll one (Gavi, live testing:
+   ~40px pre-scroll vs ~12px post-scroll — visibly mismatched). Two-class
+   selector beats the single-class rule on specificity regardless of
+   stylesheet import order, so this is the one gap that applies both
+   pre- and post-scroll. */
+.message-compose.message-compose-sticky {
+  margin-top: 0;
 }

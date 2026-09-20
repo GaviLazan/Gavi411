@@ -5,6 +5,7 @@ import Select from "../components/Select";
 import ConfirmModal from "../components/ConfirmModal";
 import MessageThread from "../components/MessageThread";
 import StatusChip from "../components/StatusChip";
+import Icon from "../components/Icon";
 import { statusLabel as labelize } from "../lib/requestStatus";
 import { formatDate } from "../lib/format";
 // This page reuses ReviewSummary's .review-row/.review-label/.review-value
@@ -707,6 +708,13 @@ function RequestDetail({ requestId, isAdmin }) {
     return <Card>Loading…</Card>;
   }
 
+  // G411-110: hoisted above threadCard (rather than declared inside the
+  // friend-only branch below, where it originally lived) so threadCard —
+  // shared by both friend and admin — can show the "Confirm — resolved"
+  // banner above the message list for the friend, without admin's branch
+  // needing its own copy of the same eligibility check.
+  const canClose = FRIEND_CLOSABLE_FROM.includes(request.status);
+
   const detailsCard = (
     <Card className="review-summary">
       <h2>Request details</h2>
@@ -755,6 +763,14 @@ function RequestDetail({ requestId, isAdmin }) {
   const threadCard = (
     <Card>
       <h2>Messages</h2>
+      {/* G411-110: kept above the message list (not just above the
+          compose bar) so it's never pushed below the fold on a long
+          thread — Gavi, live testing: "User should have it accessible." */}
+      {!isAdmin && canClose && (
+        <Button variant="success" onClick={() => applyStatus("CLOSED")} disabled={statusSaving} style={{ marginBottom: "var(--space-3)" }}>
+          Confirm — this is resolved
+        </Button>
+      )}
       {decrypting ? (
           <p className="review-empty">Loading messages…</p>
         ) : (
@@ -802,83 +818,94 @@ function RequestDetail({ requestId, isAdmin }) {
           </div>
         )}
         {sendError && <p className="message-send-error" role="alert">{sendError}</p>}
-        <div className="message-compose message-compose-sticky">
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept={IMAGE_ACCEPT}
-            className="message-file-input"
-            onChange={(e) => {
-              const file = e.target.files?.[0];
-              if (file) setImage(file);
-              e.target.value = ""; // allow re-picking the same file later
-            }}
-          />
-          <textarea
-            className="field-input message-textarea"
-            dir="auto"
-            rows={1}
-            aria-label="Message"
-            value={draft}
-            onChange={(e) => setDraft(e.target.value)}
-            onInput={(e) => {
-              e.target.style.height = "auto";
-              e.target.style.height = `${e.target.scrollHeight}px`;
-            }}
-            // G411-118: Enter sends (matching the send-arrow button).
-            // Ctrl/Cmd+Enter inserts a newline explicitly -- a textarea's
-            // native default for a MODIFIED Enter is nothing (no newline),
-            // not a fallback newline, so this can't just be "don't call
-            // preventDefault" the way Shift+Enter's native behavior can.
-            // Shift+Enter needs no handling: browsers already insert a
-            // newline for it natively.
-            onKeyDown={(e) => {
-              if (e.key !== "Enter") return;
-              if (e.shiftKey) return;
-              if (e.ctrlKey || e.metaKey) {
-                e.preventDefault();
-                const el = e.target;
-                const start = el.selectionStart;
-                const end = el.selectionEnd;
-                const next = draft.slice(0, start) + "\n" + draft.slice(end);
-                setDraft(next);
-                requestAnimationFrame(() => {
-                  el.selectionStart = el.selectionEnd = start + 1;
-                });
-                return;
-              }
-              e.preventDefault();
-              sendMessage();
-            }}
-            placeholder="Message…"
-          />
-          {/* One button slot: camera (opens the file picker) when the box
-              is empty and no image is attached, send-arrow once there's
-              text or an image. Picking an image keeps the box open for an
-              optional caption before sending, not an immediate send — one
-              Message row holds content + imageUrl together (G411-24). */}
-          {draft.trim() || image ? (
-            <button
-              type="button"
-              className="message-send-btn"
-              onClick={sendMessage}
-              disabled={sending}
-              aria-label="Send"
-            >
-              →
-            </button>
-          ) : (
-            <button
-              type="button"
-              className="message-send-btn"
-              onClick={() => fileInputRef.current?.click()}
-              aria-label="Attach image"
-            >
-              📷
-            </button>
-          )}
-        </div>
       </Card>
+  );
+
+  // G411-110: a sticky bar has to sit OUTSIDE threadCard's own Card
+  // padding/border/shadow to actually stick to the real viewport edge —
+  // sticky *inside* a padded Card only sticks to the Card's own inner
+  // edge, leaving the Card's bottom padding/radius/shadow trailing below
+  // it and the bar's page-background color boxed inside the Card's
+  // surface color (Gavi, live testing: "weird box" around the compose
+  // bar). Rendered as threadCard's sibling instead, same content/handlers
+  // as before, just relocated.
+  const composeBar = (
+    <div className="message-compose message-compose-sticky">
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept={IMAGE_ACCEPT}
+        className="message-file-input"
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          if (file) setImage(file);
+          e.target.value = ""; // allow re-picking the same file later
+        }}
+      />
+      <textarea
+        className="field-input message-textarea"
+        dir="auto"
+        rows={1}
+        aria-label="Message"
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        onInput={(e) => {
+          e.target.style.height = "auto";
+          e.target.style.height = `${e.target.scrollHeight}px`;
+        }}
+        // G411-118: Enter sends (matching the send-arrow button).
+        // Ctrl/Cmd+Enter inserts a newline explicitly -- a textarea's
+        // native default for a MODIFIED Enter is nothing (no newline),
+        // not a fallback newline, so this can't just be "don't call
+        // preventDefault" the way Shift+Enter's native behavior can.
+        // Shift+Enter needs no handling: browsers already insert a
+        // newline for it natively.
+        onKeyDown={(e) => {
+          if (e.key !== "Enter") return;
+          if (e.shiftKey) return;
+          if (e.ctrlKey || e.metaKey) {
+            e.preventDefault();
+            const el = e.target;
+            const start = el.selectionStart;
+            const end = el.selectionEnd;
+            const next = draft.slice(0, start) + "\n" + draft.slice(end);
+            setDraft(next);
+            requestAnimationFrame(() => {
+              el.selectionStart = el.selectionEnd = start + 1;
+            });
+            return;
+          }
+          e.preventDefault();
+          sendMessage();
+        }}
+        placeholder="Message…"
+      />
+      {/* One button slot: camera (opens the file picker) when the box
+          is empty and no image is attached, send-arrow once there's
+          text or an image. Picking an image keeps the box open for an
+          optional caption before sending, not an immediate send — one
+          Message row holds content + imageUrl together (G411-24). */}
+      {draft.trim() || image ? (
+        <button
+          type="button"
+          className="message-send-btn"
+          onClick={sendMessage}
+          disabled={sending}
+          aria-label="Send"
+        >
+          →
+        </button>
+      ) : (
+        <button
+          type="button"
+          className="message-send-btn"
+          onClick={() => fileInputRef.current?.click()}
+          aria-label="Attach image"
+        >
+          📷
+        </button>
+      )}
+    </div>
   );
 
   // G411-40: private admin-only notes, backed by the Note model/routes
@@ -933,7 +960,9 @@ function RequestDetail({ requestId, isAdmin }) {
     // just as worth double-checking as an admin doing it.
     const canCancel = FRIEND_CANCELLABLE_FROM.includes(request.status);
     const canSelfSolve = FRIEND_SELF_SOLVABLE_FROM.includes(request.status);
-    const canClose = FRIEND_CLOSABLE_FROM.includes(request.status);
+    // canClose is hoisted above threadCard now (see its declaration
+    // near detailsCard) — threadCard itself renders the Confirm-resolved
+    // banner, so this branch doesn't redeclare it.
     const canDowngradeUrgency = request.urgency === "HIGH";
     const hasMenuItems = (canCancel || canSelfSolve || canDowngradeUrgency || request.publicId);
 
@@ -948,22 +977,31 @@ function RequestDetail({ requestId, isAdmin }) {
           busy={statusSaving}
         />
 
-        {/* Header row: status chip, type, urgency, date, overflow menu */}
-        <div style={{ display: "flex", alignItems: "center", gap: "var(--space-2)", flexWrap: "wrap" }}>
-          <StatusChip status={request.status} />
-          {request.type && <span>{labelize(request.type)}</span>}
-          {request.urgency === "HIGH" && <span>{labelize(request.urgency)}</span>}
-          <span style={{ fontSize: 14, opacity: 0.7 }}>{formatDate(request.createdAt)}</span>
+        {/* Header row: an info group (status chip/type/urgency/date) that
+            wraps onto its own line(s) when it doesn't fit, plus a
+            separate, non-wrapping slot for the overflow menu — kept out
+            of the wrapping group entirely so a long status label (e.g.
+            "Resolved Pending Confirmation") can never push the ⋯ button
+            onto a new row with it (Gavi, live testing: button was
+            dropping to its own line on mobile when the chip's own text
+            wrapped). */}
+        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "var(--space-2)" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "var(--space-2)", flexWrap: "wrap", minWidth: 0 }}>
+            <StatusChip status={request.status} />
+            {request.type && <span>{labelize(request.type)}</span>}
+            {request.urgency === "HIGH" && <span>{labelize(request.urgency)}</span>}
+            <span style={{ fontSize: 14, opacity: 0.7 }}>{formatDate(request.createdAt)}</span>
+          </div>
 
           {hasMenuItems && (
-            <div style={{ position: "relative", marginLeft: "auto" }} ref={menuRef}>
+            <div style={{ position: "relative", flexShrink: 0 }} ref={menuRef}>
               <button
                 className="btn-icon"
                 onClick={() => setMenuOpen(!menuOpen)}
                 aria-label="More options"
                 type="button"
               >
-                ⋯
+                <Icon name="more" strokeWidth={3} />
               </button>
               {menuOpen && (
                 <div role="menu" className="request-detail-menu">
@@ -1048,15 +1086,11 @@ function RequestDetail({ requestId, isAdmin }) {
           </details>
         </Card>
 
-        {/* Messages thread */}
+        {/* Messages thread — Confirm-resolved (when eligible) renders
+            inside threadCard, above the message list. */}
         {threadCard}
 
-        {/* Close confirmation button (shown only when appropriate) */}
-        {canClose && (
-          <Button variant="success" onClick={() => applyStatus("CLOSED")} disabled={statusSaving}>
-            Confirm — this is resolved
-          </Button>
-        )}
+        {composeBar}
       </div>
     );
   }
@@ -1079,7 +1113,15 @@ function RequestDetail({ requestId, isAdmin }) {
       <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-2)" }}>
         <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", justifyContent: "space-between", gap: "var(--space-3)" }}>
           <div style={{ display: "flex", alignItems: "center", gap: "var(--space-2)", flexWrap: "wrap" }}>
-            <span className="status-pill">{labelize(request.status)}</span>
+            {/* G411-110: the dropdown itself now shows the current status
+                as its resting value (see options below), so the separate
+                pill would just duplicate it — dropped except for a
+                terminal status (CLOSED/CANCELLED/SELF_SOLVED/etc.) where
+                no dropdown renders at all and the pill is the only place
+                admin can see the status. */}
+            {statusOptions.length === 0 && (
+              <span className="status-pill">{labelize(request.status)}</span>
+            )}
             {statusOptions.length > 0 && (
               <Select
                 aria-label="Change status"
@@ -1187,14 +1229,22 @@ function RequestDetail({ requestId, isAdmin }) {
 
       {sideBySide ? (
         adminTab === "notes" ? notesCard : (
-          <div className="admin-detail-columns">
-            {detailsCard}
-            {threadCard}
-          </div>
+          <>
+            <div className="admin-detail-columns">
+              {detailsCard}
+              {threadCard}
+            </div>
+            {composeBar}
+          </>
         )
       ) : (
         <>
-          {adminTab === "thread" && threadCard}
+          {adminTab === "thread" && (
+            <>
+              {threadCard}
+              {composeBar}
+            </>
+          )}
           {adminTab === "details" && detailsCard}
           {adminTab === "notes" && notesCard}
         </>
