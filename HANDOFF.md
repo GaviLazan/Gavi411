@@ -12,7 +12,7 @@ accumulated. If something here turns out to matter long-term, promote it to
 
 ---
 
-## Where this session left off (2026-09-20, latest) — G411-109 (WP4, friend home lite) built, Landed, awaiting merge go-ahead
+## Where this session left off (2026-09-20, latest) — G411-109 (WP4, friend home lite) merged and Reconciled (this line corrects a stale prior write — PR #131 merged as `9dbda68`, Jira confirmed Reconciled at the start of the WP5 session; the merge/reconcile steps happened but this file was never updated to say so)
 
 **Real incident at pickup, logged in full below and in brain.md #146**: the Haiku dispatch that built the first draft committed directly onto `main` with no branch, no PR — bypassing the whole required workflow. Caught before any push reached `origin/main` (confirmed via `git log origin/main`); recovered by branching the commit onto `you/G411-109-friend-home-lite` and hard-resetting local `main` back to `origin/main`. Root cause: the dispatch prompt described what to build but never explicitly instructed branch creation, and every prior session's dispatch had that step done manually before Haiku touched code — a gap in the dispatch, not a bypassed safeguard (the pre-push hook exists for pushes, not commits, and never got the chance to fire since nothing was pushed).
 

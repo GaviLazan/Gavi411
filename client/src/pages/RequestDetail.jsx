@@ -6,7 +6,7 @@ import ConfirmModal from "../components/ConfirmModal";
 import MessageThread from "../components/MessageThread";
 import StatusChip from "../components/StatusChip";
 import { statusLabel as labelize } from "../lib/requestStatus";
-import { formatDate, formatTime, formatDayLabel } from "../lib/format";
+import { formatDate } from "../lib/format";
 // This page reuses ReviewSummary's .review-row/.review-label/.review-value
 // classes for its own read-only rows — imported directly (Sibling review
 // finding: it used to only work by relying on NewRequest.jsx importing
@@ -213,6 +213,23 @@ function RequestDetail({ requestId, isAdmin }) {
   const [keypairStatus, setKeypairStatus] = useState("idle"); // 'idle' | 'working' | 'error'
   // G411-94: copy-to-clipboard feedback — shows "Copied!" briefly when permalink link is copied
   const [permalinkCopied, setPermalinkCopied] = useState(false)
+  // G411-110: friend-view overflow menu (Copy link / No longer urgent /
+  // Mark self-solved / Cancel request). Declared unconditionally, same as
+  // adminTab above, even though only the friend branch renders it — a
+  // hook can't be called only inside `if (!isAdmin)` (Rules of Hooks).
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef(null);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    function handleClickOutside(e) {
+      if (menuRef.current && !menuRef.current.contains(e.target)) {
+        setMenuOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [menuOpen]);
 
   // One object URL per `image`, not recreated on every render (Sibling
   // review finding: was called inline in JSX, leaking a new blob URL on
@@ -919,20 +936,6 @@ function RequestDetail({ requestId, isAdmin }) {
     const canClose = FRIEND_CLOSABLE_FROM.includes(request.status);
     const canDowngradeUrgency = request.urgency === "HIGH";
     const hasMenuItems = (canCancel || canSelfSolve || canDowngradeUrgency || request.publicId);
-    const [menuOpen, setMenuOpen] = useState(false);
-    const menuRef = useRef(null);
-
-    // Close menu on outside click
-    useEffect(() => {
-      if (!menuOpen) return;
-      function handleClickOutside(e) {
-        if (menuRef.current && !menuRef.current.contains(e.target)) {
-          setMenuOpen(false);
-        }
-      }
-      document.addEventListener("mousedown", handleClickOutside);
-      return () => document.removeEventListener("mousedown", handleClickOutside);
-    }, [menuOpen]);
 
     return (
       <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-4)", width: "100%", maxWidth: 420 }}>
