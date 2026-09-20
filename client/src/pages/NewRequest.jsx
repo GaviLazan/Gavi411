@@ -398,10 +398,26 @@ function NewRequest({ onDone, onExit, onFreeTextChange, isOnline }) {
                 e.target.style.height = `${e.target.scrollHeight}px`;
               }}
               onKeyDown={(e) => {
-                if (e.key === "Enter" && !e.shiftKey && !e.ctrlKey && !e.metaKey) {
+                if (e.key !== "Enter") return;
+                if (e.shiftKey) return; // native newline
+                if (e.ctrlKey || e.metaKey) {
+                  // Same as RequestDetail.jsx's message compose box
+                  // (G411-118): a textarea's native un-prevented default
+                  // for a MODIFIED Enter is nothing, not a newline, so
+                  // this has to insert one explicitly.
                   e.preventDefault();
-                  handleContinue();
+                  const el = e.target;
+                  const start = el.selectionStart;
+                  const end = el.selectionEnd;
+                  const next = freeText.slice(0, start) + "\n" + freeText.slice(end);
+                  setFreeText(next);
+                  requestAnimationFrame(() => {
+                    el.selectionStart = el.selectionEnd = start + 1;
+                  });
+                  return;
                 }
+                e.preventDefault();
+                handleContinue();
               }}
               dir="auto"
             />

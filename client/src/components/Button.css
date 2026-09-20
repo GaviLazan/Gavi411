@@ -48,7 +48,7 @@
 
 .btn-ghost {
   background: transparent;
-  border: none;
+  border: 1px solid var(--border);
   color: var(--text);
 }
 

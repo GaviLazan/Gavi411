@@ -92,8 +92,13 @@ components:
   button-ghost:
     backgroundColor: "transparent"
     textColor: "{colors.body-text}"
+    border: "1px solid {colors.border}"
     rounded: "{rounded.pill}"
     padding: "14px 28px"
+    # G411-111: a borderless-at-rest ghost button is invisible on touch
+    # devices, which have no hover state to reveal it — a hairline
+    # border keeps it a low-emphasis affordance while still being
+    # visible without a pointer.
   card:
     backgroundColor: "{colors.surface}"
     rounded: "{rounded.lg}"
