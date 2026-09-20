@@ -40,13 +40,15 @@ export const EMPTY_PURCHASE_DETAILS = {
   link: "",
 };
 
-function PurchaseFields({ value, onChange, urgency, onUrgencyChange, urgencyOptions }) {
+function PurchaseFields({ value, onChange, urgency, onUrgencyChange, urgencyOptions, stepNumber, stepTotal }) {
   function set(field, fieldValue) {
     onChange({ ...value, [field]: fieldValue });
   }
 
   return (
     <>
+      <h2>What are you looking for?</h2>
+      {stepNumber && stepTotal && <p className="meta">Step {stepNumber} of {stepTotal}</p>}
       <Input
         label="Short description"
         placeholder="What is it?"

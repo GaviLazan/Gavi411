@@ -5,11 +5,13 @@
    Same width as App.css's ".design-preview .card" rule — without this,
    the viewport div has no intrinsic width of its own (it's not a .card),
    so it was collapsing narrower than the .card inside it and clipping
-   real content via overflow:hidden (caught live by Gavi on desktop). */
+   real content via overflow:visible (caught live by Gavi on desktop).
+   Changed from overflow:hidden to preserve card shadows (G411-111). */
 .step-viewport {
   width: 100%;
   max-width: 420px;
-  overflow: hidden;
+  overflow-x: hidden;
+  padding: 4px;
 }
 
 /* Scoped to this flow's own card, not every .card in the app — the
@@ -29,6 +31,15 @@
    widths from "Back"/"Skip" vs "Back"/"Continue"). */
 .step-nav .btn {
   flex: 1;
+}
+
+/* Auto-growing textarea on the describe step (G411-111) — same pattern
+   as RequestDetail.jsx's message-textarea (G411-25). */
+.describe-textarea {
+  resize: none;
+  min-height: auto;
+  font-family: inherit;
+  line-height: inherit;
 }
 
 /* Exit-the-whole-flow control (G411-64, Gavi's ask) — top-right of the

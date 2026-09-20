@@ -43,13 +43,15 @@ const EMPTY_CAR = { date: "", location: "", company: "", ref: "" };
 
 // Card 1: urgency-first. Urgency is owned by NewRequest.jsx (shared
 // across every type) — passed in as props so it renders inline here.
-export function TravelUrgencyCard({ value, onChange, urgency, onUrgencyChange, urgencyOptions }) {
+export function TravelUrgencyCard({ value, onChange, urgency, onUrgencyChange, urgencyOptions, stepNumber, stepTotal }) {
   function set(field, fieldValue) {
     onChange({ ...value, [field]: fieldValue });
   }
 
   return (
     <>
+      <h2>What happened?</h2>
+      {stepNumber && stepTotal && <p className="meta">Step {stepNumber} of {stepTotal}</p>}
       <Input
         label="What happened?"
         value={value.whatHappened}
@@ -76,13 +78,15 @@ export function TravelUrgencyCard({ value, onChange, urgency, onUrgencyChange, u
 }
 
 // Card 2: dates/destination (a "decision", per Gavi).
-export function TravelDatesCard({ value, onChange }) {
+export function TravelDatesCard({ value, onChange, stepNumber, stepTotal }) {
   function set(field, fieldValue) {
     onChange({ ...value, [field]: fieldValue });
   }
 
   return (
     <>
+      <h2>Dates</h2>
+      {stepNumber && stepTotal && <p className="meta">Step {stepNumber} of {stepTotal}</p>}
       <Input
         label="Departure date"
         type="date"
@@ -110,13 +114,15 @@ export function TravelDatesCard({ value, onChange }) {
 }
 
 // Card 3: airline/layover preferences (a "preference", per Gavi).
-export function TravelPreferencesCard({ value, onChange }) {
+export function TravelPreferencesCard({ value, onChange, stepNumber, stepTotal }) {
   function set(field, fieldValue) {
     onChange({ ...value, [field]: fieldValue });
   }
 
   return (
     <>
+      <h2>Preferences</h2>
+      {stepNumber && stepTotal && <p className="meta">Step {stepNumber} of {stepTotal}</p>}
       <Input
         label="Preferred airline(s)"
         value={value.preferredAirlines}
@@ -139,7 +145,7 @@ export function TravelPreferencesCard({ value, onChange }) {
 }
 
 // Card 4: flight/hotel/car — three independent optional add-panels.
-export function TravelBookingsCard({ value, onChange }) {
+export function TravelBookingsCard({ value, onChange, stepNumber, stepTotal }) {
   const [showHotel, setShowHotel] = useState(!!value.hotel);
   const [showCar, setShowCar] = useState(!!value.car);
 
@@ -192,6 +198,8 @@ export function TravelBookingsCard({ value, onChange }) {
 
   return (
     <div className="bookings-card">
+      <h2>Bookings</h2>
+      {stepNumber && stepTotal && <p className="meta">Step {stepNumber} of {stepTotal}</p>}
       {value.flights.map((flight, i) => (
         <div key={i} className="flight-entry">
           <Input
