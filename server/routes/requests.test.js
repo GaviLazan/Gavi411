@@ -1605,8 +1605,8 @@ describe('GET /api/requests/users (G411-44, admin dropdown)', () => {
   it('returns a sorted list of users for an admin', async () => {
     currentUserId = ADMIN
     const mockUsers = [
-      { clerkId: 'alice', firstName: 'Alice', lastName: 'Smith', groupTag: 'REGULAR', creditBalance: 5, isDeleted: false, isBlocked: false },
-      { clerkId: 'bob', firstName: 'Bob', lastName: 'Jones', groupTag: 'CLOSE', creditBalance: 7, isDeleted: false, isBlocked: false },
+      { clerkId: 'alice', firstName: 'Alice', lastName: 'Smith', phoneNumber: '+972501234567', groupTag: 'REGULAR', creditBalance: 5, isDeleted: false, isBlocked: false },
+      { clerkId: 'bob', firstName: 'Bob', lastName: 'Jones', phoneNumber: '+972507654321', groupTag: 'CLOSE', creditBalance: 7, isDeleted: false, isBlocked: false },
     ]
     prismaMock.user.findMany.mockResolvedValue(mockUsers)
 
@@ -1620,6 +1620,7 @@ describe('GET /api/requests/users (G411-44, admin dropdown)', () => {
         clerkId: true,
         firstName: true,
         lastName: true,
+        phoneNumber: true,
         groupTag: true,
         creditBalance: true,
         isDeleted: true,
