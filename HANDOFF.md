@@ -12,7 +12,34 @@ accumulated. If something here turns out to matter long-term, promote it to
 
 ---
 
-## Where this session left off (2026-09-20, latest) — G411-110 (WP5, request detail restructure) merged and Reconciled
+## Where this session left off (2026-09-20, latest) — G411-111 (WP6, intake polish + post-submit) built, Landed, awaiting merge go-ahead
+
+**Picked up G411-111 at STOP 1** right after G411-110 merged/Reconciled. Scope confirmed with Gavi (all 7 items from the ticket text), Jira Open → Implementing, Claim/Falsifier/Role/Evidence-required written pre-code. Both `⚠ verify` items in the ticket resolved before dispatch: `POST /api/requests` already returns the full created row including `id` (no server change needed), and `MessageThread.jsx`'s auto-grow pattern actually lives in `RequestDetail.jsx` (the ticket's own file reference was slightly off — checked real code, not assumed).
+
+**Haiku built the first draft** (branch `you/G411-111-intake-polish`, fully-specified dispatch — exact files, exact auto-grow snippet to copy, exact prop-threading for step counters and the done screen). **Sibling review (this session) found 3 real bugs before any live testing**: (1) the exit button's `tabIndex={2}` would have made it the FIRST tab stop instead of the last — a positive tabIndex jumps ahead of any unset/`0` element, the opposite of what the ticket asked; fixed via DOM reordering instead. (2) LockedField's label and value collapsed onto one run-together line — the icon-wrapping restructure dropped the column-stacking the old single-div version had; only caught by looking at an actual screenshot, not the diff. (3) The consent-checkbox styling was claimed done in the dispatch's own report but was absent from the real diff — added it.
+
+**Then Gavi's own live manual testing (his real device, both themes) found 4 more real bugs, all fixed same-session**:
+1. Ctrl+Enter on the describe textarea did nothing (only Shift+Enter inserted a newline) — extended to match the message compose box's own Ctrl/Cmd+Enter pattern (G411-118).
+2. Multi-line `freeText` was rendering collapsed onto one line everywhere shown as plain text (RequestCard preview, review screen) — no `white-space` rule, same root cause G411-118 already fixed once for the message thread; applied `white-space: pre-wrap` in both places.
+3. A long request with no spaces (one giant unbroken token) overflowed the review card — `word-break: break-word` doesn't force-break a single token reliably; switched to `overflow-wrap: anywhere` + `min-width: 0` on the flex chain (same fix class as `MessageThread.css`'s own prior long-text fix).
+4. `.btn-ghost` had zero visible border at rest, only on `:hover` — invisible on touch devices. This is DESIGN.md's own documented spec, not something this ticket introduced — **stopped and confirmed with Gavi (STOP 2)** before changing shared component styling app-wide rather than a ticket-local patch. Added a hairline border to `.btn-ghost` in `Button.css`, DESIGN.md's `button-ghost` token updated to match — logged as brain.md decision #149.
+
+**One real false alarm, worth remembering**: Gavi reported the border fix wasn't showing via screenshot — checked what the dev server was actually serving (`curl localhost:5173/src/components/Button.css`) and it matched the file byte-for-byte. Turned out to be his browser's stale cache; a hard refresh resolved it. Saved as its own memory ([[verify-server-before-blaming-code-on-live-report]]) — curl the served asset before re-editing on a live-report mismatch that contradicts a verified diff.
+
+555/555 tests pass fresh, client build clean, oxlint clean on every touched file. Jira: **Landed**, Scope/Evidence-bar-met rewritten against real final state (materially different from the ticket's original text — the 4 live-testing bugs weren't in the original scope). **Gavi tested the full manual test list himself and confirmed everything working, both themes** — not just Claude's own automated pass.
+
+### Real state, right now
+Primary worktree on branch `you/G411-111-intake-polish`, 5 commits (`2a10282` build, `8ba8da1` sibling-review fixes, `105cc40` LockedField fix, `84b0dc3` live-testing fixes, this HANDOFF/brain.md commit). Not yet pushed, no PR opened. `gavi411-brain.md` decision #149 logged (ghost-button border, DESIGN.md updated in the same pass). Two throwaway test requests created during automated verification were deleted from the DB afterward. Dev servers (Vite :5173, API :3000) still running from this session.
+
+### What's next, concretely
+1. **Push the branch, open the PR, ask Gavi for the merge go-ahead** (wrap-up steps 7-8 — not yet done as of this write).
+2. Once merged: Jira Landed → Reconciled immediately, no separate re-check.
+3. Then next pick per `gavi411-finish-line-plan.md`'s execution order: **WP7 (G411-112, native screens onto components)** — confirm with Gavi at STOP 1, don't assume.
+4. Still open, not blocking: the pre-existing `index.css` design-hook findings, the `/impeccable document` sidecar refresh.
+
+---
+
+## Where this session left off (2026-09-20, earlier) — G411-110 (WP5, request detail restructure) merged and Reconciled
 
 **Picked up G411-110 at STOP 1** right after confirming G411-109 (WP4) was already merged/Reconciled (its HANDOFF entry below was stale — corrected at pickup, see that entry's own note). Two real ambiguities resolved with Gavi before dispatch, per STOP 2 — not silently interpreted:
 1. The ticket's overflow menu names 3 items (Copy link, No longer urgent, Cancel request) but the friend view actually has a 4th conditional action ("Mark self-solved") the ticket never mentions — Gavi's call: group it into the overflow menu too, alongside Cancel request.

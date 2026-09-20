@@ -1317,6 +1317,14 @@ Mid-wrap-up on G411-110, the MCP Playwright tool (`mcp__plugin_playwright_playwr
 
 **Standing lesson, same shape as decision #145's "don't report a wrong-selector timeout as a hard Clerk blocker"**: a specific tool's specific failure mode ("the MCP Playwright server wants a system Chrome install") is not the same claim as "Playwright is unavailable in this environment" — before reporting a capability as blocked, check whether a different, still-available path to the same capability exists (here: the same npm package, used directly, already installed via a different Playwright install command run minutes earlier in the same session). One extra `find`/`ls` check of what's actually on disk beats a confident "not installed here."
 
+### Decision #149 — `.btn-ghost` needs a visible border at rest, not just on hover; DESIGN.md's own spec was the actual bug (2026-09-20, G411-111)
+
+G411-111's dispatch correctly swapped `NewRequest.jsx`'s dead `variant="purple"` Back buttons to the real `variant="ghost"` — but Gavi caught live (screenshotted, with and without a mouse hovering) that `.btn-ghost` renders with zero visible border at rest, only gaining one on `:hover`. That's not a bug introduced by this ticket — it's DESIGN.md's own documented spec for `button-ghost` (`backgroundColor: transparent`, no border token at all, distinguished only by text color). On a touch device with no hover state, that leaves the button with no visible affordance until tapped.
+
+Confirmed with Gavi this needed a real design-system change, not a local override scoped to this ticket's two files (STOP 2 — the fix touches every `.btn-ghost` usage app-wide, a call bigger than one ticket's stated scope). Chose to add a hairline `border: 1px solid var(--border)` to `.btn-ghost` in `Button.css` itself, and updated `DESIGN.md`'s `button-ghost` token to match (`border: "1px solid {colors.border}"` + a comment naming why), so the doc and the code don't diverge the way CLAUDE.md rule 3 warns about.
+
+**Standing lesson**: a component matching its own documented design-system spec exactly is not proof it's actually usable — DESIGN.md itself can encode a real touch-accessibility gap (hover-only affordance) that only live testing on a real device/viewport surfaces, never a code review of the diff against the spec.
+
 ## 7. Not Yet Discussed
  
 - Data model, architecture, tech decisions (schema itself not yet drafted — first task on deck).
