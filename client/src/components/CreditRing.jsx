@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useEffect, useId, useRef } from 'react'
 import './CreditRing.css'
 
 // G411-113 (WP8) — replaces the old "994 credits" app-bar text span, which
@@ -10,11 +10,8 @@ const STROKE = 4
 const RADIUS = (SIZE - STROKE) / 2
 const CIRCUMFERENCE = 2 * Math.PI * RADIUS
 
-// Each ring needs a unique popover id since multiple could theoretically mount.
-let ringInstance = 0
-
 function CreditRing({ balance, cap }) {
-  const [popoverId] = useState(() => `credit-ring-popover-${++ringInstance}`)
+  const popoverId = useId()
   const buttonRef = useRef(null)
   const popoverRef = useRef(null)
   const fraction = cap > 0 ? Math.min(balance / cap, 1) : 0
@@ -58,15 +55,28 @@ function CreditRing({ balance, cap }) {
   // hover-triggered showPopover() calls, so hover silently never opened
   // it — caught live, Gavi: "doesn't pop up on hover, only click").
   //
-  // isOpenRef tracks state directly rather than trusting :popover-open —
-  // a click while already hover-open used to toggle it closed one mouse
-  // event later than expected, and a click that opened it left nothing
-  // to ever close it again if the mouse never triggered a fresh
-  // mouseleave afterward (caught live, Gavi: "always on screen now").
+  // isOpenRef mirrors the popover's real state via its own native
+  // "toggle" event (fires on every open/close, from any cause) rather
+  // than being set only inside openPopover()/closePopover() — those two
+  // functions are the only ones that ever call show/hidePopover(), but
+  // the browser can also close an "auto" popover on its own (Escape,
+  // clicking outside) with no call through this component at all. An
+  // isOpenRef set only by our own calls went stale after a native
+  // light-dismiss: the ref still said "open" while the popover was
+  // actually closed, so the next hover/click silently no-op'd instead of
+  // reopening it. Sibling review finding.
   const isOpenRef = useRef(false)
+  useEffect(() => {
+    const popover = popoverRef.current
+    if (!popover) return
+    function handleToggle(e) {
+      isOpenRef.current = e.newState === 'open'
+    }
+    popover.addEventListener('toggle', handleToggle)
+    return () => popover.removeEventListener('toggle', handleToggle)
+  }, [])
   function openPopover() {
     if (isOpenRef.current) return
-    isOpenRef.current = true
     const popover = popoverRef.current
     if (!popover) return
     // Positioned off-screen before it's shown, then moved to its real
@@ -80,7 +90,6 @@ function CreditRing({ balance, cap }) {
   }
   function closePopover() {
     if (!isOpenRef.current) return
-    isOpenRef.current = false
     popoverRef.current?.hidePopover?.()
   }
   function toggleOnClick() {

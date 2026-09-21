@@ -581,7 +581,7 @@ function App() {
             always needs to render on the side that's actually short,
             not always here (G411-108's original chevron-only fix,
             extended for G411-113's ring). */}
-        {view !== 'list' && !showsCreditRing && (
+        {isSignedIn && view !== 'list' && !showsCreditRing && (
           <span className="app-bar-chevron-spacer" aria-hidden="true" />
         )}
         {showsCreditRing && (
