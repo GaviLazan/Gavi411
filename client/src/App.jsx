@@ -16,6 +16,7 @@ import ConfirmModal from './components/ConfirmModal'
 import HamburgerMenu from './components/HamburgerMenu'
 import Button from './components/Button'
 import Icon from './components/Icon'
+import CreditRing from './components/CreditRing'
 import { useTheme } from './useTheme'
 import Recover from './pages/Recover'
 import FriendRequestsList from './pages/FriendRequestsList'
@@ -60,7 +61,7 @@ const THEME_LABEL = { light: 'Light', dark: 'Dark' }
 // Mirrors server/lib/credits.js's INITIAL_CREDITS (PRD §9's monthly tier
 // caps) — kept as a small client-side copy rather than importing the
 // server module, since it's a 3-entry constant map, not worth a shared
-// package for. Used only for the credit-balance tooltip's "x/y" cap.
+// package for. Used only for CreditRing's "x of y" cap (G411-113).
 const CREDIT_CAP_BY_TIER = { LIMITED: 2, REGULAR: 5, CLOSE: 7 }
 
 // G411-106: sessionStorage keys for persisting view state across reloads
@@ -267,6 +268,11 @@ function App() {
   const [userProfilePic, setUserProfilePic] = useState(null)
   // G411-80: store the full user object from /api/me for the ProfilePage
   const [fetchedUser, setFetchedUser] = useState(null)
+  // G411-113: friends only, and !== undefined (not truthy) so a real
+  // zero balance still renders the ring — same reasoning as G411-100's
+  // falsifier on the old text span. Derived once since both the render
+  // and the app-bar centering spacer logic below need the same check.
+  const showsCreditRing = isSignedIn && !isAdmin && fetchedUser?.creditBalance !== undefined
   const [unauthorized, setUnauthorized] = useState(false)
   // Sibling review finding: a thrown /api/me fetch (network blip, Render
   // cold-start timeout) used to be silently swallowed by an empty catch,
@@ -485,6 +491,19 @@ function App() {
           </Button>
         )}
 
+        {/* Left-side spacer — same size/position the back chevron would
+            occupy — whenever the right side is heavier (ring showing)
+            but the chevron itself isn't (view === 'list'). Mirrors the
+            right-side spacer's job in reverse: the wordmark's flex:1
+            centers only when both sides carry equal fixed width, and
+            G411-113's ring (friend accounts) makes the right side 2
+            icons wide on the very view (list/home) that has no chevron
+            to balance it (caught live, Gavi: "the wordmark on the
+            homescreen... is not centered properly"). */}
+        {isSignedIn && view === 'list' && showsCreditRing && (
+          <span className="app-bar-chevron-spacer" aria-hidden="true" />
+        )}
+
         {/* Back chevron — one consistent app-bar-level back control for
             every sub-screen, left of the wordmark. Mirrors each screen's
             own onBack prop exactly (see the setView calls passed as
@@ -548,11 +567,29 @@ function App() {
           )}
         </span>
 
-        {/* Right slot: avatar chip button, plus a same-width invisible
-            spacer whenever the back chevron shows on the left — keeps
-            the wordmark's flex:1 centering balanced 2-vs-2 instead of
-            shifting right against an unmatched 3rd left-side icon. */}
-        {isSignedIn && view !== 'list' && <span className="app-bar-chevron-spacer" aria-hidden="true" />}
+        {/* Right slot: credit ring (friends only) + avatar chip button.
+            The wordmark's flex:1 centers only when the left and right
+            fixed-width totals match. Left is 1 icon (hamburger only) or
+            2 (hamburger + back chevron, view !== 'list'); right is 1
+            icon (avatar only) or 2 (ring + avatar, friend accounts with
+            a balance). Balanced whenever chevron and ring are both
+            showing or both absent. This spacer covers the one remaining
+            unbalanced case: chevron showing (non-list) but ring absent
+            (admin, or a friend with no balance yet) — right is short by
+            one icon. The other unbalanced case (list view + ring, left
+            short) has its own spacer above, in the left slot — a spacer
+            always needs to render on the side that's actually short,
+            not always here (G411-108's original chevron-only fix,
+            extended for G411-113's ring). */}
+        {isSignedIn && view !== 'list' && !showsCreditRing && (
+          <span className="app-bar-chevron-spacer" aria-hidden="true" />
+        )}
+        {showsCreditRing && (
+          <CreditRing
+            balance={fetchedUser.creditBalance}
+            cap={CREDIT_CAP_BY_TIER[fetchedUser.groupTag] ?? CREDIT_CAP_BY_TIER.REGULAR}
+          />
+        )}
         {isSignedIn && (
           <Button
             variant="icon"
