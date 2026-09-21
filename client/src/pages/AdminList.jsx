@@ -310,7 +310,7 @@ function AdminList({ onOpenRequest, onNewRequest, filter: filterProp, onRequests
   // Gavi couldn't find the button at all).
   if (error) {
     return (
-      <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-4)", width: "100%", maxWidth: 560 }}>
+      <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-4)", width: "100%", maxWidth: 420 }}>
         {onNewRequest && (
           <Button variant="primary" onClick={onNewRequest}>
             + New request
@@ -326,7 +326,7 @@ function AdminList({ onOpenRequest, onNewRequest, filter: filterProp, onRequests
 
   if (requests === null) {
     return (
-      <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-4)", width: "100%", maxWidth: 560 }}>
+      <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-4)", width: "100%", maxWidth: 420 }}>
         {onNewRequest && (
           <Button variant="primary" onClick={onNewRequest}>
             + New request
@@ -338,7 +338,7 @@ function AdminList({ onOpenRequest, onNewRequest, filter: filterProp, onRequests
   }
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-4)", width: "100%", maxWidth: 560 }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-4)", width: "100%", maxWidth: 420 }}>
       {onNewRequest && (
         <Button variant="primary" onClick={onNewRequest}>
           + New request

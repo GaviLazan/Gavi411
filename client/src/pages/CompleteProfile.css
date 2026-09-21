@@ -1,54 +1,51 @@
-/* G411-69 — Complete profile page. Fields stack one per line, same
-   pattern as AdminCreateRequest.css. Sibling review finding: the first
-   draft invented its own button/select styling (literal 4px radii,
-   1rem/0.9rem font-sizes) with no source in index.css's actual design
-   tokens (--radius-sm/md/lg, no bare 4px anywhere) — stripped back to
-   layout-only rules, letting bare <button>/<select>/<input> render with
-   the app's real global styles, same as every other minimal page this
-   session (InviteAdmin/TriggerAdmin/AdminCreateRequest). */
-.complete-profile form {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
+/* G411-112: onto the design system — layout only, Card/Input/Select/Button
+   handle their own styling. */
+.complete-profile {
+  width: 100%;
   max-width: 420px;
+  margin: 0 auto;
 }
 
-.complete-profile label {
+.complete-profile-form {
   display: flex;
   flex-direction: column;
-  gap: var(--space-1);
+  gap: var(--space-4);
 }
 
-.phone-input-group {
-  display: flex;
-  gap: var(--space-2);
-}
-
-/* Caught live: the dial-code select's flex:0 0 auto had NO width cap at
-   all, so the browser sized it to its longest option text unconstrained
-   — nothing to do with which country names are long or short, the
-   select just had no ceiling. flex:1 + min-width:0 on the input then
-   legitimately shrank to 0px next to it. Fixed width on the select
-   (enough for the longest real label, "United Kingdom (+44)"), and a
-   real floor on the input (~10 digits) so it can't collapse regardless
-   of what the select does. */
-.phone-input-group select {
-  flex: 0 0 auto;
-  width: 14em;
-}
-
-.phone-input-group input {
-  flex: 1;
-  min-width: 12em;
-}
-
-
-.photo-section {
+.complete-profile-phone-row {
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
 }
 
-.photo-section h3 {
+.complete-profile-photo-section {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-2);
+}
+
+.complete-profile-photo-preview {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+/* Same visually-hidden-but-focusable pattern as MessageThread.css's
+   .message-file-input — the real <input type="file"> stays in the DOM
+   (keyboard/AT still reach it) while the styled Button triggers it via
+   fileInputRef. */
+.complete-profile-photo-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.complete-profile-error {
+  color: var(--danger);
   margin: 0;
 }

@@ -174,6 +174,7 @@ router.get('/users', requireAuth, requireAdmin, async (req, res) => {
         clerkId: true,
         firstName: true,
         lastName: true,
+        phoneNumber: true,
         groupTag: true,
         creditBalance: true,
         isDeleted: true,

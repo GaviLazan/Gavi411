@@ -12,7 +12,37 @@ accumulated. If something here turns out to matter long-term, promote it to
 
 ---
 
-## Where this session left off (2026-09-20, latest) — G411-111 post-merge overflow fix (PR #135), awaiting merge go-ahead
+## Where this session left off (2026-09-21, latest) — G411-112 (WP7, native screens onto components) Landed, PR #136 open, awaiting merge go-ahead
+
+**Real process change carried from last session, still standing**: Sonnet writes implementation directly (not dispatched), Opus writes checks/mock tests, Gavi does all visual/manual testing himself — no Playwright, no local browser simulation from Claude ([[sonnet-writes-opus-tests-no-playwright]], [[no-local-testing-for-mobile-viewport-bugs]]).
+
+**All 8 files done this session** (previous session had left 3 of 8 checkpointed): `TriggerAdmin.jsx/.css`, `InviteAdmin.jsx/.css`, `AdminCreateRequest.jsx/.css`, `UserManagement.jsx/.css`, `NotificationHistory.jsx/.css` — on top of the prior session's `ProfilePage`, `CompleteProfile`, `InstallHelp`. `NotificationHistory` had been missed entirely in earlier commits on this branch — caught during wrap-up's own scope-check step against the Jira description before transitioning, built same-session rather than shipping 7/8 as done.
+
+**Real bugs found and fixed from Gavi's live testing, all same session**:
+1. TriggerAdmin's text Edit/Delete buttons wrapped on longer keywords → pencil/trash icon buttons; the edit-mode row layout also needed `flex:1; min-width:0` on the Input's field wrapper to stop crowding Save/Cancel.
+2. AdminCreateRequest had a duplicate "Set a friend's tier" section (G411-46 stopgap) calling the same `PATCH .../group-tag` endpoint UserManagement's own Group Tag select already covers — removed per Gavi's explicit call, keeping the one real editor in UserManagement.
+3. AdminList's search/list column was `maxWidth:560` instead of the shared 420px column every other screen uses, throwing off centering against the wordmark — matched to 420.
+4. UserManagement's phone number didn't load until an unrelated edit+save — `GET /api/requests/users` was missing `phoneNumber` from its Prisma `select`; added, test updated.
+
+**Sibling review (multi-angle, before merge ask) on PR #136 found one real regression, fixed same session**: `ProfilePage.jsx`/`CompleteProfile.jsx`'s dial-code dropdown had US and Canada sharing `code: '+1'` — the shared `Select` keys `<option>` by `value`, so both collided (the old raw `<select>` kept them apart via `key={opt.country}`). Investigated first (Gavi's direct question — "what was the issue up to now, it seemed to work OK"): confirmed the two were already cosmetically-indistinguishable pre-PR (`dialCode` state only ever held the calling code, `matchDialCode` matches by code prefix, reopening the edit form always resolved to "United States" regardless of original pick). Gavi's call: keep them genuinely distinct, not merged into one option — added a per-option `id` distinct from `code`, a new `dialCodeId` state the Select actually binds to, real calling code derived via `.find()` wherever downstream logic needs it. Findings posted as a real PR comment (`gh api` spot-checked, real content confirmed), not just chat.
+
+**3 items found in live testing deliberately NOT fixed in this ticket** (Gavi's "note for v2, move on" / this session's own scope read) — filed as real Jira children of **G411-57 (V2/Stretch Backlog)**, not just comments: **G411-119** (InviteAdmin still has a centering issue distinct from AdminList's, root cause not found), **G411-120** (Group dropdown wraps to its own line on the admin open-requests screen), **G411-121** (AdminCreateRequest can't target a friend who hasn't signed up yet — confirmed with Gavi this means literally that, real backend/data-model work). One more from Sibling review: **G411-122** (`GET /api/requests/users` over-fetches `phoneNumber` into AdminCreateRequest's dropdown, which never reads it — low severity, needs a route split).
+
+### Real state, right now
+Branch `you/G411-112-native-screens`, all work pushed. **PR #136 open** against `main`, Sibling review done and posted as a PR comment, all fixes from that review applied and pushed. Jira: **Landed** (Reviewing → Landed transitioned this session; this asserts code is proven ready but NOT YET MERGED — Aegis Evidence field written against real fresh evidence). 555/555 tests, build clean, lint clean at every step this session. Dev servers running (Vite :5173, API :3000 — the stale duplicate backend process from an earlier session was killed).
+
+**This entry is necessarily written pre-merge** (CLAUDE.md wrap-up step 6 runs before steps 7-8) — the gap between "Landed" here and an eventual real merge is expected staleness, not drift, as long as nothing beyond the merge+Reconcile step itself is still outstanding.
+
+### What's next, concretely
+1. **Ask Gavi for the merge go-ahead on PR #136** — not yet asked as of this write (wrap-up step 7, next action).
+2. On yes: merge (regular merge commit, `gh pr merge --merge --admin` per branch protection), then Landed → Reconciled immediately (steps 1-4 already covered re-verification, no separate re-check).
+3. Full sync check across every worktree once merged (wrap-up step 8) — not yet run.
+4. Still open, not blocking: the pre-existing `index.css` design-hook findings, the `/impeccable document` sidecar refresh, `ConfirmModal.jsx`'s own stray `variant="purple"` (found two sessions ago, out of this ticket's file scope, not fixed), the lower-priority reuse/extraction findings from Sibling review (shared error-text class, a `Textarea` sibling component, a shared inline-delete-confirm component) — real observations, not filed as tickets, genuinely low-priority polish rather than defects.
+5. **Next ticket after this one closes**: agree explicitly with Gavi at pickup (STOP 1) — don't assume the next-lowest-numbered Epic 9 child without asking.
+
+---
+
+## Where this session left off (2026-09-20, earlier) — G411-111 post-merge overflow fix (PR #135), awaiting merge go-ahead
 
 **After G411-111 merged and Reconciled** (see entry below), Gavi found a real bug live on his phone that neither the merged PR's testing nor his own earlier manual pass caught: a request with no spaces in its text (`asfasfjkhasfklnmasf/lkmas/...`) visibly overflowed the request-list card on the friend side, and — worse — broke the whole admin page layout on real mobile (cards and surrounding UI extending past both screen edges, the browser auto-zooming out to compensate). Not reproducible via local browser simulation; needed his real device.
 

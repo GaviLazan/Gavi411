@@ -1,0 +1,64 @@
+/* G411-112: onto the design system — layout only, Card/Input/Button
+   handle their own styling. */
+.invite-admin {
+  width: 100%;
+  max-width: 560px;
+  margin: 0 auto;
+}
+
+.invite-admin-alert {
+  color: var(--danger);
+}
+
+.invite-admin-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.invite-admin-error {
+  color: var(--danger);
+  margin: 0;
+}
+
+.invite-admin-result {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+}
+
+.invite-admin-link-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.invite-admin-code {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.invite-admin-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.invite-admin-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.invite-admin-row > span:first-child {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}

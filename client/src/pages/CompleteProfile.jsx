@@ -1,13 +1,27 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { useUser } from '@clerk/react'
+import Card from '../components/Card'
+import Button from '../components/Button'
+import Input from '../components/Input'
+import Select from '../components/Select'
 import './CompleteProfile.css'
 
 // Complete profile — mandatory first-login gate (G411-69). Collects phone
 // number (required, unique) and optional profile photo. No onBack prop — this
 // is a hard gate, there's nowhere to go back to until phone is set.
+//
+// G411-112: onto the design system. No Gavi avatar / explanatory copy line
+// here (2026-09-20 correction, Gavi's call — the avatar concept was already
+// replaced app-wide by a presence dot as of G411-109, and friends already
+// know who Gavi is without a line explaining it).
 function CompleteProfile({ currentProfilePic, onComplete }) {
   const { user } = useUser()
-  const [dialCode, setDialCode] = useState('+972') // Israel default
+  const fileInputRef = useRef(null)
+  // Holds the option's own id (unique even when two options share a
+  // calling code, e.g. US/CA both +1) — the Select needs a value that's
+  // actually unique per option; the calling code itself is derived via
+  // dialCodeOptions.find() wherever needed, see `dialCode` below.
+  const [dialCodeId, setDialCodeId] = useState('IL') // Israel default
   const [localNumber, setLocalNumber] = useState('')
   const [selectedPhotoUrl, setSelectedPhotoUrl] = useState(currentProfilePic || null)
   const [photoError, setPhotoError] = useState(null)
@@ -20,14 +34,16 @@ function CompleteProfile({ currentProfilePic, onComplete }) {
   const [error, setError] = useState(null)
 
   const dialCodeOptions = [
-    { code: '+972', country: 'Israel' },
-    { code: '+1', country: 'United States' },
-    { code: '+1', country: 'Canada' },
-    { code: '+44', country: 'United Kingdom' },
-    { code: '+33', country: 'France' },
-    { code: '+49', country: 'Germany' },
-    { code: '+61', country: 'Australia' },
+    { id: 'IL', code: '+972', country: 'Israel' },
+    { id: 'US', code: '+1', country: 'United States' },
+    { id: 'CA', code: '+1', country: 'Canada' },
+    { id: 'GB', code: '+44', country: 'United Kingdom' },
+    { id: 'FR', code: '+33', country: 'France' },
+    { id: 'DE', code: '+49', country: 'Germany' },
+    { id: 'AU', code: '+61', country: 'Australia' },
   ]
+
+  const dialCode = dialCodeOptions.find((opt) => opt.id === dialCodeId)?.code ?? '+972'
 
   // Determine placeholder text based on selected country
   const getPlaceholder = () => {
@@ -123,58 +139,56 @@ function CompleteProfile({ currentProfilePic, onComplete }) {
 
   return (
     <div className="complete-profile">
-      <h1>Complete your profile</h1>
+      <Card>
+        <h2>Complete your profile</h2>
 
-      <form onSubmit={handleSubmit}>
-        <div className="phone-section">
-          <label>
-            Phone number
-            <div className="phone-input-group">
-              <select
-                value={dialCode}
-                onChange={(e) => setDialCode(e.target.value)}
-              >
-                {dialCodeOptions.map((opt) => (
-                  <option key={opt.country} value={opt.code}>
-                    {opt.country} ({opt.code})
-                  </option>
-                ))}
-              </select>
-              <input
-                type="tel"
-                value={localNumber}
-                onChange={(e) => setLocalNumber(e.target.value)}
-                placeholder={getPlaceholder()}
-                required
-              />
-            </div>
-          </label>
-        </div>
+        <form onSubmit={handleSubmit} className="complete-profile-form">
+          <div className="complete-profile-phone-row">
+            <Select
+              id="complete-profile-dial-code"
+              label="Phone number"
+              options={dialCodeOptions.map((opt) => ({ value: opt.id, label: `${opt.country} (${opt.code})` }))}
+              value={dialCodeId}
+              onChange={(e) => setDialCodeId(e.target.value)}
+            />
+            <Input
+              id="complete-profile-local-number"
+              type="tel"
+              value={localNumber}
+              onChange={(e) => setLocalNumber(e.target.value)}
+              placeholder={getPlaceholder()}
+              required
+            />
+          </div>
 
-        <div className="photo-section">
-          <h3>Profile picture (optional)</h3>
-          {selectedPhotoUrl ? (
-            <img src={selectedPhotoUrl} alt="Profile" style={{ width: 80, height: 80, borderRadius: '50%', objectFit: 'cover' }} />
-          ) : (
-            <p>No photo set</p>
-          )}
-          <label>
-            Choose photo
-            <input type="file" accept="image/*" onChange={handlePhotoUpload} />
-          </label>
-          {photoError && <p role="alert">{photoError}</p>}
-          {/* No separate "Skip" control needed — profilePic is only ever
-              sent if selectedPhotoUrl is set, so simply not choosing a
-              photo already skips this step. A button with no effect of
-              its own would be misleading UI (Sibling review finding). */}
-        </div>
+          <div className="complete-profile-photo-section">
+            {selectedPhotoUrl && (
+              <img src={selectedPhotoUrl} alt="" className="complete-profile-photo-preview" />
+            )}
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              onChange={handlePhotoUpload}
+              className="complete-profile-photo-input"
+            />
+            <Button type="button" variant="secondary" onClick={() => fileInputRef.current?.click()}>
+              {selectedPhotoUrl ? 'Change photo' : 'Choose photo (optional)'}
+            </Button>
+            {photoError && <p role="alert" className="complete-profile-error">{photoError}</p>}
+            {/* No separate "Skip" control needed — profilePic is only ever
+                sent if selectedPhotoUrl is set, so simply not choosing a
+                photo already skips this step. A button with no effect of
+                its own would be misleading UI (Sibling review finding). */}
+          </div>
 
-        {error && <p role="alert">{error}</p>}
+          {error && <p role="alert" className="complete-profile-error">{error}</p>}
 
-        <button type="submit" disabled={submitting || uploadingPhoto}>
-          {submitting ? 'Continuing…' : uploadingPhoto ? 'Uploading photo…' : 'Continue'}
-        </button>
-      </form>
+          <Button type="submit" variant="primary" disabled={submitting || uploadingPhoto}>
+            {submitting ? 'Continuing…' : uploadingPhoto ? 'Uploading photo…' : 'Continue'}
+          </Button>
+        </form>
+      </Card>
     </div>
   )
 }

@@ -8,6 +8,7 @@ const PATHS = {
   check: 'M20 6 9 17l-5-5',
   copy: 'M20 9H11a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h9a2 2 0 0 0 2-2v-9a2 2 0 0 0-2-2z M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1',
   edit: 'M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5z',
+  trash: 'M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6h14z',
   plus: 'M12 5v14M5 12h14',
   chevron: 'M9 18l6-6-6-6',
   // Three dots, drawn as zero-length round-capped strokes (the same
@@ -15,6 +16,10 @@ const PATHS = {
   // strokeLinecap="round" on a zero-length segment renders as a circle
   // the width of the stroke).
   more: 'M5 12h0M12 12h0M19 12h0',
+  // Single filled dot, same zero-length-stroke trick as "more" above —
+  // used for "mark unread" (the visual unread marker is itself a dot,
+  // so the action icon matches what it produces).
+  dot: 'M12 12h0',
 }
 
 export default function Icon({ name, size = 24, label, ...rest }) {

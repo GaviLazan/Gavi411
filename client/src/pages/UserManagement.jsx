@@ -11,6 +11,9 @@ import './UserManagement.css'
 // 2. Adjust credit balance (+/- adjustment)
 // 3. Edit basic info (name, phone)
 // 4. Block/delete account (toggle block, or soft-delete with confirmation)
+//
+// G411-112: onto the design system. No in-page Back button — the app
+// bar's own chevron already covers every non-'list' view.
 
 // Gavi's call: the input reads as "set balance to this number" by
 // default (matches how admin actually thinks about it), but a leading
@@ -192,35 +195,54 @@ function UserManagement() {
     setDeleteConfirmText('')
   }
 
-  if (loading) return <p>Loading users…</p>
-  if (error) return <div style={{ color: '#d32f2f' }}><p>Error: {error}</p></div>
-  if (!users || users.length === 0) return <div><p>No users to manage.</p></div>
+  if (loading) {
+    return (
+      <div className="user-management">
+        <Card>Loading users…</Card>
+      </div>
+    )
+  }
+
+  if (error && !users) {
+    return (
+      <div className="user-management">
+        <Card><p role="alert" className="user-management-error">Error: {error}</p></Card>
+      </div>
+    )
+  }
+
+  if (!users || users.length === 0) {
+    return (
+      <div className="user-management">
+        <Card>No users to manage.</Card>
+      </div>
+    )
+  }
 
   return (
     <div className="user-management">
-      <h1>User Management</h1>
-      {error && <p role="alert" style={{ color: '#d32f2f', marginBottom: 'var(--space-3)' }}>Error: {error}</p>}
+      <h2>User management</h2>
+      {error && <p role="alert" className="user-management-error">{error}</p>}
 
       <div className="users-list">
         {users.map((user) => {
           const isEditing = editingUsers[user.clerkId]
           const creditInput = updatingCredit?.userId === user.clerkId ? updatingCredit.input : ''
           const creditDelta = creditInputToDelta(creditInput, user.creditBalance)
+          const isDeleting = deleteConfirm.open && deleteConfirm.userId === user.clerkId
 
           return (
             <Card key={user.clerkId} className="user-card">
               <div className="user-header">
-                <div className="user-name">
-                  <strong dir="auto">{user.firstName} {user.lastName}</strong>
-                  {user.isDeleted && <span className="badge deleted">Deleted</span>}
-                  {user.isBlocked && <span className="badge blocked">Blocked</span>}
-                </div>
+                <strong className="user-name" dir="auto">{user.firstName} {user.lastName}</strong>
+                {user.isDeleted && <span className="user-badge user-badge-deleted">Deleted</span>}
+                {user.isBlocked && <span className="user-badge user-badge-blocked">Blocked</span>}
               </div>
 
-              {/* Group Tag */}
               <div className="user-section">
-                <label>Group Tag:</label>
                 <Select
+                  id={`user-group-tag-${user.clerkId}`}
+                  label="Group tag"
                   value={user.groupTag}
                   onChange={(e) => handleGroupTagChange(user.clerkId, e.target.value)}
                   disabled={user.isDeleted}
@@ -232,11 +254,11 @@ function UserManagement() {
                 />
               </div>
 
-              {/* Credit Balance */}
               <div className="user-section">
-                <label>Credits: {user.creditBalance}</label>
-                <div className="credit-adjustment">
-                  <input
+                <span className="field-label">Credits: {user.creditBalance}</span>
+                <div className="user-credit-row">
+                  <Input
+                    id={`user-credit-${user.clerkId}`}
                     type="text"
                     inputMode="numeric"
                     placeholder="new total, or +5 / -2"
@@ -245,6 +267,8 @@ function UserManagement() {
                     disabled={user.isDeleted || creditsLoading[user.clerkId]}
                   />
                   <Button
+                    type="button"
+                    variant="secondary"
                     onClick={() => handleCreditAdjustment(user.clerkId, creditDelta)}
                     disabled={!creditDelta || creditDelta === 0 || user.isDeleted || creditsLoading[user.clerkId]}
                   >
@@ -253,47 +277,50 @@ function UserManagement() {
                 </div>
               </div>
 
-              {/* User Info Edit */}
               {isEditing ? (
-                <div className="user-section">
-                  <div>
-                    <label>First Name:</label>
-                    <Input
-                      value={isEditing.firstName ?? user.firstName}
-                      onChange={(e) => setEditingUsers({ ...editingUsers, [user.clerkId]: { ...isEditing, firstName: e.target.value } })}
-                    />
-                  </div>
-                  <div>
-                    <label>Last Name:</label>
-                    <Input
-                      value={isEditing.lastName ?? user.lastName}
-                      onChange={(e) => setEditingUsers({ ...editingUsers, [user.clerkId]: { ...isEditing, lastName: e.target.value } })}
-                    />
-                  </div>
-                  <div>
-                    <label>Phone:</label>
-                    <Input
-                      value={isEditing.phoneNumber ?? user.phoneNumber}
-                      onChange={(e) => setEditingUsers({ ...editingUsers, [user.clerkId]: { ...isEditing, phoneNumber: e.target.value } })}
-                    />
-                  </div>
-                  <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
+                <div className="user-section user-info-form">
+                  <Input
+                    id={`user-first-name-${user.clerkId}`}
+                    label="First name"
+                    value={isEditing.firstName ?? user.firstName}
+                    onChange={(e) => setEditingUsers({ ...editingUsers, [user.clerkId]: { ...isEditing, firstName: e.target.value } })}
+                  />
+                  <Input
+                    id={`user-last-name-${user.clerkId}`}
+                    label="Last name"
+                    value={isEditing.lastName ?? user.lastName}
+                    onChange={(e) => setEditingUsers({ ...editingUsers, [user.clerkId]: { ...isEditing, lastName: e.target.value } })}
+                  />
+                  <Input
+                    id={`user-phone-${user.clerkId}`}
+                    label="Phone"
+                    value={isEditing.phoneNumber ?? user.phoneNumber}
+                    onChange={(e) => setEditingUsers({ ...editingUsers, [user.clerkId]: { ...isEditing, phoneNumber: e.target.value } })}
+                  />
+                  <div className="user-actions">
                     <Button
+                      type="button"
+                      variant="primary"
                       onClick={() => handleInfoUpdate(user.clerkId)}
                       disabled={infoLoading[user.clerkId]}
                     >
                       {infoLoading[user.clerkId] ? '…' : 'Save'}
                     </Button>
-                    <Button onClick={() => setEditingUsers({ ...editingUsers, [user.clerkId]: null })}>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      onClick={() => setEditingUsers({ ...editingUsers, [user.clerkId]: null })}
+                    >
                       Cancel
                     </Button>
                   </div>
                 </div>
               ) : (
                 <div className="user-section">
-                  <p><strong>Name:</strong> {user.firstName} {user.lastName}</p>
-                  <p><strong>Phone:</strong> {user.phoneNumber}</p>
+                  <p className="meta" dir="auto">{user.phoneNumber}</p>
                   <Button
+                    type="button"
+                    variant="secondary"
                     onClick={() => setEditingUsers({
                       ...editingUsers,
                       [user.clerkId]: {
@@ -304,64 +331,65 @@ function UserManagement() {
                     })}
                     disabled={user.isDeleted}
                   >
-                    Edit Info
+                    Edit info
                   </Button>
                 </div>
               )}
 
-              {/* Block/Delete Actions */}
-              <div className="user-section">
-                <div style={{ display: 'flex', gap: 'var(--space-2)', flexWrap: 'wrap' }}>
+              <div className="user-section user-actions">
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={() => handleBlockToggle(user.clerkId, user.isBlocked)}
+                  disabled={user.isDeleted || blockLoading[user.clerkId]}
+                >
+                  {blockLoading[user.clerkId] ? '…' : user.isBlocked ? 'Unblock' : 'Block'}
+                </Button>
+                {!isDeleting && (
                   <Button
-                    onClick={() => handleBlockToggle(user.clerkId, user.isBlocked)}
-                    disabled={user.isDeleted || blockLoading[user.clerkId]}
-                    variant={user.isBlocked ? 'secondary' : 'secondary'}
+                    type="button"
+                    variant="danger-text"
+                    onClick={() => startDelete(user)}
+                    disabled={user.isDeleted || deleteLoading[user.clerkId]}
                   >
-                    {blockLoading[user.clerkId] ? '…' : user.isBlocked ? 'Unblock' : 'Block'}
+                    Delete
                   </Button>
-                  {deleteConfirm.open && deleteConfirm.userId === user.clerkId ? null : (
-                    <Button
-                      onClick={() => startDelete(user)}
-                      disabled={user.isDeleted || deleteLoading[user.clerkId]}
-                      style={{ color: '#d32f2f' }}
-                    >
-                      Delete
-                    </Button>
-                  )}
-                </div>
-
-                {/* Inline type-to-confirm expand, same pattern as
-                    ProfilePage.jsx's self-delete (G411-96) — not a
-                    ConfirmModal, which has no text-input slot. */}
-                {deleteConfirm.open && deleteConfirm.userId === user.clerkId && (
-                  <div style={{ marginTop: 'var(--space-2)' }}>
-                    <p>
-                      This will permanently delete {deleteConfirm.userName}'s account. Type
-                      their first name to confirm.
-                    </p>
-                    <Input
-                      value={deleteConfirmText}
-                      onChange={(e) => setDeleteConfirmText(e.target.value)}
-                      placeholder="Enter first name"
-                    />
-                    <div style={{ display: 'flex', gap: 'var(--space-2)', marginTop: 'var(--space-2)' }}>
-                      <Button
-                        onClick={handleDeleteUser}
-                        disabled={
-                          deleteLoading[user.clerkId] ||
-                          deleteConfirmText.trim().toLowerCase() !== deleteConfirm.userName.toLowerCase()
-                        }
-                        style={{ color: '#d32f2f' }}
-                      >
-                        {deleteLoading[user.clerkId] ? 'Deleting…' : 'Delete account'}
-                      </Button>
-                      <Button onClick={cancelDelete} disabled={deleteLoading[user.clerkId]}>
-                        Cancel
-                      </Button>
-                    </div>
-                  </div>
                 )}
               </div>
+
+              {/* Inline type-to-confirm expand, same pattern as
+                  ProfilePage.jsx's self-delete (G411-96) — not a
+                  ConfirmModal, which has no text-input slot. */}
+              {isDeleting && (
+                <div className="user-section user-delete-confirm">
+                  <p>
+                    This will permanently delete {deleteConfirm.userName}'s account. Type
+                    their first name to confirm.
+                  </p>
+                  <Input
+                    id={`user-delete-confirm-${user.clerkId}`}
+                    value={deleteConfirmText}
+                    onChange={(e) => setDeleteConfirmText(e.target.value)}
+                    placeholder="Enter first name"
+                  />
+                  <div className="user-actions">
+                    <Button
+                      type="button"
+                      variant="danger-primary"
+                      onClick={handleDeleteUser}
+                      disabled={
+                        deleteLoading[user.clerkId] ||
+                        deleteConfirmText.trim().toLowerCase() !== deleteConfirm.userName.toLowerCase()
+                      }
+                    >
+                      {deleteLoading[user.clerkId] ? 'Deleting…' : 'Delete account'}
+                    </Button>
+                    <Button type="button" variant="ghost" onClick={cancelDelete} disabled={deleteLoading[user.clerkId]}>
+                      Cancel
+                    </Button>
+                  </div>
+                </div>
+              )}
             </Card>
           )
         })}

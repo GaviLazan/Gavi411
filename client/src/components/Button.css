@@ -56,6 +56,28 @@
   background: var(--accent-bg);
 }
 
+/* G411-112: a destructive action's own confirm step (e.g. delete account)
+   — transparent/bordered at rest like .btn-ghost so it doesn't read as the
+   page's primary CTA, solid --danger once actually confirmed. */
+.btn-danger-text {
+  background: transparent;
+  border: 1px solid var(--danger);
+  color: var(--danger);
+}
+
+.btn-danger-text:hover:not(:disabled) {
+  background: var(--danger-bg);
+}
+
+.btn-danger-primary {
+  background: var(--danger);
+  color: var(--surface);
+}
+
+.btn-danger-primary:hover:not(:disabled) {
+  opacity: 0.85;
+}
+
 .btn-icon {
   width: 44px;
   height: 44px;

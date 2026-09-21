@@ -1,34 +1,38 @@
-/* G411-44 — the JSX already has one <label> per field, but with no CSS
-   at all (unlike NewRequest.css/RequestDetail.css, this page had none)
-   default inline/block flow let a <select> and its following text sit
-   on the same visual line, and the layout was flat-out unusable on
-   mobile (Gavi caught this live). Stack every form control full-width,
-   one per line. */
+/* G411-112: onto the design system — layout only, Card/Button/Input/Select
+   handle their own styling. */
+.admin-create-request {
+  width: 100%;
+  max-width: 420px;
+  margin: 0 auto;
+}
+
 .admin-create-request form {
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
-  max-width: 420px;
 }
 
-.admin-create-request form label {
+.admin-create-request-field {
   display: flex;
   flex-direction: column;
-  gap: var(--space-1);
+  gap: var(--space-2);
+  text-align: start;
 }
 
-.admin-create-request form label:has(input[type='checkbox']) {
-  flex-direction: row;
-  align-items: center;
-}
-
-.admin-create-request select,
-.admin-create-request textarea {
+.admin-create-request-textarea {
+  min-height: 6em;
+  resize: vertical;
   width: 100%;
   box-sizing: border-box;
 }
 
-.admin-create-request textarea {
-  min-height: 6em;
-  resize: vertical;
+.admin-create-request-checkbox-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.admin-create-request-error {
+  color: var(--danger);
+  margin: 0;
 }

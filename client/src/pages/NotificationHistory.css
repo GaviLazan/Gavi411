@@ -1,73 +1,101 @@
+/* G411-112: onto the design system — flat list items inside the card,
+   not cards-inside-a-card. The unread marker is a bold title + leading
+   dot (below), not a 3px gold left border (removed — flagged as an
+   "AI-UI tell" pattern). */
+.notification-history {
+  width: 100%;
+  max-width: 420px;
+  margin: 0 auto;
+}
+
+.notification-history-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+}
+
+.notification-history-status {
+  margin: 0;
+  color: var(--text);
+}
+
+.notification-history-error {
+  margin: 0;
+  color: var(--danger);
+}
+
 .notification-list {
   list-style: none;
+  margin: 0;
   padding: 0;
-  margin-top: var(--space-4);
+  display: flex;
+  flex-direction: column;
 }
 
 .notification-item {
-  padding: var(--space-3);
-  margin-bottom: var(--space-2);
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+  padding: var(--space-3) 0;
+  border-bottom: 1px solid var(--border);
 }
 
-.notification-item-clickable {
+.notification-item:last-child {
+  border-bottom: none;
+}
+
+.notification-item-open {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  text-align: start;
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  cursor: default;
+}
+
+button.notification-item-open {
   cursor: pointer;
 }
 
-/* Unread marker for this one viewing — see NotificationHistory.jsx's own
-   comment on why this is a local snapshot, not live server state. */
-.notification-item-unread {
-  border-left: 3px solid var(--accent);
+.notification-item-title-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-width: 0;
 }
 
-.notification-item-header {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: var(--space-2);
+.notification-item-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  flex-shrink: 0;
 }
 
 .notification-item-title {
+  font-size: 16px;
   font-weight: 600;
-  margin-bottom: var(--space-1);
+  overflow-wrap: anywhere;
 }
 
-.notification-item-unread .notification-item-title {
+.notification-item-title-unread {
   font-weight: 700;
+}
+
+.notification-item-body {
+  font-size: 14px;
+  overflow-wrap: anywhere;
 }
 
 .notification-item-toggle {
   flex-shrink: 0;
-  background: none;
-  border: none;
-  color: var(--accent);
-  font-size: 13px;
-  cursor: pointer;
-  padding: 0;
-}
-
-.notification-item-toggle:hover {
-  text-decoration: underline;
-}
-
-.notification-item-body {
-  margin-bottom: var(--space-2);
-}
-
-.notification-item-date {
-  font-size: 14px;
-  color: var(--text);
-}
-
-.notification-history-status {
-  margin-top: var(--space-4);
-  color: var(--text);
-}
-
-/* No error color exists in DESIGN.md yet — matches MessageThread.css's
-   .message-send-error convention rather than inventing one here. */
-.notification-history-error {
-  margin-top: var(--space-4);
 }

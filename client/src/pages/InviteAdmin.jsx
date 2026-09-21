@@ -3,13 +3,21 @@ import { downloadInviteCsv } from '../lib/inviteCsv'
 import { createAndUploadKeypair } from '../lib/escrow'
 import { getPendingDevices, approveDevice, rejectDevice } from '../lib/deviceLinking'
 import { loadPrivateKey } from '../lib/keyStore'
+import Card from '../components/Card'
+import Button from '../components/Button'
+import Input from '../components/Input'
+import './InviteAdmin.css'
 
 // Minimal admin invite-creation screen (G411-41; escrow passphrase + CSV
 // export added G411-28 stage 4). Not the full admin cockpit (G411-37/38)
 // — just a working trigger for the invite-token mechanism: a form to
 // create one, a copy-able resulting link, and a list of what's been
 // generated so far.
-function InviteAdmin({ onBack }) {
+//
+// G411-112: onto the design system (Card/Button/Input). No in-page Back
+// button — the app bar's own chevron already covers every non-'list' view
+// (see InstallHelp.jsx).
+function InviteAdmin() {
   const [label, setLabel] = useState('')
   const [creating, setCreating] = useState(false)
   const [error, setError] = useState(null)
@@ -59,7 +67,7 @@ function InviteAdmin({ onBack }) {
   // Device-linking (G411-28, 2026-09-01) — bare-minimum admin UI, real
   // cockpit is G411-37/38's job (see that ticket's own comment pointing
   // back here). Just enough to actually exercise the approve/reject
-  // routes: a flat list, no styling, no per-request breakdown.
+  // routes: a flat list, no per-request breakdown.
   const [pendingDevices, setPendingDevices] = useState([])
   const [deviceActionError, setDeviceActionError] = useState(null)
   const [workingDeviceId, setWorkingDeviceId] = useState(null)
@@ -147,90 +155,91 @@ function InviteAdmin({ onBack }) {
 
   return (
     <div className="invite-admin">
-      <button type="button" onClick={onBack}>&larr; Back</button>
-      <h2>Invites</h2>
+      <Card>
+        <h2>Invites</h2>
 
-      {!hasPublicKey && (
-        <p role="alert">
-          This account has no messaging encryption key yet (expected for the original admin
-          account, created before invites existed).{' '}
-          <button type="button" onClick={handleGenerateKeypair} disabled={keypairStatus === 'working'}>
-            {keypairStatus === 'working' ? 'Generating…' : 'Generate my encryption key'}
-          </button>
-          {keypairStatus === 'error' && ' Failed — try again.'}
-        </p>
-      )}
+        {!hasPublicKey && (
+          <p role="alert" className="invite-admin-alert">
+            This account has no messaging encryption key yet (expected for the original admin
+            account, created before invites existed).{' '}
+            <Button type="button" variant="secondary" onClick={handleGenerateKeypair} disabled={keypairStatus === 'working'}>
+              {keypairStatus === 'working' ? 'Generating…' : 'Generate my encryption key'}
+            </Button>
+            {keypairStatus === 'error' && ' Failed — try again.'}
+          </p>
+        )}
 
-      <form onSubmit={handleCreate}>
-        <input
-          type="text"
-          placeholder="Note for yourself (optional, e.g. a name)"
-          value={label}
-          onChange={(e) => setLabel(e.target.value)}
-          dir="auto"
-        />
-        <button type="submit" disabled={creating}>
-          {creating ? 'Creating…' : 'Create invite link'}
-        </button>
-      </form>
-      {error && <p role="alert">{error}</p>}
-      {lastInvite && (
-        <p>
-          Link: <code>{lastLink}</code>{' '}
-          <button type="button" onClick={() => navigator.clipboard.writeText(lastLink)}>
-            Copy
-          </button>
-          <br />
-          Passphrase (for CSV/backup use — this is the only time it's shown):{' '}
-          <code>{lastInvite.passphrase}</code>
-          <br />
-          <button type="button" onClick={() => downloadInviteCsv(lastInvite)}>
-            Export CSV
-          </button>
-        </p>
-      )}
+        <form onSubmit={handleCreate} className="invite-admin-form">
+          <Input
+            id="invite-admin-label"
+            type="text"
+            placeholder="Note for yourself (optional, e.g. a name)"
+            value={label}
+            onChange={(e) => setLabel(e.target.value)}
+          />
+          <Button type="submit" variant="primary" disabled={creating}>
+            {creating ? 'Creating…' : 'Create invite link'}
+          </Button>
+        </form>
+        {error && <p role="alert" className="invite-admin-error">{error}</p>}
+        {lastInvite && (
+          <div className="invite-admin-result">
+            <p className="invite-admin-link-row">
+              Link: <code className="invite-admin-code">{lastLink}</code>
+              <Button type="button" variant="secondary" onClick={() => navigator.clipboard.writeText(lastLink)}>
+                Copy
+              </Button>
+            </p>
+            <p>
+              Passphrase (for CSV/backup use — this is the only time it's shown):{' '}
+              <code className="invite-admin-code">{lastInvite.passphrase}</code>
+            </p>
+            <Button type="button" variant="secondary" onClick={() => downloadInviteCsv(lastInvite)}>
+              Export CSV
+            </Button>
+          </div>
+        )}
 
-      <h3>All invites</h3>
-      {invites.length === 0 ? (
-        <p>None yet.</p>
-      ) : (
-        <ul>
-          {invites.map((inv) => (
-            <li key={inv.token}>
-              <span dir="auto">{inv.label || '(no label)'}</span>
-              {' — '}
-              {inv.usedAt
-                ? `used by ${inv.usedByUser?.firstName || 'someone'}`
-                : 'unused'}
-            </li>
-          ))}
-        </ul>
-      )}
+        <h3>All invites</h3>
+        {invites.length === 0 ? (
+          <p className="meta">None yet.</p>
+        ) : (
+          <ul className="invite-admin-list">
+            {invites.map((inv) => (
+              <li key={inv.token} className="invite-admin-row">
+                <span dir="auto">{inv.label || '(no label)'}</span>
+                <span className="meta">
+                  {inv.usedAt ? `used by ${inv.usedByUser?.firstName || 'someone'}` : 'unused'}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
 
-      {/* G411-28 device-linking — bare-minimum shim, real cockpit is
-          G411-37/38's job (see that ticket for the pointer back here). */}
-      <h3>Pending device requests</h3>
-      {deviceActionError && <p role="alert">{deviceActionError}</p>}
-      {pendingDevices.length === 0 ? (
-        <p>None pending.</p>
-      ) : (
-        <ul>
-          {pendingDevices.map((d) => (
-            <li key={d.id}>
-              <span dir="auto">{d.user.firstName} {d.user.lastName}</span>
-              {' '}(<span dir="auto">{d.user.email || 'no email'}</span>)
-              {' '}
-              <button type="button" onClick={() => handleApproveDevice(d)} disabled={workingDeviceId === d.id}>
-                {workingDeviceId === d.id ? 'Working…' : 'Approve'}
-              </button>
-              {' '}
-              <button type="button" onClick={() => handleRejectDevice(d)} disabled={workingDeviceId === d.id}>
-                Reject
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
+        {/* G411-28 device-linking — bare-minimum shim, real cockpit is
+            G411-37/38's job (see that ticket for the pointer back here). */}
+        <h3>Pending device requests</h3>
+        {deviceActionError && <p role="alert" className="invite-admin-error">{deviceActionError}</p>}
+        {pendingDevices.length === 0 ? (
+          <p className="meta">None pending.</p>
+        ) : (
+          <ul className="invite-admin-list">
+            {pendingDevices.map((d) => (
+              <li key={d.id} className="invite-admin-row">
+                <span dir="auto">
+                  {d.user.firstName} {d.user.lastName} ({d.user.email || 'no email'})
+                </span>
+                <Button type="button" variant="secondary" onClick={() => handleApproveDevice(d)} disabled={workingDeviceId === d.id}>
+                  {workingDeviceId === d.id ? 'Working…' : 'Approve'}
+                </Button>
+                <Button type="button" variant="danger-text" onClick={() => handleRejectDevice(d)} disabled={workingDeviceId === d.id}>
+                  Reject
+                </Button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Card>
     </div>
   )
 }

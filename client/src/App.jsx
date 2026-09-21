@@ -729,13 +729,13 @@ function App() {
               onFreeTextChange={(v) => setNewRequestHasText(!!v)}
             />
           ) : view === 'install-help' ? (
-            <InstallHelp onBack={() => setView('list')} />
+            <InstallHelp />
           ) : view === 'invite-admin' ? (
-            <InviteAdmin onBack={() => setView('list')} />
+            <InviteAdmin />
           ) : view === 'trigger-admin' ? (
-            <TriggerAdmin onBack={() => setView('list')} />
+            <TriggerAdmin />
           ) : view === 'admin-create-request' ? (
-            <AdminCreateRequest onBack={() => setView(previousView)} />
+            <AdminCreateRequest />
           ) : view === 'user-management' ? (
             <UserManagement />
           ) : view === 'notification-history' ? (
