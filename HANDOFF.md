@@ -12,7 +12,7 @@ accumulated. If something here turns out to matter long-term, promote it to
 
 ---
 
-## Where this session left off (2026-09-22, latest) — G411-113 (WP8, credit ring) Landed, PR #137 open, awaiting merge go-ahead
+## Where this session left off (2026-09-22, latest) — G411-113 (WP8, credit ring) merged, Reconciled, fully closed out
 
 **G411-112 (previous ticket) fully closed out**: merged, Reconciled, parent G411-9 rolled Open → Implementing. See gavi411-brain.md decisions #151/#152 for its own record; not repeated here.
 
@@ -35,17 +35,13 @@ Also swapped a hand-rolled module-level id counter for React 19's `useId()` — 
 **2 architectural flags from the same review deliberately NOT fixed** (both explicitly bigger calls than this ticket's scope) — filed as real Jira children of **G411-57 (V2/Stretch Backlog)**: **G411-123** (`.app-bar`'s flex+manual-spacer centering is on its 2nd ticket bolting a special case onto the same structural cause — G411-108, now this one — real fix is a 3-column grid), **G411-124** (`CreditRing`'s popup routes a plain hover tooltip through an API built for dismissible dialogs — worth reconsidering against a plain positioned tooltip, but not a rewrite this ticket's bugfix pass should take on).
 
 ### Real state, right now
-Branch `you/G411-113-credit-ring`, all work pushed. **PR #137 open** against `main`, Sibling review done and posted as a real PR comment (`gh api` spot-checked, real content confirmed), all fixes from that review applied and pushed. Jira: **Landed** (Reviewing → Landed transitioned this session — code proven ready but NOT YET MERGED; Aegis Evidence field written against real fresh evidence). 555/555 tests, build clean, lint clean at every step. Dev servers running (Vite :5173, API :3000).
+PR #137 **merged** via regular merge commit (`d0b454b`) into `main`. Jira: **Reconciled** (Landed → Reconciled transitioned same session, immediately after the merge go-ahead — steps 1-4 already covered re-verification, no separate re-check). Parent **G411-9** stays at Implementing (several other children still Open — G411-54/55/56/116/117 — correctly not rolled to Reconciled). Primary worktree back on `main`, clean, matching `origin/main` at `d0b454b`. Full sync check re-run explicitly at close-of-session: all 6 `Gavi411-agent-*` worktrees clean, each still parked on its own idle branch (unrelated to this ticket, unchanged from session start). 555/555 tests, build clean, lint clean at every step this session.
 
-**This entry is necessarily written pre-merge** (CLAUDE.md wrap-up step 6 runs before steps 7-8) — the gap between "Landed" here and an eventual real merge is expected staleness, not drift, as long as nothing beyond the merge+Reconcile step itself is still outstanding.
+Two follow-up tickets filed under **G411-57 (V2/Stretch Backlog)** from this ticket's own Sibling review, not fixed inline: **G411-123** (app bar's flex+manual-spacer centering needs a structural 3-column-grid rework), **G411-124** (CreditRing's popover should be reconsidered against a plain positioned tooltip).
 
 ### What's next, concretely
-1. **Ask Gavi for the merge go-ahead on PR #137** — not yet asked as of this write (wrap-up step 7, next action).
-2. On yes: merge (regular merge commit, `gh pr merge --merge --admin` per branch protection), then Landed → Reconciled immediately (steps 1-4 already covered re-verification, no separate re-check).
-3. Full sync check across every worktree once merged (wrap-up step 8) — not yet run.
-4. Still open, not blocking: the pre-existing `index.css` design-hook findings from earlier sessions, the `/impeccable document` sidecar refresh, `ConfirmModal.jsx`'s own stray `variant="purple"`.
-5. **Next ticket after this one closes**: agree explicitly with Gavi at pickup (STOP 1) — WP9/WP10 or whatever's next per the finish-line plan, don't assume.
-5. **Next ticket after this one closes**: agree explicitly with Gavi at pickup (STOP 1) — don't assume the next-lowest-numbered Epic 9 child without asking.
+1. **Next ticket pickup**: agree explicitly with Gavi at pickup (STOP 1) — WP9/WP10 or whatever's next per the finish-line plan (`gavi411-finish-line-plan.md`), don't assume the next-lowest-numbered item without asking.
+2. Still open, not blocking: the pre-existing `index.css` design-hook findings from earlier sessions, the `/impeccable document` sidecar refresh, `ConfirmModal.jsx`'s own stray `variant="purple"`.
 
 ---
 
