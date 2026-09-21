@@ -1,0 +1,75 @@
+/* 44px hit area matches every other .app-bar icon button (.btn-icon) so
+   the app-bar-chevron-spacer's fixed 44px width balances it exactly —
+   the 40px ring graphic itself sits centered inside. */
+.credit-ring {
+  position: relative;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: none;
+  background: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.credit-ring svg circle {
+  transition: stroke-dashoffset 0.3s ease;
+}
+
+.credit-ring-number {
+  position: absolute;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-h);
+}
+
+/* Native popover — position:fixed + top/right set imperatively in
+   CreditRing.jsx (positionPopover()) right before it opens, since CSS
+   Anchor Positioning (anchor-name/position-anchor) isn't in Safari yet.
+   margin:0 clears the UA stylesheet's centered-dialog default, which is
+   otherwise what the browser falls back to (caught live, Gavi: popover
+   opened in the page's top-left corner instead of near the ring).
+   Two stacked lines (balance line, reset line) rather than one long
+   line — shorter max line length is part of what keeps it from running
+   off the right edge on narrow viewports (also caught live). */
+/* display is set ONLY on :popover-open, not unconditionally — an
+   unconditional display:flex here permanently overrides the popover
+   attribute's own UA-default hidden state (display:none when closed),
+   so it showed on every page load with no interaction at all (caught
+   live, Gavi: "this is the state after a fresh load... I didn't click
+   or hover"). The popover attribute's built-in show/hide toggles the
+   *browser's* internal rendering, which an always-on author `display`
+   value defeats. */
+.credit-ring-popover {
+  margin: 0;
+  margin-top: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  font-size: 13px;
+  color: var(--text-h);
+  gap: 2px;
+  max-width: 220px;
+  width: max-content;
+}
+
+/* Each line is a single short phrase that should never itself wrap —
+   without this, a column-flex container with no explicit width sizes
+   ambiguously (each line's own min-content, not the widest line's
+   max-content), so both lines were breaking mid-word into a box far
+   narrower than max-width allowed (caught live, Gavi: measured content
+   box was 88.5px against a 220px max-width — the actual bug was never
+   the cap, it was the container never growing to the text's natural
+   width in the first place). */
+.credit-ring-popover span {
+  white-space: nowrap;
+}
+
+.credit-ring-popover:popover-open {
+  display: flex;
+  flex-direction: column;
+}

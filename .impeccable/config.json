@@ -124,6 +124,15 @@
         "value": "24px",
         "createdAt": "2026-09-19T19:36:31.530Z",
         "reason": "pill-shaped composer bar, intentional design choice for G411-109"
+      },
+      {
+        "rule": "design-system-font-size",
+        "value": "12px",
+        "files": [
+          "client/src/components/CreditRing.css"
+        ],
+        "createdAt": "2026-09-21T20:41:09.070Z",
+        "reason": "CreditRing number must fit inside a 40px circular badge (32px usable diameter after the 4px stroke) — the smallest documented type step (14px) doesn't reliably fit a 3-digit balance without visually breaking the ring; a real physical-fit constraint, not an arbitrary choice"
       }
     ]
   }
