@@ -1,4 +1,4 @@
-// Route tests for GET/GET:id/PATCH (G411-67). Mocks Prisma and auth —
+// Route tests for admin user operations. Mocks Prisma and auth —
 // no real DB touched, so this is safe to run unattended against the
 // live dev database this repo shares. Covers: auth-required, ownership
 // checks, admin bypass, PATCH enum validation happy/error paths.
@@ -86,9 +86,7 @@ vi.mock('../../lib/cloudinary.js', async () => {
 
 // Real implementation by default (it operates on prismaMock as its `tx`
 // arg, so existing tests asserting user.update/creditTransaction.create
-// side effects still pass) — G411-44's tests spy on it per-test instead
-// of replacing it wholesale, which broke every pre-existing deduction/
-// refund assertion in this file (Sibling review finding).
+// side effects still pass).
 vi.mock('../../lib/credits.js', async () => {
   const actual = await vi.importActual('../../lib/credits.js')
   return { ...actual }
@@ -113,7 +111,7 @@ beforeEach(() => {
   currentUserId = null
   vi.clearAllMocks()
 })
-describe('GET /api/requests/users (G411-44, admin dropdown)', () => {
+describe('GET /api/requests/users (admin dropdown)', () => {
   it('401s when unauthenticated', async () => {
     const res = await request(app).get('/api/requests/users')
     expect(res.status).toBe(401)
@@ -154,7 +152,7 @@ describe('GET /api/requests/users (G411-44, admin dropdown)', () => {
   })
 })
 
-describe('POST /api/requests/admin-create (G411-44)', () => {
+describe('POST /api/requests/admin-create', () => {
   it('401s when unauthenticated', async () => {
     const res = await request(app)
       .post('/api/requests/admin-create')
@@ -200,7 +198,7 @@ describe('POST /api/requests/admin-create (G411-44)', () => {
     expect(res.body.error).toBe('User not found')
   })
 
-  it('400s when the target user IS the admin (Sibling review finding — self-target was unguarded)', async () => {
+  it('400s when the target user IS the admin', async () => {
     currentUserId = ADMIN
     prismaMock.user.findUnique.mockResolvedValue({ clerkId: ADMIN, role: 'ADMIN' })
 
@@ -368,7 +366,7 @@ describe('POST /api/requests/admin-create (G411-44)', () => {
   })
 })
 
-describe('PATCH /api/requests/users/:userId/group-tag (G411-46)', () => {
+describe('PATCH /api/requests/users/:userId/group-tag', () => {
   it('401s when unauthenticated', async () => {
     const res = await request(app).patch('/api/requests/users/user_1/group-tag').send({ groupTag: 'REGULAR' })
     expect(res.status).toBe(401)
@@ -465,7 +463,7 @@ describe('PATCH /api/requests/users/:userId/group-tag (G411-46)', () => {
     expect(res.body.error).toBe('User not found')
   })
 
-  it('404s when the target is an ADMIN (Sibling review finding — GET /users excludes ADMIN client-side for this exact reason, PATCH did not enforce it server-side)', async () => {
+  it('404s when the target is an ADMIN', async () => {
     currentUserId = ADMIN
     prismaMock.user.findUnique.mockResolvedValue({ role: 'ADMIN', groupTag: 'REGULAR', creditBalance: 5 })
 
@@ -491,7 +489,7 @@ describe('PATCH /api/requests/users/:userId/group-tag (G411-46)', () => {
   })
 })
 
-describe('PATCH /api/requests/users/:userId/credit-adjustment (G411-99)', () => {
+describe('PATCH /api/requests/users/:userId/credit-adjustment', () => {
   it('401s when unauthenticated', async () => {
     const res = await request(app).patch('/api/requests/users/user_1/credit-adjustment').send({ delta: 2 })
     expect(res.status).toBe(401)
@@ -594,7 +592,7 @@ describe('PATCH /api/requests/users/:userId/credit-adjustment (G411-99)', () => 
   })
 })
 
-describe('PATCH /api/requests/users/:userId/info (G411-99)', () => {
+describe('PATCH /api/requests/users/:userId/info', () => {
   it('401s when unauthenticated', async () => {
     const res = await request(app).patch('/api/requests/users/user_1/info').send({ firstName: 'John' })
     expect(res.status).toBe(401)
@@ -687,7 +685,7 @@ describe('PATCH /api/requests/users/:userId/info (G411-99)', () => {
   })
 })
 
-describe('PATCH /api/requests/users/:userId/block (G411-99)', () => {
+describe('PATCH /api/requests/users/:userId/block', () => {
   it('401s when unauthenticated', async () => {
     const res = await request(app).patch('/api/requests/users/user_1/block').send({ blocked: true })
     expect(res.status).toBe(401)
@@ -759,7 +757,7 @@ describe('PATCH /api/requests/users/:userId/block (G411-99)', () => {
   })
 })
 
-describe('DELETE /api/requests/users/:userId (G411-99)', () => {
+describe('DELETE /api/requests/users/:userId', () => {
   it('401s when unauthenticated', async () => {
     const res = await request(app).delete('/api/requests/users/user_1')
     expect(res.status).toBe(401)
@@ -802,13 +800,6 @@ describe('DELETE /api/requests/users/:userId (G411-99)', () => {
         publicKey: null,
       },
     })
-    // Sibling review fix: the original version of this route pushed a
-    // "they deleted their account" notification to the ACTING ADMIN only
-    // (req.user.clerkId) — wrong both in audience (the admin already
-    // knows) and in copy (falsely implies the friend acted on their own).
-    // Now uses notifyAdmins via notifyAdminOfAccountDeletion, which
-    // notifies every admin via a real user.findMany lookup, then pushes
-    // through the mocked sendPushToUser.
     expect(notifyAdmins).toHaveBeenCalled()
   })
 

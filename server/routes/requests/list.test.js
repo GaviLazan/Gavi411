@@ -1,4 +1,4 @@
-// Route tests for GET/GET:id/PATCH (G411-67). Mocks Prisma and auth —
+// Route tests for request list. Mocks Prisma and auth —
 // no real DB touched, so this is safe to run unattended against the
 // live dev database this repo shares. Covers: auth-required, ownership
 // checks, admin bypass, PATCH enum validation happy/error paths.
@@ -86,9 +86,7 @@ vi.mock('../../lib/cloudinary.js', async () => {
 
 // Real implementation by default (it operates on prismaMock as its `tx`
 // arg, so existing tests asserting user.update/creditTransaction.create
-// side effects still pass) — G411-44's tests spy on it per-test instead
-// of replacing it wholesale, which broke every pre-existing deduction/
-// refund assertion in this file (Sibling review finding).
+// side effects still pass).
 vi.mock('../../lib/credits.js', async () => {
   const actual = await vi.importActual('../../lib/credits.js')
   return { ...actual }
@@ -143,9 +141,6 @@ describe('GET /api/requests', () => {
     )
   })
 
-  // G411-81: real, once-off DB failure hit live while testing the invite
-  // flow (cause unconfirmed) surfaced this route had no error handling
-  // at all — a thrown error crashed with no logged reason.
   it('500s cleanly with a logged reason if the DB call fails', async () => {
     currentUserId = OWNER
     prismaMock.request.findMany.mockRejectedValue(new Error('connection lost'))
@@ -156,13 +151,10 @@ describe('GET /api/requests', () => {
     expect(res.body).toEqual({ error: 'Failed to load requests' })
   })
 
-  // G411-28 admin search index — opt-in bulk messages include.
-  // G411-37: by default (no ?include=messages), an admin gets only the
-  // single most recent message — not full message bodies —
-  // so the admin list's "time since last activity" column has a real
-  // timestamp without paying for every message on every list load.
-  // G411-109: now also includes content and userId for both admin and friend
-  // callers, for the friend home screen's last-message preview + sender attribution.
+  // By default (no ?include=messages), an admin gets only the single most
+  // recent message with content and userId, not full message bodies — the
+  // admin list's "time since last activity" column and the friend home
+  // screen's last-message preview both use this narrow include.
   it('includes only the latest message with content and userId by default, not full messages, for an admin', async () => {
     currentUserId = ADMIN
     prismaMock.request.findMany.mockResolvedValue([sampleRequest])
@@ -202,10 +194,8 @@ describe('GET /api/requests', () => {
     })
   })
 
-  // G411-37 admin list screen: every admin list render needs the friend's
-  // name/avatar per row (unlike ?include=messages, this is unconditional
-  // whenever isAdmin, not a separate opt-in) — narrow select, not the
-  // whole User row.
+  // Every admin list render needs the friend's name/avatar per row —
+  // unconditional whenever isAdmin, narrow select not the whole User row.
   it('includes a narrow user select for an admin', async () => {
     currentUserId = ADMIN
     prismaMock.request.findMany.mockResolvedValue([sampleRequest])
@@ -225,7 +215,7 @@ describe('GET /api/requests', () => {
     await request(app).get('/api/requests')
 
     const call = prismaMock.request.findMany.mock.calls[0][0]
-    // Non-admin gets last message (G411-109) but not user info (still admin-only)
+    // Non-admin gets last message but not user info (still admin-only)
     expect(call.include.message).toEqual({
       orderBy: { createdAt: 'desc' },
       take: 1,
@@ -234,8 +224,7 @@ describe('GET /api/requests', () => {
     expect(call.include.user).toBeUndefined()
   })
 
-  // G411-109: friends now get the last message include (with content and userId)
-  // for the friend home screen's last-message preview + sender attribution.
+  // For the friend home screen's last-message preview + sender attribution.
   it('includes the last message with content and userId for a non-admin', async () => {
     currentUserId = OWNER
     prismaMock.request.findMany.mockResolvedValue([sampleRequest])

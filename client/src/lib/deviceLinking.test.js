@@ -1,9 +1,5 @@
-// G411-28 device-linking orchestration. Matan's Sibling review (PR #35)
-// explicitly flagged this file as untested — "no tests exist for
-// deviceLinking.js or the new conversationCrypto.js path, exactly where
-// the two High findings live." Same convention as conversationCrypto.test.js:
-// real Web Crypto, mocked fetch + keyStore.js (browser-only, untested by
-// design).
+// Device-linking orchestration. Same convention as conversationCrypto.test.js:
+// real Web Crypto, mocked fetch + keyStore.js (browser-only, untested by design).
 
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { generateKeypair, exportPublicKey } from './crypto.js'
@@ -62,7 +58,6 @@ describe('approveDevice', () => {
   })
 })
 
-// Matan's Sibling review, PR #35, Fix 1a.
 describe('wrapMissingConversationKeys', () => {
   it('no-ops when the missing-wraps check fails', async () => {
     const admin = await generateKeypair()
@@ -183,10 +178,6 @@ describe('wrapMissingConversationKeys', () => {
   })
 })
 
-// Matan's Sibling review, carried-over non-blocking note: getMyDeviceStatus
-// used to always return the account's most-recently-created Device row —
-// an account polling from two different devices could see the wrong one's
-// status. Now scoped by this browser's own saved deviceId when available.
 describe('getMyDeviceStatus', () => {
   it('scopes the poll by this device\'s own saved deviceId when one exists', async () => {
     mockLoadDeviceId.mockResolvedValue(42)

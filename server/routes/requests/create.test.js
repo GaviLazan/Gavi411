@@ -1,4 +1,4 @@
-// Route tests for GET/GET:id/PATCH (G411-67). Mocks Prisma and auth —
+// Route tests for request creation. Mocks Prisma and auth —
 // no real DB touched, so this is safe to run unattended against the
 // live dev database this repo shares. Covers: auth-required, ownership
 // checks, admin bypass, PATCH enum validation happy/error paths.
@@ -86,9 +86,7 @@ vi.mock('../../lib/cloudinary.js', async () => {
 
 // Real implementation by default (it operates on prismaMock as its `tx`
 // arg, so existing tests asserting user.update/creditTransaction.create
-// side effects still pass) — G411-44's tests spy on it per-test instead
-// of replacing it wholesale, which broke every pre-existing deduction/
-// refund assertion in this file (Sibling review finding).
+// side effects still pass).
 vi.mock('../../lib/credits.js', async () => {
   const actual = await vi.importActual('../../lib/credits.js')
   return { ...actual }
@@ -113,7 +111,7 @@ beforeEach(() => {
   currentUserId = null
   vi.clearAllMocks()
 })
-describe('POST /api/requests (G411-23, deduction via lib/credits.js)', () => {
+describe('POST /api/requests (deduction via lib/credits.js)', () => {
   beforeEach(() => {
     currentUserId = OWNER
   })
@@ -156,7 +154,7 @@ describe('POST /api/requests (G411-23, deduction via lib/credits.js)', () => {
   })
 })
 
-describe('POST /api/requests/overdraft-request (G411-47)', () => {
+describe('POST /api/requests/overdraft-request', () => {
   beforeEach(() => {
     currentUserId = OWNER
   })
@@ -194,7 +192,7 @@ describe('POST /api/requests/overdraft-request (G411-47)', () => {
     )
   })
 
-  it('notifies admins via Telegram with a permalink (G411-50 Sibling review finding)', async () => {
+  it('notifies admins via Telegram with a permalink', async () => {
     vi.stubEnv('FRONTEND_URL', 'https://example.com')
     const { notifyAdmins } = await import('../../lib/notify.js')
     prismaMock.user.findUnique.mockResolvedValue({ creditBalance: 0, overdraftUsedAt: null })
@@ -281,7 +279,7 @@ describe('POST /api/requests/match', () => {
     expect(res.status).toBe(401)
   })
 
-  it('400s when freeText is missing (Sibling review finding, G411-63 PR)', async () => {
+  it('400s when freeText is missing', async () => {
     currentUserId = OWNER
     const res = await request(app).post('/api/requests/match').send({})
     expect(res.status).toBe(400)
@@ -297,9 +295,8 @@ describe('POST /api/requests/match', () => {
     expect(res.body.matchedTypes).toEqual(['TRAVEL'])
   })
 
-  // G411-81: same real, once-off DB failure caught live also hit this
-  // route (no error handling existed here either — any thrown error
-  // crashed with no logged reason).
+  // Same real, once-off DB failure mode affects this route too
+  // (no error handling existed here either — any thrown error crashed with no logged reason).
   it('500s cleanly with a logged reason if matching fails', async () => {
     currentUserId = OWNER
     const { matchKeywords } = await import('../../lib/matchKeywords.js')
@@ -314,11 +311,7 @@ describe('POST /api/requests/match', () => {
 
 describe('GET /api/requests/by-public-id/:publicId', () => {
   const publicId = 'abc-123_DEF'
-  // Route now selects only { id, userId } (Sibling review finding: the
-  // full MESSAGE_INCLUDE payload was fetched here and immediately
-  // discarded, since RequestDetail.jsx re-fetches the real detail via
-  // GET /:id right after) — mock the same minimal shape Prisma actually
-  // returns for this query.
+  // Route selects only { id, userId } — mock the minimal shape Prisma returns.
   const minimalRequestWithPublicId = { id: sampleRequest.id, userId: sampleRequest.userId }
 
   it('401s when unauthenticated', async () => {

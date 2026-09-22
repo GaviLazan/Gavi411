@@ -1,4 +1,4 @@
-// Route tests for device-linking (G411-28, 2026-09-01). Same mocking
+// Route tests for device-linking. Same mocking
 // pattern as invites.test.js/requests.test.js — mocks Prisma and auth, no
 // real DB touched.
 
@@ -6,7 +6,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import express from 'express'
 import request from 'supertest'
 
-// notifyAdminOfDeviceRequest (G411-29) requires VAPID_* to be set before
+// notifyAdminOfDeviceRequest requires VAPID_* to be set before
 // its first real send — set here so the test doesn't depend on a real
 // .env existing in whatever environment runs the suite (CI, a fresh
 // checkout).
@@ -69,7 +69,7 @@ const prismaMock = {
 
 vi.mock('../lib/prisma.js', () => ({ prisma: prismaMock }))
 
-// notifyAdminOfDeviceRequest (G411-29) pulls in web-push transitively via
+// notifyAdminOfDeviceRequest pulls in web-push transitively via
 // ../lib/webPush.js — mocked so POST / doesn't attempt a real network call
 // or require real VAPID env vars in the test environment.
 vi.mock('web-push', () => ({
@@ -88,7 +88,7 @@ beforeEach(() => {
   // Default: no admins found, so notifyAdminOfDeviceRequest's push fanout
   // is a no-op unless a specific test overrides it.
   prismaMock.user.findMany.mockResolvedValue([])
-  // G411-98: notification.create now called by sendPushToUser
+  // notification.create now called by sendPushToUser
   prismaMock.notification.create.mockResolvedValue({ id: 1 })
 })
 
@@ -122,7 +122,7 @@ describe('POST /api/devices', () => {
     })
   })
 
-  it('pushes a notification to every ADMIN user (G411-29) without delaying the response', async () => {
+  it('pushes a notification to every ADMIN user without delaying the response', async () => {
     currentUserId = USER
     prismaMock.device.create.mockResolvedValue({ id: 1, status: 'PENDING', userId: USER, publicKey: 'k' })
     prismaMock.user.findMany.mockResolvedValue([{ clerkId: ADMIN, role: 'ADMIN' }])
@@ -183,7 +183,7 @@ describe('POST /api/devices/:id/approve', () => {
     expect(res.status).toBe(404)
   })
 
-  it('400s when a wrappedKeys requestId does not belong to the device owner (Sibling review finding)', async () => {
+  it('400s when a wrappedKeys requestId does not belong to the device owner', async () => {
     currentUserId = ADMIN
     prismaMock.device.findUnique.mockResolvedValue({ id: 1, status: 'PENDING', userId: USER })
     prismaMock.request.count.mockResolvedValue(0) // the requestId belongs to someone else
@@ -236,10 +236,6 @@ describe('POST /api/devices/:id/reject', () => {
   })
 })
 
-// Matan's Sibling review, carried-over non-blocking note: this used to
-// always return the account's most-recently-created Device row regardless
-// of which device asked — an account polling from two different devices
-// could see the wrong one's status.
 describe('GET /api/devices/my-status', () => {
   it('401s when signed out', async () => {
     const res = await request(app).get('/api/devices/my-status')
@@ -318,8 +314,6 @@ describe('GET /api/devices/my-keys', () => {
   })
 })
 
-// Matan's Sibling review, PR #35, Fix 1a — self-healing sweep for a
-// linked device approved before some Request existed.
 describe('GET /api/devices/missing-wraps', () => {
   it('404s for a non-admin', async () => {
     currentUserId = USER

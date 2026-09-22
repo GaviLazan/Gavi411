@@ -1,8 +1,6 @@
-// Pure-logic check for the theme cycle order (G411-73, G411-95). No jsdom/DOM test
-// environment exists in this repo yet (server-side Vitest only so far) —
-// setting one up is real new infra, not justified for one small hook.
-// This tests the cycling order in isolation instead of importing the real
-// hook (which touches document/localStorage).
+// Pure-logic check for theme cycle order. No jsdom/DOM test environment in this repo —
+// tests the cycling order in isolation instead of importing the real hook
+// (which touches document/localStorage).
 import { describe, it, expect } from 'vitest'
 
 const ORDER = ['light', 'dark']

@@ -1,8 +1,7 @@
-// G411-82 — conversation-crypto glue (real message send/receive path).
+// Conversation-crypto glue (real message send/receive path).
 // Real Web Crypto (Node's global crypto.subtle), mocked fetch + keyStore
-// (same convention as escrow.js's own doc comment — keyStore.js is
-// IndexedDB/browser-only, kept untested by design; crypto.js's primitives
-// already have their own real round-trip coverage in crypto.test.js).
+// (keyStore.js is IndexedDB/browser-only, kept untested by design;
+// crypto.js's primitives already have their own real round-trip coverage in crypto.test.js).
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { generateKeypair, exportPublicKey, deriveSharedKey, encrypt } from './crypto.js'
 
@@ -53,10 +52,6 @@ describe('getConversationKey', () => {
     expect(await getConversationKey(1)).toBeNull()
   })
 
-  // Matan's Sibling review, PR #35, Fix 2 — this used to return null,
-  // indistinguishable from "this device has no key." Now returns a
-  // dedicated sentinel so RequestDetail.jsx can tell the two apart and
-  // not offer a destructive fix for a problem that isn't on this device.
   it('returns OTHER_PARTY_MISSING_KEY (not null) when the other party has no public key yet', async () => {
     const me = await generateKeypair()
     mockLoadPrivateKey.mockResolvedValue(me.privateKey)
@@ -65,14 +60,6 @@ describe('getConversationKey', () => {
     expect(await getConversationKey(1)).toBe(OTHER_PARTY_MISSING_KEY)
   })
 
-  // Matan's Sibling review, PR #35, Fix 1b — a linked device (has a
-  // deviceId but this requestId was never seeded into
-  // linkedConversationKeys) must NOT fall through to normal ECDH
-  // derivation using its own keypair: that keypair was never exchanged
-  // with the other party at all, so it would silently produce a real but
-  // wrong shared key. Returning null here instead makes the existing
-  // needsKeypair banner fire so the missing-wraps sweep gets a chance to
-  // actually fix it.
   it('returns null for a linked device with no seeded key for this request, without deriving one', async () => {
     const me = await generateKeypair()
     mockLoadPrivateKey.mockResolvedValue(me.privateKey)
@@ -101,12 +88,6 @@ describe('getConversationKey', () => {
     )
   })
 
-  // Sibling review finding (second round) — a resolved null was cached
-  // forever, only rejections were evicted. That silently broke the
-  // self-service "Generate my encryption key" recovery flow: a user who
-  // fixed their missing keypair kept getting the stale cached null on
-  // their next send attempt for the same requestId, with no way out
-  // short of a full page reload.
   it('retries instead of returning a stale cached sentinel once the key becomes available', async () => {
     const me = await generateKeypair()
     mockLoadPrivateKey.mockResolvedValue(me.privateKey)

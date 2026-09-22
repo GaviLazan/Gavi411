@@ -1,4 +1,4 @@
-// Route tests for notification history (G411-98). Same mocking pattern
+// Route tests for notification history. Same mocking pattern
 // as devices.test.js/requests.test.js — mocks Prisma and auth, no real DB.
 
 import { describe, it, expect, vi, beforeEach } from 'vitest'

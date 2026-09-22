@@ -19,7 +19,7 @@ vi.mock('./prisma.js', () => ({ prisma: prismaMock }))
 const { matchKeywords } = await import('./matchKeywords.js')
 
 describe('matchKeywords', () => {
-  it('does NOT match "light" inside "flights" (the false-positive case named in G411-63)', async () => {
+  it('does NOT match "light" inside "flights"', async () => {
     const result = await matchKeywords('booking flights for our trip')
     expect(result).not.toContain('TECH_SUPPORT')
   })

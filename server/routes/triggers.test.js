@@ -1,4 +1,4 @@
-// Route tests for triggers (G411-42). Same mocking pattern as
+// Route tests for triggers. Same mocking pattern as
 // invites.test.js — mocks Prisma and auth, no real DB touched.
 
 import { describe, it, expect, vi, beforeEach } from 'vitest'
@@ -110,7 +110,7 @@ describe('POST /api/triggers', () => {
     expect(res.status).toBe(400)
   })
 
-  it('400s on an invalid requestType instead of reaching Prisma (Sibling review finding)', async () => {
+  it('400s on an invalid requestType instead of reaching Prisma', async () => {
     currentUserId = ADMIN
     const res = await request(app).post('/api/triggers').send({ keyword: 'flight', requestType: 'BOGUS' })
     expect(res.status).toBe(400)

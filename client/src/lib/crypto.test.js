@@ -66,7 +66,7 @@ describe('crypto core (keypair, ECDH, AES-GCM)', () => {
     await expect(decrypt(wrongShared, envelope)).rejects.toThrow()
   })
 
-  it('round-trips a large binary payload (real image size, Sibling review regression)', async () => {
+  it('round-trips a large binary payload (real image size)', async () => {
     const alice = await generateKeypair()
     const bob = await generateKeypair()
     const shared = await deriveSharedKey(alice.privateKey, bob.publicKey)

@@ -1,4 +1,4 @@
-// Route tests for GET/GET:id/PATCH (G411-67). Mocks Prisma and auth —
+// Route tests for requests (GET/GET:id/PATCH). Mocks Prisma and auth —
 // no real DB touched, so this is safe to run unattended against the
 // live dev database this repo shares. Covers: auth-required, ownership
 // checks, admin bypass, PATCH enum validation happy/error paths.
@@ -86,9 +86,7 @@ vi.mock('../../lib/cloudinary.js', async () => {
 
 // Real implementation by default (it operates on prismaMock as its `tx`
 // arg, so existing tests asserting user.update/creditTransaction.create
-// side effects still pass) — G411-44's tests spy on it per-test instead
-// of replacing it wholesale, which broke every pre-existing deduction/
-// refund assertion in this file (Sibling review finding).
+// side effects still pass).
 vi.mock('../../lib/credits.js', async () => {
   const actual = await vi.importActual('../../lib/credits.js')
   return { ...actual }
@@ -113,10 +111,9 @@ beforeEach(() => {
   currentUserId = null
   vi.clearAllMocks()
 })
-describe('stripEmpty (G411-74 Sibling review finding)', () => {
+describe('stripEmpty', () => {
   it('drops a nested object whose fields are all empty, not just top-level empties', async () => {
-    // TravelFields' new hotel/car objects (G411-74) — an all-blank toggled-on
-    // panel used to survive as junk since stripEmpty only recursed into arrays.
+    // An all-blank toggled-on panel used to survive as junk since stripEmpty only recursed into arrays.
     const { stripEmpty } = await import('./index.js')
     expect(stripEmpty({ hotel: { date: '', location: '', company: '', ref: '' }, car: null, destination: 'Paris' }))
       .toEqual({ destination: 'Paris' })
@@ -129,7 +126,7 @@ describe('stripEmpty (G411-74 Sibling review finding)', () => {
   })
 })
 
-describe('buildPermalink (G411-50 Sibling review finding)', () => {
+describe('buildPermalink', () => {
   it('builds a /r/<publicId> URL from FRONTEND_URL', async () => {
     vi.stubEnv('FRONTEND_URL', 'https://example.com')
     const { buildPermalink } = await import('./index.js')
@@ -145,7 +142,7 @@ describe('buildPermalink (G411-50 Sibling review finding)', () => {
   })
 })
 
-describe('POST / request creation notification (G411-51)', () => {
+describe('POST / request creation notification', () => {
   it('calls notifyAdmins with telegram flag when request is successfully created', async () => {
     vi.stubEnv('FRONTEND_URL', 'https://example.com')
     const { notifyAdmins } = await import('../../lib/notify.js')
@@ -224,7 +221,7 @@ describe('POST / request creation notification (G411-51)', () => {
   })
 })
 
-describe('POST /:id/messages notification (G411-51)', () => {
+describe('POST /:id/messages notification', () => {
   it('calls notifyAdmins when friend sends a message', async () => {
     vi.stubEnv('FRONTEND_URL', 'https://example.com')
     const { notifyAdmins } = await import('../../lib/notify.js')
@@ -281,7 +278,7 @@ describe('POST /:id/messages notification (G411-51)', () => {
   })
 })
 
-describe('PATCH /:id status change notification (G411-51)', () => {
+describe('PATCH /:id status change notification', () => {
   beforeEach(() => {
     prismaMock.message.findFirst.mockResolvedValue(null)
     prismaMock.$transaction.mockImplementation((cb) => cb(prismaMock))

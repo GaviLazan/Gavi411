@@ -1,4 +1,4 @@
-// Route tests for push subscribe/unsubscribe (G411-29). Same mocking
+// Route tests for push subscribe/unsubscribe. Same mocking
 // pattern as devices.test.js — mocks Prisma and auth, no real DB touched.
 
 import { describe, it, expect, vi, beforeEach } from 'vitest'
@@ -44,7 +44,7 @@ describe('POST /api/push', () => {
     expect(prismaMock.pushSubscription.upsert).not.toHaveBeenCalled()
   })
 
-  it('rejects a request where endpoint/keys are the wrong type (Sibling review finding)', async () => {
+  it('rejects a request where endpoint/keys are the wrong type', async () => {
     const res = await request(app)
       .post('/api/push')
       .send({ endpoint: 12345, keys: { p256dh: {}, auth: 'a' } })

@@ -1,7 +1,7 @@
-// Route tests for GET/GET:id/PATCH (G411-67). Mocks Prisma and auth —
+// Route tests for message operations. Mocks Prisma and auth —
 // no real DB touched, so this is safe to run unattended against the
 // live dev database this repo shares. Covers: auth-required, ownership
-// checks, admin bypass, PATCH enum validation happy/error paths.
+// checks, admin bypass, message validation happy/error paths.
 
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import express from 'express'
@@ -86,9 +86,7 @@ vi.mock('../../lib/cloudinary.js', async () => {
 
 // Real implementation by default (it operates on prismaMock as its `tx`
 // arg, so existing tests asserting user.update/creditTransaction.create
-// side effects still pass) — G411-44's tests spy on it per-test instead
-// of replacing it wholesale, which broke every pre-existing deduction/
-// refund assertion in this file (Sibling review finding).
+// side effects still pass).
 vi.mock('../../lib/credits.js', async () => {
   const actual = await vi.importActual('../../lib/credits.js')
   return { ...actual }
@@ -113,7 +111,7 @@ beforeEach(() => {
   currentUserId = null
   vi.clearAllMocks()
 })
-describe('POST /api/requests/:id/messages (G411-24)', () => {
+describe('POST /api/requests/:id/messages', () => {
   it('401s when unauthenticated', async () => {
     const res = await request(app).post('/api/requests/1/messages').send({ content: 'hi' })
     expect(res.status).toBe(401)
@@ -134,7 +132,7 @@ describe('POST /api/requests/:id/messages (G411-24)', () => {
     expect(res.status).toBe(400)
   })
 
-  it('400s when content is whitespace-only (Sibling review finding)', async () => {
+  it('400s when content is whitespace-only', async () => {
     currentUserId = OWNER
     const res = await request(app).post('/api/requests/1/messages').send({ content: '   ' })
     expect(res.status).toBe(400)
@@ -164,12 +162,10 @@ describe('POST /api/requests/:id/messages (G411-24)', () => {
   })
 })
 
-// G411-34 — reopen-on-message
-describe('POST /api/requests/:id/messages — reopen-on-message (G411-34)', () => {
+describe('POST /api/requests/:id/messages — reopen-on-message', () => {
   it('a friend message on a CLOSED request reopens it to IN_QUEUE', async () => {
     currentUserId = OWNER
-    // G411-90: mock must include refundedAt (null for CLOSED, which was never refundable)
-    // G411-93: also include nudgedAt and nudgeTwoSentAt (cleared when friend replies on reopenable)
+    // Mock must include refundedAt (null for CLOSED) and nudgedAt/nudgeTwoSentAt fields
     prismaMock.request.findUnique.mockResolvedValue({ ...sampleRequest, status: 'CLOSED', refundedAt: null, nudgedAt: null, nudgeTwoSentAt: null })
     prismaMock.message.create.mockResolvedValue({ id: 7, content: 'still need help', requestId: 1, userId: OWNER })
 
@@ -184,7 +180,7 @@ describe('POST /api/requests/:id/messages — reopen-on-message (G411-34)', () =
 
   it('an admin message on a CLOSED request reopens it to WAITING_ON_USER', async () => {
     currentUserId = ADMIN
-    // G411-90: mock must include refundedAt (null for CLOSED)
+    // Mock must include refundedAt field (null for CLOSED)
     prismaMock.request.findUnique.mockResolvedValue({ ...sampleRequest, status: 'CLOSED', refundedAt: null })
     prismaMock.message.create.mockResolvedValue({ id: 8, content: 'one more thing', requestId: 1, userId: ADMIN })
 
@@ -197,7 +193,7 @@ describe('POST /api/requests/:id/messages — reopen-on-message (G411-34)', () =
     })
   })
 
-  it('a message on a non-reopenable request does not change status but clears nudgedAt and nudgeTwoSentAt if friend messaged (G411-93)', async () => {
+  it('a message on a non-reopenable request does not change status but clears nudgedAt and nudgeTwoSentAt if friend messaged', async () => {
     currentUserId = OWNER
     prismaMock.request.findUnique.mockResolvedValue({ ...sampleRequest, status: 'WORKING_ON_IT' })
     prismaMock.message.create.mockResolvedValue({ id: 9, content: 'update', requestId: 1, userId: OWNER })
@@ -205,19 +201,19 @@ describe('POST /api/requests/:id/messages — reopen-on-message (G411-34)', () =
     const res = await request(app).post('/api/requests/1/messages').send({ content: 'update' })
 
     expect(res.status).toBe(201)
-    // Status should not change, but nudgedAt and nudgeTwoSentAt are cleared by friend message (G411-93)
+    // Status should not change, but nudgedAt and nudgeTwoSentAt are cleared by friend message
     expect(prismaMock.request.update).toHaveBeenCalledWith({
       where: { id: 1 },
       data: { nudgedAt: null, nudgeTwoSentAt: null },
     })
   })
 
-  it('does not double-reopen if the request was already reopened by the time the transaction re-checks (Sibling review race fix)', async () => {
+  it('does not double-reopen if the request was already reopened by the time the transaction re-checks', async () => {
     currentUserId = OWNER
     // Pre-transaction read sees CLOSED (stale); the in-tx fresh re-read
     // sees it's already been reopened by a concurrent write — the second
     // reopen must not fire.
-    // G411-90: both mocks must include refundedAt field
+    // Both mocks must include refundedAt field
     prismaMock.request.findUnique
       .mockResolvedValueOnce({ ...sampleRequest, status: 'CLOSED', refundedAt: null })
       .mockResolvedValueOnce({ status: 'WAITING_ON_USER', refundedAt: null })
@@ -229,7 +225,7 @@ describe('POST /api/requests/:id/messages — reopen-on-message (G411-34)', () =
     expect(prismaMock.request.update).not.toHaveBeenCalled()
   })
 
-  it('a friend message on a reopenable request (CLOSED/CANCELLED/SELF_SOLVED) that had nudgedAt set clears it (G411-93)', async () => {
+  it('a friend message on a reopenable request (CLOSED/CANCELLED/SELF_SOLVED) that had nudgedAt set clears it', async () => {
     // When a friend reopens a request that was previously in an
     // escalation cycle (nudgedAt was set), the reply should clear
     // nudgedAt to reset the cycle, same as replying to non-reopenable.
@@ -250,8 +246,7 @@ describe('POST /api/requests/:id/messages — reopen-on-message (G411-34)', () =
   })
 })
 
-// G411-90 — reopen and recharge when refundedAt is set
-describe('POST /api/requests/:id/messages — reopen with refund recharge (G411-90)', () => {
+describe('POST /api/requests/:id/messages — reopen with refund recharge', () => {
   it('reopens a CANCELLED request and charges 1 credit when it was refunded (refundedAt is set)', async () => {
     currentUserId = OWNER
     const now = new Date()
@@ -402,7 +397,7 @@ describe('POST /api/requests/:id/messages — reopen with refund recharge (G411-
   })
 })
 
-describe('POST /api/requests/:id/messages — encrypted flag (G411-82)', () => {
+describe('POST /api/requests/:id/messages — encrypted flag', () => {
   // Decision #98 pause: E2E_ENABLED=false, so this route now forces
   // encrypted: false regardless of what the client sends — see
   // e2eConfig.js. The client itself no longer sends encrypted:'true'
@@ -464,12 +459,6 @@ describe('POST /api/requests/:id/messages — encrypted flag (G411-82)', () => {
     usersByClerkId[OTHER] = { clerkId: OTHER, role: 'USER', publicKey: 'other-pubkey' } // restore
   })
 
-  // Sibling review finding (second round): the encrypted/publicKey check
-  // used to run BEFORE the ownership check, so a non-owner sending
-  // encrypted:true got a 400 about their own key status instead of this
-  // router's deliberate 404 "Request not found" — leaking that the
-  // encrypted-flag path exists (and their own key status) to someone who
-  // shouldn't even be able to confirm the request exists.
   it('404s (not 400) for a non-owner, non-admin sender with no public key trying to send encrypted content', async () => {
     currentUserId = OTHER
     const noKeyUser = { ...usersByClerkId[OTHER], publicKey: null }
@@ -489,7 +478,7 @@ describe('POST /api/requests/:id/messages — encrypted flag (G411-82)', () => {
   })
 })
 
-describe('POST /api/requests/:id/messages — image upload (G411-26)', () => {
+describe('POST /api/requests/:id/messages — image upload', () => {
   it('accepts an image with no caption (photo alone is a valid message)', async () => {
     currentUserId = OWNER
     prismaMock.request.findUnique.mockResolvedValue(sampleRequest)

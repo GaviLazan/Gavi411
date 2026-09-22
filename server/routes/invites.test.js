@@ -1,4 +1,4 @@
-// Route tests for invites (G411-41). Same mocking pattern as
+// Route tests for invites. Same mocking pattern as
 // requests.test.js — mocks Prisma and auth, no real DB touched.
 
 import { describe, it, expect, vi, beforeEach } from 'vitest'

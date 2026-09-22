@@ -1,4 +1,4 @@
-// Notification history routes (G411-98) — mounted at /api/notifications.
+// Notification history routes — mounted at /api/notifications.
 // Scoped by userId in every query — a user can only see/manage their own
 // notification history.
 
@@ -12,7 +12,7 @@ const router = express.Router()
 // Deliberately unread-count-unaware for this ticket (the status is
 // part of the readAt field itself, not a separate UI). `readAt` is the
 // real tracking field — null means unread, set to a date means read.
-// G411-107: excludes cleared notifications (clearedAt is set).
+// Excludes cleared notifications (clearedAt is set).
 router.get('/', requireAuth, async (req, res) => {
   const notifications = await prisma.notification.findMany({
     where: { userId: req.user.clerkId, clearedAt: null },
@@ -23,8 +23,8 @@ router.get('/', requireAuth, async (req, res) => {
   res.json(notifications)
 })
 
-// GET /unread-count — count of unread notifications for the signed-in user.
-// G411-107: excludes cleared notifications (clearedAt is set).
+// GET /unread-count — count of unread notifications for the signed-in
+// user, excluding cleared ones.
 router.get('/unread-count', requireAuth, async (req, res) => {
   const count = await prisma.notification.count({
     where: {
@@ -53,10 +53,9 @@ router.post('/mark-all-read', requireAuth, async (req, res) => {
   res.json({ ok: true })
 })
 
-// POST /clear-all — soft-clear all notifications for the signed-in user
-// (G411-107). Sets clearedAt to now for every row where clearedAt is null,
-// regardless of readAt. Cleared notifications are excluded from the normal
-// listing (/api/notifications) and unread count (/api/notifications/unread-count).
+// POST /clear-all — soft-clear all notifications for the signed-in user.
+// Sets clearedAt to now for every row where clearedAt is null, regardless
+// of readAt — excluded from both the listing and unread-count routes above.
 router.post('/clear-all', requireAuth, async (req, res) => {
   await prisma.notification.updateMany({
     where: {

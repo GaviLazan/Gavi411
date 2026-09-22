@@ -1,4 +1,4 @@
-// Route tests for presence (G411-43). Same mocking pattern as
+// Route tests for presence. Same mocking pattern as
 // triggers.test.js — mocks Prisma and auth, no real DB touched.
 
 import { describe, it, expect, vi, beforeEach } from 'vitest'
@@ -74,7 +74,6 @@ describe('GET /api/presence', () => {
     expect(res.body).toEqual({ isOnline: true, admin: null })
   })
 
-  // G411-108: verify admin's firstName and profilePic are included in response
   it('includes admin firstName and profilePic in response', async () => {
     prismaMock.presence.findUnique.mockResolvedValue({ id: 'singleton', isOnline: true })
     prismaMock.user.findFirst.mockResolvedValue({
@@ -89,7 +88,6 @@ describe('GET /api/presence', () => {
     })
   })
 
-  // G411-108: verify email and phoneNumber are NOT in response
   it('does not include email or phoneNumber anywhere in response', async () => {
     prismaMock.presence.findUnique.mockResolvedValue({ id: 'singleton', isOnline: true })
     prismaMock.user.findFirst.mockResolvedValue({

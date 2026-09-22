@@ -1,6 +1,6 @@
-// Complete profile route (G411-69) — collects phone number and optional
-// profile photo on first login. Mounted at /api/me via server.js.
-// G411-80: extends with a /profile route for friend-initiated edits.
+// Complete profile route — collects phone number and optional profile
+// photo on first login. Mounted at /api/me via server.js. Also has a
+// /profile route for friend-initiated edits after first login.
 
 import express from 'express'
 import { Prisma } from '@prisma/client'
@@ -11,13 +11,6 @@ import { notifyAdmins } from '../lib/notify.js'
 
 const router = express.Router()
 
-// Sibling review finding: this used to accept 7-15 digits while the
-// client (CompleteProfile.jsx) requires 8-15 (dial code + local number
-// combined) — a direct API call bypassing the UI could persist a 7-digit
-// value the UI itself would reject as too short. Matched to the client's
-// real floor since the client always sends a dial-code-prefixed string;
-// no dial-code-aware parsing needed here, just the same effective bound.
-// Exported for reuse by G411-99's admin info edit route.
 export function isValidPhoneNumber(phoneNumber) {
   if (!phoneNumber || typeof phoneNumber !== 'string') return false
   const digitsOnly = phoneNumber.replace(/\D/g, '')
@@ -46,9 +39,6 @@ router.patch('/complete-profile', requireAuth, async (req, res) => {
     if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
       return res.status(409).json({ error: 'That phone number is already registered to another account' })
     }
-    // Sibling review finding: an unhandled P2025 (record not found —
-    // e.g. the user's row was deleted between requireAuth's lookup and
-    // this update) fell through to a raw unhandled 500.
     if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2025') {
       return res.status(404).json({ error: 'Account not found' })
     }
@@ -58,11 +48,9 @@ router.patch('/complete-profile', requireAuth, async (req, res) => {
 
 // PATCH /api/me/profile — update user's phone number, any time after first login
 // Body: { phoneNumber (required) }
-// G411-80: name/username/email/photo are NOT handled here — Gavi's call:
-// Clerk's own native account modal (opened client-side via openUserProfile())
-// already covers those well, no need to duplicate it. Phone is the one field
-// Clerk can't manage (no Israeli-number support, see G411-69), so it's the
-// only thing this route — and the profile screen's own edit UI — still owns.
+// name/username/email/photo are NOT handled here — Clerk's own native
+// account modal already covers those. Phone is the one field Clerk can't
+// manage (no Israeli-number support), so it's the only thing this route owns.
 router.patch('/profile', requireAuth, async (req, res) => {
   const { phoneNumber } = req.body
 
@@ -87,25 +75,6 @@ router.patch('/profile', requireAuth, async (req, res) => {
   }
 })
 
-// POST /api/me/sync-from-clerk — re-fetch this user's own record from Clerk
-// and write back any of username/firstName/lastName/email that drifted.
-// G411-80: our DB only ever pulls these from Clerk once, at first-login
-// signup (requireAuth's create-on-signup path) — a real gap Gavi caught
-// live: a brand-new username set via Clerk's native account modal
-// (openUserProfile(), which we deliberately rely on instead of building
-// our own name/username/email/photo form — see the /profile route above)
-// never reached our DB at all, not even after signing out and back in,
-// since sign-in only ever re-finds the existing row, it doesn't re-create
-// it. The real fix is a Clerk `user.updated` webhook (named as the
-// eventual answer in requireAuth's own comment already) — that needs a
-// new endpoint, signature verification, and Gavi configuring the webhook
-// URL in the Clerk dashboard, a session-crossing dependency outside this
-// ticket. Cheaper stopgap Gavi asked for instead: the client calls this
-// route when leaving the Profile page (the one place in the app that
-// sends the user to Clerk's modal), so a same-session edit is caught
-// without waiting for a reload/relogin. Diffs against the current Prisma
-// row and only writes fields that actually changed — not a blind
-// overwrite every time this fires.
 router.post('/sync-from-clerk', requireAuth, async (req, res) => {
   let clerkUser
   try {
@@ -157,13 +126,6 @@ router.post('/sync-from-clerk', requireAuth, async (req, res) => {
   }
 })
 
-// G411-96: soft-delete account — marks user as deleted, scrubs personal
-// fields, and removes Clerk record. Request/Message history preserved intact
-// (FK constraints survive, data tied to this now-deleted user remains).
-// Clerk delete ordered AFTER Prisma commit so a partial failure leaves the
-// account locked out on our side (safe state) rather than live but broken.
-// Admin notification is fire-and-forget — a push failure must never block
-// account deletion.
 export async function notifyAdminOfAccountDeletion(deletedUser) {
   console.log(
     `[account-deletion] ${deletedUser.firstName} ${deletedUser.lastName} (${deletedUser.clerkId}) deleted their account`,

@@ -12,6 +12,32 @@ accumulated. If something here turns out to matter long-term, promote it to
 
 ---
 
+## Where this session left off (2026-09-23, latest) — G411-116 (WP11 cleanup pass, PR 5 of 5, FINAL PR: tests + scope-gap files) built, ready for review, not yet pushed
+
+**Picked up PR 5 at STOP 1** — scoped as all 37 `.test.js` files repo-wide (comment cleanup, including test-name history citations like "Sibling review finding" embedded inside `it(...)` strings — confirmed with Gavi that stripping those loses nothing, since brain.md/git-log/Jira already fully cover the same history).
+
+**Real scope gap found mid-PR**: running the ticket's own whole-repo falsifier for the first time (not a per-PR subset) surfaced 11 files never assigned to any of PRs 1-4 — 8 server route files (`server.js`, `triggers.js`, `presence.js`, `invites.js`, `completeProfile.js`, `notifications.js`, `devices.js`, `pushSubscriptions.js`) and 3 client root files (`App.jsx` at 1006 lines, `main.jsx`, `useTheme.js`). Folded into PR5 with Gavi's explicit go-ahead rather than filing separately, since the ticket's own falsifier wouldn't pass otherwise.
+
+**`App.jsx` extraction, a real deviation from comment-only work**: the ticket's spec explicitly named `App.jsx` for a `useSession()` extraction (unlike `RequestDetail.jsx` in PR3, which was named for a split whose text turned out to be wrong once actually read). Mapped the state/effects properly this time — genuinely low coupling with view/navigation state, unlike RequestDetail's tangled admin/friend split — and did the extraction directly (not dispatched to Haiku, given the auth-critical risk). **Gavi's own live test caught a real bug** neither 555/555 passing tests nor a clean build surfaced: 5 setter call sites in `App.jsx`'s own event handlers still referenced state that had moved into the new hook, throwing `setNeedsProfileCompletion is not defined` on profile completion. Fixed by exposing named actions from the hook rather than leaking raw setters; Gavi re-tested live and confirmed it works. Full detail in brain.md #161.
+
+**Fourth instance in this ticket of a Haiku dispatch over-claiming completeness** (brain.md #157/#159/#162): even the final, small 10-file dispatch with explicit prior-failure examples still reported "8 of 10 modified" and left 20 real `G411-nn` citations, characterizing some as "structural not narrative" rather than fixing. Fixed by hand.
+
+**This is the first time this ticket's own whole-repo falsifier has passed clean across the ENTIRE codebase** — `grep -rn 'Sibling review|G411-[0-9]' server client/src --include=*.js --include=*.jsx | grep -v test` (and the same across all `.test.js` files) returns nothing except one deliberate, accurate reference (PR2's corrected `G411-127` ponytail comment, pointing at its real tracked ticket).
+
+555/555 tests fresh, build clean. Committed on branch `you/G411-116-cleanup-tests` (5 commits: test-file fixes, `useSession()` extraction + bug fix, `App.jsx` comment cleanup, the remaining-8-files fix). **Not yet pushed, no PR opened, no STOP 3 walkthrough given yet.**
+
+### Real state, right now
+Branch `you/G411-116-cleanup-tests`, 5 local commits, not pushed. `main` unchanged. Jira G411-116 stays at Implementing — **this PR finally completes the ticket's real scope**, so once merged and Gavi confirms, this is the point where G411-116 can move Implementing → Reviewing → Landed → Reconciled for real, closing out the whole 5-PR arc.
+
+### What's next, concretely
+1. Give Gavi the STOP 3 walkthrough for this PR (bigger than the others — includes the `App.jsx` extraction, not just comment cleanup).
+2. Push + open PR + ask for merge go-ahead.
+3. **Once merged, this is the actual end of G411-116's real scope** — unlike PRs 1-4, this one should move the Jira status forward (Reviewing → Landed → Reconciled), not just update Falsifier/Evidence-bar-met text. Confirm with Gavi before transitioning, since this is the first time in 5 PRs that's the right call.
+4. Still open, not blocking: the pre-existing `index.css` design-hook findings, the `/impeccable document` sidecar refresh, `ConfirmModal.jsx`'s own stray `variant="purple"`, `App.jsx`'s pre-existing unused `signOut` destructure (found during this PR's review, not introduced by it, not this PR's job to fix).
+5. Per `gavi411-finish-line-plan.md`: **WP11.5 (G411-117, README)** is next after WP11 fully closes — runs after cleanup so it documents the final structure, before WP12 close-out. Confirm with Gavi at STOP 1, don't assume.
+
+---
+
 ## Where this session left off (2026-09-22, latest) — G411-116 (WP11 cleanup pass, PR 4 of 5: client components + lib) built, ready for review, not yet pushed
 
 **Picked up PR 4 at STOP 1** — no file splits, nothing in `client/src/components/` or `client/src/lib/` crosses ~310 lines. Found 5 `ponytail:` markers at scoping, all genuine design-tradeoff rationale (rejected-alternative explanations, not untracked gaps) — no new V2 tickets needed, just trimmed for length.
