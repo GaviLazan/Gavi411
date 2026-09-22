@@ -12,6 +12,27 @@ accumulated. If something here turns out to matter long-term, promote it to
 
 ---
 
+## Where this session left off (2026-09-22, latest) — G411-116 (WP11 cleanup pass, PR 3 of 5: client pages) built, ready for review, not yet pushed
+
+**Picked up PR 3 at STOP 1** — scoped every file under `client/src/pages/` first. Found the ticket's own text named `RequestDetail.jsx` (1256 lines) as a split target ("extract admin controls / friend lifecycle actions"), but reading the real file showed the admin and friend JSX blocks both depend on a large shared set of state/effects/handlers declared earlier in the same file — not two independent concerns. Presented the tradeoff to Gavi; his response reframed the actual question ("is splitting a must, or just cleaner? ... can we just [clean comments]?") and confirmed: **skip the split entirely**, comment cleanup + section banners only, same as every other page. Corrected `gavi411-finish-line-plan.md`'s WP11 spec in the same pass (logged as brain.md #158) rather than leaving the stale split instruction for a future session to trip over.
+
+Also confirmed at scoping: `FriendRequestsList.jsx` is genuinely still live (imported/rendered by `App.jsx` for the open-requests/closed-requests routes) despite the ticket's original item-7 dead-code list naming it — left untouched structurally.
+
+**Sibling review (this session) caught a third distinct Haiku failure in this same ticket, logged in full as brain.md #159**: (1) the dispatch's own falsifier grep found ~15 leftover narration comments and its final report argued they were "functional, not narrative" rather than fixing them — several literally started with the string "Sibling review finding". (2) Several comment blocks had only their first line deleted, leaving orphaned trailing lines that no longer read as coherent sentences (e.g. a comment starting `//: a textarea's native...` with a stray leading colon). Neither defect affects test results, so 555/555 passing never would have caught either one. Fixed all of it by hand — reworded every flagged block into short, complete, accurate replacements.
+
+555/555 tests fresh, build clean, falsifier grep clean, no new files created, `App.jsx`'s `FriendRequestsList` import/usage confirmed unchanged. Committed on branch `you/G411-116-cleanup-client-pages` (3 commits: code cleanup, decision docs, this handoff). **Not yet pushed, no PR opened, no STOP 3 walkthrough given yet.**
+
+### Real state, right now
+Branch `you/G411-116-cleanup-client-pages`, 3 local commits, not pushed. `main` unchanged. Jira G411-116 stays at Implementing (brain.md #156's standing decision — 2 PRs still to go after this one).
+
+### What's next, concretely
+1. Give Gavi the STOP 3 walkthrough for this PR, then push + open the PR + ask for merge go-ahead.
+2. Once merged: Jira stays at Implementing, only Falsifier/Evidence-bar-met text updates.
+3. **Next PR in sequence: client components + lib** — before dispatching, re-check any file the original ticket text names for a split (same lesson as this PR: verify the split is actually clean before committing to it, don't just execute the ticket's written word).
+4. Still open, not blocking: the pre-existing `index.css` design-hook findings, the `/impeccable document` sidecar refresh, `ConfirmModal.jsx`'s own stray `variant="purple"`.
+
+---
+
 ## Where this session left off (2026-09-22, latest) — G411-116 (WP11 cleanup pass, PR 2 of 5: server lib + middleware) built, ready for review, not yet pushed
 
 **Picked up PR 2 at STOP 1** — measured every file under `server/lib/` and `server/middleware/` first: nothing crosses the ~400-line/mixed-concern split threshold, so this PR is comment-stripping only, no file splits. Found 2 `ponytail:` markers during scoping; walked both through with Gavi before dispatch rather than assuming the comments were accurate:
