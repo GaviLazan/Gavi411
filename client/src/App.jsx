@@ -34,42 +34,31 @@ import {
 } from './lib/inviteToken'
 import PushNotificationToggle, { DeniedHelpDialog } from './components/PushNotificationToggle'
 
-// G411-41: stash any ?token= before Clerk's own redirect flow can touch
-// the URL — see client/src/lib/inviteToken.js for why sessionStorage,
-// not the URL param itself, carries the token through an OAuth round trip.
+// Stash any ?token= before Clerk's own redirect flow can touch the URL —
+// see client/src/lib/inviteToken.js for why sessionStorage, not the URL
+// param itself, carries the token through an OAuth round trip.
 captureInviteTokenFromUrl()
-// G411-28 stage 4: same reasoning, same moment, for a ?recover= link —
-// Sibling review finding, a lost/new device opening a recovery link is
-// just as likely to be signed OUT (hitting the same OAuth hazard) as a
-// brand-new signup is.
+// Same reasoning for a ?recover= link — a lost/new device opening one is
+// just as likely to be signed out as a brand-new signup is.
 captureRecoveryParamsFromUrl()
-// G411-94: capture /r/<publicId> permalink URLs for later consumption
-// after sign-in completes (unlike invite tokens, the URL stays visible).
+// Capture /r/<publicId> permalink URLs for later consumption after
+// sign-in completes (unlike invite tokens, the URL stays visible).
 captureRequestPermalinkFromUrl()
 
 const THEME_LABEL = { light: 'Light', dark: 'Dark' }
 
-// Mirrors server/lib/credits.js's INITIAL_CREDITS (PRD §9's monthly tier
-// caps) — kept as a small client-side copy rather than importing the
-// server module, since it's a 3-entry constant map, not worth a shared
-// package for. Used only for CreditRing's "x of y" cap (G411-113).
+// Mirrors server/lib/credits.js's INITIAL_CREDITS — a small client-side
+// copy rather than a shared package for a 3-entry constant map.
 const CREDIT_CAP_BY_TIER = { LIMITED: 2, REGULAR: 5, CLOSE: 7 }
 
-// G411-106: sessionStorage keys for persisting view state across reloads
 const VIEW_STORAGE_KEY = 'gavi411_view_state'
 
-// G411-66: gate real content behind Clerk auth state.
-// NOTE: this project's installed package is "@clerk/react" (a lower-level
-// package), not "@clerk/clerk-react" — it does not export SignedIn/SignedOut
-// components. Same auth-state gating, done with the useUser hook instead
-// (native to the already-installed package, no new dependency).
-// Signed-out visitors get Clerk's hosted SignIn component instead of the
-// intake form.
+// This project's installed package is "@clerk/react" (a lower-level
+// package), not "@clerk/clerk-react" — it has no SignedIn/SignedOut
+// components, so auth-state gating uses useUser directly instead.
 //
-// G411-67: view switching is plain useState, not a router — only 3
-// screens exist (list/new/install-help), a router dependency isn't
-// justified at this size. Add one if the screen count grows enough to
-// need real URLs/back-button support.
+// View switching is plain useState, not a router — few enough screens
+// that a router dependency isn't justified at this size.
 function App() {
   const {
     isSignedIn,
@@ -95,8 +84,8 @@ function App() {
     clearRecovery,
   } = useSession()
   const { signOut } = useClerk()
-  // G411-106: restore view state from sessionStorage on mount, but only if
-  // no permalink is being consumed (permalink flow takes precedence)
+  // Restore view state from sessionStorage on mount, but only if no
+  // permalink is being consumed (permalink flow takes precedence).
   const [view, setView] = useState(() => {
     const hasPermalink = Boolean(getStashedRequestPermalink())
     if (hasPermalink) return 'list'
@@ -123,16 +112,15 @@ function App() {
   })
   const [newRequestHasText, setNewRequestHasText] = useState(false)
   const [showLogoDiscardConfirm, setShowLogoDiscardConfirm] = useState(false)
-  // G411-49 fix: DeniedHelpDialog must render as a top-level sibling, not
-  // nested inside HamburgerMenu — see PushNotificationToggle.jsx's comment.
+  // DeniedHelpDialog must render as a top-level sibling, not nested inside
+  // HamburgerMenu — see PushNotificationToggle.jsx's comment.
   const [showPushDeniedHelp, setShowPushDeniedHelp] = useState(false)
   const [hamburgerOpen, setHamburgerOpen] = useState(false)
-  // G411-108: lets the app-bar back button trigger ProfilePage's real exit
-  // logic (Clerk sync, when actually needed — see ProfilePage's own
-  // handleBack) instead of a plain setView when view === 'profile'.
+  // Lets the app-bar back button trigger ProfilePage's real exit logic
+  // (Clerk sync, when needed — see ProfilePage's handleBack) instead of a
+  // plain setView when view === 'profile'.
   const profilePageRef = useRef(null)
   const [unreadCount, setUnreadCount] = useState(0)
-  // G411-106: restore previousView from sessionStorage on mount
   const [previousView, setPreviousView] = useState(() => {
     try {
       const saved = sessionStorage.getItem(VIEW_STORAGE_KEY)
@@ -146,15 +134,10 @@ function App() {
   const { theme, cycleTheme } = useTheme()
   const [isOnline, setIsOnline] = useState(true)
   const [presenceToggling, setPresenceToggling] = useState(false)
-  // Sibling review finding: a failed PATCH (network blip, cold-start
-  // timeout) used to silently re-enable the button with the stale label
-  // and zero feedback — same silent-failure class already fixed for
-  // roleFetchFailed/escrowBackupFailed elsewhere in this file.
   const [presenceToggleError, setPresenceToggleError] = useState(false)
   const [adminOpenCount, setAdminOpenCount] = useState(null)
 
-  // G411-43: fetch and display current presence status on mount
-  // (every signed-in user should see whether Gavi is online)
+  // Every signed-in user should see whether Gavi is online.
   useEffect(() => {
     fetch('/api/presence')
       .then((res) => res.ok ? res.json() : null)
@@ -174,22 +157,17 @@ function App() {
     channel.onmessage = () => setPushRefreshToken((t) => t + 1)
     return () => channel.close()
   }, [])
-  // AdminList stays mounted-hidden across nav (G411-89) rather than
-  // remounting, so switching back to Open/Closed requests doesn't refetch
-  // on its own the way a fresh mount would — bump on becoming visible
-  // (view changes TO one of these), not on every internal filter/sort
-  // change within AdminList itself, which isn't a `view` change at all.
+  // AdminList stays mounted-hidden across nav rather than remounting, so
+  // switching back to Open/Closed requests doesn't refetch on its own —
+  // bump on becoming visible, not on every internal filter/sort change.
   useEffect(() => {
     if (view === 'open-requests' || view === 'closed-requests') {
       setPushRefreshToken((t) => t + 1)
     }
   }, [view])
 
-  // G411-103: unread-notification dot on the hamburger icon. Reuses
-  // pushRefreshToken (already bumps when a push arrives via the SW's
-  // BroadcastChannel, or on navigating to Open/Closed requests) rather
-  // than a separate timer poll — updates the moment a push lands in an
-  // open tab, plus once on load/sign-in, with no new polling.
+  // Unread-notification dot on the hamburger icon — reuses pushRefreshToken
+  // rather than a separate timer poll.
   useEffect(() => {
     if (!isSignedIn || !tokenHandoffDone) return
     fetch('/api/notifications/unread-count')
@@ -200,7 +178,6 @@ function App() {
       .catch(() => {})
   }, [isSignedIn, tokenHandoffDone, pushRefreshToken])
 
-  // G411-106: persist view state to sessionStorage whenever it changes
   useEffect(() => {
     sessionStorage.setItem(VIEW_STORAGE_KEY, JSON.stringify({
       view,
@@ -209,16 +186,15 @@ function App() {
     }))
   }, [view, selectedRequestId, previousView])
 
-  // G411-94: open a request detail view given its real numeric ID.
-  // Factored as a named function so both the permalink-consume effect
-  // and future notification handlers (G411-102) can reuse it without duplication.
+  // Named so both the permalink-consume effect and notification handlers
+  // below can reuse it without duplication.
   function openRequest(requestId) {
     setSelectedRequestId(requestId)
     setPreviousView('list')
     setView('detail')
   }
 
-  // G411-102: listen for notification clicks from service worker to deep-link into a request
+  // Notification clicks from the service worker deep-link into a request.
   useEffect(() => {
     if (!('serviceWorker' in navigator)) return
     function handleMessage(event) {
@@ -230,30 +206,17 @@ function App() {
     return () => navigator.serviceWorker.removeEventListener('message', handleMessage)
   }, [])
 
-  // G411-94: a permalink that 404s (unknown id, or a request this user
-  // can't access) used to fail completely silently — the fetch's own
-  // .catch cleared the stash and did nothing else, so the user just saw
-  // the ordinary home screen with zero indication anything had happened,
-  // indistinguishable from a broken link. Surfaced live testing this
-  // exact case (Second Party opening a permalink to admin's request).
+  // Tells the user rather than silently dropping them on the home screen
+  // when a permalink 404s (unknown id, or a request they can't access).
   const [permalinkError, setPermalinkError] = useState(false)
-  // G411-94: true from first render whenever a permalink is stashed and
-  // still unresolved — suppresses the home screen's real content so it
-  // doesn't visibly flash before the effect below can redirect into the
-  // request (live testing found this exact flash: home screen for a
-  // moment, then the request "popped in" once the lookup fetch resolved).
+  // True whenever a permalink is stashed and unresolved — suppresses the
+  // home screen's real content so it doesn't flash before the redirect.
   const [pendingPermalink, setPendingPermalink] = useState(() => Boolean(getStashedRequestPermalink()))
 
-  // G411-94: consume stashed request permalink URL once auth gates clear.
-  // Only fires when ALL conditions are true: signed in, token handoff done,
-  // role resolved, profile complete (admin exempt, matching the render
-  // gate at the `needsProfileCompletion && !isAdmin` branch below — admin's
-  // phoneNumber is permanently the pending- placeholder by design, so a
-  // plain `needsProfileCompletion` check here left this effect stuck
-  // forever for admin, silently never consuming any permalink), and no
-  // recovery in progress. Live-tested finding, not caught by any test —
-  // this repo's convention has no @testing-library/react to render the
-  // real gate combination.
+  // Consumes a stashed request permalink URL once auth gates clear — admin
+  // is exempt from the profile-completion check (admin's phoneNumber is
+  // permanently the pending- placeholder by design, so a plain
+  // needsProfileCompletion check would leave this stuck forever for admin).
   useEffect(() => {
     if (
       !canConsumeRequestPermalink({
@@ -294,24 +257,15 @@ function App() {
       .finally(() => setPendingPermalink(false))
   }, [isSignedIn, tokenHandoffDone, role, isAdmin, needsProfileCompletion, recovery.token])
 
-  // Admin's open request count for home screen display, derived from
-  // AdminList's own already-fetched data (via onRequestsLoaded) instead
-  // of a second independent /api/requests fetch (Sibling review finding,
-  // G411-95: AdminList is mounted unconditionally for every admin, so a
-  // separate fetch here doubled every admin's list load). This also
-  // fixes the count never refreshing after first load — it now recomputes
-  // whenever AdminList refetches (e.g. its own retry).
+  // Admin's open request count, derived from AdminList's own already-
+  // fetched data rather than a second independent /api/requests fetch.
   function handleAdminRequestsLoaded(data) {
     setAdminOpenCount(data.filter((r) => !CLOSED_STATUSES.includes(r.status)).length)
   }
 
   return (
     <div className="app-shell">
-      {/* G411-108: Fixed 56px app bar — ☰ (menu, stays visible on every
-          screen; the dialog's own close button handles closing it, since
-          showModal()'s top-layer means an app-bar button can't be seen or
-          clicked while it's open) — back chevron (sub-screens only, one
-          consistent app-bar-level control, left of the wordmark) —
+      {/* Fixed 56px app bar — ☰ (menu) — back chevron (sub-screens only) —
           wordmark (center) — avatar chip (right). */}
       <div className="app-bar">
         {isSignedIn && (
@@ -327,15 +281,10 @@ function App() {
           </Button>
         )}
 
-        {/* Left-side spacer — same size/position the back chevron would
-            occupy — whenever the right side is heavier (ring showing)
-            but the chevron itself isn't (view === 'list'). Mirrors the
-            right-side spacer's job in reverse: the wordmark's flex:1
-            centers only when both sides carry equal fixed width, and
-            G411-113's ring (friend accounts) makes the right side 2
-            icons wide on the very view (list/home) that has no chevron
-            to balance it (caught live, Gavi: "the wordmark on the
-            homescreen... is not centered properly"). */}
+        {/* Left-side spacer, same size as the back chevron — the wordmark's
+            flex:1 only centers when both sides have equal fixed width, and
+            the credit ring makes the right side 2 icons wide on the list
+            view, which has no chevron to balance it. */}
         {isSignedIn && view === 'list' && showsCreditRing && (
           <span className="app-bar-chevron-spacer" aria-hidden="true" />
         )}
@@ -360,17 +309,9 @@ function App() {
           </Button>
         )}
 
-        {/* Center slot: wordmark with same navigation logic as before, plus
-            a presence dot grouped right next to it (G411-109 — moved off
-            FriendHome's own header so that slot is free for the future
-            credits ring, G411-113). Wrapped together so the pair centers
-            as one unit regardless of which wordmark variant renders below
-            — a dot placed as a plain flex sibling would center-anchor to
-            the wordmark's own flex:1 box and land at the far edge of the
-            bar instead of beside the text. `title` gives hover-to-reveal
-            status text natively, no tooltip JS needed. Dot shown for
-            every signed-in user, admin and friend alike, same as the old
-            inline chip this replaces. */}
+        {/* Center slot: wordmark + presence dot, wrapped together so the
+            pair centers as one unit — a dot placed as a plain flex sibling
+            would center-anchor to the wordmark's own flex:1 box instead. */}
         <span className="wordmark-with-presence">
           {view === 'new' ? (
             <button
@@ -403,20 +344,12 @@ function App() {
           )}
         </span>
 
-        {/* Right slot: credit ring (friends only) + avatar chip button.
-            The wordmark's flex:1 centers only when the left and right
-            fixed-width totals match. Left is 1 icon (hamburger only) or
-            2 (hamburger + back chevron, view !== 'list'); right is 1
-            icon (avatar only) or 2 (ring + avatar, friend accounts with
-            a balance). Balanced whenever chevron and ring are both
-            showing or both absent. This spacer covers the one remaining
-            unbalanced case: chevron showing (non-list) but ring absent
-            (admin, or a friend with no balance yet) — right is short by
-            one icon. The other unbalanced case (list view + ring, left
-            short) has its own spacer above, in the left slot — a spacer
-            always needs to render on the side that's actually short,
-            not always here (G411-108's original chevron-only fix,
-            extended for G411-113's ring). */}
+        {/* Right slot: credit ring (friends only) + avatar chip. Left is 1
+            icon (hamburger) or 2 (+ back chevron); right is 1 (avatar) or
+            2 (+ ring, friends with a balance). This spacer covers the case
+            where chevron shows but ring doesn't — right is short by one
+            icon. The other unbalanced case (list view + ring, left short)
+            has its own spacer above, in the left slot. */}
         {isSignedIn && view !== 'list' && !showsCreditRing && (
           <span className="app-bar-chevron-spacer" aria-hidden="true" />
         )}
@@ -463,19 +396,9 @@ function App() {
       )}
       <ClerkLoading>Loading…</ClerkLoading>
       <ClerkLoaded>
-        {/* G411-89: keep list component mounted at all times once role
-            resolves, hidden instead of unmounted on view change. Prevents
-            list-data loss (in-flight fetches discarded) and state loss
-            (sort/filter/group/search UI in AdminList) when navigating away
-            and back. Rendered here as a sibling of the main view-switch
-            below (not inside it), shown/hidden via the hidden attribute.
-            Sibling review finding: this originally sat as a sibling of
-            <ClerkLoaded> itself, gated only by role !== null — role can in
-            practice only be non-null after Clerk has finished loading (it's
-            set from an /api/me fetch that itself waits on isSignedIn), so
-            it wasn't an active bug, but it was correct by coincidence, not
-            by construction. Moved inside <ClerkLoaded> so the guarantee is
-            structural, matching how every other view already behaves. */}
+        {/* Keep the list component mounted at all times once role resolves,
+            hidden instead of unmounted on view change, to prevent list-data
+            and filter/sort state loss when navigating away and back. */}
         {role !== null && (
           <div hidden={view !== 'list' || pendingPermalink}>
             {isAdmin ? (
@@ -528,25 +451,16 @@ function App() {
                 </div>
               </div>
             ) : (
-              // Friend's own "+ New request" removed (G411-109) — FriendHome's
-              // composer bar ("What's up?") replaces it below.
+              // FriendHome's composer bar replaces this for friends.
               null
             )}
           </div>
         )}
-        {/* Admin's Open/Closed requests screen — kept mounted (hidden,
-            not unmounted) across navigation, same reasoning and same
-            pattern as the 'list' view div right above (G411-89): a
-            fresh AdminList per ternary branch (the original G411-95
-            shape) meant React saw the same component type reused
-            across branches and DIDN'T remount it on its own, so
-            switching Open<->Closed silently kept whatever filter/data
-            had first loaded (Gavi, live testing) — forcing a remount
-            via `key` fixed that but threw the fetch away every switch.
-            A single persistent instance with `filter` as a real
-            controlled prop (not initialFilter, read-once) avoids both:
-            correct on every switch, no refetch needed since the data
-            doesn't change, only which subset is shown. */}
+        {/* Admin's Open/Closed requests screen — kept mounted (hidden, not
+            unmounted) across navigation, same reasoning as the 'list' view
+            div above. A single persistent instance with `filter` as a real
+            controlled prop keeps it correct on every switch with no
+            refetch, since only which subset is shown changes. */}
         {role !== null && isAdmin && (
           <div hidden={view !== 'open-requests' && view !== 'closed-requests'}>
             <AdminList
@@ -577,15 +491,9 @@ function App() {
             }}
           />
         ) : isSignedIn && needsProfileCompletion && !isAdmin ? (
-          // Sibling review finding: an admin promoted via
-          // scripts/promote-admin.js only gets role flipped, never
-          // phoneNumber — a freshly-promoted admin whose phone is still
-          // 'pending-<clerkId>' would otherwise be stuck behind this
-          // friend-facing gate with zero admin UI reachable. Consistent
-          // with decision #111 (admin never routes through friend-only
-          // self-service flows) — role and needsProfileCompletion both
-          // resolve from the same /api/me fetch, so isAdmin is reliable
-          // here, not a race.
+          // !isAdmin: an admin promoted via scripts/promote-admin.js only
+          // gets role flipped, never phoneNumber, so a freshly-promoted
+          // admin would otherwise be stuck behind this friend-only gate.
           <CompleteProfile
             currentProfilePic={userProfilePic}
             onComplete={() => {
@@ -646,21 +554,14 @@ function App() {
               />
             )
           ) : roleFetchFailed ? (
-            // Sibling review finding: the /api/me fetch failing (network
-            // blip, cold-start timeout) used to leave role permanently
-            // null with no visible error and no way out — a real retry
-            // path instead of a silent dead end.
             <div>
               <p>Couldn't load your account. Try again?</p>
               <Button onClick={() => retryRole()}>Try again</Button>
             </div>
           ) : role === null ? (
-            // Sibling review finding: rendering RequestList/AdminList based
-            // on a still-null `role` used to briefly mount RequestList
-            // (isAdmin=false) for an admin, then unmount/remount it as
-            // AdminList the instant role resolved — a visible flash that
-            // also discarded RequestList's in-flight fetch. Waiting for
-            // role to actually resolve avoids ever mounting the wrong one.
+            // Wait for role to resolve rather than briefly mounting the
+            // wrong list (RequestList for what turns out to be an admin,
+            // for instance) and then swapping it — avoids a visible flash.
             <p>Loading…</p>
           ) : view === 'list' ? (
             !isAdmin && <FriendHome refreshToken={roleRetryToken + pushRefreshToken} onOpenRequest={(id) => { setSelectedRequestId(id); setPreviousView('list'); setView('detail'); }} onCompose={() => setView('new')} />
@@ -675,7 +576,7 @@ function App() {
           inviteTokenState === 'valid' ? <SignUp /> : <SignIn />
         )}
       </ClerkLoaded>
-      {/* G411-95: hamburger menu navigation. Contents depend on user role
+      {/* Hamburger menu navigation. Contents depend on user role
           (friend vs admin) and include navigation items + theme toggle. */}
       <HamburgerMenu
         open={hamburgerOpen}
@@ -692,8 +593,8 @@ function App() {
         {isSignedIn && (
           <>
             {/* Group "You" */}
-            {/* Profile is reachable via the app-bar avatar chip (G411-108) —
-                not duplicated here as a menu item. */}
+            {/* Profile is reachable via the app-bar avatar chip, not
+                duplicated here as a menu item. */}
             {/* Notification history — visible to everyone (friend and admin) */}
             <button
               type="button"
@@ -708,10 +609,8 @@ function App() {
             </button>
 
             {/* Group "Requests" — admin-only now that friends' Open/Closed
-                links live on FriendHome instead (G411-109); divider would
-                otherwise leave an empty gap between it and "Setup" for
-                friends specifically (admin's own render is unaffected,
-                its four items still populate this group). */}
+                links live on FriendHome instead; divider would otherwise
+                leave an empty gap for friends specifically. */}
             {isAdmin && <div className="hamburger-menu-divider" />}
 
             {/* Triggers — admin-only, right after Profile per spec (Gavi's
@@ -730,7 +629,7 @@ function App() {
               </button>
             )}
 
-            {/* User Management — admin-only user management screen (G411-99) */}
+            {/* User Management — admin-only user management screen */}
             {isAdmin && (
               <button
                 type="button"
@@ -780,12 +679,8 @@ function App() {
             {/* Group "Setup" */}
             <div className="hamburger-menu-divider" />
 
-            {/* Installing on iPhone — was RequestList's own link before
-                G411-95 removed RequestList from the friend home screen;
-                moved here so it stays reachable rather than becoming
-                dead routing. Friend-only, matching its original home in
-                RequestList (friend-facing PWA-install help doesn't apply
-                to admin — Gavi's live catch). */}
+            {/* Installing on iPhone — friend-only, PWA-install help doesn't
+                apply to admin. */}
             {!isAdmin && (
               <button
                 type="button"
@@ -799,10 +694,8 @@ function App() {
               </button>
             )}
 
-            {/* Enable notifications — G411-49. Shown to everyone if push is
-                supported. Disabled if notifications are denied in browser
-                settings. States: denied (can't fix from JS) / unsubscribed
-                (clickable "Enable") / subscribed (clickable "Disable"). */}
+            {/* Shown to everyone if push is supported. States: denied
+                (can't fix from JS) / unsubscribed / subscribed. */}
 
             <PushNotificationToggle
               isSignedIn={isSignedIn}
