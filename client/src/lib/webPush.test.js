@@ -1,8 +1,4 @@
-// Tests for subscribeToPush's Sibling review fixes (G411-29 PR #37): a
-// missing VITE_VAPID_PUBLIC_KEY fails with a clear message instead of an
-// opaque TypeError deep in base64 decoding, and a failed server-side
-// registration rolls back the browser subscription instead of leaving
-// client/server state desynced.
+// Tests for subscribeToPush: VAPID validation and server POST rollback on failure.
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 

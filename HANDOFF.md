@@ -12,6 +12,25 @@ accumulated. If something here turns out to matter long-term, promote it to
 
 ---
 
+## Where this session left off (2026-09-22, latest) — G411-116 (WP11 cleanup pass, PR 4 of 5: client components + lib) built, ready for review, not yet pushed
+
+**Picked up PR 4 at STOP 1** — no file splits, nothing in `client/src/components/` or `client/src/lib/` crosses ~310 lines. Found 5 `ponytail:` markers at scoping, all genuine design-tradeoff rationale (rejected-alternative explanations, not untracked gaps) — no new V2 tickets needed, just trimmed for length.
+
+**Dispatch prompt this time explicitly named PR2/PR3's exact failure patterns** (a report arguing a failing falsifier check "doesn't count"; orphaned comment fragments from deleting only a multi-line comment's opening line), with concrete examples and an instruction to paste real command output. **First PR in this ticket where independent verification found nothing to fix** — re-ran the falsifier grep, an orphan-fragment heuristic scan, and spot-checked the preserved ponytail markers/crypto rationale myself; all held up clean. Logged as brain.md #160: naming a dispatch role's demonstrated failure pattern explicitly, with an example, measurably worked better than a generic thoroughness instruction.
+
+555/555 tests fresh, build clean, falsifier grep clean, all 5 ponytail markers preserved and trimmed, real crypto/security rationale intact in `crypto.js`/`conversationCrypto.js`/`escrow.js`/`deviceLinking.js`. Committed on branch `you/G411-116-cleanup-client-components-lib`. **Not yet pushed, no PR opened, no STOP 3 walkthrough given yet.**
+
+### Real state, right now
+Branch `you/G411-116-cleanup-client-components-lib`, 1 local commit (Haiku's, no hand-fixes needed this round), not pushed. `main` unchanged. Jira G411-116 stays at Implementing (brain.md #156 — 1 PR left after this one).
+
+### What's next, concretely
+1. Give Gavi the STOP 3 walkthrough for this PR, then push + open the PR + ask for merge go-ahead.
+2. Once merged: Jira stays at Implementing, only Falsifier/Evidence-bar-met text updates.
+3. **Next PR in sequence: tests** (PR 5 of 5, the last one) — propose scope at STOP 1 before any code. Once this one merges, the ticket's status can finally move past Implementing.
+4. Still open, not blocking: the pre-existing `index.css` design-hook findings, the `/impeccable document` sidecar refresh, `ConfirmModal.jsx`'s own stray `variant="purple"`.
+
+---
+
 ## Where this session left off (2026-09-22, latest) — G411-116 (WP11 cleanup pass, PR 3 of 5: client pages) built, ready for review, not yet pushed
 
 **Picked up PR 3 at STOP 1** — scoped every file under `client/src/pages/` first. Found the ticket's own text named `RequestDetail.jsx` (1256 lines) as a split target ("extract admin controls / friend lifecycle actions"), but reading the real file showed the admin and friend JSX blocks both depend on a large shared set of state/effects/handlers declared earlier in the same file — not two independent concerns. Presented the tradeoff to Gavi; his response reframed the actual question ("is splitting a must, or just cleaner? ... can we just [clean comments]?") and confirmed: **skip the split entirely**, comment cleanup + section banners only, same as every other page. Corrected `gavi411-finish-line-plan.md`'s WP11 spec in the same pass (logged as brain.md #158) rather than leaving the stale split instruction for a future session to trip over.

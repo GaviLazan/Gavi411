@@ -1,8 +1,6 @@
 import Chip from "./Chip";
 
-// Chip list for the "chips" step (G411-21). Two modes: real matches +
-// "None of these", or (when showFullTypeList is true) the full type
-// list with no "None of these" chip, since that's already been picked.
+// Chip list: either matched types + "None of these", or full type list without "None of these".
 function DisambiguationChips({
   matchedTypes,
   allTypes,

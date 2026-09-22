@@ -4,19 +4,8 @@ import Select from "./Select";
 import Button from "./Button";
 import "./TravelFields.css";
 
-// TRAVEL-specific follow-up fields (G411-65, regrouped G411-74, split
-// into per-card components G411-64). All optional — these are prompts
-// to jog memory for info the friend might not think to give upfront,
-// not a required intake gate.
-//
-// G411-64: TRAVEL is the one type whose followup spans multiple sliding
-// cards (per Gavi's mockup) instead of one — so this file now exports 4
-// field-group components instead of a single combined one. Each shares
-// the same `value`/`onChange` contract (the full TravelDetails object) —
-// NewRequest.jsx decides which one renders per step, this file doesn't
-// know about steps at all. Dates+destination and preferences were
-// checked live at real phone height (G411-64 pickup) and don't fit one
-// screen combined, so they stay 2 separate cards, matching the mockup.
+// TRAVEL-specific follow-up fields: optional prompts across multiple cards.
+// Each card component shares the same value/onChange contract for the full TravelDetails object.
 
 // Starting shape for `value` below — exported so NewRequest.jsx can
 // seed its useState without duplicating TRAVEL's field list itself.
@@ -41,8 +30,6 @@ export const EMPTY_TRAVEL_DETAILS = {
 const EMPTY_HOTEL = { date: "", location: "", company: "", ref: "" };
 const EMPTY_CAR = { date: "", location: "", company: "", ref: "" };
 
-// Card 1: urgency-first. Urgency is owned by NewRequest.jsx (shared
-// across every type) — passed in as props so it renders inline here.
 export function TravelUrgencyCard({ value, onChange, urgency, onUrgencyChange, urgencyOptions, stepNumber, stepTotal }) {
   function set(field, fieldValue) {
     onChange({ ...value, [field]: fieldValue });

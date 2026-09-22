@@ -3,33 +3,14 @@ import { useRef, useEffect } from "react";
 import { formatTime, formatDayLabel } from "../lib/format";
 import "./MessageThread.css";
 
-// Real thread UI (G411-25), replacing G411-24's throwaway review-row list.
-// Alignment is per-viewer: a message is "own" if its userId matches the
-// CURRENT signed-in viewer's clerkId — not by role — so a friend sees
-// their own messages on the right and Gavi's on the left, and Gavi
-// viewing the same thread as admin sees the mirror image. Matches the
-// Design Inspo/chat-interface reference: own messages as bubbles, the
-// other side as plain text.
+// Message thread UI: alignment is per-viewer (own messages on right, others on left).
 function MessageThread({ messages }) {
   const { user } = useUser();
-  // G411-78: aria-live region attached after mount to announce new
-  // messages without re-announcing pre-existing history on load
   const containerRef = useRef(null);
   const armed = useRef(false);
 
-  // G411-78: arm aria-live after initial mount, one tick after React
-  // has rendered all initial content to the DOM. This ensures that
-  // screen readers don't announce the initial batch of messages on first
-  // load (the region is not live yet while those messages are inserted),
-  // but DO announce new additions on subsequent refetches (from G411-92's
-  // polling). The attribute is added via ref, not static JSX, to make the
-  // timing explicit and deterministic across browsers.
-  //
-  // Runs on every render (no dependency array) rather than once — the
-  // container only exists in the DOM once messages.length > 0 (see the
-  // empty-state early return below), so a thread that STARTS empty and
-  // then gets its first message needs this to re-check on that render,
-  // not just on the component's original mount.
+  // Arm aria-live after render: screen readers announce new messages but not initial history.
+  // Runs on every render so empty→filled threads update correctly.
   useEffect(() => {
     if (containerRef.current && !armed.current) {
       containerRef.current.setAttribute("aria-live", "polite");
@@ -56,8 +37,6 @@ function MessageThread({ messages }) {
                 {formatDayLabel(m.createdAt)}
               </div>
             )}
-            {/* G411-93: system messages (nudges) are rendered centered and
-                visually distinct from real chat messages */}
             {m.isSystem ? (
               <div className="message-row message-system">
                 <div className="message-system-content" dir="auto">

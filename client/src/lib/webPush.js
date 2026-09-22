@@ -1,7 +1,4 @@
-// Web Push subscribe/unsubscribe (G411-29 infra). The permission-request
-// UI/prompt itself is G411-49's job — this file is the plumbing that UI
-// will call: ask the browser to subscribe, hand the subscription to the
-// server, done.
+// Web Push subscribe/unsubscribe: browser subscription → server registration.
 
 // PushManager.subscribe needs applicationServerKey as a Uint8Array, not
 // the base64url string the VAPID keygen prints — this is the standard
@@ -13,20 +10,7 @@ function urlBase64ToUint8Array(base64String) {
   return Uint8Array.from(rawData, (char) => char.charCodeAt(0))
 }
 
-// Subscribes this browser to push and registers it with the server. Call
-// after the user has granted Notification permission (G411-49's job) and
-// after the service worker is registered (G411-15, main.jsx). Cookie-based
-// Clerk session, same as every other fetch in this app — no manual
-// Authorization header needed. Returns the subscription, or null if push
-// isn't supported here (older browser, iOS without an installed PWA).
-//
-// Sibling review findings, both fixed: (1) a missing VITE_VAPID_PUBLIC_KEY
-// used to throw an opaque TypeError deep inside base64 decoding — checked
-// up front with a clear message instead. (2) if the browser subscribes
-// successfully but the POST to the server fails, the browser was left
-// "subscribed" with no server-side record — rolled back via
-// subscription.unsubscribe() so the two stay in sync instead of silently
-// desyncing.
+// Subscribe to push: validates VAPID key upfront, rolls back if server POST fails.
 export async function subscribeToPush() {
   if (!('serviceWorker' in navigator) || !('PushManager' in window)) return null
 

@@ -1,20 +1,7 @@
 import Input from "./Input";
 import Select from "./Select";
 
-// PURCHASE-specific follow-up fields (G411-65, regrouped G411-74). All
-// optional — prompts to jog memory, not a required intake gate (same
-// rule as every other type's follow-up fields). No group headers, just
-// <hr> separators.
-//
-// G411-74 regroup (Gavi's mockup, session 2026-08-25): description,
-// urgency, budget, preferred style first; buy-where, pickup/delivery,
-// needed-by, link second. Urgency is owned by NewRequest.jsx (shared
-// across every type) — passed in as props so it renders inline here
-// rather than only at the very end.
-
-// Exported (Sibling review finding, G411-64) — ReviewSummary.jsx needs
-// the same option lists for its click-to-edit Select controls; was
-// silently duplicated there before, a real drift risk.
+// PURCHASE-specific follow-up fields: optional prompts grouped into sections.
 export const BUY_WHERE_OPTIONS = [
   { value: "", label: "No preference" },
   { value: "ONLINE", label: "Online" },

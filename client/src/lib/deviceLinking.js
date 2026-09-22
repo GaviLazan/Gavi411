@@ -1,8 +1,5 @@
-// Device-linking orchestration (G411-28, 2026-09-01). Two roles use this
-// file: a new device requesting access, and admin's browser approving one.
-// Kept separate from conversationCrypto.js (per-message send/receive) and
-// escrow.js (signup-time backup) — this is a distinct lifecycle event, not
-// something that happens on every message or every signup.
+// Device-linking: request and approve new devices.
+// Separate from conversationCrypto.js (per-message) and escrow.js (signup-time).
 
 import { generateKeypair, exportPublicKey, importPublicKey, wrapConversationKey, unwrapConversationKey } from './crypto.js'
 import { savePrivateKey, saveDeviceId, loadDeviceId, loadPrivateKey } from './keyStore.js'
@@ -27,15 +24,7 @@ export async function requestDeviceLink() {
   return device
 }
 
-// Polls this device's own approval status. Scoped by this browser's own
-// saved deviceId when one exists (Matan's Sibling review, carried-over
-// non-blocking note: without this, an account that requested linking from
-// two different devices could have one device's poll reflect the OTHER
-// device's status, since the server used to just return the most
-// recently created row for the account). Falls back to "most recent" —
-// the server route's original behavior — for the window before
-// requestDeviceLink() has saved a deviceId yet (there's nothing else to
-// scope by until then).
+// Poll this device's approval status (scoped by saved deviceId when it exists).
 export async function getMyDeviceStatus() {
   const deviceId = await loadDeviceId()
   const query = deviceId != null ? `?deviceId=${deviceId}` : ''
@@ -64,11 +53,7 @@ export async function loadLinkedConversationKeys() {
 
   const adminKey = await importPublicKey(adminPublicKey)
   const result = new Map()
-  // Sibling review finding: one bad/mismatched wrapped key used to throw
-  // out of this whole loop, discarding every already-unwrapped key too —
-  // silently, since the caller (App.jsx) wraps this in a bare .catch().
-  // A per-key try/catch means one bad row costs that one conversation,
-  // not the entire linked-device experience.
+  // Per-key try/catch: one bad wrap doesn't discard already-unwrapped keys.
   for (const { requestId, wrappedKey, iv } of keys) {
     try {
       const key = await unwrapConversationKey({ iv, ciphertext: wrappedKey }, devicePrivateKey, adminKey)
@@ -80,37 +65,8 @@ export async function loadLinkedConversationKeys() {
   return result
 }
 
-// Admin-side: approves a pending device by wrapping EVERY conversation
-// admin is a party to for that device's public key, in one batch (Gavi's
-// call — new device inherits full history immediately, see G411-28's Jira
-// description). `adminPrivateKey` is admin's own loaded private key.
-// wrapConversationKey needs the friend's raw public key (not the derived
-// CryptoKey conversationCrypto.js normally works with — see that
-// function's own doc comment for why), so this re-fetches it per request
-// from the same /public-keys route the normal send/receive path already
-// uses. `requestIds` is expected to already be scoped to the device
-// owner's own requests — see InviteAdmin.jsx's caller and devices.js's
-// server-side ownership check for the actual enforcement (Sibling review
-// finding: this function used to be handed every request in the system).
-//
-// Sibling review findings, both fixed here: (1) per-request work ran
-// sequentially (one network round trip at a time) — Promise.all runs them
-// concurrently instead, since each request's wrap is fully independent.
-// (2) a request with no friend public key yet was silently skipped with
-// no record — skippedRequestIds is now returned so the caller can warn
-// admin that device inherits full history is NOT yet true for those
-// conversations, and returns which ones so a future retry can target
-// exactly them (see this function's own comment for why "run approve
-// again later" isn't automatic yet — no re-run trigger exists today).
-// Wraps one already-imported device public key for each requestId in
-// `requestIds`, using admin's own private key + each request's friend
-// public key (re-fetched per request — see this file's other doc comments
-// for why the derived CryptoKey conversationCrypto.js normally works with
-// isn't enough here). Shared by approveDevice (fresh approval, wraps every
-// request at once) and the missing-wraps sweep below (wraps just the
-// specific requests a GET /missing-wraps check found) — pulled out
-// (Matan's Sibling review, PR #35, Fix 1a) so "wrap these specific
-// (device, request) pairs" isn't reimplemented for the sweep.
+// Approve pending device: wrap every conversation for device's public key.
+// Runs wraps concurrently via Promise.all; returns skipped requestIds if friend has no public key.
 async function wrapForRequests(adminPrivateKey, devicePublicKey, requestIds) {
   const results = await Promise.all(
     requestIds.map(async (requestId) => {
@@ -143,15 +99,8 @@ export async function approveDevice(device, adminPrivateKey, requestIds) {
   return { ...body, skippedRequestIds }
 }
 
-// Self-healing sweep (Matan's Sibling review, PR #35, Fix 1a): finds and
-// fills in any (approved device, request) pair still missing a wrapped
-// key — e.g. a request created after the device was already approved.
-// `requestId` scopes the check to one Request (RequestDetail.jsx's
-// per-page trigger); omitted, it checks every linked device's owner's
-// requests (App.jsx's on-load sweep). Silently no-ops on any failure —
-// this is a background best-effort heal, not a user-facing action; the
-// existing needsKeypair banner is still there if it doesn't manage to fix
-// things this pass.
+// Self-healing sweep: fill in missing wraps for approved devices.
+// Silently best-effort; needsKeypair banner still present if it doesn't fix things.
 export async function wrapMissingConversationKeys(adminPrivateKey, requestId) {
   const query = requestId != null ? `?requestId=${requestId}` : ''
   const res = await fetch(`/api/devices/missing-wraps${query}`)
@@ -159,10 +108,7 @@ export async function wrapMissingConversationKeys(adminPrivateKey, requestId) {
   const missing = await res.json()
   if (missing.length === 0) return
 
-  // Matan's Sibling review (2nd approval round, non-blocking nit): each
-  // pair's wrap is fully independent — same reasoning as approveDevice's
-  // own wrapForRequests, which already runs its per-request work via
-  // Promise.all rather than a sequential loop. Was a plain for-await here.
+  // Run wraps concurrently via Promise.all (each pair is independent).
   const results = await Promise.all(
     missing.map(async ({ deviceId, requestId: reqId, devicePublicKey }) => {
       const devicePublic = await importPublicKey(devicePublicKey)

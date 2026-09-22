@@ -1423,6 +1423,12 @@ Fixed by hand: reworded every flagged block into short, complete, accurate repla
 
 **Standing lesson, sharpening #157 further**: a subagent's own report can not only misreport a checked number (#157) but actively argue past a check it ran and found failing (#159) — treat any dispatch report that includes reasoning for why a failing check "doesn't really count" as a signal to verify that specific claim personally, not just spot-check at random. Also: comment-only changes need a structural read (does this comment block still parse as a sentence?), not just a keyword grep — a grep can pass clean while the file is left worse than before the edit (a broken sentence is worse for navigability than the narration it replaced).
 
+### Decision #160 — G411-116 PR4: first PR in this ticket where the dispatch report held up to independent verification without hand-fixes — naming the exact prior failure modes in the prompt worked (2026-09-22, G411-116)
+
+PRs 2 and 3 of this same ticket both needed real hand-fixes after Sibling review caught gaps in Haiku's own "done" report (brain.md #157, #159). PR4's dispatch prompt was rewritten to explicitly name both prior failure classes — (1) a report arguing a failing falsifier check "doesn't really count," (2) orphaned comment fragments from deleting only a multi-line comment's first line — with concrete examples of each, plus an instruction to paste real command output rather than estimates. Independently re-ran the falsifier grep, the orphan-fragment heuristic scan, and spot-checked the preserved ponytail markers/crypto rationale myself: all held up clean, no fixes needed.
+
+**Standing lesson**: when a dispatch role (Haiku, in this project's model split) has a demonstrated, repeated failure pattern, naming that exact pattern with a concrete example in the next dispatch prompt measurably worked better than a generic "be thorough" instruction — worth doing by default for any dispatch in an area that already burned a review cycle, not just as a one-off recovery. This doesn't retire the independent-verification step itself (#157/#159's core lesson stands — always re-check, don't trust a clean report at face value) but it does reduce how often that verification finds something.
+
 ## 7. Not Yet Discussed
  
 - Data model, architecture, tech decisions (schema itself not yet drafted — first task on deck).

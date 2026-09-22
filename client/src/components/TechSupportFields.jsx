@@ -1,19 +1,7 @@
 import Input from "./Input";
 import Select from "./Select";
 
-// TECH_SUPPORT-specific follow-up fields (G411-65). All optional —
-// prompts to jog memory, not a required intake gate (same rule as
-// every other type's follow-up fields). No group headers, just <hr>
-// separators.
-//
-// G411-64: TECH_SUPPORT is one sliding card (fits one phone screen), so
-// unlike TRAVEL/PURCHASE it didn't need urgency pulled in until now —
-// every type's followup is its own card now, so urgency has to live
-// inside each one rather than falling back to a shared global field.
-
-// Exported (Sibling review finding, G411-64) — ReviewSummary.jsx needs
-// the same option list for its click-to-edit Select control; was
-// silently duplicated there before, a real drift risk.
+// TECH_SUPPORT-specific follow-up fields: optional prompts grouped into sections.
 export const HELP_STYLE_OPTIONS = [
   { value: "", label: "Not sure yet" },
   { value: "CALL", label: "Hop on a call" },
