@@ -29,10 +29,6 @@ describe('hasAdminMessaged (G411-31, G411-93)', () => {
     expect(await hasAdminMessaged(db, 42)).toBe(false)
   })
 
-  // G411-93 (and earlier G411-35/36): system messages (nudges #1 and #2,
-  // marked with isSystem: true) are authored as admin but must NOT count as
-  // real admin replies for refund-eligibility purposes — a friend who only
-  // got automated nudges should still get their G411-31 refund on cancel.
   it('excludes system messages (nudges) from the check', async () => {
     const db = { message: { findFirst: vi.fn() } }
     await hasAdminMessaged(db, 42)

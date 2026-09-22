@@ -1,13 +1,4 @@
-// Stress test suite for credit charge/refund/recharge lifecycle (G411-97).
-// Tests route-level behavior via supertest against the requests router,
-// with fully-mocked Prisma (same pattern as requests.test.js).
-//
-// Five scenarios:
-// 1. Multi-cycle refund/reopen lifecycle (same request, two full cycles)
-// 2. Concurrency: fresh state reads inside transactions prevent double-reopens
-// 3. Insufficient-balance edges (create fails at 0, reopen 500s and rolls back)
-// 4. Ledger-vs-balance drift check (10+ alternating deduct/refund calls)
-// 5. Admin-on-behalf-of-friend with correct userId targets
+// Stress tests for credit lifecycle: charge/refund/recharge via route-level behavior with mocked Prisma.
 
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import express from 'express'

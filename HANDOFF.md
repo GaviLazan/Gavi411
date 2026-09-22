@@ -12,6 +12,27 @@ accumulated. If something here turns out to matter long-term, promote it to
 
 ---
 
+## Where this session left off (2026-09-22, latest) — G411-116 (WP11 cleanup pass, PR 2 of 5: server lib + middleware) built, ready for review, not yet pushed
+
+**Picked up PR 2 at STOP 1** — measured every file under `server/lib/` and `server/middleware/` first: nothing crosses the ~400-line/mixed-concern split threshold, so this PR is comment-stripping only, no file splits. Found 2 `ponytail:` markers during scoping; walked both through with Gavi before dispatch rather than assuming the comments were accurate:
+- `auth.js`'s claim that Clerk profile data never re-syncs after signup was **stale** — Gavi caught it (G411-80's Profile-page-exit stopgap already covers same-session edits). Rewrote the comment accurately instead of just deleting it; filed **G411-127** under G411-57 for the real webhook fix, at Gavi's explicit call after discussing whether a ticket was even needed for an already-documented, already-partially-addressed gap.
+- `autoClose.js`'s claimed race between the scheduled pass and a manual nudge was **wrong** — Gavi correctly pointed out manual nudge #1 is fully guarded already (atomic `updateMany` check). Comment deleted, no ticket (nothing real to defer).
+
+**Sibling review (this session) caught a second consecutive Haiku under-delivery, logged in full as brain.md #157**: Haiku's own completion report claimed comment ratios "met target" while listing `auth.js` at 59% and `autoClose.js` at 36% against a stated 10% target — the report itself was internally contradictory. Verified directly: `auth.js`'s narration comments were essentially untouched (the two specifically-instructed ponytail fixes were applied correctly, but the broader cleanup never happened on that file). Fixed by hand rather than re-dispatching: `auth.js` 60%→38%, `autoClose.js`→18%, both narration-free. Also caught `matchKeywords.js` — in scope, never touched by the dispatch at all — trimmed its 2 leftover ticket citations.
+
+555/555 tests fresh, build clean, falsifier grep clean (one intentional G411-127 reference in the corrected ponytail comment, not narration). Committed on branch `you/G411-116-cleanup-server-lib-middleware` (2 commits: Haiku's pass, Sonnet's review fixes). **Not yet pushed, no PR opened, no Jira update yet this session — STOP 3 walkthrough not yet given.**
+
+### Real state, right now
+Branch `you/G411-116-cleanup-server-lib-middleware`, 2 local commits, not pushed. `main` unchanged. Jira G411-116 stays at Implementing (per brain.md #156's standing decision — doesn't move until all 5 PRs are ready).
+
+### What's next, concretely
+1. Give Gavi the STOP 3 walkthrough for this PR, then push + open the PR + ask for merge go-ahead.
+2. Once merged: Jira stays at Implementing (not Landed/Reconciled) — only Falsifier/Evidence-bar-met text updates, same pattern as PR1.
+3. **Next PR in sequence: client pages** — propose the concrete file list/split at STOP 1 before any code.
+4. Still open, not blocking: the pre-existing `index.css` design-hook findings, the `/impeccable document` sidecar refresh, `ConfirmModal.jsx`'s own stray `variant="purple"`.
+
+---
+
 ## Where this session left off (2026-09-22, latest) — G411-116 (WP11 cleanup pass, PR 1 of 5: server routes) built, Reviewing, PR #142 open, awaiting merge go-ahead
 
 **Picked up G411-116 at STOP 1** — Gavi's instruction "let's start wp11" maps to G411-116 per `gavi411-finish-line-plan.md`. Ticket was Open, description current (no staleness to correct). Confirmed with Gavi to run the ticket's 5-PR process one PR at a time rather than defining all 5 splits up front. Jira Open → Implementing, Scope/Falsifier/Owner/Reviewer-type/Evidence-required written pre-code against this PR's real scope (server routes only — the other 4 areas are separate future pickups under the same ticket).

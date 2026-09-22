@@ -1,7 +1,4 @@
-// Tests for G411-51 notification dispatch helpers. Mocks Prisma and
-// sendPushToUser — no real DB touched, no real push service hit.
-// Covers: notifyAdmins/notifyUser recipient targeting, self-notification
-// exclusion, and Telegram stub call.
+// Tests for notification dispatch helpers. Mocks Prisma and sendPushToUser.
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 

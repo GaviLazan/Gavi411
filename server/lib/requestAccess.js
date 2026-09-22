@@ -1,10 +1,4 @@
-// Shared owner-or-admin access check for a Request (G411-82 Sibling
-// review finding) — server/routes/requests.js re-implemented the same
-// `X.userId !== req.user.clerkId && req.user.role !== 'ADMIN'` check
-// independently at 4 separate call sites; a future change to the rule
-// (e.g. a per-admin "assigned" model instead of "any admin") would need
-// to be found and updated in all 4 by hand. Same pattern as
-// server/lib/invites.js's shared claim helper.
+// Shared owner-or-admin access check for a Request.
 
 // True if `user` may access `request` — either they own it, or they're
 // an admin. `request` only needs its `userId` field.
@@ -12,12 +6,7 @@ export function canAccessRequest(request, user) {
   return request.userId === user.clerkId || user.role === 'ADMIN'
 }
 
-// "The" admin account — same lookup GET /:id/public-keys and GET /my-keys
-// (devices.js) each used to hand-roll independently before this extraction
-// (Sibling review finding, G411-35/36). Ordered by createdAt so the choice
-// is deterministic if a second admin account ever exists (today there's
-// exactly one — G411-76 is single-admin — so this is unreachable in
-// practice, same reasoning as those two call sites).
+// "The" admin account, ordered by createdAt for deterministic selection.
 export async function getAdminUser(db) {
   return db.user.findFirst({
     where: { role: 'ADMIN' },
@@ -25,20 +14,8 @@ export async function getAdminUser(db) {
   })
 }
 
-// True if any ADMIN-role user has sent a REAL Message on this request —
-// G411-31's "untouched" refund-eligibility check, pulled out to its own
-// named export since G411-32/33 (urgent downgrade, close-confirm flow)
-// will likely need the same "has an admin touched this request" fact.
-// Takes a Prisma client (or transaction client `tx`) so callers can run it
-// inside their own transaction.
-//
-// Excludes system messages (isSystem: true, G411-93 nudges #1 and #2)
-// (Sibling review finding, G411-35/36) — those messages are authored as the
-// admin account but aren't real admin replies. Without this exclusion, a
-// friend who only ever got an automated nudge (never a genuine admin response)
-// and then cancels/self-solves would be wrongly denied their G411-31 refund,
-// since the nudge alone would make hasAdminMessaged report true. The isSystem
-// flag covers both nudge #1 and nudge #2 copy without matching exact text.
+// True if any ADMIN has sent a real (non-system) Message on this request.
+// Excludes system messages (isSystem: true) — those are automated nudges, not real replies.
 export async function hasAdminMessaged(db, requestId) {
   const adminMessage = await db.message.findFirst({
     where: { requestId, user: { role: 'ADMIN' }, isSystem: false },

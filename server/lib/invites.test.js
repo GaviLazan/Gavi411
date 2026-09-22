@@ -1,9 +1,4 @@
-// Tests for claimInvite/linkClaimedInvite/unclaimInvite/isInviteValid
-// (G411-81 Sibling review finding — this file exists specifically
-// because the old read-then-write check in requireAuth raced against
-// its own later claim; these functions are the single source of truth
-// both auth.js and routes/invites.js now share). Mocks Prisma — no real
-// DB touched.
+// Tests for invite claim/link/unclaim/validity. Mocks Prisma — no real DB touched.
 
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
@@ -52,11 +47,6 @@ describe('claimInvite', () => {
     expect(result).toBe(false)
   })
 
-  // The actual bug this file fixes: two concurrent requests for the SAME
-  // token used to both pass a read-only check before either claimed it.
-  // The WHERE clause here (usedAt: null) IS the check — a second call
-  // can never match once the first has set usedAt, no separate read
-  // involved, so there's no window between "checked valid" and "claimed".
   it('a second call for the same token fails once the first has claimed it', async () => {
     mockUpdateMany.mockResolvedValueOnce({ count: 1 }) // first call claims
     mockUpdateMany.mockResolvedValueOnce({ count: 0 }) // second can't
@@ -68,7 +58,7 @@ describe('claimInvite', () => {
     expect(second).toBe(false)
   })
 
-  it('does NOT set usedByUserId (no FK column touched in phase 1 — would violate the FK before the User row exists)', async () => {
+  it('does NOT set usedByUserId in phase 1 (FK column cannot be touched before User row exists)', async () => {
     mockUpdateMany.mockResolvedValue({ count: 1 })
 
     await claimInvite('tok123')
@@ -100,7 +90,7 @@ describe('unclaimInvite', () => {
     expect(mockUpdateMany).not.toHaveBeenCalled()
   })
 
-  it('releases usedAt only if usedByUserId is still null (never actually linked to a user)', async () => {
+  it('releases usedAt when usedByUserId is still null', async () => {
     await unclaimInvite('tok123')
 
     expect(mockUpdateMany).toHaveBeenCalledWith({

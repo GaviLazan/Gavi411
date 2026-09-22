@@ -1,8 +1,4 @@
-// Tests for G411-93's nudge-driven escalation system. Mocks Prisma — no
-// real DB touched. Covers: nudge #1 (manual only), nudge #2 (auto-fired at 7+ days),
-// auto-close (at 14+ days after nudge #2), no re-sends, skip if nudgedAt null,
-// friend reply resets nudgedAt, request defends against double-nudge, and
-// hasAdminMessaged excludes system messages.
+// Tests for nudge-driven escalation system. Mocks Prisma — no real DB touched.
 
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
@@ -89,9 +85,6 @@ describe('runAutoCloseCheck', () => {
   })
 
   it('does NOT close if nudgedAt was reset by a friend reply (nudgedAt is null)', async () => {
-    // When a friend replies, nudgedAt is cleared to null, removing the request
-    // from the escalation cycle. Even if nudge #2 was sent before, it won't close.
-    const nudgedAt = null
     prismaMock.request.findMany.mockResolvedValue([]) // No nudged requests (all have nudgedAt=null)
 
     await runAutoCloseCheck()
@@ -171,7 +164,7 @@ describe('sendNudge', () => {
   })
 })
 
-describe('Notifications for nudge and auto-close (G411-51)', () => {
+describe('Notifications for nudge and auto-close', () => {
   it('sendNudge calls notifyUser after successfully sending nudge #1', async () => {
     const { notifyUser } = await import('./notify.js')
     prismaMock.request.updateMany.mockResolvedValue({ count: 1 })

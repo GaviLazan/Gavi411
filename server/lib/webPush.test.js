@@ -1,9 +1,4 @@
-// Tests for sendPushToUser (G411-29) — the real behaviors worth covering:
-// a 410/404 delivery failure deletes the stale subscription, one
-// subscription's failure never blocks delivery to the user's other
-// subscriptions, and missing VAPID config fails loud with a clear message
-// (Sibling review finding — this used to fail with an opaque error deep
-// inside the web-push library).
+// Tests for sendPushToUser. Covers stale subscription cleanup and failure isolation.
 
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
