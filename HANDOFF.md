@@ -27,7 +27,7 @@ Primary worktree on branch `you/G411-116-cleanup-server-routes` (2 commits: Haik
 
 ### What's next, concretely
 1. **Ask Gavi for the merge go-ahead on PR #142** (wrap-up step 7 — not yet done as of this write).
-2. Once merged: Jira Reviewing → Landed → Reconciled — but only for this PR's slice of scope. **G411-116 as a whole ticket stays open across all 5 PRs** — don't Reconcile the parent Jira issue until PR 5 (tests) also lands; each PR's own merge doesn't close the ticket by itself. Confirm this reasoning with Gavi before transitioning, since the ticket only has one Jira issue for all 5 PRs.
+2. Once merged: code lands on `main` normally, but **Jira G411-116 stays at Implementing across all 5 PRs** — not Landed, not Reconciled, until PR 5 (tests) also merges. Gavi's explicit correction this session (see brain.md #156): a single PR's merge is real progress but not "this ticket's scope exists," so the status shouldn't claim more than that yet. Only the ticket's Falsifier/Evidence-bar-met text updates per-PR; State field itself doesn't move again until the last PR is ready.
 3. **Next PR in sequence: server lib + middleware** (`server/middleware/auth.js` at 135/225 comment lines is the worst offender measured in the ticket) — per the one-PR-at-a-time approach Gavi chose, this is proposed at STOP 1 before any code, not assumed.
 4. Still open, not blocking: the pre-existing `index.css` design-hook findings, the `/impeccable document` sidecar refresh, `ConfirmModal.jsx`'s own stray `variant="purple"`.
 
