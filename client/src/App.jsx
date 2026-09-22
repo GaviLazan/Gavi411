@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
-import { useUser, useClerk, SignIn, SignUp, ClerkLoaded, ClerkLoading } from '@clerk/react'
+import { useClerk, SignIn, SignUp, ClerkLoaded, ClerkLoading } from '@clerk/react'
+import { useSession } from './useSession'
 import './App.css'
 import NewRequest from './pages/NewRequest'
 import AdminList from './pages/AdminList'
@@ -24,23 +25,13 @@ import FriendHome from './pages/FriendHome'
 import { CLOSED_STATUSES } from './lib/requestStatus'
 import {
   captureInviteTokenFromUrl,
-  getStashedInviteToken,
-  clearStashedInviteToken,
-  getStashedInvitePassphrase,
-  clearStashedInvitePassphrase,
   captureRecoveryParamsFromUrl,
-  getStashedRecoveryParams,
   clearStashedRecoveryParams,
   captureRequestPermalinkFromUrl,
   getStashedRequestPermalink,
   clearStashedRequestPermalink,
   canConsumeRequestPermalink,
 } from './lib/inviteToken'
-import { createAndUploadEscrowBackup, createAndUploadKeypair } from './lib/escrow'
-import { loadLinkedConversationKeys, wrapMissingConversationKeys } from './lib/deviceLinking'
-import { seedLinkedConversationKeys } from './lib/conversationCrypto'
-import { loadPrivateKey } from './lib/keyStore'
-import { E2E_ENABLED } from './lib/e2eConfig'
 import PushNotificationToggle, { DeniedHelpDialog } from './components/PushNotificationToggle'
 
 // G411-41: stash any ?token= before Clerk's own redirect flow can touch
@@ -80,7 +71,29 @@ const VIEW_STORAGE_KEY = 'gavi411_view_state'
 // justified at this size. Add one if the screen count grows enough to
 // need real URLs/back-button support.
 function App() {
-  const { isSignedIn, user } = useUser()
+  const {
+    isSignedIn,
+    user,
+    inviteTokenState,
+    tokenHandoffDone,
+    escrowBackupFailed,
+    dismissEscrowBackupFailed,
+    role,
+    isAdmin,
+    needsProfileCompletion,
+    clearNeedsProfileCompletion,
+    userProfilePic,
+    fetchedUser,
+    setFetchedUser,
+    setUserProfilePic,
+    showsCreditRing,
+    unauthorized,
+    roleFetchFailed,
+    roleRetryToken,
+    retryRole,
+    recovery,
+    clearRecovery,
+  } = useSession()
   const { signOut } = useClerk()
   // G411-106: restore view state from sessionStorage on mount, but only if
   // no permalink is being consumed (permalink flow takes precedence)
@@ -149,140 +162,6 @@ function App() {
       .catch(() => {}) // silently default to true on network error
   }, [])
 
-  // Sibling review finding: a stashed token's mere PRESENCE isn't the
-  // same as it being valid — a stale/already-used invite link used to
-  // route straight into a real Clerk SignUp flow (only 403ing on the
-  // first backend call afterward), creating an orphaned Clerk identity
-  // for a link that was never going to work. Actually check validity
-  // (the existing /:token/valid route, no auth required — same one this
-  // signed-out visitor's browser can already reach) before deciding.
-  // 'checking' | 'valid' | 'invalid'
-  const [inviteTokenState, setInviteTokenState] = useState('checking')
-  useEffect(() => {
-    if (isSignedIn) return
-    const token = getStashedInviteToken()
-    if (!token) {
-      setInviteTokenState('invalid')
-      return
-    }
-    fetch(`/api/invites/${encodeURIComponent(token)}/valid`)
-      .then((res) => res.json())
-      .then((data) => setInviteTokenState(data.valid ? 'valid' : 'invalid'))
-      .catch(() => setInviteTokenState('invalid'))
-  }, [isSignedIn])
-
-  // Sibling review finding: /api/me's role check and RequestList's own
-  // /api/requests fetch used to fire in the same render pass as this
-  // token handoff, racing it — whichever reached requireAuth first for a
-  // brand-new user decided the outcome, so a legitimate signup could get
-  // wrongly 403'd if a header-less request won. Fix: nothing else that
-  // needs auth renders/fires until this handoff has settled (or there
-  // was nothing to send). Starts true when there's no stashed token —
-  // only signups need to wait.
-  const [tokenHandoffDone, setTokenHandoffDone] = useState(() => !getStashedInviteToken())
-  // Sibling review finding: escrow upload failures were only logged to
-  // the console — a friend on a flaky connection got zero recoverable
-  // backup with no indication anything went wrong. A disaster-recovery
-  // feature failing silently is worse than not having it; this is a
-  // one-line dismissible notice, not a blocker (see escrow.js's own doc
-  // comment — the crypto subsystem is still standalone/non-critical-path,
-  // so a failure here shouldn't stop the friend from using the app).
-  // Declared here (before the effect that sets it) — used to sit below
-  // it, which the linter flagged as reading state ahead of its own
-  // initialization.
-  const [escrowBackupFailed, setEscrowBackupFailed] = useState(false)
-
-  // G411-28 device-linking: once per sign-in, check whether this device
-  // has any approved-but-not-yet-loaded conversation keys and seed them
-  // into conversationCrypto.js's cache. A no-op (empty Map) for every
-  // device that never requested linking — see deviceLinking.js.
-  useEffect(() => {
-    if (!isSignedIn) return
-    loadLinkedConversationKeys().then(seedLinkedConversationKeys).catch(() => {})
-  }, [isSignedIn])
-
-  useEffect(() => {
-    if (!isSignedIn) return
-    const token = getStashedInviteToken()
-    if (!token) {
-      setTokenHandoffDone(true)
-      return
-    }
-    // AbortController (Sibling review finding): React StrictMode (dev)
-    // double-invokes this effect on mount, which would otherwise fire
-    // TWO real network requests carrying the same one-time-use token —
-    // the server's atomic claim correctly lets only one through, but the
-    // other genuinely races it rather than being cancelled. Aborting the
-    // first request on cleanup (StrictMode's mount->cleanup->mount) means
-    // only the second, real invocation's request actually reaches the
-    // server — no duplicate claim to reconcile at all, standard fix for
-    // this exact StrictMode double-effect pattern.
-    const controller = new AbortController()
-    let claimSucceeded = false
-    fetch('/api/requests', { headers: { 'x-invite-token': token }, signal: controller.signal })
-      .then((res) => { claimSucceeded = res.ok })
-      .catch(() => {}) // AbortError on cleanup is expected, not a real failure
-      .finally(async () => {
-        if (controller.signal.aborted) return
-        clearStashedInviteToken()
-        // Keypair generation (G411-82): every successful signup gets a
-        // real E2E-messaging keypair, whether or not this invite link
-        // carried an escrow passphrase — previously ONLY the escrow
-        // branch (below) ever called a keygen function, so a
-        // no-passphrase link (stale/stripped fragment) left that user
-        // with zero keypair, permanently, until this fix. Escrow (if a
-        // passphrase IS present) generates its own keypair internally
-        // and uploads both the backup and the public key; the plain path
-        // here does the same minus the backup. Same claim-succeeded gate
-        // as before — no point generating a device identity for a signup
-        // that never actually went through.
-        const passphrase = getStashedInvitePassphrase()
-        if (claimSucceeded && passphrase) {
-          const ok = await createAndUploadEscrowBackup(token, passphrase)
-          if (!ok) setEscrowBackupFailed(true)
-        } else if (claimSucceeded) {
-          const ok = await createAndUploadKeypair()
-          if (!ok) setEscrowBackupFailed(true)
-        }
-        clearStashedInvitePassphrase()
-        // Re-check after the await above (Sibling review finding — the
-        // original single check before the async escrow call no longer
-        // covered an abort that happens mid-upload).
-        if (controller.signal.aborted) return
-        setTokenHandoffDone(true)
-      })
-    return () => controller.abort()
-  }, [isSignedIn])
-
-  // G411-41: role isn't on the Clerk user object (it's our own Prisma
-  // field) — fetch it once via the existing /api/me smoke-test route
-  // (G411-13) rather than adding a new endpoint just for this. A 403
-  // here means Clerk auth succeeded but our own backend never created a
-  // User row (see server/middleware/auth.js) — no valid invite.
-  const [role, setRole] = useState(null)
-  // Derived once, used everywhere role gates a decision (Sibling review
-  // finding — `role === 'ADMIN'` was independently re-derived at 3
-  // separate call sites in this file with no shared source).
-  const isAdmin = role === 'ADMIN'
-  const [needsProfileCompletion, setNeedsProfileCompletion] = useState(false)
-  const [userProfilePic, setUserProfilePic] = useState(null)
-  // G411-80: store the full user object from /api/me for the ProfilePage
-  const [fetchedUser, setFetchedUser] = useState(null)
-  // G411-113: friends only, and !== undefined (not truthy) so a real
-  // zero balance still renders the ring — same reasoning as G411-100's
-  // falsifier on the old text span. Derived once since both the render
-  // and the app-bar centering spacer logic below need the same check.
-  const showsCreditRing = isSignedIn && !isAdmin && fetchedUser?.creditBalance !== undefined
-  const [unauthorized, setUnauthorized] = useState(false)
-  // Sibling review finding: a thrown /api/me fetch (network blip, Render
-  // cold-start timeout) used to be silently swallowed by an empty catch,
-  // leaving `role` at null forever — combined with the role===null "wait
-  // for role" gate below (added to fix a remount flash), that stranded
-  // ANY signed-in user on a permanent "Loading…" with no way out. Real
-  // error state + retry instead, same pattern AdminList/RequestList
-  // already use for their own fetch failures.
-  const [roleFetchFailed, setRoleFetchFailed] = useState(false)
-  const [roleRetryToken, setRoleRetryToken] = useState(0)
   // Bumped when a push notification arrives (see the BroadcastChannel
   // listener below) so an already-open Open/Closed requests list
   // refetches instead of going stale until a manual reload — separate
@@ -320,49 +199,6 @@ function App() {
       })
       .catch(() => {})
   }, [isSignedIn, tokenHandoffDone, pushRefreshToken])
-  // G411-28 stage 4: a ?recover=<token>#<passphrase> link, stashed by
-  // captureRecoveryParamsFromUrl() above the same way the signup token
-  // is — read once here, doesn't need to react to later URL changes.
-  const [recovery, setRecovery] = useState(getStashedRecoveryParams)
-  useEffect(() => {
-    if (!isSignedIn || !tokenHandoffDone) return
-    setRoleFetchFailed(false)
-    fetch('/api/me')
-      .then((res) => {
-        if (res.status === 403) {
-          setUnauthorized(true)
-          return null
-        }
-        if (!res.ok) throw new Error('failed')
-        return res.json()
-      })
-      .then((data) => {
-        if (data) {
-          setRole(data.user?.role ?? null)
-          // G411-69: check if user needs to complete profile (phone still pending)
-          const phoneNumber = data.user?.phoneNumber
-          setNeedsProfileCompletion(phoneNumber?.startsWith('pending-') ?? false)
-          setUserProfilePic(data.user?.profilePic ?? null)
-          // G411-80: store the full user object for ProfilePage access
-          setFetchedUser(data.user)
-        }
-      })
-      .catch(() => setRoleFetchFailed(true))
-  }, [isSignedIn, tokenHandoffDone, roleRetryToken])
-
-  // Matan's Sibling review, PR #35, Fix 1a: self-healing sweep, admin
-  // side. Only admin's browser ever holds the private key needed to wrap
-  // a conversation key for a linked device, so this can't run until
-  // `role` resolves to ADMIN — a regular friend's browser has nothing to
-  // contribute here (they only ever consume already-wrapped keys, via
-  // loadLinkedConversationKeys above). Best-effort, silently no-ops on
-  // any failure — see wrapMissingConversationKeys's own doc comment.
-  useEffect(() => {
-    if (!E2E_ENABLED || role !== 'ADMIN') return
-    loadPrivateKey().then((key) => {
-      if (key) wrapMissingConversationKeys(key)
-    })
-  }, [role])
 
   // G411-106: persist view state to sessionStorage whenever it changes
   useEffect(() => {
@@ -616,7 +452,7 @@ function App() {
           Your account was created, but we couldn't set up message encryption for this device —
           your messages may not be end-to-end encrypted, and if you lose this device you may not
           be able to recover them. Contact Gavi if this keeps happening.{' '}
-          <button type="button" onClick={() => setEscrowBackupFailed(false)}>Dismiss</button>
+          <button type="button" onClick={dismissEscrowBackupFailed}>Dismiss</button>
         </p>
       )}
       {permalinkError && (
@@ -737,7 +573,7 @@ function App() {
             passphrase={recovery.passphrase}
             onDone={() => {
               clearStashedRecoveryParams()
-              setRecovery({ token: null, passphrase: null })
+              clearRecovery()
             }}
           />
         ) : isSignedIn && needsProfileCompletion && !isAdmin ? (
@@ -753,15 +589,15 @@ function App() {
           <CompleteProfile
             currentProfilePic={userProfilePic}
             onComplete={() => {
-              setNeedsProfileCompletion(false)
-              setRoleRetryToken((t) => t + 1)
+              clearNeedsProfileCompletion()
+              retryRole()
             }}
           />
         ) : isSignedIn ? (
           view === 'new' ? (
             <NewRequest
               isOnline={isOnline}
-              onDone={(requestId) => { setNewRequestHasText(false); setRoleRetryToken((t) => t + 1); if (requestId) { openRequest(requestId); } else { setView('list'); } }}
+              onDone={(requestId) => { setNewRequestHasText(false); retryRole(); if (requestId) { openRequest(requestId); } else { setView('list'); } }}
               onExit={() => { setNewRequestHasText(false); setView('list'); }}
               onFreeTextChange={(v) => setNewRequestHasText(!!v)}
             />
@@ -816,7 +652,7 @@ function App() {
             // path instead of a silent dead end.
             <div>
               <p>Couldn't load your account. Try again?</p>
-              <Button onClick={() => setRoleRetryToken((t) => t + 1)}>Try again</Button>
+              <Button onClick={() => retryRole()}>Try again</Button>
             </div>
           ) : role === null ? (
             // Sibling review finding: rendering RequestList/AdminList based
