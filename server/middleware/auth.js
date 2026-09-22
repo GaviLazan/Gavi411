@@ -48,11 +48,9 @@ export async function requireAuth(req, res, next) {
   // configured, so every row created via the old claims-based code had
   // permanently blank names. Fetching the real user record from Clerk's
   // Backend API on creation gets the actual data instead.
-  // ponytail: only synced at creation, not on every later request — a
-  // user who edits their name/email in Clerk afterward won't see it
-  // reflected here. Add a `user.updated` webhook (or push-back sync,
-  // G411-80) if that drift becomes a real problem; not worth the extra
-  // API call on every request at this app's scale.
+  // ponytail: synced at signup + on Profile-page exit (see completeProfile.js's
+  // sync-from-clerk route) — a Clerk edit made elsewhere still needs a real
+  // webhook (G411-127) to reach here immediately.
   let user = await prisma.user.findUnique({ where: { clerkId: userId } })
 
   if (!user) {

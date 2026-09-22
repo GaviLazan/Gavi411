@@ -94,10 +94,6 @@ export async function sendNudge(requestId, admin = null) {
 // Friend replies reset nudgedAt to null, ending the escalation sequence until
 // admin nudges again (see requests.js's POST /:id/messages route).
 //
-// ponytail: no lock/dedup between this scheduled pass and a concurrent
-// manual POST /:id/nudge on the same request — both could land in the same
-// window. Low-probability and low-severity (a duplicate system message).
-//
 // The CLOSED write happens inside a transaction that re-reads the
 // request's status FRESH immediately before writing (Sibling review
 // finding — the original version read status once via the top-level

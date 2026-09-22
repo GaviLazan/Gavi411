@@ -1,12 +1,8 @@
-// Cloudinary upload helper (G411-26). The v2 SDK reads CLOUDINARY_URL from
-// process.env automatically (already loaded globally via dotenv/config in
-// server.js) — no manual config() call needed as long as that ran first.
+// Cloudinary upload helper. The v2 SDK reads CLOUDINARY_URL from process.env.
 import { v2 as cloudinary } from 'cloudinary'
 
-export const MAX_IMAGE_BYTES = 10 * 1024 * 1024 // 10MB, Gavi's call (G411-26)
-// Exported (not just an internal Set) so the client can build its file-input
-// accept list from the same source instead of a hand-maintained duplicate
-// (Sibling review finding) — one array, two consumers.
+export const MAX_IMAGE_BYTES = 10 * 1024 * 1024 // 10MB
+// Exported so the client can use the same list for file-input accept.
 export const ALLOWED_IMAGE_TYPES = [
   'image/gif',
   'image/jpeg',

@@ -1,7 +1,4 @@
-// Tests for requireAuth (G411-76). Mocks @clerk/express and Prisma — no
-// real Clerk/DB call made. Covers the real bug this ticket fixed: new
-// users get real name/email from Clerk's API (not blank JWT claims), and
-// an existing user's data isn't clobbered on repeat requests.
+// Tests for requireAuth. Mocks @clerk/express and Prisma — no real Clerk/DB call.
 
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
@@ -280,10 +277,6 @@ describe('requireAuth', () => {
     expect(mockLinkClaimedInvite).toHaveBeenCalledWith('tok123', 'user_new')
   })
 
-  // G411-81 — the real gate. App.jsx's SignIn-blocking (G411-41) only
-  // stops our own UI; Clerk hosts sign-up at its own fixed URL, reachable
-  // directly. These prove the actual enforcement point: no new User row
-  // without a valid, unused invite, no matter how Clerk sign-up was reached.
   describe('G411-81 invite gate on new-user creation', () => {
     it('403s a brand-new user with no x-invite-token header at all', async () => {
       mockGetAuth.mockReturnValue({ userId: 'user_no_invite' })
@@ -328,12 +321,6 @@ describe('requireAuth', () => {
       expect(next).toHaveBeenCalled()
     })
 
-    // Real bug hit live (Gavi): the client's AbortController fix (see
-    // App.jsx) is the primary defense against StrictMode's duplicate
-    // request, but this is a defense-in-depth check on the server for
-    // ANY duplicate that reaches it anyway (a real retry, not just
-    // StrictMode) — claimInvite failing should NOT 403 if the user
-    // already exists (meaning a sibling request already finished).
     it('does not 403 if claimInvite fails but a User row already exists (sibling request already finished)', async () => {
       mockGetAuth.mockReturnValue({ userId: 'user_sibling_finished' })
       mockFindUnique
@@ -349,11 +336,6 @@ describe('requireAuth', () => {
       expect(next).toHaveBeenCalled()
     })
 
-    // Real edge case a genuine (non-StrictMode) concurrent duplicate can
-    // hit: the sibling request that WON the claim is still mid-flight
-    // (blocked on the Clerk API call) when this one re-checks — not
-    // finished creating the User row yet. The bounded retry covers this
-    // by trying again a couple more times before giving up.
     it('retries the User-row check a few times before 403ing, for a claim lost to a still-in-flight sibling', async () => {
       mockGetAuth.mockReturnValue({ userId: 'user_sibling_in_flight' })
       mockFindUnique

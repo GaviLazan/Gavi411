@@ -1,5 +1,4 @@
-// Tests for word-boundary keyword matching (G411-63).
-// Mocks Prisma's Trigger table — no real DB touched.
+// Tests for word-boundary keyword matching. Mocks Prisma's Trigger table.
 
 import { describe, it, expect, vi } from 'vitest'
 

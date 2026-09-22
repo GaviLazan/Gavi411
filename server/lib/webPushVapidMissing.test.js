@@ -1,7 +1,4 @@
-// Separate file from webPush.test.js on purpose: sendPushToUser's
-// ensureVapidConfigured() caches success in a module-level flag, so this
-// missing-env-var case needs a fresh, unconfigured module instance rather
-// than sharing state with the other tests.
+// Separate file from webPush.test.js: needs a fresh module instance for VAPID config testing.
 
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
@@ -31,8 +28,6 @@ describe('sendPushToUser with missing VAPID config', () => {
     )
   })
 
-  // G411-98: the notification history log must not be lost just because
-  // delivery infra is misconfigured — it's logged before the VAPID check.
   it('still logs the notification even though VAPID is misconfigured', async () => {
     const { sendPushToUser } = await import('./webPush.js')
     const { prisma } = await import('./prisma.js')

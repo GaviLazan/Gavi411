@@ -1,24 +1,9 @@
-// Web Push delivery (G411-29). Thin wrapper around the `web-push` package
-// (VAPID protocol — no third-party push service, browsers' own push
-// infra). Scope: infra + integration points only — the subscribe
-// flow/permission UI is G411-49, which events actually trigger a push is
-// G411-51. This file just answers "given a userId and a payload, deliver
-// it to every browser that user subscribed from."
+// Web Push delivery via VAPID protocol (browsers' native push infra).
 
 import webpush from 'web-push'
 import { prisma } from './prisma.js'
 
-// VAPID setup deferred to first use (not module load) — importing this
-// file must never crash just because env vars aren't set yet (a fresh
-// dev checkout, a test run that doesn't load .env). Real misconfiguration
-// still surfaces loudly, just at the first actual send instead of import.
-//
-// Sibling review finding: a missing VAPID_* env var used to throw from
-// inside sendPushToUser's fire-and-forget caller, visible only as a
-// buried console.error with zero operator-facing signal — checked
-// explicitly and up front instead, with a clear message naming what's
-// missing, since "which env var" is exactly what a misconfigured deploy
-// needs to know fast.
+// VAPID setup deferred to first use — real misconfiguration surfaces loudly at first send.
 let vapidConfigured = false
 function ensureVapidConfigured() {
   if (vapidConfigured) return
@@ -32,19 +17,8 @@ function ensureVapidConfigured() {
   vapidConfigured = true
 }
 
-// Sends `payload` (plain object, JSON-serialized) to every subscription a
-// user has registered (phone + desktop, etc.). A subscription that the
-// push service reports as gone (410) or not-found (404) is stale — likely
-// browser data cleared or permission revoked — and gets deleted so it
-// stops being retried forever. Any other delivery failure (network blip,
-// payload too large) is logged and skipped; one bad subscription must
-// never block delivery to the user's other devices.
-//
-// G411-98: logs the notification to the user's history regardless of
-// delivery outcome — the log records "this was sent to you," not "this
-// was delivered successfully." Logged before ensureVapidConfigured()'s
-// check, deliberately: a misconfigured VAPID deploy shouldn't silently
-// lose history too, on top of losing actual delivery.
+// Sends payload to every subscription a user has. Stale subscriptions (410/404) are deleted.
+// Logs notification to history before VAPID check (so history survives misconfiguration).
 export async function sendPushToUser(userId, payload) {
   await prisma.notification.create({
     data: {

@@ -1,6 +1,4 @@
-// Tests for the shared credit helper (G411-45/48) and monthly reset job
-// (G411-46). No real DB — a fake `tx` object stands in for a Prisma
-// transaction client.
+// Tests for credit helper and monthly reset job. No real DB — fake `tx` stands in.
 
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
@@ -207,8 +205,6 @@ describe('resetMonthlyCredits', () => {
     })
   })
 
-  // G411-47 — overdraftUsedAt clears on the same "different calendar
-  // month" pass as creditsResetAt, using the identical comparison logic.
   it('clears overdraftUsedAt when it is in a different calendar month', async () => {
     const now = new Date()
     const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 10)
