@@ -12,7 +12,36 @@ accumulated. If something here turns out to matter long-term, promote it to
 
 ---
 
-## Where this session left off (2026-09-22, latest) — G411-113 (WP8, credit ring) merged, Reconciled, fully closed out
+## Where this session left off (2026-09-22, latest) — G411-54/55/56 (WP10, copy pass) built, Reviewing, PR #139 open, awaiting merge go-ahead
+
+**Picked up mid-flight**: branch `you/G411-54-55-56-copy-pass` already had 7 files uncommitted from a prior session's artifact-comment review pass (before/after doc at https://claude.ai/artifact/8cUdZWnzhTehMxUjmKDeRK, all 20 comment threads resolved with Gavi). First checked Jira access was actually working (it was — prior session's MCP failures didn't recur) and re-ran the test suite fresh per standing rule: the "known 1/555 failing" issue noted in the prior handoff was already stale, 555/555 passed on first run.
+
+**Real gap found before trusting the prior session's work as done**: diffing the artifact doc against the real `git diff` showed several rows marked resolved on the doc with no matching code change — see brain.md decision #154 for the full list and the standing lesson (doc "resolved" ≠ code "applied," check every time). Also found Jira state didn't match: only G411-54 was at Implementing: G411-55/56 were still Open, and all three had empty Claim/Falsifier/Evidence-required custom fields despite the description text already containing full Claim/Falsifier/Evidence-required prose from an earlier pre-code session.
+
+**Fixed this session, all with Gavi's explicit go-ahead at each real decision point**:
+- Applied every previously-unapplied approved row (`NewRequest.jsx`, `RequestDetail.jsx`, `requests.js` push titles) plus 3 error strings that were never coded at all.
+- `AdminList.jsx`/`CompleteProfile.jsx`/`InstallHelp.jsx` were completely untouched — investigated whether this meant G411-56's `install-ios.md` dev-facing-rewrite requirement was still outstanding (it looked that way at first); checked the real file and found that structural rewrite already landed in G411-112 (the markdown file is gone, `InstallHelp.jsx` is already real JSX) — only 2 small phrasing rows were genuinely left, applied those plus the small AdminList/CompleteProfile rows.
+- `confirmMessage`'s overdraft-deny text said "ask" where the locked terminology calls for "favor" — fixed. Admin overdraft-pending push title kept as "ask" per Gavi's explicit call (admin titles stay plain/functional, not a friend-facing favor moment) even though it's momentarily inconsistent-looking next to the friend-facing favor titles.
+- G411-55's own Claim (distinct disambiguation lead lines for multi-match vs. zero-match) had never been built at all — the chips step reused one generic h2 regardless of state. Built live with Gavi in the loop on wording (2 drafts rejected before his own final phrasing, "Which one of these request types is closest?" — "request" explicitly re-allowed here as a plain word).
+
+555/555 tests re-run fresh after every fix (multiple rounds), build+lint clean throughout (only pre-existing unrelated warnings, none introduced). Gavi did a full live read-through of the app afterward (dev servers started for him mid-session) and confirmed everything good — that's the Falsifier evidence all three tickets' Claim text requires, not just automated grep.
+
+**Jira**: all three (G411-54/55/56) transitioned Open/Implementing → Implementing → Reviewing this session; Claim/Falsifier/Evidence-required/Evidence-bar-met/Owner/Reviewer-type all written against real final state (Evidence required = Inspection, Reviewer type = Sibling, Owner = You on all three). **Not yet Landed** — that's next.
+
+Sibling-review findings (the gap-diffing work above) posted as a real PR comment on #139, spot-checked via `gh api` per standing rule. Commit `bd37a1b`, PR #139 pushed and open against `main`.
+
+### Real state, right now
+Branch `you/G411-54-55-56-copy-pass` pushed, PR #139 open, CI not yet checked this session (opened moments before this write). Dev servers (Vite :5173, API :3000) started this session for Gavi's live read-through — may still be running, check before starting new ones. Jira: all three at **Reviewing**, not yet Landed.
+
+### What's next, concretely
+1. **Check PR #139's CI status, then ask Gavi for the merge go-ahead** (wrap-up step 7 — not yet done as of this write).
+2. Once merged: Jira Reviewing → Landed → Reconciled for all three (steps 1-4 already covered by this session's fresh verification, no separate re-check needed) — parent G411-9 should be checked for whether any other children remain non-Reconciled before rolling it.
+3. Full sync check across primary + all `Gavi411-agent-*` worktrees (wrap-up step 8) — not yet run this session.
+4. Still open, not blocking: the pre-existing `index.css` design-hook findings, the `/impeccable document` sidecar refresh, `ConfirmModal.jsx`'s own stray `variant="purple"`.
+
+---
+
+## Where this session left off (2026-09-22, earlier) — G411-113 (WP8, credit ring) merged, Reconciled, fully closed out
 
 **G411-112 (previous ticket) fully closed out**: merged, Reconciled, parent G411-9 rolled Open → Implementing. See gavi411-brain.md decisions #151/#152 for its own record; not repeated here.
 
