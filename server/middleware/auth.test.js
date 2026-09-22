@@ -86,7 +86,7 @@ describe('requireAuth', () => {
     expect(next).toHaveBeenCalled()
   })
 
-  it('saves the OAuth profile photo on creation when Clerk has one (G411-69)', async () => {
+  it('saves the OAuth profile photo on creation when Clerk has one', async () => {
     mockGetAuth.mockReturnValue({ userId: 'user_new' })
     mockFindUnique.mockResolvedValue(null)
     mockClaimInvite.mockResolvedValue(true)
@@ -110,7 +110,7 @@ describe('requireAuth', () => {
     })
   })
 
-  it('does not set a fake profilePic when Clerk has no OAuth photo (email signup, G411-69)', async () => {
+  it('does not set a fake profilePic when Clerk has no OAuth photo (email signup)', async () => {
     mockGetAuth.mockReturnValue({ userId: 'user_new' })
     mockFindUnique.mockResolvedValue(null)
     mockClaimInvite.mockResolvedValue(true)
@@ -133,7 +133,7 @@ describe('requireAuth', () => {
     expect(createArgs.data).not.toHaveProperty('profilePic')
   })
 
-  it('grants the tiered initial credit balance on creation, not 0 (G411-45)', async () => {
+  it('grants the tiered initial credit balance on creation, not 0', async () => {
     mockGetAuth.mockReturnValue({ userId: 'user_new' })
     mockFindUnique.mockResolvedValue(null)
     mockClaimInvite.mockResolvedValue(true)
@@ -194,7 +194,7 @@ describe('requireAuth', () => {
     expect(next).not.toHaveBeenCalled()
   })
 
-  it('un-claims the invite if Clerk\'s API fails after the claim already succeeded (Sibling review finding)', async () => {
+  it('un-claims the invite if Clerk\'s API fails after the claim already succeeded', async () => {
     mockGetAuth.mockReturnValue({ userId: 'user_new' })
     mockFindUnique.mockResolvedValue(null)
     mockClaimInvite.mockResolvedValue(true)
@@ -239,7 +239,7 @@ describe('requireAuth', () => {
     expect(next).toHaveBeenCalled()
   })
 
-  it('401s a soft-deleted account even with a still-valid Clerk session (G411-96)', async () => {
+  it('401s a soft-deleted account even with a still-valid Clerk session', async () => {
     mockGetAuth.mockReturnValue({ userId: 'user_deleted' })
     mockFindUnique.mockResolvedValue({ clerkId: 'user_deleted', isDeleted: true })
     const next = vi.fn()
@@ -277,7 +277,7 @@ describe('requireAuth', () => {
     expect(mockLinkClaimedInvite).toHaveBeenCalledWith('tok123', 'user_new')
   })
 
-  describe('G411-81 invite gate on new-user creation', () => {
+  describe('invite gate on new-user creation', () => {
     it('403s a brand-new user with no x-invite-token header at all', async () => {
       mockGetAuth.mockReturnValue({ userId: 'user_no_invite' })
       mockFindUnique.mockResolvedValue(null)

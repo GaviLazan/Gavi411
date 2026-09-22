@@ -1,4 +1,4 @@
-// Route tests for GET/GET:id/PATCH (G411-67). Mocks Prisma and auth —
+// Route tests for request detail. Mocks Prisma and auth —
 // no real DB touched, so this is safe to run unattended against the
 // live dev database this repo shares. Covers: auth-required, ownership
 // checks, admin bypass, PATCH enum validation happy/error paths.
@@ -86,9 +86,7 @@ vi.mock('../../lib/cloudinary.js', async () => {
 
 // Real implementation by default (it operates on prismaMock as its `tx`
 // arg, so existing tests asserting user.update/creditTransaction.create
-// side effects still pass) — G411-44's tests spy on it per-test instead
-// of replacing it wholesale, which broke every pre-existing deduction/
-// refund assertion in this file (Sibling review finding).
+// side effects still pass).
 vi.mock('../../lib/credits.js', async () => {
   const actual = await vi.importActual('../../lib/credits.js')
   return { ...actual }
@@ -219,8 +217,7 @@ describe('PATCH /api/requests/:id', () => {
     expect(res.status).toBe(200)
   })
 
-  // G411-32 — urgency-change gating by role
-  describe('urgency change gating (G411-32)', () => {
+  describe('urgency change gating', () => {
     it('allows a friend to downgrade HIGH -> NORMAL', async () => {
       currentUserId = OWNER
       prismaMock.request.findUnique.mockResolvedValue({ ...sampleRequest, urgency: 'HIGH' })
@@ -302,7 +299,6 @@ describe('PATCH /api/requests/:id', () => {
     })
   })
 
-  // G411-30 — transition enforcement
   it('400s on an illegal jump (IN_QUEUE -> CLOSED, skipping the graph)', async () => {
     currentUserId = OWNER
     prismaMock.request.findUnique.mockResolvedValue(sampleRequest) // IN_QUEUE
@@ -380,8 +376,7 @@ describe('PATCH /api/requests/:id', () => {
     expect(res.status).toBe(200)
   })
 
-  // G411-31 — refund on cancel/self-solved, gated on "no admin message yet"
-  describe('refund on cancel/self-solved (G411-31)', () => {
+  describe('refund on cancel/self-solved', () => {
     beforeEach(() => {
       currentUserId = OWNER
       prismaMock.request.findUnique.mockResolvedValue(sampleRequest) // IN_QUEUE, userId: OWNER
@@ -444,7 +439,6 @@ describe('PATCH /api/requests/:id', () => {
       expect(prismaMock.creditTransaction.create).not.toHaveBeenCalled()
     })
 
-    // G411-90 — track refundedAt timestamp when refund occurs
     it('sets refundedAt to current time when a CANCELLED refund happens (no admin message yet)', async () => {
       currentUserId = OWNER
       prismaMock.request.findUnique.mockResolvedValue(sampleRequest)
@@ -502,7 +496,7 @@ describe('PATCH /api/requests/:id', () => {
   // never refund one at any later exit either (would create free credits).
   // Paired against the identical, otherwise-untouched CANCELLED-refund test
   // above (line ~496) to prove the ONLY difference is isOverdraft.
-  describe('overdraft requests never refund (G411-47)', () => {
+  describe('overdraft requests never refund', () => {
     it('does NOT refund an overdraft-approved request on CANCELLED, even fully untouched', async () => {
       currentUserId = OWNER
       prismaMock.request.findUnique.mockResolvedValue({ ...sampleRequest, isOverdraft: true })
@@ -538,8 +532,7 @@ describe('PATCH /api/requests/:id', () => {
     })
   })
 
-  // G411-47 — OVERDRAFT_PENDING transitions are admin-only
-  describe('overdraft approve/deny transitions are admin-only (G411-47)', () => {
+  describe('overdraft approve/deny transitions are admin-only', () => {
     it('allows an admin to approve (OVERDRAFT_PENDING -> IN_QUEUE)', async () => {
       currentUserId = ADMIN
       prismaMock.request.findUnique.mockResolvedValue({ ...sampleRequest, status: 'OVERDRAFT_PENDING', isOverdraft: true })
@@ -585,8 +578,7 @@ describe('PATCH /api/requests/:id', () => {
     })
   })
 
-  // G411-33 — close is friend-only
-  describe('close is friend-only (G411-33)', () => {
+  describe('close is friend-only', () => {
     it('allows a friend to close from RESOLVED_PENDING_CONFIRMATION', async () => {
       currentUserId = OWNER
       prismaMock.request.findUnique.mockResolvedValue({ ...sampleRequest, status: 'RESOLVED_PENDING_CONFIRMATION' })
@@ -607,7 +599,7 @@ describe('PATCH /api/requests/:id', () => {
   })
 })
 
-describe('GET /api/requests/:id/public-keys (G411-82)', () => {
+describe('GET /api/requests/:id/public-keys', () => {
   it('401s when unauthenticated', async () => {
     const res = await request(app).get('/api/requests/1/public-keys')
     expect(res.status).toBe(401)

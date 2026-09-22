@@ -1,4 +1,4 @@
-// G411-82 — PATCH /api/me/public-key. Only the new route is tested here
+// PATCH /api/me/public-key. Only the new route is tested here
 // (not server.js's whole app wiring) — GET /api/me is already covered
 // implicitly via auth.test.js's requireAuth coverage; this file adds a
 // tiny standalone Express app carrying just the new route, same pattern

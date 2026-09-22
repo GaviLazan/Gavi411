@@ -15,7 +15,7 @@ describe('canAccessRequest', () => {
   })
 })
 
-describe('hasAdminMessaged (G411-31, G411-93)', () => {
+describe('hasAdminMessaged', () => {
   it('true when a REAL ADMIN-role message exists on the request', async () => {
     const db = { message: { findFirst: vi.fn().mockResolvedValue({ id: 1 }) } }
     expect(await hasAdminMessaged(db, 42)).toBe(true)

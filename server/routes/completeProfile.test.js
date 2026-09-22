@@ -1,4 +1,4 @@
-// Route tests for complete-profile (G411-69). Same mocking pattern as
+// Route tests for complete-profile. Same mocking pattern as
 // presence.test.js — mocks Prisma and auth, no real DB touched.
 
 import { describe, it, expect, vi, beforeEach } from 'vitest'
@@ -119,7 +119,7 @@ describe('PATCH /api/me/complete-profile', () => {
     expect(prismaMock.user.update).not.toHaveBeenCalled()
   })
 
-  it('400s a 7-digit number the client would never send (Sibling review finding — server floor was lower than the client\'s)', async () => {
+  it('400s a 7-digit number the client would never send', async () => {
     currentUserId = USER
     const res = await request(app)
       .patch('/api/me/complete-profile')
@@ -208,7 +208,7 @@ describe('PATCH /api/me/complete-profile', () => {
     expect(res.body.error).toBe('That phone number is already registered to another account')
   })
 
-  it('404s cleanly (not an unhandled 500) if the user row is gone (Sibling review finding)', async () => {
+  it('404s cleanly (not an unhandled 500) if the user row is gone', async () => {
     currentUserId = USER
     prismaMock.user.update.mockRejectedValue(recordNotFound())
     const res = await request(app)
@@ -218,10 +218,9 @@ describe('PATCH /api/me/complete-profile', () => {
   })
 })
 
-// G411-80: /api/me/profile updates ONLY phoneNumber — name/username/email/
-// photo are handled by Clerk's own account modal client-side (Gavi's call:
-// no need to duplicate a UI Clerk already does well), so this route stays
-// as narrow as /complete-profile's own phone-only validation/error shape.
+// /api/me/profile updates ONLY phoneNumber — name/username/email/
+// photo are handled by Clerk's own account modal client-side, so this
+// route stays as narrow as /complete-profile's own phone-only validation.
 describe('PATCH /api/me/profile', () => {
   it('401s when signed out', async () => {
     const res = await request(app)
@@ -352,7 +351,6 @@ describe('POST /api/me/sync-from-clerk', () => {
   })
 })
 
-// G411-96: soft-delete account
 describe('DELETE /api/me', () => {
   it('401s when signed out', async () => {
     const res = await request(app).delete('/api/me')
