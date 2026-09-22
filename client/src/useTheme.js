@@ -1,10 +1,5 @@
 import { useEffect, useState } from 'react'
 
-// Manual light/dark override (G411-73), layered on top of G411-17's
-// existing @media (prefers-color-scheme: dark) tokens in index.css.
-// Two states, cycling: 'light' (default) -> 'dark' -> back to 'light'.
-// Persisted so a friend's choice survives a reload. Always defaults to
-// light regardless of OS preference.
 const STORAGE_KEY = 'gavi411-theme'
 const ORDER = ['light', 'dark']
 

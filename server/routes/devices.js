@@ -35,12 +35,6 @@ router.post('/', requireAuth, async (req, res) => {
   res.status(201).json(device)
 })
 
-// G411-29: first real Web Push integration point. Which OTHER events also
-// push (new message, status change, etc.) is G411-51's trigger-matrix
-// job — this one call site was already stubbed out for exactly this. A
-// push failure here (no admin subscription yet, delivery error — both
-// handled inside sendPushToUser) must never break device-request creation
-// itself, so this stays fire-and-forget from the route's perspective.
 async function notifyAdminOfDeviceRequest(device, requestingUser) {
   console.log(
     `[device-request] ${requestingUser.firstName} ${requestingUser.lastName} (${requestingUser.clerkId}) requested a new device link, Device.id=${device.id}`,
@@ -91,15 +85,6 @@ router.post('/:id/approve', requireAuth, requireAdmin, async (req, res) => {
     return res.status(404).json({ error: 'Pending device not found' })
   }
 
-  // Sibling review finding: this used to trust the client-submitted
-  // requestId list wholesale — every other request-scoped route
-  // (requests.js) gates through canAccessRequest first. Not exploitable
-  // beyond what an admin already has blanket access to in this
-  // single-admin app, but this is the actual fix for the client-side
-  // over-wrapping bug this same review round found (InviteAdmin.jsx used
-  // to hand this route every request in the system, not just the
-  // device's own account's) — belt-and-suspenders so a client bug can't
-  // silently wrap a key for the wrong device's owner again.
   const requestIds = wrappedKeys.map((k) => k.requestId)
   const ownedCount = await prisma.request.count({
     where: { id: { in: requestIds }, userId: device.userId },
@@ -146,15 +131,6 @@ router.post('/:id/reject', requireAuth, requireAdmin, async (req, res) => {
   res.json({ ok: true })
 })
 
-// GET /missing-wraps — admin-only self-healing check (Matan's Sibling
-// review, PR #35, Fix 1a): a linked device approved BEFORE some Request
-// existed has no ConversationDeviceKey row for it — getConversationKey
-// now refuses to derive a wrong key for that case (see
-// conversationCrypto.js), so this route is how admin's browser finds
-// which (device, request) pairs still need wrapping. Optional `requestId`
-// query param scopes the check to one Request (RequestDetail.jsx's
-// per-page trigger); omitted, it checks every APPROVED device's owner's
-// requests (App.jsx's on-load sweep).
 router.get('/missing-wraps', requireAuth, requireAdmin, async (req, res) => {
   const { requestId } = req.query
   const requestFilter = requestId ? { id: Number(requestId) } : {}
@@ -245,18 +221,6 @@ router.post('/wrap-additional', requireAuth, requireAdmin, async (req, res) => {
   res.json({ ok: true })
 })
 
-// GET /my-status — polls one device's own approval status. Matan's
-// Sibling review, carried-over non-blocking note: this used to always
-// return the account's most-recently-created Device row regardless of
-// which device was actually asking — an account that requested linking
-// from two different devices could have one device's poll reflect the
-// OTHER device's status. An optional `deviceId` query param (the caller's
-// own saved id, once requestDeviceLink() has one — see deviceLinking.js)
-// scopes the lookup to that exact row; omitted (or not owned by this
-// user — falls through the same as omitted, no 404, since this is just a
-// polling convenience, not a security boundary), falls back to the
-// original most-recent behavior for the brief window before a deviceId
-// exists yet.
 router.get('/my-status', requireAuth, async (req, res) => {
   const { deviceId } = req.query
   const id = Number(deviceId)

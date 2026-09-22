@@ -25,11 +25,6 @@ router.get('/', async (req, res) => {
     select: { firstName: true, profilePic: true },
   })
 
-  // This branch IS reachable, not just defensive dead code: the migration
-  // only creates the table, it never seeds a row, and seed.js has no
-  // Presence insert either — so any fresh/newly-migrated DB has no row
-  // until the first admin PATCH. Default to online rather than erroring
-  // out and blocking the entire app in that window.
   if (!presence) {
     return res.json({ isOnline: true, admin: admin || null })
   }

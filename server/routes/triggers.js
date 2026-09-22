@@ -28,12 +28,6 @@ router.post('/', requireAuth, requireAdmin, async (req, res) => {
   if (!keyword?.trim() || !requestType) {
     return res.status(400).json({ error: 'keyword and requestType are required' })
   }
-  // Sibling review finding: an invalid requestType used to reach Prisma
-  // and throw a PrismaClientValidationError, which isn't a
-  // PrismaClientKnownRequestError — the catch below's instanceof checks
-  // missed it, and with no global error handler in server.js it surfaced
-  // as a raw unhandled 500. Reject it here instead, same as the missing-
-  // field check above.
   if (!VALID_REQUEST_TYPES.includes(requestType)) {
     return res.status(400).json({ error: 'requestType is not a valid RequestType' })
   }
