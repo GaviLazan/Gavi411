@@ -12,6 +12,28 @@ accumulated. If something here turns out to matter long-term, promote it to
 
 ---
 
+## Where this session left off (2026-09-23, latest) — G411-116 (WP11, all 5 PRs) fully merged, Reconciled, closed out
+
+**G411-116 is done.** All 5 PRs merged (server routes split, server lib+middleware, client pages, client components+lib, tests + a real scope-gap fill covering 8 more server route files and `App.jsx`'s `useSession()` extraction). This ticket's own whole-repo falsifier — `grep -rn 'Sibling review|G411-[0-9]' server client/src --include=*.js --include=*.jsx | grep -v test`, plus the same across every `.test.js` file — passes clean across the entire codebase for the first time, with exactly one deliberate exception (a corrected ponytail comment in `auth.js` pointing at its real tracked ticket, G411-127).
+
+**Real findings from this ticket, summarized** (full detail across brain.md #156-#162):
+- A dispatched agent's own "done" report over-claimed completeness 4 separate times across the 5 PRs — always some mix of files silently skipped and leftover narration self-justified as "fine." Independent re-verification (re-running the real grep/test commands, not trusting the report) caught every instance.
+- `RequestDetail.jsx` (PR3) and `App.jsx` (PR5) were both named in the ticket's own text as split targets — one turned out not to warrant it (tangled shared state, skipped per Gavi's direct pushback on splitting "just because the ticket said so"), the other genuinely did (`App.jsx`'s auth/bootstrap state extracted into `useSession()`).
+- The `useSession()` extraction shipped with a real bug — 5 dangling setter references — that neither 555/555 passing tests nor a clean build caught (this repo has no component-rendering tests, no `no-undef` lint rule). Only Gavi's own live test of the profile-completion flow caught it. Fixed, confirmed working.
+- G411-127 filed under G411-57 (V2 backlog) for a real, accurately-scoped follow-up: a Clerk `user.updated` webhook to replace the current Profile-page-exit sync stopgap.
+
+**Jira**: G411-116 **Reconciled**. Parent **G411-9** stays at Implementing — only G411-117 (WP11.5, README) remains Open under it, correctly, since that's genuinely not started yet.
+
+### Real state, right now
+Primary worktree back on `main`, fast-forwarded clean to `8692930` (matches `origin/main`). All 6 `Gavi411-agent-*` worktrees checked clean this session. 555/555 tests fresh on merged `main`, build clean.
+
+### What's next, concretely
+1. **Next per `gavi411-finish-line-plan.md`: WP11.5 (G411-117, Write project README)** — runs after WP11 (just closed) so it documents the final, cleaned structure; runs before WP12 close-out. Confirm scope with Gavi at STOP 1, don't assume — per STOP 4, a clean merge never implies "start the next one."
+2. Still open, not blocking: the pre-existing `index.css` design-hook findings, the `/impeccable document` sidecar refresh, `ConfirmModal.jsx`'s own stray `variant="purple"`, `App.jsx`'s pre-existing unused `signOut` destructure (found during PR5's review, not introduced by it — not fixed since it predates this ticket and wasn't this PR's job).
+3. **G411-127** (Clerk profile sync webhook) sits in the V2/Stretch backlog (G411-57), not blocking — filed accurately this session, needs no further action now.
+
+---
+
 ## Where this session left off (2026-09-23, latest) — G411-116 (WP11 cleanup pass, PR 5 of 5, FINAL PR: tests + scope-gap files) built, ready for review, not yet pushed
 
 **Picked up PR 5 at STOP 1** — scoped as all 37 `.test.js` files repo-wide (comment cleanup, including test-name history citations like "Sibling review finding" embedded inside `it(...)` strings — confirmed with Gavi that stripping those loses nothing, since brain.md/git-log/Jira already fully cover the same history).
