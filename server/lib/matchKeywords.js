@@ -1,14 +1,11 @@
-// Keyword-matching engine (G411-19).
-// Given free text, look up the DB-backed Trigger table and return the
+// Given free text, looks up the DB-backed Trigger table and returns the
 // distinct RequestTypes whose keyword appears in the text. Deterministic,
-// no LLM — case-insensitive word-boundary match, run once (called from the
-// frontend's Continue action, not live/debounced).
+// no LLM — case-insensitive word-boundary match, run once.
 //
 // Word boundaries use Unicode property escapes (\p{L}\p{N}), not \b/\w —
-// \b is ASCII-only and does not treat Hebrew letters as word characters,
-// which would break bidi text (G411-63). Keywords may be multi-word
-// phrases (e.g. "go to", "rental car" — see prisma/seed.js), so boundaries
-// are checked at the phrase's start/end, not per inner word.
+// \b is ASCII-only and doesn't treat Hebrew letters as word characters,
+// which would break bidi text. Keywords may be multi-word phrases, so
+// boundaries are checked at the phrase's start/end, not per inner word.
 
 import { prisma } from './prisma.js'
 

@@ -1,38 +1,21 @@
-// Clerk auth middleware (G411-13, [Agentic])
+// Clerk auth middleware. Uses @clerk/express rather than hand-rolling JWT
+// verification. Docs: https://clerk.com/docs/references/express/overview
 //
-// Uses Clerk's own Express SDK (@clerk/express) rather than hand-rolling
-// JWT verification — it already knows how to verify a Clerk session token
-// (JWT under the hood) against Clerk's public keys and expose the result.
-// Docs: https://clerk.com/docs/references/express/overview
-//
-// Setup Gavi needs to do (can't be verified without these):
-//   1. Create a Clerk app at https://dashboard.clerk.com
-//   2. Copy the Secret Key and Publishable Key from Clerk's API Keys page
-//   3. Add to server/.env (see server/.env.example):
-//        CLERK_SECRET_KEY=sk_test_...
-//        CLERK_PUBLISHABLE_KEY=pk_test_...
-//   4. @clerk/express reads CLERK_SECRET_KEY from process.env automatically
-//      (via clerkMiddleware() in server.js) — no manual key-passing needed
-//      as long as dotenv/config has already loaded it.
+// Requires CLERK_SECRET_KEY/CLERK_PUBLISHABLE_KEY in server/.env (see
+// server/.env.example) — read automatically by clerkMiddleware() below.
 
 import { clerkMiddleware, clerkClient, getAuth } from '@clerk/express'
 import { prisma } from '../lib/prisma.js'
 import { claimInvite, linkClaimedInvite, unclaimInvite } from '../lib/invites.js'
 import { initialCreditFor } from '../lib/credits.js'
 
-// clerkClient — call once per server, mounted globally in server.js.
-// Reads the session cookie / Authorization: Bearer <token> header on every
-// request and (if present+valid) populates req.auth. Does NOT reject
-// unauthenticated requests by itself — that's requireAuth's job below.
+// Mounted globally in server.js. Populates req.auth if a valid session is
+// present, but doesn't reject unauthenticated requests itself — that's
+// requireAuth's job below.
 export { clerkMiddleware }
 
-// requireAuth — protects a route: 401s if there's no valid Clerk session,
-// otherwise loads the matching User row (keyed by clerkId, per
-// prisma/schema.prisma) and attaches it as req.user.
-//
-// Ponytail: no separate "attachUser"/"requireAuth" split — one middleware,
-// since every route that needs a user also needs auth. Split them if a
-// route ever needs optional auth (user attached if present, not required).
+// Protects a route: 401s with no valid Clerk session, otherwise loads the
+// matching User row (keyed by clerkId) and attaches it as req.user.
 export async function requireAuth(req, res, next) {
   const { userId } = getAuth(req)
 
@@ -41,68 +24,36 @@ export async function requireAuth(req, res, next) {
   }
 
   // First authenticated request from a given Clerk user: create the local
-  // User row if it doesn't exist yet.
+  // User row if it doesn't exist yet, fetching real name/email from
+  // Clerk's Backend API (session-JWT claims alone don't include them).
   //
-  // G411-76: session-JWT claims (req.auth.sessionClaims) do NOT include
-  // firstName/lastName/email without a custom Clerk JWT template — none is
-  // configured, so every row created via the old claims-based code had
-  // permanently blank names. Fetching the real user record from Clerk's
-  // Backend API on creation gets the actual data instead.
   // ponytail: synced at signup + on Profile-page exit (see completeProfile.js's
   // sync-from-clerk route) — a Clerk edit made elsewhere still needs a real
   // webhook (G411-127) to reach here immediately.
   let user = await prisma.user.findUnique({ where: { clerkId: userId } })
 
   if (!user) {
-    // G411-81: the real gate. App.jsx's SignIn-blocking (G411-41) only
-    // stops our own UI from offering sign-up — Clerk hosts its own
-    // account portal at a fixed, guessable URL (independent of our
-    // React app) that anyone can reach directly, bypassing that UI
-    // entirely. This is the actual enforcement point: no NEW User row
-    // gets created without a valid, unused invite token in the same
-    // request, no matter how the visitor reached Clerk sign-up. An
-    // account created by going around our UI ends up with a real Clerk
-    // identity but no linked app data — permanently stuck at this 403,
-    // never a usable signed-in state (this ticket's Falsifier).
+    // Real invite-gate enforcement point: no new User row without a valid,
+    // unused invite token, regardless of how the visitor reached Clerk
+    // sign-up (Clerk's hosted portal is reachable independent of our UI).
     //
-    // Sibling review finding: this used to be a read-only check
-    // (findUnique + !invite.usedAt) with the actual claim happening
-    // separately, much later — a real window (spanning a Clerk API call
-    // and a DB write) where two concurrent signups sharing one token
-    // could both pass the read-check before either claimed it, letting
-    // one single-use invite seed two accounts. claimInvite() is a single
-    // atomic conditional UPDATE — its own WHERE clause IS the validity
-    // check, so "claimed" and "valid" can no longer disagree between two
-    // racing requests. Runs BEFORE any Clerk API call or DB write, so an
-    // invalid/already-claimed token is rejected as cheaply as possible.
+    // claimInvite() is a single atomic conditional UPDATE — its own WHERE
+    // clause is the validity check, closing the TOCTOU window a separate
+    // read-then-claim would have. Runs before any Clerk API call or DB
+    // write. usedByUserId is filled in later by linkClaimedInvite() once
+    // the User row exists (it's a FK that doesn't exist yet here).
     //
-    // Two-phase (see lib/invites.js): claimInvite() only sets `usedAt`
-    // here — usedByUserId is a foreign key to User.clerkId, which
-    // doesn't exist yet at this point, so it can't be set in this same
-    // write (hit live: FK violation on an earlier single-write version).
-    // linkClaimedInvite() fills usedByUserId in once the User row exists.
-    //
-    // React StrictMode (dev) double-fires the request carrying this
-    // header, so the SAME legitimate signup genuinely sends it twice,
-    // nearly simultaneously. If claimInvite() fails here, it's either a
-    // genuinely invalid/already-used token (403), or this request's own
-    // duplicate lost the race to its sibling — distinguished by
-    // re-checking for a User row: if one now exists (the sibling
-    // finished creating it), fall through and use it instead of 403ing
-    // a real signup.
+    // React StrictMode double-fires this request in dev, so a genuine
+    // signup can hit claimInvite() twice nearly simultaneously — a failed
+    // claim re-checks for a User row before 403ing, in case the sibling
+    // request already finished creating it.
     const inviteToken = req.headers?.['x-invite-token']
     const claimed = await claimInvite(inviteToken)
 
     if (!claimed) {
-      // Sibling review finding: a failed claim here doesn't necessarily
-      // mean an invalid token — it could be a genuine concurrent
-      // duplicate request (a browser-level retry; App.jsx's
-      // AbortController already prevents React StrictMode's own
-      // duplicate from reaching this far) that lost the claim to its
-      // sibling, which may still be mid-flight (blocked on the Clerk API
-      // call below) rather than finished creating the User row yet. A
-      // short bounded retry — not unbounded — covers that realistic
-      // window without turning a genuinely invalid token into a hang.
+      // Bounded retry: the sibling StrictMode request may still be
+      // mid-flight (blocked on the Clerk API call below) rather than
+      // finished — not necessarily an invalid token.
       for (let attempt = 0; attempt < 3 && !user; attempt++) {
         if (attempt > 0) await new Promise((resolve) => setTimeout(resolve, 150))
         user = await prisma.user.findUnique({ where: { clerkId: userId } })
@@ -142,32 +93,13 @@ export async function requireAuth(req, res, next) {
             firstName: clerkUser.firstName ?? '',
             lastName: clerkUser.lastName ?? '',
             email,
-            // Clerk manages phone verification and doesn't support
-            // Israeli numbers, so phone is collected in our own app
-            // instead (G411-69) — phoneNumber is required + unique on
-            // our side, so this is a placeholder until that flow fills
-            // it in.
-            phoneNumber: `pending-${userId}`,
-            // G411-69: capture profile photo from Clerk's OAuth provider
-            // (Google/email sign-in) if available. For email-only signup
-            // (no OAuth photo), leave as null (schema default).
+            phoneNumber: `pending-${userId}`, // Clerk doesn't support Israeli numbers; collected in-app instead
             ...(clerkUser.hasImage ? { profilePic: clerkUser.imageUrl } : {}),
-            // G411-80: pull username from Clerk at signup (nullable like
-            // Clerk's own username field — some accounts don't have one).
             username: clerkUser.username ?? null,
-            // G411-45: initial grant is no longer hardcoded 0 (real bug —
-            // new users couldn't submit even one request until manually
-            // topped up). NOT yet tiered by group in practice: groupTag
-            // isn't collected anywhere at/before signup, so every new user
-            // gets initialCreditFor's REGULAR-tier amount today.
-            // initialCreditFor(LIMITED/CLOSE) only becomes reachable once
-            // groupTag collection exists — that's separate scope, not this
-            // ticket's job.
+            // groupTag isn't collected at signup, so every new user gets
+            // initialCreditFor's REGULAR-tier amount today.
             creditBalance: initialCreditFor(undefined),
-            // G411-46: initialize the reset timestamp at signup so the
-            // monthly reset job doesn't immediately re-reset a brand-new
-            // user on its next pass. Existing users have null; the job
-            // treats null as "never reset yet, do it now."
+            // null (not 0) means "never reset yet" to the monthly reset job
             creditsResetAt: new Date(),
           },
         })
@@ -188,20 +120,14 @@ export async function requireAuth(req, res, next) {
     }
   }
 
-  // G411-96: the one choke point every authenticated request passes
-  // through — soft-deleted accounts must be actually locked out here, not
-  // just have PII scrubbed. Without this, a Clerk-delete failure during
-  // DELETE /api/me (network blip, API error — a case that route already
-  // anticipates and doesn't fail on) leaves a still-valid Clerk session
-  // able to keep using the app under the "deleted" account (Sibling
-  // review finding).
+  // Soft-deleted accounts are locked out here, not just PII-scrubbed — a
+  // Clerk-delete failure during DELETE /api/me could otherwise leave a
+  // still-valid session usable under a "deleted" account.
   if (user.isDeleted) {
     return res.status(401).json({ error: 'Unauthorized' })
   }
 
-  // G411-99: admin-blocked accounts are also locked out at the same choke
-  // point, same pattern as isDeleted. Blocking is reversible (unlike
-  // deletion) — clearing isBlocked re-enables the account immediately.
+  // Reversible (unlike isDeleted) — clearing isBlocked re-enables immediately.
   if (user.isBlocked) {
     return res.status(401).json({ error: 'Unauthorized' })
   }
@@ -210,11 +136,8 @@ export async function requireAuth(req, res, next) {
   next()
 }
 
-// requireAdmin — chains after requireAuth (needs req.user already set).
-// 404s rather than 403s for a non-admin, same no-route-existence-leak
-// convention used everywhere this check appears. Sibling review finding
-// (G411-28 PR #35): this exact 2-line check was hand-copied 5 times across
-// invites.js and devices.js before being extracted here.
+// Chains after requireAuth (needs req.user set). 404s rather than 403s
+// for a non-admin — no-route-existence-leak convention used app-wide.
 export function requireAdmin(req, res, next) {
   if (req.user.role !== 'ADMIN') {
     return res.status(404).json({ error: 'Not found' })

@@ -1,22 +1,9 @@
-// G411-93: Nudge-driven escalation system (unified manual nudge + auto-close).
-// Replaces the old 12-day-warn/14-day-close logic with a two-nudge sequence:
-// (1) Manual nudge #1 only: admin must explicitly nudge once per cycle.
-// (2) Auto-escalation, triggered only if nudged:
-//     - Nudge #2 at +7 days (auto-fired if no friend reply since nudge #1)
-//     - Auto-close at +14 days (if nudge #2 sent and still no friend reply)
-// (3) Friend reply resets: any friend message clears nudgedAt, ending the
-//     escalation sequence until admin nudges again.
+// Nudge-driven escalation: manual nudge #1, then auto nudge #2 at +7 days
+// and auto-close at +14 days if no friend reply. A friend reply clears
+// nudgedAt, ending the sequence until admin nudges again.
 //
-// "Inactivity" is measured from the LAST MESSAGE's createdAt (or the
-// request's own createdAt if it has no messages yet) — NOT Request.updatedAt.
-// A status/urgency PATCH bumps updatedAt via Prisma's @updatedAt but a new
-// Message never touches the Request row, so updatedAt would go stale the
-// moment the friend actually replies without also changing status. See
-// prisma/schema.prisma's Request/Message models.
-//
-// System messages (nudge #1, nudge #2, marked with isSystem: true) are
-// authored as the admin account but not "admin replies" for refund purposes —
-// hasAdminMessaged() excludes them (G411-31/93).
+// System messages (isSystem: true) are excluded from hasAdminMessaged()'s
+// refund check — they're not real admin replies.
 
 import { Status } from '@prisma/client'
 import { prisma } from './prisma.js'
@@ -32,7 +19,6 @@ const DAY_MS = 24 * 60 * 60 * 1000
 const NUDGE_TWO_AFTER_MS = 7 * DAY_MS
 const CLOSE_AFTER_MS = 14 * DAY_MS
 
-// Nudge copy strings (G411-93)
 const NUDGE_ONE_TEXT = 'Hey, Gavi is waiting for your response'
 const NUDGE_TWO_TEXT = 'Still haven\'t heard back — if I don\'t hear from you soon I\'ll likely go ahead and close this request.'
 
@@ -67,7 +53,6 @@ export async function sendNudge(requestId, admin = null) {
     })
   })
 
-  // Notify friend of nudge #1 (G411-51)
   notifyUser(result.userId, {
     title: 'Reminder',
     body: NUDGE_ONE_TEXT,
@@ -79,30 +64,12 @@ export async function sendNudge(requestId, admin = null) {
   return result
 }
 
-// Runs one pass of the auto-close check over every WAITING_ON_USER
-// request where nudgedAt is NOT null (i.e., admin has already nudged).
-// For each:
-// - If 7+ days since nudgedAt and nudge #2 hasn't been sent yet: send nudge #2
-// - If 14+ days since nudgedAt and nudge #2 was already sent and no friend
-//   reply since: close the request
-// - Requests with nudgedAt null are skipped entirely — no automated action
-//   fires until admin has manually nudged once.
+// One pass over every WAITING_ON_USER request with nudgedAt set: sends
+// nudge #2 at +7 days, closes at +14 days if still no friend reply.
 //
-// Nudge #2 is detected by checking for an isSystem message with NUDGE_TWO_TEXT
-// created after the request's nudgedAt timestamp.
-//
-// Friend replies reset nudgedAt to null, ending the escalation sequence until
-// admin nudges again (see requests.js's POST /:id/messages route).
-//
-// The CLOSED write happens inside a transaction that re-reads the
-// request's status FRESH immediately before writing (Sibling review
-// finding — the original version read status once via the top-level
-// findMany and could still close a request that had just been replied to
-// or moved off WAITING_ON_USER by a concurrent PATCH/message in the gap
-// between that read and this write; same TOCTOU class the reopen-on-
-// message transaction in requests.js already guards against). If the
-// fresh read shows the request is no longer WAITING_ON_USER, the close is
-// skipped — someone else already acted on it.
+// Re-reads status fresh inside the transaction before closing — a
+// concurrent reply/PATCH could have moved it off WAITING_ON_USER since
+// the top-level findMany, and that write must not be clobbered.
 export async function runAutoCloseCheck() {
   const nudgedRequests = await prisma.request.findMany({
     where: { status: Status.WAITING_ON_USER, nudgedAt: { not: null } },
@@ -129,7 +96,6 @@ export async function runAutoCloseCheck() {
         }
       })
 
-      // Notify friend of auto-close (G411-51)
       notifyUser(req.userId, {
         title: 'Request closed',
         body: 'Your request has been automatically closed due to inactivity',
@@ -149,7 +115,6 @@ export async function runAutoCloseCheck() {
         })
       })
 
-      // Notify friend of nudge #2 (G411-51)
       notifyUser(req.userId, {
         title: 'Reminder',
         body: NUDGE_TWO_TEXT,
