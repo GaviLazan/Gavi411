@@ -9,30 +9,6 @@ import { buildSearchIndex, searchIndex } from "../lib/searchIndex";
 import { loadLinkedConversationKeys } from "../lib/deviceLinking";
 import { seedLinkedConversationKeys } from "../lib/conversationCrypto";
 
-// Admin request-list screen (G411-37). Distinct from the friend-facing
-// RequestList — decision #46 (gavi411-brain.md) specs this as its own
-// screen: a persistent sort/filter/group dropdown row at top (not tucked
-// behind a toggle), flat rows sorted by urgency oldest-first by default,
-// each showing avatar + friend's name + request type + short preview +
-// urgency + time since last activity.
-//
-// Reuses GET /api/requests (same route RequestList already calls) — the
-// admin branch of that route now includes a narrow `user` select
-// (firstName/lastName/profilePic) so this screen has what it needs
-// without a new endpoint (G411-37 backend fix).
-//
-// Search (G411-28) lives directly on this screen, not behind a separate
-// "Search" button/view — Gavi's direct feedback after first review: he
-// expects to search the list he's already looking at, not get bounced to
-// a different page. Fetches ?include=messages (full ordered bodies, same
-// as RequestList's admin search always did) and builds the same
-// client-side decrypted index RequestList used to build — a search in
-// progress filters `sorted`/`groups` in place instead of swapping views.
-//
-// Sort/filter/timeSince logic itself lives in lib/adminListSort.js (real
-// test coverage there — this codebase's convention is lib/ gets tested,
-// page components don't).
-
 const SORT_OPTIONS = [
   { value: "newest", label: "Newest first" },
   { value: "oldest", label: "Oldest first" },
@@ -49,10 +25,8 @@ const GROUP_OPTIONS = [
   { value: "person", label: "By person" },
 ];
 
-// Small WhatsApp-style avatar — photo if present, initials fallback
-// otherwise (decision #46). No new component: this is the only caller
-// today, and it's simple enough that a dedicated Avatar.jsx would be
-// speculative until a second caller actually needs it.
+// ── Avatar ──
+// WhatsApp-style avatar: photo if present, initials otherwise
 function Avatar({ user }) {
   const initials = user ? `${user.firstName?.[0] ?? ""}${user.lastName?.[0] ?? ""}`.toUpperCase() : "?";
   const style = {
@@ -74,25 +48,15 @@ function Avatar({ user }) {
   return <div style={style}>{initials}</div>;
 }
 
+// ── Row ──
 function AdminRequestRow({ request, onClick }) {
   const user = request.user;
   const friendName = user ? `${user.firstName} ${user.lastName}` : "Unknown";
   return (
     <button type="button" className="request-card-button" onClick={onClick}>
-      {/* flexDirection is set explicitly because `.app-shell .card`
-          (App.css) declares `flex-direction: column` for page-level
-          cards, and this inline style previously set only `display:
-          flex` — so the class won for direction and turned this row
-          into a vertical stack. In a column container `align-items`
-          runs on the horizontal axis and the text child sizes to its
-          own content, so a freeText with no spaces overflowed the card
-          on both sides (Gavi, live on mobile). */}
       <Card style={{ width: "100%", textAlign: "start", display: "flex", flexDirection: "row", gap: "var(--space-3)", alignItems: "center" }}>
         <Avatar user={user} />
         <div style={{ flex: 1, minWidth: 0 }}>
-          {/* dir="auto" (Sibling review finding): firstName/lastName are
-              freeform Clerk profile fields, same category as freeText
-              below — can contain Hebrew, need correct bidi rendering. */}
           <p dir="auto" style={{ fontWeight: 600, display: "flex", alignItems: "center", gap: "var(--space-1)" }}>
             {request.urgency === "HIGH" && (
               <span
@@ -130,9 +94,6 @@ function AdminRequestRow({ request, onClick }) {
           </p>
         </div>
         <div style={{ textAlign: "end", flexShrink: 0, fontSize: 13 }}>
-          {/* Status wasn't shown anywhere in this row — the only way to
-              tell was indirectly, via which side of the Open/Closed
-              filter a request landed on (Gavi, live testing). */}
           <p style={{ fontWeight: 600 }}>{statusLabel(request.status)}</p>
           <p style={{ color: "var(--text)" }}>{statusLabel(request.urgency)}</p>
           <p style={{ color: "var(--text)" }}>{timeSince(lastActivityAt(request))}</p>
@@ -142,9 +103,8 @@ function AdminRequestRow({ request, onClick }) {
   );
 }
 
-// G411-106: sessionStorage key for the sort/group/urgent-only list
-// preferences (not `filter` -- that's a controlled prop synced from
-// App.jsx's own navigation state, not a local preference).
+// ── Main component ──
+// sessionStorage key for sort/group/urgent-only preferences
 const LIST_PREFS_STORAGE_KEY = "gavi411_admin_list_prefs";
 
 function loadListPrefs() {
@@ -164,37 +124,17 @@ function AdminList({ onOpenRequest, onNewRequest, filter: filterProp, onRequests
   const [urgentOnly, setUrgentOnly] = useState(() => loadListPrefs().urgentOnly ?? false);
   const [retryToken, setRetryToken] = useState(0);
 
-  // G411-106: persist sort/group/urgentOnly whenever any of them change.
+  // Persist sort/group/urgentOnly preferences
   useEffect(() => {
     sessionStorage.setItem(LIST_PREFS_STORAGE_KEY, JSON.stringify({ sort, group, urgentOnly }));
   }, [sort, group, urgentOnly]);
 
-  // `filter` is a real controlled prop from App.jsx (G411-95): this
-  // component is now kept mounted once (hidden, not unmounted) across
-  // Open requests <-> Closed requests navigation, same pattern as the
-  // home-screen list (G411-89) — so `filter` needs to track filterProp
-  // on every change, not just read it once at mount. An earlier version
-  // used a one-time initialFilter with a fresh AdminList instance per
-  // view; forcing that remount via a `key` prop worked but threw away
-  // the already-fetched list and refetched on every single switch, for
-  // what's really just a client-side filter change (Gavi's catch: no
-  // reason to reload the whole list to show 10 of the same 50 rows).
+  // filter is a controlled prop: track it on every change
   useEffect(() => {
     if (filterProp) setFilter(filterProp);
   }, [filterProp]);
 
-  // Local dropdown changes (the admin manually picking a filter) still
-  // work exactly as before — setFilter below, unrelated to filterProp.
-
-  // Plain GET /api/requests by default — the lightweight admin path
-  // (narrow `user` select + one-row-per-request `message` for "time
-  // since last activity", not full bodies). Sibling review finding: an
-  // earlier version of this fix always fetched ?include=messages (for
-  // search), which silently defeated the point of that lightweight path
-  // — every list load paid for every message body whether or not the
-  // admin ever searched. Full messages are now fetched lazily, only once
-  // the admin actually starts typing a search query (see the search
-  // effect below), so the default list load stays on the cheap path.
+  // Fetch list: lightweight by default, full messages only on search
   useEffect(() => {
     let cancelled = false;
     async function load() {
@@ -221,11 +161,7 @@ function AdminList({ onOpenRequest, onNewRequest, filter: filterProp, onRequests
   const [searchQuery, setSearchQuery] = useState("");
   const [searchRequests, setSearchRequests] = useState(null);
 
-  // Lazy: only fetches full message bodies, seeds this device's linked
-  // keys, and builds the decrypted search index once the admin actually
-  // types something — a plain list view never pays this cost. Same
-  // "decrypt all up front, once" shape RequestList's admin search used,
-  // just deferred until it's actually needed.
+  // Lazy search: fetch full messages and build index only when searching
   useEffect(() => {
     let cancelled = false;
     if (!searchQuery.trim()) {
@@ -254,11 +190,7 @@ function AdminList({ onOpenRequest, onNewRequest, filter: filterProp, onRequests
     };
   }, [searchQuery, searchRequests]);
 
-  // Message-content matches (decrypted, via searchIndex) UNIONED with
-  // plaintext-field matches (name/title/type — no decryption needed, all
-  // already in memory). Gavi's direct feedback: message-only search is
-  // "pretty dumb" — a request with no matching message (or none at all)
-  // was unfindable even when its name/title/type were an obvious match.
+  // Match message content AND plaintext fields (name/title/type)
   const matchingRequestIds = useMemo(() => {
     if (!searchQuery.trim()) return null; // null = "no search active", not "matched nothing"
     const ids = new Set(searchIndex(searchEntries, searchQuery).map((e) => e.requestId));
@@ -268,46 +200,20 @@ function AdminList({ onOpenRequest, onNewRequest, filter: filterProp, onRequests
     return ids;
   }, [searchEntries, searchQuery, requests]);
 
-  // A search in progress bypasses sort/filter/group entirely — search
-  // means "show me every match across the whole list," not "respect
-  // whatever sort/filter/group happens to be set" (same reasoning
-  // RequestList's own search used).
+  // Active search bypasses sort/filter/group
   const sorted = useMemo(() => {
     if (!requests) return [];
-    // Searching and not-searching are textually distinct branches instead
-    // of routing both through filterRequests via a magic "all" sentinel
-    // (Sibling review finding — that meant a reader had to open
-    // filterRequests to learn "all" means "no-op passthrough").
-    // Sibling review finding: this used to call sortRequests
-    // unconditionally, so an active search still applied the (disabled,
-    // supposedly inert) Sort dropdown's stale value — contradicting the
-    // comment above and the disabled UI's implication that sort no
-    // longer applies during a search.
     if (matchingRequestIds) {
       return requests.filter((r) => matchingRequestIds.has(r.id));
     }
     return sortRequests(filterByUrgency(filterRequests(requests, filter), urgentOnly), sort);
   }, [requests, filter, sort, urgentOnly, matchingRequestIds]);
 
-  // One shape either way — a list of groups, ungrouped is just one group
-  // holding everything (Sibling review finding: two near-identical render
-  // blocks, kept in sync by hand, collapsed into a single map below).
-  // groupByPerson over an already-sorted/filtered admin-scale array is
-  // cheap enough not to need its own memo separate from `sorted`.
-  //
-  // isGrouped named once (Sibling review finding) — the render key below
-  // used to re-derive this same condition independently, a future edit to
-  // the grouping rule could update one and silently miss the other.
+  // Ungrouped = one group holding everything; grouped by person otherwise
   const isGrouped = group === "person" && !matchingRequestIds;
   const groups = isGrouped ? groupByPerson(sorted) : [sorted];
 
-  // "+ New ask" renders in EVERY state below (error, loading,
-  // loaded) — creating a request has nothing to do with whether the
-  // existing list could be fetched (same reasoning RequestList's own
-  // button uses; a real bug in an earlier draft of this fix put the
-  // button after the error/loading early-returns, so it silently
-  // vanished whenever the list hadn't finished loading — caught live,
-  // Gavi couldn't find the button at all).
+  // "+ New ask" renders in all states (loading, error, loaded)
   if (error) {
     return (
       <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-4)", width: "100%", maxWidth: 420 }}>
@@ -353,10 +259,7 @@ function AdminList({ onOpenRequest, onNewRequest, filter: filterProp, onRequests
         onChange={(e) => setSearchQuery(e.target.value)}
       />
 
-      {/* Persistent sort/filter/group row (decision #46) — always visible
-          at top, not tucked behind a toggle. Disabled during an active
-          search — search shows every match regardless of sort/filter/
-          group, same reasoning RequestList's own search used. */}
+      {/* Sort/filter/group controls; disabled during search */}
       <div style={{ display: "flex", gap: "var(--space-3)", flexWrap: "wrap", alignItems: "center" }}>
         <Select id="admin-sort" label="Sort" options={SORT_OPTIONS} value={sort} onChange={(e) => setSort(e.target.value)} disabled={!!matchingRequestIds} />
         <Select id="admin-filter" label="Filter" options={FILTER_OPTIONS} value={filter} onChange={(e) => setFilter(e.target.value)} disabled={!!matchingRequestIds} />
@@ -372,8 +275,6 @@ function AdminList({ onOpenRequest, onNewRequest, filter: filterProp, onRequests
       )}
 
       {groups.map((groupRequests, i) => (
-        // Ungrouped (or searching): one group, key by position (stable,
-        // only one ever exists). Grouped: key by the group's own userId.
         <div key={isGrouped ? groupRequests[0]?.userId : i} style={{ display: "flex", flexDirection: "column", gap: "var(--space-2)" }}>
           {groupRequests.map((r) => (
             <AdminRequestRow key={r.id} request={r} onClick={() => onOpenRequest(r.id)} />

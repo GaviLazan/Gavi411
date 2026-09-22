@@ -1,12 +1,6 @@
 import Card from "../components/Card";
 
-// Real page (G411-67 — the file existed with content but nothing linked
-// to it). Previously fetched and rendered client/public/install-ios.md as
-// raw <pre> text — literal `**bold**` markers, backticks, and an internal
-// dev-facing "ponytail: this is a placeholder" footer were all visible to
-// real friends. G411-112: real JSX, structure only — final copy lands in
-// WP10. No in-page Back button: the app bar's own chevron already covers
-// every non-'list' view, including this one (App.jsx line ~492).
+// Installation help for iOS
 function InstallHelp() {
   return (
     <Card style={{ width: "100%", textAlign: "start" }}>

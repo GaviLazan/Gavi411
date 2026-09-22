@@ -5,22 +5,7 @@ import Icon from '../components/Icon'
 import { formatDayLabel, formatTime } from '../lib/format'
 import './NotificationHistory.css'
 
-// Notification history page (G411-98) — shows all notifications sent to
-// the signed-in user, newest first. Opening the screen marks everything
-// read in the background, but unread items still show a visual marker
-// for this one viewing (Gavi's follow-up ask) — otherwise the
-// distinction would vanish the instant mark-all-read resolves, before
-// anyone could ever see it. `wasUnreadIds` is a local-only snapshot,
-// taken from the fetch response BEFORE the mark-all-read call, and never
-// re-derived from the server afterward.
-//
-// G411-112: onto the design system. Flat list items instead of
-// cards-inside-a-card; the unread marker is now a bold title + leading
-// dot rather than a 3px gold left border (flagged as an "AI-UI tell").
-// The row's own open-request action and the mark-unread toggle are now
-// sibling buttons, not a button nested inside a clickable <li> —
-// nested interactive elements are an accessibility problem the old
-// markup had (a <button> inside an element with its own role="button").
+// Notification history: shows all notifications, newest first
 function NotificationHistory({ onOpenRequest, onCleared }) {
   const [notifications, setNotifications] = useState([])
   const [wasUnreadIds, setWasUnreadIds] = useState(new Set())
@@ -37,14 +22,7 @@ function NotificationHistory({ onOpenRequest, onCleared }) {
         setNotifications(data)
         setWasUnreadIds(new Set(data.filter((n) => !n.readAt).map((n) => n.id)))
         setLoading(false)
-        // Mark all as read only after the unread snapshot above is taken
-        // — doing this in parallel with the fetch (as before) races it:
-        // if mark-all-read resolves first, every row would already read
-        // as read by the time the snapshot is taken, and the marker
-        // would never show at all.
-        fetch('/api/notifications/mark-all-read', { method: 'POST' }).catch(() => {
-          // Silently ignore — the history still loaded fine either way.
-        })
+        fetch('/api/notifications/mark-all-read', { method: 'POST' }).catch(() => {})
       })
       .catch((err) => {
         setError(err.message)
@@ -69,7 +47,6 @@ function NotificationHistory({ onOpenRequest, onCleared }) {
       .catch(() => setError("Couldn't update that. Try again?"))
   }
 
-  // G411-107: clear all notifications
   async function handleClearAll() {
     try {
       const res = await fetch('/api/notifications/clear-all', { method: 'POST' })

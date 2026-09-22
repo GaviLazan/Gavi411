@@ -1,7 +1,3 @@
-/* G411-112: onto the design system — flat list items inside the card,
-   not cards-inside-a-card. The unread marker is a bold title + leading
-   dot (below), not a 3px gold left border (removed — flagged as an
-   "AI-UI tell" pattern). */
 .notification-history {
   width: 100%;
   max-width: 420px;

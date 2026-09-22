@@ -1,6 +1,3 @@
-// Tests for the credit-adjustment input parsing (Gavi's ask: type a
-// target balance by default, or an explicit +N/-N delta).
-
 import { describe, it, expect } from 'vitest'
 import { creditInputToDelta } from './UserManagement'
 

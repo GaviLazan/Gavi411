@@ -6,13 +6,12 @@ import Select from '../components/Select'
 import Icon from '../components/Icon'
 import './TriggerAdmin.css'
 
-// Trigger/keyword admin UI (G411-42) — live-editable list feeding the
-// matching engine (G411-19). Same minimal pattern as InviteAdmin.jsx: a
+// Trigger/keyword admin UI — live-editable list feeding the
+// matching engine. Same minimal pattern as InviteAdmin.jsx: a
 // form to add, an inline edit/delete per row, no separate confirm step
 // (rename/delete of a keyword is easily reversed by typing it back in,
 // unlike an invite or a request status change).
 //
-// G411-112: onto the design system (Card/Button/Input/Select). No in-page
 // Back button — the app bar's own chevron already covers every non-'list'
 // view (see InstallHelp.jsx).
 const REQUEST_TYPES = ['TRAVEL', 'RESEARCH', 'PURCHASE', 'TECH_SUPPORT', 'INFO', 'GENERAL']

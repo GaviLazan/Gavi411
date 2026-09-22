@@ -1,6 +1,3 @@
-/* G411-112: Profile onto the design system — same Card layout for every
-   account, friend or admin, since this is always the signed-in user's own
-   data. */
 .profile-page {
   width: 100%;
   max-width: 420px;

@@ -33,58 +33,36 @@ const TYPE_LABELS = {
   GENERAL: "General",
 };
 
-// All real types, excluding GENERAL — used for the full-list override
-// ("Not quite?" / after "None of these"), since GENERAL is where the
-// friend already is in both of those cases, not a pickable escape.
 const ALL_TYPES = Object.keys(TYPE_LABELS).filter((t) => t !== "GENERAL");
 
-
-// New request intake screen (G411-18/19/21/22/23/65/74, step-machine +
-// review screen G411-64). Matching runs once on Continue (not
-// live-debounced, per Gavi).
-// onDone (G411-67): called after a successful submit's "back to my
-// requests" action — was previously a dead end. G411-111: now accepts
-// an optional requestId to open the created request directly.
+// ── State ──
 function NewRequest({ onDone, onExit, onFreeTextChange, isOnline }) {
   const [freeText, setFreeTextState] = useState("");
-  // Reports freeText up to App.jsx (Gavi's ask: the header logo should
-  // also be a working exit control during this flow, not just the
-  // in-card "×") — so the logo's click can run the same
-  // confirm-if-typed guard without lifting the whole flow's state.
   function setFreeText(value) {
     setFreeTextState(value);
     onFreeTextChange?.(value);
   }
-  const [step, setStep] = useState("describe"); // 'describe' | 'chips' | 'fields' | 'review' | 'done'
-  const [fieldStepIndex, setFieldStepIndex] = useState(0); // index into the current type's field-card sequence
+  const [step, setStep] = useState("describe");
+  const [fieldStepIndex, setFieldStepIndex] = useState(0);
   const [matchedTypes, setMatchedTypes] = useState([]);
-  const [selectedType, setSelectedType] = useState(null); // always a real chip-picked type now (see handleContinue)
-  const [pickedChip, setPickedChip] = useState(null); // highlighted-but-not-yet-confirmed chip on the "chips" step
+  const [selectedType, setSelectedType] = useState(null);
+  const [pickedChip, setPickedChip] = useState(null);
   const [urgency, setUrgency] = useState("NORMAL");
   const [additionalInfo, setAdditionalInfo] = useState("");
   const [showFullTypeList, setShowFullTypeList] = useState(false);
   const [travelDetails, setTravelDetails] = useState(EMPTY_TRAVEL_DETAILS);
   const [purchaseDetails, setPurchaseDetails] = useState(EMPTY_PURCHASE_DETAILS);
   const [techSupportDetails, setTechSupportDetails] = useState(EMPTY_TECH_SUPPORT_DETAILS);
-  // Which review rows are unlocked (click-to-edit) — lives here, not in
-  // LockedField itself, so it survives review's Card remounting when the
-  // friend goes Back into a field card and Continues again (Sibling
-  // review finding: a local useState there would silently re-lock).
   const [unlockedKeys, setUnlockedKeys] = useState(() => new Set());
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
   const [submitted, setSubmitted] = useState(false);
   const [createdRequest, setCreatedRequest] = useState(null);
   const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
-  // G411-47: set when a normal submit 402s specifically on "still have
-  // credits available"-style insufficient balance — offers "Request
-  // anyway" instead of just the generic error. Cleared on any other
-  // outcome so a stale offer never lingers across a retry.
   const [overdraftEligible, setOverdraftEligible] = useState(false);
-  // Distinct from `submitted` — an overdraft ask is pending admin review,
-  // not an accepted request, so "done" needs different copy.
   const [overdraftPending, setOverdraftPending] = useState(false);
 
+  // ── Handlers ──
   async function handleContinue() {
     setSubmitError("");
     const res = await fetch("/api/requests/match", {
@@ -99,17 +77,10 @@ function NewRequest({ onDone, onExit, onFreeTextChange, isOnline }) {
     const { matchedTypes } = await res.json();
     setMatchedTypes(matchedTypes);
 
-    // Zero matches still lands on the chip screen (Gavi's call, reversing
-    // an earlier decision to skip straight to GENERAL) — but there's
-    // nothing to show as a "suggestion," so it goes straight to the same
-    // full 5-type list "None of these" already reveals, rather than an
-    // empty chip row the friend has to click through.
     setShowFullTypeList(matchedTypes.length === 0);
     setStep("chips");
   }
 
-  // Clicking a chip only highlights it (Gavi's call — click to select,
-  // not to advance); confirming needs an explicit Continue.
   function handleChipPick(type) {
     setPickedChip(type);
   }
@@ -129,19 +100,11 @@ function NewRequest({ onDone, onExit, onFreeTextChange, isOnline }) {
   }
 
   function handleNoneOfThese() {
-    // Rejecting real suggestions goes straight to the full type list,
-    // not through GENERAL first — re-showing a partial list would be
-    // redundant since the friend already said none of it fit. Immediate,
-    // not gated behind Continue — it's an escape hatch to a different
-    // list, not a type pick to confirm.
     setPickedChip(null);
     setShowFullTypeList(true);
     setStep("chips");
   }
 
-  // typeDetails per selectedType — undefined for RESEARCH/INFO (no
-  // dedicated fields), matching the backend's stripEmpty(undefined) ->
-  // undefined handling.
   function currentTypeDetails() {
     if (selectedType === "TRAVEL") return travelDetails;
     if (selectedType === "PURCHASE") return purchaseDetails;
@@ -149,12 +112,6 @@ function NewRequest({ onDone, onExit, onFreeTextChange, isOnline }) {
     return undefined;
   }
 
-  // TRAVEL is the one type with more than one field-card (G411-64 pickup:
-  // dates and preferences checked live at real phone height and don't fit
-  // combined, so they stay separate, matching the mockup). Every other
-  // type is a single field-card. Building this array fresh per render
-  // (not memoized) — it's cheap and keeps the field components simple
-  // (they don't need to know they're "step 2 of 4").
   function fieldSteps() {
     if (selectedType === "TRAVEL") {
       const steps = [
@@ -204,8 +161,6 @@ function NewRequest({ onDone, onExit, onFreeTextChange, isOnline }) {
       ];
       return steps;
     }
-    // RESEARCH/INFO (no dedicated fields per PRD) share the same
-    // additionalInfo field/state.
     const steps = [
       <GeneralFollowupFields
         key="general"
@@ -221,10 +176,6 @@ function NewRequest({ onDone, onExit, onFreeTextChange, isOnline }) {
     return steps;
   }
 
-  // Whether the CURRENT field card has any of its own optional content
-  // filled in — drives the Continue/Skip label. Urgency is deliberately
-  // excluded (it always has a real default, "NORMAL", so it's never
-  // truly "empty" the way a blank text field is).
   function currentFieldStepIsEmpty() {
     if (selectedType === "TRAVEL") {
       if (fieldStepIndex === 0) {
@@ -236,11 +187,6 @@ function NewRequest({ onDone, onExit, onFreeTextChange, isOnline }) {
       if (fieldStepIndex === 2) {
         return !travelDetails.preferredAirlines && !travelDetails.layoverPreference && !travelDetails.otherPreferences;
       }
-      // card 3: bookings — flights/hotel/car are all opt-in toggles already.
-      // A flight added via "+ Add flight" but left entirely blank still
-      // counts as empty (Sibling review finding: flights.length === 0
-      // alone missed this — an added-but-blank entry made the button
-      // read "Continue" despite no real data).
       const hasRealFlight = travelDetails.flights.some((f) => f.airline || f.flightNumber || f.dateTime);
       return !hasRealFlight && !travelDetails.hotel && !travelDetails.car;
     }
@@ -269,13 +215,6 @@ function NewRequest({ onDone, onExit, onFreeTextChange, isOnline }) {
       setFieldStepIndex(fieldStepIndex - 1);
       return;
     }
-    // Back from the first field-card always returns to chips now — every
-    // path (real match, zero match, "None of these") visits "chips" on
-    // the way here since zero-match stopped skipping straight to fields
-    // (Gavi's call). Re-derive from matchedTypes rather than force false
-    // (Sibling review finding on the narrowed-list case) — zero matches
-    // has no narrowed list to go back to, so it stays on the full list;
-    // a real match narrows back down to its own suggestions.
     setShowFullTypeList(matchedTypes.length === 0);
     setStep("chips");
   }
@@ -301,24 +240,14 @@ function NewRequest({ onDone, onExit, onFreeTextChange, isOnline }) {
       if (!res.ok) {
         const { error } = await res.json().catch(() => ({}));
         setSubmitError(error || "Something went wrong sending this. Try again?");
-        // G411-47: a 402 here is specifically "out of credits" (the only
-        // thing this route ever 402s on) — offer the overdraft path
-        // instead of just leaving the friend stuck on a dead-end error.
         if (res.status === 402) setOverdraftEligible(true);
         return;
       }
 
-      // Credit deducted, Gavi notified via Telegram — both server-side,
-      // nothing to do here beyond showing the confirmation.
       const created = await res.json();
       setCreatedRequest(created);
       setSubmitted(true);
       setStep("done");
-      // The request is safely submitted — there's nothing left to discard,
-      // so any exit path (logo click, hamburger nav, etc.) must stop
-      // treating this as "has unsaved text" (Gavi's live-testing catch:
-      // the discard-confirm was firing on the post-submit "thanks" screen
-      // for any exit besides the explicit "Back to my requests" button).
       onFreeTextChange?.("");
     } catch {
       setSubmitError("Something went wrong sending this. Try again?");
@@ -327,10 +256,6 @@ function NewRequest({ onDone, onExit, onFreeTextChange, isOnline }) {
     }
   }
 
-  // G411-47: friend explicitly chose "Request anyway" — same body, but
-  // hits the overdraft-only route (no credit is ever touched by it,
-  // either way, approved or denied) and waits on Gavi's review instead
-  // of completing immediately.
   async function handleOverdraftRequest() {
     setSubmitting(true);
     setSubmitError("");
@@ -366,14 +291,9 @@ function NewRequest({ onDone, onExit, onFreeTextChange, isOnline }) {
     }
   }
 
-  // Only needed on "fields" — ReviewSummary computes its own urgency
-  // display/edit control now (click-to-edit-in-place).
   const steps = step === "fields" ? fieldSteps() : null;
 
   function handleExit() {
-    // freeText is the earliest real signal something's been entered —
-    // nothing else can be filled in before it's submitted via Continue,
-    // since the match call gates every downstream field.
     if (freeText) {
       setShowDiscardConfirm(true);
       return;
@@ -381,6 +301,7 @@ function NewRequest({ onDone, onExit, onFreeTextChange, isOnline }) {
     onExit();
   }
 
+  // ── Render ──
   return (
     <div className="step-viewport">
       <Card key={step === "fields" ? `fields-${fieldStepIndex}` : step} className="step-slide-enter">
@@ -401,10 +322,10 @@ function NewRequest({ onDone, onExit, onFreeTextChange, isOnline }) {
                 if (e.key !== "Enter") return;
                 if (e.shiftKey) return; // native newline
                 if (e.ctrlKey || e.metaKey) {
-                  // Same as RequestDetail.jsx's message compose box
-                  // (G411-118): a textarea's native un-prevented default
-                  // for a MODIFIED Enter is nothing, not a newline, so
-                  // this has to insert one explicitly.
+                  // Same as RequestDetail.jsx's message compose box: a
+                  // textarea's native un-prevented default for a MODIFIED
+                  // Enter is nothing, not a newline, so this inserts one
+                  // explicitly.
                   e.preventDefault();
                   const el = e.target;
                   const start = el.selectionStart;
@@ -421,13 +342,6 @@ function NewRequest({ onDone, onExit, onFreeTextChange, isOnline }) {
               }}
               dir="auto"
             />
-            {/* Exit button rendered after the field in DOM order (not
-                just top-of-Card, per the other steps below) so Tab
-                reaches the field first — an explicit tabIndex would
-                have jumped it to the FRONT of tab order instead
-                (positive tabIndex values are visited before any
-                tabIndex=0/unset element, regardless of DOM position),
-                the opposite of what's needed here. */}
             <button type="button" className="exit-flow" onClick={handleExit} aria-label="Cancel and go back">
               ×
             </button>
@@ -475,12 +389,6 @@ function NewRequest({ onDone, onExit, onFreeTextChange, isOnline }) {
 
         {step === "fields" && (
           <>
-            {/* No standalone "Not quite?" button here (Gavi's call,
-                removed this session) — "Back" already reaches chips
-                (one card at a time, from card 1 down to chips), so a
-                second escape hatch asking "is this the right category?"
-                on every single card was redundant and read oddly once
-                Back already covers it. */}
             {steps[fieldStepIndex]}
             <div className="step-nav">
               <Button variant="ghost" onClick={handleFieldStepBack}>
@@ -516,22 +424,11 @@ function NewRequest({ onDone, onExit, onFreeTextChange, isOnline }) {
               onUnlock={(key) => setUnlockedKeys((prev) => new Set(prev).add(key))}
             />
             {submitError && <p style={{ color: "#b3261e" }}>{submitError}</p>}
-            {/* G411-47: only offered after a real 402 — a deliberate,
-                explicit friend action, not an automatic retry. Gavi's
-                admin approval still gates whether it actually goes
-                through; this button only sends the ask. */}
             {overdraftEligible && (
               <Button variant="secondary" onClick={handleOverdraftRequest} disabled={submitting}>
                 {submitting ? "Sending…" : "Ask anyway"}
               </Button>
             )}
-            {/* No separate "Edit" button — every row above is click-to-edit
-                in place. No "Not quite?" here either (Gavi's call) — by
-                review time the type is treated as settled; that escape
-                hatch stays on the field cards only. Back still needed
-                (Gavi caught it missing) — returns to the last field
-                card, same "one step back" meaning Back has everywhere
-                else in this flow. */}
             <div className="step-nav">
               <Button
                 variant="ghost"

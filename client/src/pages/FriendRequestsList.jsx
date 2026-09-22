@@ -4,12 +4,6 @@ import Button from "../components/Button";
 import { CLOSED_STATUSES } from "../lib/requestStatus";
 import { RequestCard } from "./RequestCard";
 
-// Friend's open/closed requests list (G411-95 — extracted from
-// RequestList's toggle; open and closed were originally two near-
-// identical components, merged into one parameterized by `status` since
-// only the filter predicate and empty-state text differed). Reuses
-// RequestCard and CLOSED_STATUSES from RequestList to keep filtering
-// logic in one place.
 function FriendRequestsList({ status, onOpenRequest, refreshToken }) {
   const [requests, setRequests] = useState(null);
   const [error, setError] = useState("");
@@ -52,11 +46,9 @@ function FriendRequestsList({ status, onOpenRequest, refreshToken }) {
     return <p>Loading…</p>;
   }
 
-  // Pre-G411-95 fallback, restored: a friend whose only requests are all
-  // closed sees their most recent one here instead of a bare empty state
-  // (Open requests screen only — Closed requests has nothing to fall back
-  // to). `requests` comes from the API sorted createdAt desc, so [0] of
-  // the closed set is already the most recent.
+  // A friend with only closed requests sees their most recent one here
+  // instead of a bare empty state (Open screen only). `requests` is
+  // API-sorted createdAt desc, so [0] of the closed set is most recent.
   if (filtered.length === 0 && status === "open" && requests.length > 0) {
     const mostRecentClosed = requests.find((r) => CLOSED_STATUSES.includes(r.status));
     if (mostRecentClosed) {
@@ -68,6 +60,7 @@ function FriendRequestsList({ status, onOpenRequest, refreshToken }) {
       );
     }
   }
+
 
   if (filtered.length === 0) {
     return (

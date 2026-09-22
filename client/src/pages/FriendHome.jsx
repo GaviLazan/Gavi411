@@ -41,7 +41,6 @@ export default function FriendHome({ refreshToken, onOpenRequest, onCompose }) {
     );
   }
 
-  // Split into open/closed before rendering
   const open = requests
     ? requests.filter((r) => !CLOSED_STATUSES.includes(r.status))
     : null;
@@ -56,19 +55,16 @@ export default function FriendHome({ refreshToken, onOpenRequest, onCompose }) {
 
   return (
     <div className="friend-home">
-      {/* Loading state */}
       {requests === null && (
         <p>Loading…</p>
       )}
 
-      {/* Empty state */}
       {isEmpty && (
         <div className="friend-home-request-card">
           <p>Nothing yet — ask Gavi for help</p>
         </div>
       )}
 
-      {/* Open requests list */}
       {requests !== null && !isEmpty && sortedOpen && sortedOpen.length > 0 && (
         <div className="friend-home-open-list">
           {sortedOpen.map((req) => {
@@ -94,7 +90,6 @@ export default function FriendHome({ refreshToken, onOpenRequest, onCompose }) {
         </div>
       )}
 
-      {/* Closed requests (collapsible) */}
       {requests !== null && !isEmpty && closed && closed.length > 0 && (
         <details className="friend-home-closed-details">
           <summary>Previous requests · {closed.length}</summary>
@@ -112,12 +107,6 @@ export default function FriendHome({ refreshToken, onOpenRequest, onCompose }) {
         </details>
       )}
 
-      {/* Composer: a fixed overlay pinned to the bottom of the viewport.
-          Its background carries the fade — a 100px gradient band ending
-          fully opaque at the button's top edge, then solid page
-          background from there down to the screen edge — so the list
-          fades out into it and stays hidden below, rather than
-          reappearing beside or under the button. */}
       {requests !== null && (
         <div className="friend-home-composer-fixed">
           <button

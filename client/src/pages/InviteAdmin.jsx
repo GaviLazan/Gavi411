@@ -8,39 +8,17 @@ import Button from '../components/Button'
 import Input from '../components/Input'
 import './InviteAdmin.css'
 
-// Minimal admin invite-creation screen (G411-41; escrow passphrase + CSV
-// export added G411-28 stage 4). Not the full admin cockpit (G411-37/38)
-// — just a working trigger for the invite-token mechanism: a form to
-// create one, a copy-able resulting link, and a list of what's been
-// generated so far.
-//
-// G411-112: onto the design system (Card/Button/Input). No in-page Back
-// button — the app bar's own chevron already covers every non-'list' view
-// (see InstallHelp.jsx).
+// Minimal admin invite-creation screen
 function InviteAdmin() {
   const [label, setLabel] = useState('')
   const [creating, setCreating] = useState(false)
   const [error, setError] = useState(null)
-  // The passphrase only ever exists in this one POST response — captured
-  // here alongside the link so the CSV export button (right below) can
-  // still source it, then gone once this component unmounts/re-creates.
-  // See prisma/schema.prisma's PendingInvite comment for why it's never
-  // persisted anywhere to be fetched again later.
-  const [lastInvite, setLastInvite] = useState(null) // { token, label, passphrase }
+  const [lastInvite, setLastInvite] = useState(null)
   const [invites, setInvites] = useState([])
 
-  // G411-82 admin bootstrap: the only account that never went through
-  // the real invite-signup flow (it predates invites entirely) is Gavi's
-  // own admin account, so it has no messaging keypair. The "no separate
-  // sign-in bootstrap for existing/regular users" rule (Jira pickup
-  // comment) is specifically about NOT doing this automatically for
-  // everyone — this is a one-off, admin-only, self-service button, not a
-  // background bootstrap. Anyone can trigger this from their own signed-
-  // in session for their own account, but it only shows once (hidden as
-  // soon as /api/me reports a publicKey already on file), so it's not a
-  // standing "regenerate my key" control.
-  const [hasPublicKey, setHasPublicKey] = useState(true) // assume yes until checked, avoids a flash
-  const [keypairStatus, setKeypairStatus] = useState('idle') // 'idle' | 'working' | 'error'
+  // Admin-only: one-time keypair generation for original admin account
+  const [hasPublicKey, setHasPublicKey] = useState(true)
+  const [keypairStatus, setKeypairStatus] = useState('idle')
   useEffect(() => {
     fetch('/api/me')
       .then((res) => res.json())
@@ -64,10 +42,7 @@ function InviteAdmin() {
 
   useEffect(loadInvites, [])
 
-  // Device-linking (G411-28, 2026-09-01) — bare-minimum admin UI, real
-  // cockpit is G411-37/38's job (see that ticket's own comment pointing
-  // back here). Just enough to actually exercise the approve/reject
-  // routes: a flat list, no per-request breakdown.
+  // Device-linking: bare-minimum UI for approve/reject
   const [pendingDevices, setPendingDevices] = useState([])
   const [deviceActionError, setDeviceActionError] = useState(null)
   const [workingDeviceId, setWorkingDeviceId] = useState(null)
@@ -84,21 +59,10 @@ function InviteAdmin() {
     try {
       const adminPrivateKey = await loadPrivateKey()
       if (!adminPrivateKey) throw new Error('no local key')
-      // Sibling review finding (critical): this used to wrap EVERY
-      // request in the system for the new device — since /api/requests
-      // returns every friend's requests to an admin caller, that handed
-      // a newly-linked device decrypt access to every other friend's
-      // private conversations, not just its own account's. Scoped to
-      // device.userId's own requests only — that's the actual account
-      // this device belongs to.
       const requests = await fetch('/api/requests').then((res) => res.json())
       const requestIds = requests.filter((r) => r.userId === device.userId).map((r) => r.id)
       const { skippedRequestIds } = await approveDevice(device, adminPrivateKey, requestIds)
       if (skippedRequestIds.length > 0) {
-        // Sibling review finding: a skipped conversation (friend has no
-        // public key yet) used to be silent and permanent — no re-run
-        // trigger exists once a device is APPROVED, so at minimum admin
-        // needs to know it happened.
         setDeviceActionError(
           `Approved, but ${skippedRequestIds.length} conversation(s) couldn't be shared yet (the friend has no encryption key on file) — request${skippedRequestIds.length > 1 ? 's' : ''} # ${skippedRequestIds.join(', ')}.`,
         )
@@ -146,9 +110,7 @@ function InviteAdmin() {
     }
   }
 
-  // The passphrase goes in the URL fragment (#), never the query string —
-  // fragments are never sent to the server (see lib/inviteToken.js), so
-  // this is the one place it's safe for the link to carry it in plain text.
+  // Passphrase in URL fragment (#), not query string
   const lastLink = lastInvite
     ? `${window.location.origin}/?token=${lastInvite.token}#${lastInvite.passphrase}`
     : null
@@ -216,8 +178,6 @@ function InviteAdmin() {
           </ul>
         )}
 
-        {/* G411-28 device-linking — bare-minimum shim, real cockpit is
-            G411-37/38's job (see that ticket for the pointer back here). */}
         <h3>Pending device requests</h3>
         {deviceActionError && <p role="alert" className="invite-admin-error">{deviceActionError}</p>}
         {pendingDevices.length === 0 ? (
