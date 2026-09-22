@@ -95,7 +95,7 @@ vi.mock('../lib/webPush.js', () => ({
   sendPushToUser: vi.fn(async () => undefined),
 }))
 
-const { default: requestsRouter } = await import('../routes/requests.js')
+const { default: requestsRouter } = await import('../routes/requests/index.js')
 
 const app = express()
 app.use(express.json())

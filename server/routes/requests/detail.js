@@ -14,7 +14,6 @@ const STATUS_VALUES = Object.values(Status)
 const URGENCY_VALUES = Object.values(Urgency)
 
 // Legal status transitions — Terminal states (CLOSED, CANCELLED, SELF_SOLVED) map to empty array
-// Route order matters: this must register after /by-public-id/:publicId and /match
 const TRANSITIONS = {
   IN_QUEUE: [Status.RECEIVED, Status.CANCELLED],
   RECEIVED: [Status.WORKING_ON_IT, Status.CANCELLED],
