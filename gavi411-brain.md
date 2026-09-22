@@ -1379,6 +1379,14 @@ Picked up mid-flight: an earlier session had run the copy-pass review as an Arti
 
 **Standing lesson**: an artifact/doc marked "all comments resolved" records agreement on wording, not that the wording reached the codebase — the two are different claims. Any doc-driven review (this project's now-standard pattern for copy passes) needs its "applied" tags checked against a real diff before the ticket is treated as complete, every time, not just when picking up someone else's session.
 
+### Decision #155 — G411-125's composer-button fix needed two rounds: fixing one visible symptom (radius) doesn't confirm the other (width) is also resolved, even when they look like the same bug (2026-09-22, G411-125)
+
+Gavi reported the "What's up?" composer button looked wrong on mobile vs. the request cards above it — narrower cards, wider/square-cornered button, matching on desktop. Two real, independent CSS bugs were actually stacked: (1) a mobile media query zeroed the button's border-radius, (2) the button's width calc only ever subtracted one of the two padded ancestors it needs to match (`.app-shell`'s own horizontal padding was missed entirely, since the button sits in a `position: fixed` overlay that bypasses normal document flow and its ancestors' padding).
+
+**Fixed the radius first, assumed it explained the whole visual mismatch** — reasoning that a squared corner next to a rounded one reads as "narrower" even at equal width. That assumption was never verified against real computed widths before being presented as done; Gavi tested live and the width gap was still there exactly as before. Re-investigated, found the real width-calc bug, fixed it in a second commit, verified live again.
+
+**Standing lesson**: when a bug report bundles multiple visual symptoms ("narrower AND no rounded corners"), each symptom is its own claim needing its own check — fixing one and reasoning that it explains the other is a guess, not verification, even when the reasoning sounds plausible. This is the same standing rule as [[no-local-testing-for-mobile-viewport-bugs]]'s spirit extended one step further: not just "don't claim fixed without Gavi's live check," but "don't claim two symptoms share one root cause without checking both independently," since a live-tested claim can still be wrong if it only verifies the reasoning's conclusion, not each of its premises.
+
 ## 7. Not Yet Discussed
  
 - Data model, architecture, tech decisions (schema itself not yet drafted — first task on deck).
