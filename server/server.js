@@ -2,7 +2,7 @@
 
 import express from 'express'
 import 'dotenv/config'
-import requestsRouter from './routes/requests.js'
+import requestsRouter from './routes/requests/index.js'
 import invitesRouter from './routes/invites.js'
 import devicesRouter from './routes/devices.js'
 import pushSubscriptionsRouter from './routes/pushSubscriptions.js'
