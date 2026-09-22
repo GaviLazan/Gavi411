@@ -1,7 +1,4 @@
-// G411-28 admin client-side search index. Real Web Crypto + real
-// decryptMessageContent (same convention as conversationCrypto.test.js),
-// mocked fetch + keyStore.js so getConversationKey resolves a real shared
-// key without hitting the network.
+// Search index tests: real Web Crypto + decryption, mocked fetch and keyStore.
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { generateKeypair, exportPublicKey, deriveSharedKey, encrypt } from './crypto.js'
 import { _clearConversationKeyCacheForTests } from './conversationCrypto.js'

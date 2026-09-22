@@ -1,6 +1,4 @@
-// Tests for the CSV row-building logic (G411-28 stage 4). downloadInviteCsv
-// itself isn't tested — it's a thin Blob/DOM side-effect wrapper, same
-// DOM-avoidance convention as keyStore.js.
+// Tests for CSV row-building logic (no download side-effect testing).
 import { describe, it, expect } from 'vitest'
 import { inviteCsvRow } from './inviteCsv.js'
 

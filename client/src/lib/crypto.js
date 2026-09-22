@@ -1,7 +1,5 @@
-// E2E messaging crypto core (G411-28 stage 1). Standalone subsystem per
-// decision #28 (gavi411-brain.md) — not wired into the message send/
-// receive flow yet, that's separate follow-on scope. Web Crypto API only,
-// no dependencies (ponytail: native platform feature covers this).
+// E2E messaging crypto core: standalone subsystem using Web Crypto API only.
+// ponytail: native platform feature covers this, no dependencies.
 //
 // Flow this supports: each user generates an ECDH keypair on first use.
 // Private key is non-extractable and stays in IndexedDB (browser-only,
@@ -76,10 +74,7 @@ export async function decryptText(sharedKey, envelope) {
   return new TextDecoder().decode(buf)
 }
 
-// Chunked to avoid spreading the whole buffer as call arguments — a
-// single String.fromCharCode(...bytes) call throws "Maximum call stack
-// size exceeded" past ~128KB, which real image payloads (this module's
-// whole point) routinely exceed (Sibling review finding).
+// Chunked to avoid "Maximum call stack size exceeded" on large image payloads.
 const CHUNK_SIZE = 8192
 
 function bufToBase64(buf) {
@@ -95,15 +90,8 @@ function base64ToBuf(base64) {
   return Uint8Array.from(atob(base64), (c) => c.charCodeAt(0)).buffer
 }
 
-// --- Device linking (G411-28, 2026-09-01) ---------------------------------
-//
-// When admin approves a new device, each conversation's AES-GCM key needs
-// to reach that device without ever touching the server in the clear.
-// Reuses this file's own encrypt/decrypt (AES-GCM) rather than adding a
-// second wrap primitive (Web Crypto's AES-KW) — one fewer algorithm to
-// reason about, same security property (the wrapping key is itself an
-// ECDH-derived shared secret only admin's and the device's private keys
-// can reconstruct).
+// Device linking: wrap conversation AES-GCM keys for new devices.
+// Uses ECDH-derived shared secret (admin.privateKey + device.publicKey) as wrapping key.
 
 // Wraps a conversation's AES-GCM key for one specific device: encrypts its
 // raw bytes under ECDH(admin.privateKey, device.publicKey). Returns
@@ -141,25 +129,9 @@ export async function unwrapConversationKey(wrapped, devicePrivateKey, adminPubl
   return crypto.subtle.importKey('raw', raw, AES_PARAMS, false, ['encrypt', 'decrypt'])
 }
 
-// --- Escrow (G411-28 stage 4) ---------------------------------------------
-//
-// The device's own long-term private key is deliberately non-extractable
-// (generateKeypair above) — that's correct for day-to-day use, but it means
-// there's nothing to back up if the device is lost. Escrow solves this with
-// a SEPARATE, extractable ECDH keypair generated once at signup, whose
-// private key is immediately wrapped (PBKDF2-derived AES-GCM key, from a
-// one-time passphrase the server generates and hands to Gavi out-of-band —
-// see server/routes/invites.js) and uploaded as ciphertext only. The
-// server never sees the passphrase or the unwrapped key. Recovery imports
-// the unwrapped key back in as non-extractable (see recoverPrivateKey) —
-// same security posture as a freshly generated device key, so escrow never
-// leaves a long-lived extractable key sitting around.
-//
-// ponytail: regenerating identity deterministically from the passphrase
-// (no export/wrap step at all) was considered and would be less code, but
-// Web Crypto has no seeded ECDH keygen — doing that correctly means
-// hand-rolling EC scalar derivation, which is real crypto-library work,
-// not simpler. Wrap-and-upload is the actually-simpler-and-correct option.
+// Escrow: backup device private key via PBKDF2-derived AES-GCM wrapping (passphrase + salt).
+// Server sees ciphertext only. Recovery re-imports as non-extractable.
+// ponytail: deterministic regen from passphrase rejected (no seeded ECDH keygen in Web Crypto).
 
 const PBKDF2_ITERATIONS = 210_000 // OWASP 2023 minimum for PBKDF2-HMAC-SHA256
 

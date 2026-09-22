@@ -1,8 +1,6 @@
 import './Select.css'
 
-// Base select (matches Input.jsx's field pattern/styling — same
-// pill shape, border, focus ring — for dropdown-shaped choices instead
-// of freeform text).
+// Base select: pill-shaped with optional label, matching Input.jsx styling.
 function Select({ label, id, options, ...rest }) {
   return (
     <div className="field">

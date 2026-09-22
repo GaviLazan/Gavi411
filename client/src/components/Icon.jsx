@@ -11,14 +11,9 @@ const PATHS = {
   trash: 'M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6h14z',
   plus: 'M12 5v14M5 12h14',
   chevron: 'M9 18l6-6-6-6',
-  // Three dots, drawn as zero-length round-capped strokes (the same
-  // trick a fill:none stroke-based icon set needs to draw a filled dot —
-  // strokeLinecap="round" on a zero-length segment renders as a circle
-  // the width of the stroke).
+  // Three dots: zero-length round-capped strokes render as circles.
   more: 'M5 12h0M12 12h0M19 12h0',
-  // Single filled dot, same zero-length-stroke trick as "more" above —
-  // used for "mark unread" (the visual unread marker is itself a dot,
-  // so the action icon matches what it produces).
+  // Single dot: zero-length stroke, same technique as "more".
   dot: 'M12 12h0',
 }
 

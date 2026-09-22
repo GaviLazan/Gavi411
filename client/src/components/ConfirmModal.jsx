@@ -2,11 +2,8 @@ import { useEffect, useRef } from "react";
 import Button from "./Button";
 import "./ConfirmModal.css";
 
-// Shared discard/confirm modal (G411-64) — replaces the native
-// confirm()/OS popup for "Discard this request?", which read as an ugly
-// browser chrome moment inside an otherwise fully custom-styled flow.
-// Native <dialog> (ponytail: no library needed) — free focus trap,
-// Escape-to-close, and backdrop via ::backdrop.
+// Discard/confirm modal using native <dialog>.
+// ponytail: no library needed — free focus trap, Escape-to-close, backdrop via ::backdrop.
 function ConfirmModal({ open, message, onConfirm, onCancel, busy }) {
   const ref = useRef(null);
 
@@ -18,18 +15,10 @@ function ConfirmModal({ open, message, onConfirm, onCancel, busy }) {
   }, [open]);
 
   // onCancel only, not onClose: native <dialog> doesn't close on backdrop
-  // click by default (that needs manual JS this modal doesn't add), so
-  // Escape's "cancel" event is the only close path that isn't already a
-  // button click. onClose also fires after the effect above calls
-  // el.close() following a real onConfirm click, which made onConfirm
-  // and onCancel both run on every confirmed "Yes" (Sibling review
-  // finding) — dropped.
+  // click by default, so Escape's "cancel" event is the only close path.
   //
-  // preventDefault while busy (Sibling review finding): the dialog's own
-  // native "cancel" event isn't gated by the disabled attribute the Yes/No
-  // buttons get — without this, Escape could still dismiss the modal
-  // while onConfirm's request was still in flight, with nothing left open
-  // to show the eventual success/error.
+  // preventDefault while busy: Escape should not dismiss the modal while
+  // onConfirm's request is in flight.
   function handleNativeCancel(e) {
     if (busy) {
       e.preventDefault();
@@ -45,10 +34,7 @@ function ConfirmModal({ open, message, onConfirm, onCancel, busy }) {
         <Button variant="purple" onClick={onCancel} disabled={busy}>
           No
         </Button>
-        {/* busy guards against a double-click/slow-network double-fire —
-            two rapid "Yes" clicks used to both call onConfirm, the second
-            re-sending an already-applied change the server then rejected
-            as illegal (Gavi, live testing: hit this on self-solve). */}
+        {/* busy prevents double-fire on rapid clicks */}
         <Button variant="primary" onClick={onConfirm} disabled={busy}>
           Yes
         </Button>

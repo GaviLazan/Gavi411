@@ -1,10 +1,7 @@
 import { useEffect, useId, useRef } from 'react'
 import './CreditRing.css'
 
-// G411-113 (WP8) — replaces the old "994 credits" app-bar text span, which
-// wrapped onto two lines at 390px width and put its detail behind a plain
-// title tooltip (invisible on touch, the primary device). Friends only —
-// callers must not render this for admin.
+// Credit ring visual: balance as circular progress. Friends only — do not render for admin.
 const SIZE = 40
 const STROKE = 4
 const RADIUS = (SIZE - STROKE) / 2
@@ -49,22 +46,9 @@ function CreditRing({ balance, cap }) {
     popover.style.left = `${left}px`
   }
 
-  // Driven entirely through the imperative showPopover()/hidePopover() API
-  // rather than the declarative popovertarget attribute — the two fought
-  // each other (popovertarget's own click-toggle conflicted with the
-  // hover-triggered showPopover() calls, so hover silently never opened
-  // it — caught live, Gavi: "doesn't pop up on hover, only click").
-  //
-  // isOpenRef mirrors the popover's real state via its own native
-  // "toggle" event (fires on every open/close, from any cause) rather
-  // than being set only inside openPopover()/closePopover() — those two
-  // functions are the only ones that ever call show/hidePopover(), but
-  // the browser can also close an "auto" popover on its own (Escape,
-  // clicking outside) with no call through this component at all. An
-  // isOpenRef set only by our own calls went stale after a native
-  // light-dismiss: the ref still said "open" while the popover was
-  // actually closed, so the next hover/click silently no-op'd instead of
-  // reopening it. Sibling review finding.
+  // Use imperative showPopover()/hidePopover() API for hover + click control.
+  // Track actual state via the "toggle" event, since the browser can close
+  // an "auto" popover directly (Escape, clicking outside).
   const isOpenRef = useRef(false)
   useEffect(() => {
     const popover = popoverRef.current
@@ -98,10 +82,7 @@ function CreditRing({ balance, cap }) {
   }
 
   const now = new Date()
-  // Resets always land at the start of a calendar month (the 6-hourly
-  // reset job just fires sometime within that day) — "Month 1st" is
-  // accurate without implying a precision the job doesn't have. Same calc
-  // previously inlined in App.jsx's tooltip (G411-51).
+  // Resets land at calendar month start — compute next month if not on 1st.
   const resetMonth = now.getDate() === 1
     ? now.toLocaleDateString('en-US', { month: 'long' })
     : new Date(now.getFullYear(), now.getMonth() + 1, 1).toLocaleDateString('en-US', { month: 'long' })

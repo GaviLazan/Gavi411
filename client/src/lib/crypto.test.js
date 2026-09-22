@@ -1,8 +1,4 @@
-// G411-28 stage 1 — crypto core round-trip check (the Falsifier from the
-// Jira Aegis fields). Runs against real Web Crypto (Node's global
-// crypto.subtle), no mocks — keyStore.js (IndexedDB, browser-only) is
-// deliberately not exercised here, same DOM-avoidance convention as
-// useTheme.test.js.
+// Crypto core round-trip tests: real Web Crypto, no mocks.
 import { describe, it, expect } from 'vitest'
 import {
   generateKeypair,

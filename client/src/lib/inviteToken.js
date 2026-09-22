@@ -1,23 +1,5 @@
-// Invite token client-side handling (G411-41; escrow passphrase + recovery
-// link added G411-28 stage 4). A plain `?token=` URL param — or a
-// `#`-fragment passphrase — can't be relied on to survive Clerk's OAuth
-// redirect round trip (Google sign-in bounces through Google and back) —
-// so both are stashed in sessionStorage the moment the page loads with
-// them, read back after sign-in completes. The token is sent once via the
-// x-invite-token header (see server/middleware/auth.js) to get marked
-// used; the passphrase is used once, client-side only, to wrap the new
-// escrow keypair before it's uploaded (never sent to the server itself —
-// see server/routes/invites.js's PATCH /:token/backup).
-//
-// Sibling review finding: recovery links (?recover=<token>#<passphrase>)
-// were originally read straight from the live URL on the (wrong)
-// assumption that recovery only happens once already signed in — but a
-// lost/new device is very likely signed OUT, so it hits the exact same
-// Clerk-redirect hazard as signup and needs the same sessionStorage stash,
-// done here below. Also: the fragment was never actually stripped from
-// the visible URL on either path, despite this file's own original claim
-// that it was — both paths now strip the whole URL (search + hash) via
-// one shared helper.
+// Invite token and recovery link handling: stash in sessionStorage to survive Clerk's OAuth round trip.
+// Token sent via x-invite-token header, passphrase used client-side for escrow wrapping.
 
 const STORAGE_KEY = 'gavi411-invite-token'
 const PASSPHRASE_STORAGE_KEY = 'gavi411-invite-passphrase'
@@ -138,14 +120,7 @@ export function clearStashedRequestPermalink() {
   sessionStorage.removeItem(PERMALINK_STORAGE_KEY)
 }
 
-// Gate for App.jsx's permalink-consume effect, extracted as a real,
-// imported pure function (not a duplicate copy in the test file) so a
-// change here can't silently drift from what the effect actually runs.
-// needsProfileCompletion is ignored for admin — admin's phoneNumber is
-// permanently the pending- placeholder by design (never filled in, since
-// admin is exempted from the CompleteProfile screen itself), so requiring
-// it here would leave this gate stuck closed forever for admin. Live-
-// testing found this exact bug: an admin permalink silently never opened.
+// Gate for permalink consumption: excludes incomplete profile except admin (admin exempted from profile screen).
 export function canConsumeRequestPermalink({
   isSignedIn,
   tokenHandoffDone,

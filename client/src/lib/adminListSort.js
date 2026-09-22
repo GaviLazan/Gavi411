@@ -1,15 +1,11 @@
-// Pure sort/filter/timeSince logic for the admin list screen (G411-37),
-// pulled out of AdminList.jsx so it has a real test — this codebase's
-// convention is lib/ logic gets tested, page components don't (no
-// component-test framework installed here).
+// Admin list sort/filter logic: extracted for testing.
 
 import { CLOSED_STATUSES } from "./requestStatus";
 
 export const URGENCY_ORDER = { LOW: 0, NORMAL: 1, HIGH: 2 };
 export { CLOSED_STATUSES };
 
-// Native Intl, no dependency — "time since last activity" per decision
-// #46 (gavi411-brain.md).
+// Native Intl.RelativeTimeFormat for "time since" display.
 const RTF = new Intl.RelativeTimeFormat("en", { numeric: "auto" });
 export function timeSince(dateString, now = Date.now()) {
   const diffMs = new Date(dateString).getTime() - now;
@@ -56,11 +52,7 @@ export function filterByUrgency(requests, urgentOnly) {
   return requests.filter((r) => r.urgency === "HIGH");
 }
 
-// Plaintext-field match against a request's name/title/type — no
-// decryption needed, unlike message content (see searchIndex.js). Gavi's
-// direct feedback: message-only search silently failed for a request
-// with no matching message (or none at all), even when its name/title/
-// type were an obvious match.
+// Search request name/title/type (no decryption needed, unlike message content).
 export function matchesPlainFields(request, query) {
   const q = query.trim().toLowerCase();
   if (!q) return false;

@@ -2,22 +2,8 @@ import LockedField from "./LockedField";
 import { BUY_WHERE_OPTIONS, COORDINATION_OPTIONS } from "./PurchaseFields";
 import { HELP_STYLE_OPTIONS } from "./TechSupportFields";
 
-// Review/summary screen (G411-64, click-to-edit-in-place per Gavi's
-// live steer). Every non-empty field the friend entered renders as a
-// LockedField — starts read-only, unlocks into the real control (text/
-// date/select/checkbox) on click, independently per row, no re-lock.
-//
-// Field specs (key, label, type, options) are the one source of truth
-// for both what's shown and what's editable — a plain label map isn't
-// enough anymore once rows need to become real inputs matching their
-// actual field type, not just display text.
-//
-// unlockedKeys/onUnlock (Sibling review finding): unlocked state lives
-// in NewRequest, not locally in LockedField — navigating Back into a
-// field card and Continue-ing back to review remounts this whole
-// component (different step keys in between), which would otherwise
-// silently re-lock every field, contradicting "stays editable until
-// submit".
+// Review/summary screen: click-to-edit each field inline.
+// Field specs define what's shown and editable. unlockedKeys state lives in NewRequest to survive remounts.
 
 const TRAVEL_SPECS = [
   { key: "whatHappened", label: "What happened" },
@@ -30,12 +16,7 @@ const TRAVEL_SPECS = [
   { key: "preferredAirlines", label: "Preferred airline(s)" },
   { key: "layoverPreference", label: "Layover preference" },
   { key: "otherPreferences", label: "Other preferences" },
-  // bookingNumber is intentionally NOT a plain LockedField (Sibling
-  // review finding) — TravelBookingsCard gates it behind a required
-  // bookingNumberConsent checkbox and clears it whenever consent is
-  // unchecked; editing it here without the same gate would let the
-  // value and the consent flag go out of sync. Rendered as its own
-  // consent-aware row below instead of via specRows/TRAVEL_SPECS.
+  // bookingNumber: gated by bookingNumberConsent in TravelBookingsCard (not here).
 ];
 
 const HOTEL_CAR_SPECS = [
