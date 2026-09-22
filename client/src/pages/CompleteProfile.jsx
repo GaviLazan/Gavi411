@@ -70,7 +70,7 @@ function CompleteProfile({ currentProfilePic, onComplete }) {
       if (imageResource.publicUrl) {
         setSelectedPhotoUrl(imageResource.publicUrl)
       } else {
-        setPhotoError('Upload succeeded but no photo URL was returned — try again.')
+        setPhotoError("That upload didn't quite work — try again?")
       }
     } catch (err) {
       setPhotoError('Could not upload photo — try again.')
@@ -125,7 +125,7 @@ function CompleteProfile({ currentProfilePic, onComplete }) {
 
       if (!res.ok) {
         const data = await res.json().catch(() => ({}))
-        throw new Error(data.error || 'Failed to complete profile')
+        throw new Error(data.error || 'Something went wrong — try again?')
       }
 
       // Success — call the onComplete callback to re-fetch and proceed

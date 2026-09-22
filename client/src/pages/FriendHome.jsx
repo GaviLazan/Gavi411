@@ -64,7 +64,7 @@ export default function FriendHome({ refreshToken, onOpenRequest, onCompose }) {
       {/* Empty state */}
       {isEmpty && (
         <div className="friend-home-request-card">
-          <p>Nothing yet — tell Gavi what's up</p>
+          <p>Nothing yet — ask Gavi for help</p>
         </div>
       )}
 
@@ -97,7 +97,7 @@ export default function FriendHome({ refreshToken, onOpenRequest, onCompose }) {
       {/* Closed requests (collapsible) */}
       {requests !== null && !isEmpty && closed && closed.length > 0 && (
         <details className="friend-home-closed-details">
-          <summary>Earlier · {closed.length}</summary>
+          <summary>Previous requests · {closed.length}</summary>
           <div className="friend-home-closed-list">
             {closed.map((req) => (
               <div key={req.id} className="friend-home-request-card-wrapper">

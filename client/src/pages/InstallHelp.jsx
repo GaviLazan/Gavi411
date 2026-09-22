@@ -12,9 +12,8 @@ function InstallHelp() {
     <Card style={{ width: "100%", textAlign: "start" }}>
       <h2>Installing on iPhone</h2>
       <p>
-        iOS Safari doesn't show an automatic install prompt the way Android
-        or desktop Chrome does — it has to be done manually via the Share
-        sheet.
+        iPhone doesn't offer to install this automatically like Android does
+        — a couple of taps and you're set.
       </p>
       <ol>
         <li>
@@ -37,8 +36,8 @@ function InstallHelp() {
         Safari's address bar.
       </p>
       <p className="meta">
-        Note: this install step is required before push notifications can
-        work on iPhone.
+        One thing to know: notifications only work on iPhone once it's
+        installed this way.
       </p>
     </Card>
   );

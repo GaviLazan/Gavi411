@@ -178,7 +178,7 @@ function ReviewSummary({
   return (
     <div className="review-summary">
       <LockedField
-        label="Issue/Request"
+        label="What's up?"
         value={freeText}
         onChange={(e) => onFreeTextChange(e.target.value)}
         unlocked={unlockedKeys.has("freeText")}

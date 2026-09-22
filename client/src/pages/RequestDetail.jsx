@@ -118,10 +118,10 @@ const STATUS_NEEDS_CONFIRM = ["CANCELLED", "SELF_SOLVED", "OVERDRAFT_DENIED"];
 // had its own independent ternary, already drifted from each other, no
 // shared spot to fix wording in once).
 function confirmMessage(status) {
-  if (status === "SELF_SOLVED") return "Mark this request as self-solved? This ends the request.";
-  if (status === "CANCELLED") return "Cancel this request?";
-  if (status === "OVERDRAFT_DENIED") return "Deny this overdraft request? The friend keeps their 0 balance and won't be charged.";
-  return `Change status to "${status ? labelize(status) : ""}"? This ends the request.`;
+  if (status === "SELF_SOLVED") return "Mark this ask as self-solved? This ends the ask.";
+  if (status === "CANCELLED") return "Cancel this ask?";
+  if (status === "OVERDRAFT_DENIED") return "Deny this extra favor? The friend keeps their 0 balance and won't be charged.";
+  return `Change status to "${status ? labelize(status) : ""}"? This ends the ask.`;
 }
 
 // G411-87: friend-facing lifecycle buttons — a small fixed set (not a
@@ -256,7 +256,7 @@ function RequestDetail({ requestId, isAdmin }) {
         if (!cancelled) setRequest(data);
       })
       .catch(() => {
-        if (!cancelled) setError("Couldn't load this request.");
+        if (!cancelled) setError("Couldn't load the request.");
       });
 
     return () => {
@@ -753,7 +753,7 @@ function RequestDetail({ requestId, isAdmin }) {
             onClick={handleCopyPermalink}
             style={{ fontSize: 13 }}
           >
-            {permalinkCopied ? "Copied!" : "Copy link to request"}
+            {permalinkCopied ? "Copied!" : "Copy link"}
           </Button>
         </div>
       )}
@@ -1014,7 +1014,7 @@ function RequestDetail({ requestId, isAdmin }) {
                         setMenuOpen(false);
                       }}
                     >
-                      {permalinkCopied ? "Copied!" : "Copy link to request"}
+                      {permalinkCopied ? "Copied!" : "Copy link"}
                     </button>
                   )}
                   {canDowngradeUrgency && (
