@@ -12,7 +12,7 @@ accumulated. If something here turns out to matter long-term, promote it to
 
 ---
 
-## Where this session left off (2026-09-22, latest) — G411-125 (mobile-PWA visual bugs, split from WP10 wrap-up) built, Reviewing, PR #140 open, awaiting merge go-ahead
+## Where this session left off (2026-09-22, latest) — G411-125 (mobile-PWA visual bugs, split from WP10 wrap-up) merged, Reconciled, fully closed out; G411-126 filed and parked to V2
 
 **After G411-54/55/56 merged and Reconciled** (see entry below), Gavi sent 4 real mobile-PWA screenshots with UI quirks he wanted fixed. Filed fresh as **G411-125** (parented under G411-9, the still-open Copywriting & UI/UX Pass epic — matches the nature of the findings) rather than silently folding into the just-closed WP10, per STOP 1.
 
@@ -20,20 +20,21 @@ accumulated. If something here turns out to matter long-term, promote it to
 1. **Composer button vs. request cards, mobile width+radius mismatch** — two stacked bugs. A mobile-only media query zeroed the "What's up?" button's border-radius (fixed: removed). Then a real miss on the first pass: assumed the radius was the whole visual gap, but Gavi tested live and the width mismatch was still there. Re-investigated: the button sits in a `position: fixed` overlay spanning the raw viewport, bypassing both `.app-shell`'s horizontal padding (`--space-6` each side) and `.friend-home`'s (`--space-4` each side) — its width calc only ever subtracted the second one. Fixed to subtract both, confirmed live on a second round.
 2. **ProfilePage long-email/username overflow** — `.profile-info-row` had no `overflow-wrap`/`min-width: 0`, so a long value ran past the card edge instead of wrapping. Fixed with the same pattern already used elsewhere in the codebase (`.app-shell > *`, `MessageThread.css`).
 3. **Intake textarea clipping its own placeholder** — `describe-textarea` started at `rows={1}`; the two-line placeholder got clipped before the auto-grow-on-input logic had anything to react to. Bumped to `rows={2}`.
-4. **Clerk sign-in box horizontally off-center on mobile** — investigated, not fixed. No custom CSS touches `<SignIn />`, no `appearance` prop passed, and the app's own app-bar layout is mathematically balanced (0=0) when signed out — ruled out the app's own code as the cause. Likely lives inside Clerk's internal rendered DOM; needs live device inspection this session didn't have. Split off to **G411-126** (filed, Open, parented under G411-9) rather than left as just a comment, per the standing "defer to a real ticket" rule.
+4. **Clerk sign-in box horizontally off-center on mobile** — investigated, not fixed. No custom CSS touches `<SignIn />`, no `appearance` prop passed, and the app's own app-bar layout is mathematically balanced (0=0) when signed out — ruled out the app's own code as the cause. Likely lives inside Clerk's internal rendered DOM; needs live device inspection this session didn't have. Split off to **G411-126**.
 
-**Real process note**: first PR comment on #140 had broken backtick-escaping from a heredoc quoting issue — caught via the standing "spot-check the real posted comment body via `gh api`" rule, reposted clean via `--body-file` instead of inline `--body`.
+**Real process note**: first PR comment on #140 had broken backtick-escaping from a heredoc quoting issue — caught via the standing "spot-check the real posted comment body via `gh api`" rule, reposted clean via `--body-file` instead of inline `--body`. Also logged as brain.md decision #155: fixing one bundled visual symptom (radius) doesn't verify a second (width) is also resolved — each needs its own live check, even when they look like the same bug.
 
-555/555 tests fresh, build clean at every step. Jira: G411-125 at **Reviewing**, description rewritten against real final scope (3 of 4 fixed, 1 descoped — not overstating what shipped). **Awaiting merge go-ahead — not yet Landed/Reconciled.**
+555/555 tests fresh, build clean at every step. PR #140 merged (`47923cd`, regular merge commit). Jira: G411-125 **Reconciled**, description rewritten against real final scope (3 of 4 fixed, 1 descoped — not overstating what shipped) before the Landed transition. Parent **G411-9** stays Implementing — G411-116/117 still Open under it.
+
+**G411-126** (Clerk sign-in centering) filed as its own child, then **re-parented from G411-9 to G411-57 (V2/Stretch Backlog)** per Gavi's explicit call after this session's other work closed out — left Open, with a comment logging the move (same pattern as the WP0 session's G411-83/84/85/79/105 re-parenting). Not cancelled, just parked — needs live device inspection before anyone can pick it up.
 
 ### Real state, right now
-Branch `you/G411-125-mobile-visual-bugs`, 2 commits (`305dc4a` radius fix, `e5fa3ef` width-calc fix), pushed, PR #140 open against `main`. CI green. Vercel preview live and tested by Gavi on his real phone for all 3 in-scope fixes.
+Primary worktree back on `main`, fast-forwarded clean to `47923cd` (matches `origin/main`). All 6 `Gavi411-agent-*` worktrees checked clean this session (idle on their own older branches, unrelated to this work). No open PRs. Dev servers (Vite :5173, API :3000) were started mid-session for Gavi's live testing — may still be running, check before starting new ones.
 
 ### What's next, concretely
-1. **Ask Gavi for the merge go-ahead on PR #140** — not yet done as of this write.
-2. Once merged: Jira Reviewing → Landed → Reconciled for G411-125 (steps 1-4 already covered this session). Parent G411-9 stays Implementing (G411-116/117/126 all still Open).
-3. Full sync check across primary + all `Gavi411-agent-*` worktrees — not yet re-run since the WP10 close-out earlier this session.
-4. **G411-126 (Clerk sign-in centering)** is Open, unscoped for a session — needs real device devtools inspection before any fix attempt, not a blind CSS guess.
+1. **Next ticket pickup**: agree explicitly with Gavi at STOP 1 — next-lowest-numbered Open child of G411-9 is **G411-116** (codebase cleanup pass) or **G411-117** (README), per the epic's strict-order rule. Don't assume without asking.
+2. **G411-126** (Clerk sign-in centering) is in the V2/Stretch backlog (G411-57) now — not blocking, needs real device devtools inspection whenever it's picked up, not a blind CSS guess.
+3. Still open, not blocking: the pre-existing `index.css` design-hook findings, the `/impeccable document` sidecar refresh, `ConfirmModal.jsx`'s own stray `variant="purple"`.
 
 ---
 
