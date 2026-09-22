@@ -1,5 +1,4 @@
-// Invite token routes (G411-41, escrow added G411-28 stage 4) — mounted
-// at /api/invites
+// Invite token routes (escrow support included) — mounted at /api/invites
 //
 // Admin creates a token (POST /), anyone can check if a token is
 // currently valid (GET /:token/valid) — the latter has to be reachable

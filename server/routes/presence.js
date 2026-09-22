@@ -1,4 +1,4 @@
-// Presence toggle (G411-43) — manual online/offline status per PRD §4.5.
+// Presence toggle — manual online/offline status per PRD §4.5.
 //
 // Offline is informational only for friends viewing in the app — the flag
 // never gates any route, never prevents requests from being accepted, and

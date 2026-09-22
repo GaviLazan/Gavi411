@@ -1,6 +1,6 @@
-// Complete profile route (G411-69) — collects phone number and optional
-// profile photo on first login. Mounted at /api/me via server.js.
-// G411-80: extends with a /profile route for friend-initiated edits.
+// Complete profile route — collects phone number and optional profile
+// photo on first login. Mounted at /api/me via server.js. Also has a
+// /profile route for friend-initiated edits after first login.
 
 import express from 'express'
 import { Prisma } from '@prisma/client'
@@ -48,11 +48,9 @@ router.patch('/complete-profile', requireAuth, async (req, res) => {
 
 // PATCH /api/me/profile — update user's phone number, any time after first login
 // Body: { phoneNumber (required) }
-// G411-80: name/username/email/photo are NOT handled here — Gavi's call:
-// Clerk's own native account modal (opened client-side via openUserProfile())
-// already covers those well, no need to duplicate it. Phone is the one field
-// Clerk can't manage (no Israeli-number support, see G411-69), so it's the
-// only thing this route — and the profile screen's own edit UI — still owns.
+// name/username/email/photo are NOT handled here — Clerk's own native
+// account modal already covers those. Phone is the one field Clerk can't
+// manage (no Israeli-number support), so it's the only thing this route owns.
 router.patch('/profile', requireAuth, async (req, res) => {
   const { phoneNumber } = req.body
 

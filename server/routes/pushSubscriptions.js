@@ -1,7 +1,6 @@
-// Web Push subscription routes (G411-29) — mounted at /api/push. Registers/
-// deregisters browser push subscriptions against a signed-in user. The
-// browser-side subscribe prompt/permission UI is G411-49's job — this route
-// just stores whatever subscription object the browser hands it.
+// Web Push subscription routes — mounted at /api/push. Registers/
+// deregisters browser push subscriptions against a signed-in user; just
+// stores whatever subscription object the browser hands it.
 
 import express from 'express'
 import { requireAuth } from '../middleware/auth.js'

@@ -1,9 +1,8 @@
-// Trigger/keyword admin routes (G411-42) — mounted at /api/triggers
+// Trigger/keyword admin routes — mounted at /api/triggers
 //
-// Live CRUD over the Trigger table that lib/matchKeywords.js (G411-19)
-// reads on every match — no redeploy needed to add/rename/remove a
-// keyword, per PRD §6.2. Seed data (G411-20) populates the initial rows;
-// this is just the admin-editable layer on top.
+// Live CRUD over the Trigger table that lib/matchKeywords.js reads on
+// every match — no redeploy needed to add/rename/remove a keyword.
+// Seed data populates the initial rows; this is the admin-editable layer.
 import express from 'express'
 import { Prisma, RequestType } from '@prisma/client'
 import { requireAuth, requireAdmin } from '../middleware/auth.js'

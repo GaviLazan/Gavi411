@@ -1,4 +1,4 @@
-// Gavi411 — Express entry point (G411-11)
+// Gavi411 — Express entry point
 
 import express from 'express'
 import 'dotenv/config'

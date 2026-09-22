@@ -1,9 +1,8 @@
-// Device-linking routes (G411-28, 2026-09-01) — mounted at /api/devices.
-// See prisma/schema.prisma's Device/ConversationDeviceKey doc comments for
+// Device-linking routes — mounted at /api/devices. See
+// prisma/schema.prisma's Device/ConversationDeviceKey doc comments for
 // the full mechanism. Server never sees a private key or a conversation
 // key in the clear — it only ever stores/relays public keys and
-// ECDH-wrapped conversation keys, same trust boundary as messages
-// themselves (G411-82).
+// ECDH-wrapped conversation keys, same trust boundary as messages.
 
 import express from 'express'
 import { requireAuth, requireAdmin } from '../middleware/auth.js'
@@ -15,9 +14,9 @@ const router = express.Router()
 // POST / — a signed-in user's new device (no local key yet, or a key that
 // doesn't match anything the server already has for them) asks to be
 // linked. Creates a PENDING Device row and pings admin via Web Push (see
-// notifyAdminOfDeviceRequest below). Does not touch User.publicKey — that field stays whatever the
-// account's original/primary device set at signup (G411-82); every device
-// after that is a Device row here, approved or not.
+// notifyAdminOfDeviceRequest below). Does not touch User.publicKey — that
+// field stays whatever the account's original/primary device set at
+// signup; every device after that is a Device row here, approved or not.
 router.post('/', requireAuth, async (req, res) => {
   const { publicKey } = req.body
   if (!publicKey || typeof publicKey !== 'string') {
@@ -47,9 +46,8 @@ async function notifyAdminOfDeviceRequest(device, requestingUser) {
 }
 
 // GET /pending — admin's queue of unapproved device requests, each with
-// enough of the requesting user's info to show a real name (not just a
-// clerkId) — this is the exact query G411-37/38's eventual admin cockpit
-// should call directly rather than re-deriving.
+// enough of the requesting user's info to show a real name, not just a
+// clerkId.
 router.get('/pending', requireAuth, requireAdmin, async (req, res) => {
   const pending = await prisma.device.findMany({
     where: { status: 'PENDING' },
