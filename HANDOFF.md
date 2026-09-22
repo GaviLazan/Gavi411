@@ -20,16 +20,15 @@ accumulated. If something here turns out to matter long-term, promote it to
 
 **Sibling review (this session, before any merge ask) found a real gap Haiku's own report never mentioned**: the old `server/routes/requests.js` monolith (1343 lines, byte-identical to original, every "Sibling review finding"/`G411-nn` comment still in it) was left in place alongside the new split — not wired into the live app (server.js was correctly repointed), but `server/lib/credits.stress.test.js` still imported it directly, so that stress test was silently testing a stale duplicate instead of the real new router. Fixed: deleted the monolith, repointed the stress test import to `requests/index.js`, re-verified the stress test passes against the real split code. Also found and removed a wrong hazard comment Haiku left in `detail.js` claiming an ordering constraint that directly contradicted the real mount order in `index.js` — the actual hazard (a same-HTTP-method route collision) is correctly documented elsewhere (`index.js`'s own comment, a dedicated test in `create.test.js`).
 
-555/555 tests fresh (matches pre-change baseline exactly), client build clean, falsifier grep (`Sibling review|G411-[0-9]` across `server/routes/requests/`) clean, comment ratios all near or under the 10% target. PR #142 pushed, CI green. Jira: **Reviewing**, Evidence-bar-met written against real state. **Not yet Landed — awaiting Gavi's merge go-ahead, not yet asked this turn.**
+555/555 tests fresh (matches pre-change baseline exactly), client build clean, falsifier grep (`Sibling review|G411-[0-9]` across `server/routes/requests/`) clean, comment ratios all near or under the 10% target. PR #142 merged (regular merge commit `1fefdb6`) after Gavi's explicit go-ahead and CI green. **Jira G411-116 stays at Implementing** — not Landed, not Reconciled — per Gavi's explicit correction this session (brain.md #156): a 5-PR ticket's status shouldn't move past Implementing until the last PR is ready, even though PR 1's code is genuinely merged and live.
 
 ### Real state, right now
-Primary worktree on branch `you/G411-116-cleanup-server-routes` (2 commits: Haiku's split, Sonnet's sibling-review fixes), pushed, PR #142 open against `main`, CI green. `main` itself unchanged, clean.
+Primary worktree back on `main`, fast-forwarded clean to `1fefdb6` (matches `origin/main`). All 6 `Gavi411-agent-*` worktrees checked clean this session (idle on their own older branches, unrelated to this work). 555/555 tests fresh on merged `main`. Branch `you/G411-116-cleanup-server-routes` is merged and can be deleted whenever convenient (not done yet).
 
 ### What's next, concretely
-1. **Ask Gavi for the merge go-ahead on PR #142** (wrap-up step 7 — not yet done as of this write).
-2. Once merged: code lands on `main` normally, but **Jira G411-116 stays at Implementing across all 5 PRs** — not Landed, not Reconciled, until PR 5 (tests) also merges. Gavi's explicit correction this session (see brain.md #156): a single PR's merge is real progress but not "this ticket's scope exists," so the status shouldn't claim more than that yet. Only the ticket's Falsifier/Evidence-bar-met text updates per-PR; State field itself doesn't move again until the last PR is ready.
-3. **Next PR in sequence: server lib + middleware** (`server/middleware/auth.js` at 135/225 comment lines is the worst offender measured in the ticket) — per the one-PR-at-a-time approach Gavi chose, this is proposed at STOP 1 before any code, not assumed.
-4. Still open, not blocking: the pre-existing `index.css` design-hook findings, the `/impeccable document` sidecar refresh, `ConfirmModal.jsx`'s own stray `variant="purple"`.
+1. **Next PR in sequence for G411-116: server lib + middleware** (`server/middleware/auth.js` at 135/225 comment lines is the worst offender measured in the ticket) — per the one-PR-at-a-time approach Gavi chose, propose the concrete split at STOP 1 before any code, don't assume scope or jump straight to dispatch.
+2. Per STOP 4: this PR's clean merge doesn't imply starting the next one automatically — confirm with Gavi first.
+3. Still open, not blocking: the pre-existing `index.css` design-hook findings, the `/impeccable document` sidecar refresh, `ConfirmModal.jsx`'s own stray `variant="purple"`.
 
 ---
 
