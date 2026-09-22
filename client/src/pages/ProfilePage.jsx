@@ -6,28 +6,10 @@ import Input from '../components/Input'
 import Select from '../components/Select'
 import './ProfilePage.css'
 
-// Profile page (G411-80) — lets a friend view their account and update the
-// one field Clerk can't manage: phone number (Clerk doesn't support Israeli
-// numbers, see G411-69). Everything else Clerk already handles well in its
-// own native, well-designed account modal (name, username, email, photo,
-// password, connected accounts, sign-out-other-devices) — Gavi's call: we
-// don't rebuild any of that, "Update account info" opens Clerk's own UI for
-// it. Only phone gets its own small edit flow, right here.
-//
-// G411-108: exposes handleBack via ref so App.jsx's app-bar back button can
-// trigger this screen's real exit logic (the Clerk sync below) instead of
-// a plain setView — this screen no longer renders its own Back button.
-//
-// G411-112: onto the design system (Card/Button/Input/Select) — same
-// layout for every account, friend or admin, since this is always the
-// signed-in user's own data, never account-specific.
+// Profile page: manage account info and phone number
 const ProfilePage = forwardRef(function ProfilePage({ user, onBack, onUpdated }, ref) {
   const { user: clerkUser } = useUser()
   const { openUserProfile, signOut } = useClerk()
-  // G411-108: only sync-from-Clerk on the way out if the user actually
-  // opened Clerk's own modal this visit — Gavi's live catch that the sync
-  // fired (and blocked navigation on it) unconditionally, even when
-  // nothing could have changed.
   const openedClerkModal = useRef(false)
   const [editingPhone, setEditingPhone] = useState(false)
   // Holds the option's own id (unique even when two options share a
@@ -121,16 +103,7 @@ const ProfilePage = forwardRef(function ProfilePage({ user, onBack, onUpdated },
     return dialCode + withoutLeadingZero
   }
 
-  // G411-80: our DB only pulls username/name/email from Clerk once, at
-  // first-login signup — an edit made in Clerk's native account modal
-  // (the "Update account info" button below) never reaches Prisma on its
-  // own, not even after a sign-out/sign-in (found live — sign-in only
-  // re-finds the existing row, it never re-creates it). Real fix is a
-  // Clerk webhook (needs Gavi's dashboard access, out of scope here).
-  // Cheaper stopgap: sync on the way out of this screen — the one place
-  // in the app that sends someone to Clerk's modal — so a same-session
-  // edit is caught without waiting for a reload. The server diffs
-  // against Prisma and only writes what actually changed.
+  // Sync Clerk updates on exit: one place to catch same-session edits
   function handleBack() {
     // Navigate immediately — the sync (when it runs at all) is a
     // best-effort background catch-up, not something worth making the
@@ -211,7 +184,6 @@ const ProfilePage = forwardRef(function ProfilePage({ user, onBack, onUpdated },
     }
   }
 
-  // G411-96: delete account
   async function handleDeleteAccount() {
     setDeleteError(null)
     setSubmitting(true)
@@ -321,7 +293,6 @@ const ProfilePage = forwardRef(function ProfilePage({ user, onBack, onUpdated },
           </Button>
         )}
 
-        {/* G411-96: account deletion */}
         {!editingPhone && (
           <div className="profile-delete-section">
             {!confirmingDelete ? (

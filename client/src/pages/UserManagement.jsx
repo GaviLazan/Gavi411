@@ -5,14 +5,13 @@ import Select from '../components/Select'
 import Input from '../components/Input'
 import './UserManagement.css'
 
-// Admin user-management screen (G411-99) — consolidated view for managing
+// Admin user-management screen — consolidated view for managing
 // all non-admin users with 4 actions per user:
 // 1. Change group tag (calls existing PATCH .../group-tag)
 // 2. Adjust credit balance (+/- adjustment)
 // 3. Edit basic info (name, phone)
 // 4. Block/delete account (toggle block, or soft-delete with confirmation)
 //
-// G411-112: onto the design system. No in-page Back button — the app
 // bar's own chevron already covers every non-'list' view.
 
 // Gavi's call: the input reads as "set balance to this number" by
@@ -43,7 +42,7 @@ function UserManagement() {
   const [deleteLoading, setDeleteLoading] = useState({}) // { userId: boolean }
 
   // Delete confirmation — inline type-to-confirm expand, same pattern as
-  // ProfilePage.jsx's self-delete (G411-96), not a ConfirmModal (that
+  // ProfilePage.jsx's self-delete, not a ConfirmModal (that
   // component only supports a plain message + Yes/No, no text-input slot —
   // the prior version here silently could never pass its own confirm check).
   const [deleteConfirm, setDeleteConfirm] = useState({ open: false, userId: null, userName: '' })
@@ -358,7 +357,7 @@ function UserManagement() {
               </div>
 
               {/* Inline type-to-confirm expand, same pattern as
-                  ProfilePage.jsx's self-delete (G411-96) — not a
+                  ProfilePage.jsx's self-delete — not a
                   ConfirmModal, which has no text-input slot. */}
               {isDeleting && (
                 <div className="user-section user-delete-confirm">

@@ -4,15 +4,7 @@ import Button from '../components/Button'
 import Select from '../components/Select'
 import './AdminCreateRequest.css'
 
-// Admin creates a request on behalf of an existing user (G411-44).
-//
-// G411-112: onto the design system (Card/Button/Input/Select). Also drops
-// the "Set a friend's tier" section (G411-46) — a stopgap bolted on here
-// before UserManagement (G411-99) existed, calling the exact same
-// PATCH .../group-tag endpoint UserManagement's own per-user Group Tag
-// select already covers. Gavi's direct call: keep the real editor in
-// UserManagement, remove the duplicate here. No in-page Back button — the
-// app bar's own chevron already covers every non-'list' view.
+// Admin creates a request on behalf of an existing user
 function AdminCreateRequest() {
   const [users, setUsers] = useState([])
   const [selectedUserId, setSelectedUserId] = useState('')

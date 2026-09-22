@@ -8,15 +8,7 @@ import StatusChip from "../components/StatusChip";
 import Icon from "../components/Icon";
 import { statusLabel as labelize } from "../lib/requestStatus";
 import { formatDate } from "../lib/format";
-// This page reuses ReviewSummary's .review-row/.review-label/.review-value
-// classes for its own read-only rows — imported directly (Sibling review
-// finding: it used to only work by relying on NewRequest.jsx importing
-// this CSS first into the same eagerly-bundled app).
 import "../components/ReviewSummary.css";
-// Same reasoning for the compose textarea's .field-input class (G411-25
-// Sibling review finding — same bug class as above, caught again):
-// Input.css was only ever loaded as a side effect of NewRequest.jsx
-// importing Input.jsx first.
 import "../components/Input.css";
 import "./RequestDetail.css";
 import { getConversationKey, encryptMessageContent, decryptMessageContent, OTHER_PARTY_MISSING_KEY } from "../lib/conversationCrypto";
@@ -25,18 +17,8 @@ import { requestDeviceLink, getMyDeviceStatus, wrapMissingConversationKeys } fro
 import { loadPrivateKey } from "../lib/keyStore";
 import { E2E_ENABLED } from "../lib/e2eConfig";
 
-// Request detail / "ticket" page (G411-75). Minimum scope per the ticket:
-// the request's own fields + urgency/status + the existing Message thread
-// (schema's supported it since G411-67, never rendered anywhere until now).
-// Real thread UI + compose box landed in G411-25 (MessageThread.jsx).
+// ── State · Effects · Handlers · Render ──
 
-// typeDetails' keys are freeform per-type (TravelFields/PurchaseFields/
-// TechSupportFields), no shared spec list like ReviewSummary.jsx's — that
-// file's SPECS constants are review-screen-only (paired with edit
-// controls this read-only page doesn't have). Camel-case keys get the
-// same word-split treatment as status/type instead of a hand-maintained
-// label map, since this page's job is "show whatever was saved," not
-// per-type-tuned copy.
 function fieldLabel(key) {
   const spaced = key.replace(/([a-z0-9])([A-Z])/g, "$1 $2");
   return spaced[0].toUpperCase() + spaced.slice(1);
@@ -61,29 +43,8 @@ function typeDetailRows(details, keyPrefix = "") {
   });
 }
 
-// Kept in sync by hand with server/lib/cloudinary.js's ALLOWED_IMAGE_TYPES
-// (Sibling review finding) — client and server are separate deploy
-// targets (Vercel/Render) with no shared package, so a real import isn't
-// available; this is only a UI hint anyway (accept doesn't enforce
-// anything), the server's own check stays authoritative either way.
 const IMAGE_ACCEPT = "image/gif,image/jpeg,image/png,image/heic,image/webp";
 
-// G411-39: which statuses this UI OFFERS from a given current status —
-// mirrors server/routes/requests.js's own TRANSITIONS table (admin side
-// only; canCloseRequest is friend-only so CLOSED is never offered here).
-// This is deliberately just an offer-list, not a second source of truth:
-// the server re-validates every PATCH against its own TRANSITIONS/
-// canSetUrgency/canCloseRequest regardless of what this table shows, same
-// "client can't add restriction beyond what the server enforces, client
-// must not offer what the server would reject" contract as every other
-// admin-only control on this page. No shared package between client/
-// server (separate Vercel/Render deploys), so duplicating this small
-// table is the same accepted tradeoff as IMAGE_ACCEPT above — kept in
-// sync by hand.
-//
-// WAITING_ON_USER -> CLOSED (auto-close) and any -> CLOSED (friend
-// confirm) are both deliberately absent — CLOSED is never admin-
-// triggerable via this route (canCloseRequest), so it's never offered.
 const ADMIN_STATUS_OPTIONS = {
   IN_QUEUE: ["RECEIVED", "CANCELLED"],
   RECEIVED: ["WORKING_ON_IT", "CANCELLED"],
@@ -93,30 +54,12 @@ const ADMIN_STATUS_OPTIONS = {
   CLOSED: [],
   CANCELLED: [],
   SELF_SOLVED: [],
-  // G411-47: deliberately empty, not [IN_QUEUE, OVERDRAFT_DENIED] — the
-  // generic dropdown would show "In Queue" for approve, which doesn't
-  // read as "approve this overdraft" on its own. Dedicated Approve/Deny
-  // buttons below (same convention as Nudge) cover this transition
-  // instead of the dropdown.
   OVERDRAFT_PENDING: [],
   OVERDRAFT_DENIED: [],
 };
 
-// G411-39: statuses whose transition is disruptive enough to confirm
-// first — cancelling or marking self-solved ends the request outright.
-// Plain in-flow moves (RECEIVED, WORKING_ON_IT, WAITING_ON_USER, etc.)
-// don't need a confirm step; ConfirmModal.jsx (G411-64) is reused as-is,
-// same convention as the discard-request flow it was built for.
-// G411-47: denying an overdraft request is the same "ends this outright"
-// shape as CANCELLED/SELF_SOLVED — worth a real confirm, not a one-click
-// accident. Approving (-> IN_QUEUE) is deliberately NOT here — that's the
-// normal "this proceeds" direction, same as any other in-flow move.
 const STATUS_NEEDS_CONFIRM = ["CANCELLED", "SELF_SOLVED", "OVERDRAFT_DENIED"];
 
-// One shared source for the confirm-modal message, used by both the
-// friend and admin branches below (Sibling review finding — each branch
-// had its own independent ternary, already drifted from each other, no
-// shared spot to fix wording in once).
 function confirmMessage(status) {
   if (status === "SELF_SOLVED") return "Mark this ask as self-solved? This ends the ask.";
   if (status === "CANCELLED") return "Cancel this ask?";
@@ -124,26 +67,11 @@ function confirmMessage(status) {
   return `Change status to "${status ? labelize(status) : ""}"? This ends the ask.`;
 }
 
-// G411-87: friend-facing lifecycle buttons — a small fixed set (not a
-// general dropdown like ADMIN_STATUS_OPTIONS above), since the ticket's
-// scope is exactly these two named exits, each gated to specific source
-// statuses per TRANSITIONS/decision #100's refund rule. Kept as simple
-// membership checks rather than a table, since there's no "offer
-// whichever of N options apply" shape here — just two independent
-// conditionally-shown buttons.
 const FRIEND_CANCELLABLE_FROM = ["IN_QUEUE", "RECEIVED"];
 const FRIEND_SELF_SOLVABLE_FROM = ["WORKING_ON_IT", "WAITING_ON_USER"];
 
-// G411-91: friend-facing close-confirm. Deliberately NOT added to
-// STATUS_NEEDS_CONFIRM/confirmMessage — that set means "ends the request
-// prematurely," which this isn't: admin already proposed the request is
-// resolved (RESOLVED_PENDING_CONFIRMATION), so this is agreeing, not
-// cutting something short. Applies directly via applyStatus, same as any
-// other non-disruptive move.
 const FRIEND_CLOSABLE_FROM = ["RESOLVED_PENDING_CONFIRMATION"];
 
-// G411-38: admin's three tabs. Friends only ever see one view (below),
-// no tab state needed for them.
 const ADMIN_TABS = [
   { value: "details", label: "Details" },
   { value: "thread", label: "Thread" },
@@ -152,10 +80,7 @@ const ADMIN_TABS = [
 
 function RequestDetail({ requestId, isAdmin }) {
   const [request, setRequest] = useState(null);
-  // Admin-only tab state (G411-38) — friends never see tabs, so this is
-  // simply unused/ignored on their path rather than gated behind isAdmin
-  // at declaration (cheaper than conditionally calling useState).
-  // G411-106: persist tab selection per-request to sessionStorage
+  // Admin-only tab state, persisted per-request to sessionStorage.
   const [adminTab, setAdminTab] = useState(() => {
     try {
       const key = `gavi411_admin_tab_${requestId}`
@@ -178,23 +103,16 @@ function RequestDetail({ requestId, isAdmin }) {
   // button below renders. A dedicated flag rather than string-matching
   // sendError's text, which is fragile against future copy changes.
   const [needsKeypair, setNeedsKeypair] = useState(false);
-  // Matan's Sibling review, PR #35, Fix 2: getConversationKey returning
-  // null used to mean two unrelated things — THIS device has no key
-  // (needsKeypair above, genuinely fixable by the recovery buttons below)
-  // or the OTHER PARTY has no key yet (nothing on this device is broken).
-  // Both used to show the same destructive "request access to your
-  // existing messages" button, which calls requestDeviceLink() —
-  // unconditionally overwrites this device's local keypair via
-  // generateKeypair()+savePrivateKey(). Under the other-party-missing
-  // cause, clicking it destroyed a perfectly good working key for no
-  // benefit. This flag gates the buttons off in favor of a plain,
-  // non-actionable status line for that case.
+  // Distinguishes "this device has no key" (needsKeypair above, fixable
+  // by the recovery buttons below) from "the OTHER PARTY has no key yet"
+  // (nothing broken on this device — the recovery buttons would just
+  // overwrite a perfectly good local key for no benefit, so this flag
+  // gates them off in favor of a plain status line instead).
   const [otherPartyMissingKey, setOtherPartyMissingKey] = useState(false);
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
-  const [image, setImage] = useState(null); // File | null (G411-26)
+  const [image, setImage] = useState(null);
   const fileInputRef = useRef(null);
-  // G411-82: `request.message` rows can be a mix of legacy plaintext and
   // new encrypted ones — decryptedMessages is the render-ready version
   // MessageThread actually gets, decrypted client-side. Kept as separate
   // state (not computed inline in JSX) because decryption is async.
@@ -202,7 +120,6 @@ function RequestDetail({ requestId, isAdmin }) {
   // Distinguishes "genuinely no messages" from "haven't decrypted the
   // first batch yet" — without this, MessageThread briefly renders "No
   // messages yet." on every load before the async decrypt effect below
-  // resolves, even when the thread has real messages (Sibling review
   // finding, second round).
   const [decrypting, setDecrypting] = useState(true);
   // Self-service recovery for a regular (non-admin) user whose keypair
@@ -212,9 +129,7 @@ function RequestDetail({ requestId, isAdmin }) {
   // review finding, second round — createAndUploadKeypair() itself was
   // already generic, just never offered to a regular user anywhere).
   const [keypairStatus, setKeypairStatus] = useState("idle"); // 'idle' | 'working' | 'error'
-  // G411-94: copy-to-clipboard feedback — shows "Copied!" briefly when permalink link is copied
   const [permalinkCopied, setPermalinkCopied] = useState(false)
-  // G411-110: friend-view overflow menu (Copy link / No longer urgent /
   // Mark self-solved / Cancel request). Declared unconditionally, same as
   // adminTab above, even though only the friend branch renders it — a
   // hook can't be called only inside `if (!isAdmin)` (Rules of Hooks).
@@ -264,7 +179,6 @@ function RequestDetail({ requestId, isAdmin }) {
     };
   }, [requestId]);
 
-  // G411-82: derive the conversation's shared key once per requestId/
   // message-set change, decrypt every row. A message that fails to
   // decrypt (wrong/missing key, corrupt envelope) renders a visible
   // placeholder instead of crashing the whole thread — one bad row
@@ -278,14 +192,9 @@ function RequestDetail({ requestId, isAdmin }) {
     }
 
     setDecrypting(true);
-    // Decision #98 pause: sendMessage() below never sends encrypted:true
-    // anymore, but rows from BEFORE the pause can still be real encrypted
-    // envelopes (E2E was live, G411-82) — skipping key derivation
-    // unconditionally would render those as "unable to decrypt" even
-    // though the ciphertext and both parties' keys are still intact
-    // (Sibling review finding, PR #38). Only skip the fetch/derive when
-    // every row in this thread is already plaintext — same guard
-    // searchIndex.js uses.
+    // Older rows can be real encrypted envelopes even though sendMessage()
+    // no longer sends encrypted:true — only skip key derivation when every
+    // row in this thread is already plaintext.
     const hasEncrypted = request.message.some((m) => m.encrypted);
     (E2E_ENABLED || hasEncrypted ? getConversationKey(requestId) : Promise.resolve(null))
       .then(async (sharedKey) => {
@@ -301,12 +210,8 @@ function RequestDetail({ requestId, isAdmin }) {
         );
         if (!cancelled) setDecryptedMessages(resolved);
       })
-      // getConversationKey can reject (IndexedDB error, network failure
-      // fetching /public-keys, a malformed key throwing in crypto.subtle)
-      // rather than just resolving null — previously unhandled, which
-      // left decryptedMessages stuck at [] forever with no error shown,
-      // silently rendering "No messages yet." over a real thread
-      // (Sibling review finding, second round).
+      // getConversationKey can reject (IndexedDB error, network failure,
+      // a malformed key throwing in crypto.subtle), not just resolve null.
       .catch(() => {
         if (!cancelled) setDecryptedMessages([]);
       })
@@ -317,13 +222,9 @@ function RequestDetail({ requestId, isAdmin }) {
     return () => {
       cancelled = true;
     };
-    // Depends on a stable signature of the message list (ids joined),
-    // not the raw `request.message` array reference — every setRequest()
-    // call (e.g. applyStatus's PATCH response) returns a fresh array even
-    // when the messages themselves didn't change, which used to re-run
-    // this whole decrypt effect on every status/urgency change and
-    // flash "No messages yet." while it re-decrypted identical content
-    // (Gavi, live testing: "changing status hides the messages").
+    // Depends on a stable signature of the message list (ids joined), not
+    // the raw array reference — setRequest() returns a fresh array on
+    // every update even when the messages themselves didn't change.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [requestId, request?.message?.map((m) => m.id).join(",")]);
 
@@ -337,13 +238,9 @@ function RequestDetail({ requestId, isAdmin }) {
     }
   }
 
-  // G411-28 device-linking, bare-minimum trigger (real cockpit-side UI is
-  // G411-37/38's job). Distinct from handleGenerateKeypair above: that one
-  // makes THIS device the account's only key (fine for a genuinely
-  // keyless account — G411-83's bootstrap case), this one asks admin to
-  // grant THIS device access to whatever key(s) already exist for the
-  // account elsewhere — the two are alternatives, not sequential steps,
-  // so both stay offered side by side rather than one replacing the other.
+  // Device-link request: asks admin to grant this device access to keys
+  // that already exist elsewhere for the account — an alternative to
+  // handleGenerateKeypair above, not a sequential step.
   const [deviceLinkStatus, setDeviceLinkStatus] = useState("idle"); // 'idle' | 'requesting' | 'pending' | 'error'
 
   useEffect(() => {
@@ -353,12 +250,8 @@ function RequestDetail({ requestId, isAdmin }) {
     });
   }, []);
 
-  // Matan's Sibling review, PR #35, Fix 1a: self-healing sweep, scoped to
-  // just this Request — a second, more contained trigger point alongside
-  // App.jsx's on-load sweep, so a long admin session (tab left open for
-  // days, no reload) still eventually self-heals for whichever
-  // conversations admin actually opens. Best-effort, same silent-no-op
-  // convention as the on-load sweep.
+  // Self-healing sweep scoped to this Request, alongside App.jsx's on-load
+  // sweep — best-effort, silent no-op on failure.
   useEffect(() => {
     if (!E2E_ENABLED || !isAdmin) return;
     loadPrivateKey().then((key) => {
@@ -376,20 +269,14 @@ function RequestDetail({ requestId, isAdmin }) {
     }
   }
 
-  // G411-106: persist adminTab to sessionStorage whenever it changes
   useEffect(() => {
     const key = `gavi411_admin_tab_${requestId}`
     sessionStorage.setItem(key, adminTab)
   }, [adminTab, requestId])
 
   function refetch() {
-    // Same res.ok check + swallow-on-failure as the mount-load effect
-    // above (Sibling review finding, G411-92): the 30s background poll
-    // below made a silent 401/404 response a real, reachable case (a
-    // stale/invalidated session sitting on an open tab) — previously
-    // refetch() only ran right after the user's own fresh-session
-    // action, where this was near-impossible. A failed poll just skips
-    // this tick rather than corrupting `request` with an error body.
+    // Same res.ok check + swallow-on-failure as the mount-load effect —
+    // a failed poll skips this tick rather than corrupting `request`.
     fetch(`/api/requests/${requestId}`)
       .then((res) => {
         if (!res.ok) throw new Error("failed");
@@ -399,14 +286,9 @@ function RequestDetail({ requestId, isAdmin }) {
       .catch(() => {});
   }
 
-  // G411-92: the other party's changes (status/urgency/message) were
-  // invisible until this view was left and re-entered — no polling, no
-  // window-focus refetch. Lightweight interval only, no WebSocket/SSE
-  // per CLAUDE.md's architecture decision. Cleared on unmount/requestId
-  // change so a closed/navigated-away view never keeps polling. Paused
-  // while the tab is backgrounded (Sibling review finding) — a request
-  // left open and idle would otherwise keep hitting the free-tier
-  // backend/DB every 30s for a view nobody is looking at.
+  // Lightweight interval poll for the other party's changes (no WebSocket/
+  // SSE per CLAUDE.md). Cleared on unmount/requestId change, paused while
+  // the tab is backgrounded.
   useEffect(() => {
     let cancelled = false;
     let interval = null;
@@ -443,7 +325,6 @@ function RequestDetail({ requestId, isAdmin }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [requestId]);
 
-  // G411-40: private admin-only notes. Fetched lazily — only once admin
   // actually opens the Notes tab (or side-by-side view, which always
   // shows it as a tab too) — not on every detail-page load, since most
   // admin visits are for the thread, not notes.
@@ -509,7 +390,6 @@ function RequestDetail({ requestId, isAdmin }) {
     }
   }
 
-  // G411-39: admin status-control state. The dropdown itself has no
   // controlled value beyond the placeholder — selecting an option applies
   // it immediately (see handleStatusSelect below), so there's nothing to
   // hold "pending" between select and apply anymore.
@@ -517,10 +397,7 @@ function RequestDetail({ requestId, isAdmin }) {
   const [statusError, setStatusError] = useState("");
   const [confirmStatus, setConfirmStatus] = useState(null); // status awaiting Yes/No, or null
 
-  // Shared by the plain-dropdown path and the confirm-modal path — same
-  // existing PATCH /:id route G411-30/31/32 already built and tested,
-  // no new backend logic (Ponytail: this is a UI surface over an
-  // already-built state machine).
+  // Shared by the plain-dropdown path and the confirm-modal path.
   async function applyStatus(nextStatus) {
     setStatusSaving(true);
     setStatusError("");
@@ -557,7 +434,6 @@ function RequestDetail({ requestId, isAdmin }) {
     }
   }
 
-  // G411-39, admin-only "no longer urgent" — mirrors canSetUrgency's
   // admin branch server-side (free any-direction control), but this ONE
   // button only ever sends HIGH -> NORMAL since that's the only urgency
   // action PRD §6.2's control surface actually calls for; admin's fuller
@@ -584,7 +460,6 @@ function RequestDetail({ requestId, isAdmin }) {
     }
   }
 
-  // G411-93: send nudge #1 (manual nudge, can only nudge once per cycle).
   // Clears nudgedAt on friend reply, allowing another nudge.
   async function handleNudge() {
     setStatusSaving(true);
@@ -607,7 +482,6 @@ function RequestDetail({ requestId, isAdmin }) {
     }
   }
 
-  // G411-94: copy permalink to clipboard with feedback
   function handleCopyPermalink() {
     if (!request?.publicId) return
     const link = `${window.location.origin}/r/${request.publicId}`
@@ -617,7 +491,6 @@ function RequestDetail({ requestId, isAdmin }) {
     })
   }
 
-  // G411-82: text is encrypted client-side before it ever reaches the
   // server, via the shared key derived from the other party's public
   // key. A sender with no keypair yet (see prisma/schema.prisma's
   // User.publicKey doc comment — a test/dev account created directly,
@@ -681,15 +554,9 @@ function RequestDetail({ requestId, isAdmin }) {
       refetch();
     } catch (err) {
       setSendError(err.message);
-      // Clear a rejected image rather than leave a broken/invalid
-      // preview sitting on screen — most send failures with an image
-      // attached are about that image (size/type); retrying means
-      // deliberately re-attaching, not silently resending the same
-      // bad file. Exception: a missing-keypair failure has nothing to
-      // do with the image (Sibling review finding, second round) — the
-      // image the user already selected/captioned shouldn't be silently
-      // discarded for an unrelated reason, forcing them to re-attach it
-      // after fixing their key via the recovery button above.
+      // Clear a rejected image (most failures with one attached are about
+      // it), except a missing-keypair failure — that's unrelated, so the
+      // image shouldn't be discarded while the user fixes their key.
       if (image && !missingKeypair) setImage(null);
     } finally {
       setSending(false);
@@ -708,7 +575,6 @@ function RequestDetail({ requestId, isAdmin }) {
     return <Card>Loading…</Card>;
   }
 
-  // G411-110: hoisted above threadCard (rather than declared inside the
   // friend-only branch below, where it originally lived) so threadCard —
   // shared by both friend and admin — can show the "Confirm — resolved"
   // banner above the message list for the friend, without admin's branch
@@ -763,7 +629,7 @@ function RequestDetail({ requestId, isAdmin }) {
   const threadCard = (
     <Card>
       <h2>Messages</h2>
-      {/* G411-110: kept above the message list (not just above the
+      {/* kept above the message list (not just above the
           compose bar) so it's never pushed below the fold on a long
           thread — Gavi, live testing: "User should have it accessible." */}
       {!isAdmin && canClose && (
@@ -777,7 +643,6 @@ function RequestDetail({ requestId, isAdmin }) {
           <MessageThread messages={decryptedMessages} />
         )}
         {E2E_ENABLED && otherPartyMissingKey && (
-          // Matan's Sibling review, PR #35, Fix 2 — nothing to fix on this
           // device, so no button is offered (the destructive "request
           // access" flow below would overwrite a perfectly good local key
           // for no benefit).
@@ -789,13 +654,8 @@ function RequestDetail({ requestId, isAdmin }) {
               {keypairStatus === "working" ? "Generating…" : "Generate my encryption key"}
             </button>
             {keypairStatus === "error" && " Failed — try again."}
-            {/* Matan's Sibling review, PR #35, Medium finding: admin's own
-                second device has no Request rows of its own to inherit
-                (admin never owns a Request — device.userId never matches
-                one), so this self-service flow silently gets zero keys
-                for admin. Real admin-key recovery is G411-83's job, a
-                different mechanism — hide this flow for admin entirely
-                rather than let it look like it should work. */}
+            {/* Admin has no Request rows to inherit keys from, so this
+                self-service flow doesn't apply — hidden for admin. */}
             {!isAdmin && (
               <>
                 {" or, if you already have an account with messages elsewhere, "}
@@ -821,7 +681,6 @@ function RequestDetail({ requestId, isAdmin }) {
       </Card>
   );
 
-  // G411-110: a sticky bar has to sit OUTSIDE threadCard's own Card
   // padding/border/shadow to actually stick to the real viewport edge —
   // sticky *inside* a padded Card only sticks to the Card's own inner
   // edge, leaving the Card's bottom padding/radius/shadow trailing below
@@ -853,7 +712,6 @@ function RequestDetail({ requestId, isAdmin }) {
           e.target.style.height = "auto";
           e.target.style.height = `${e.target.scrollHeight}px`;
         }}
-        // G411-118: Enter sends (matching the send-arrow button).
         // Ctrl/Cmd+Enter inserts a newline explicitly -- a textarea's
         // native default for a MODIFIED Enter is nothing (no newline),
         // not a fallback newline, so this can't just be "don't call
@@ -884,7 +742,7 @@ function RequestDetail({ requestId, isAdmin }) {
           is empty and no image is attached, send-arrow once there's
           text or an image. Picking an image keeps the box open for an
           optional caption before sending, not an immediate send — one
-          Message row holds content + imageUrl together (G411-24). */}
+          Message row holds content + imageUrl together. */}
       {draft.trim() || image ? (
         <button
           type="button"
@@ -908,7 +766,6 @@ function RequestDetail({ requestId, isAdmin }) {
     </div>
   );
 
-  // G411-40: private admin-only notes, backed by the Note model/routes
   // (GET/POST /api/requests/:id/notes — admin-only server-side, "visible
   // only to Gavi" per PRD §6.2, real security boundary not a UI hint).
   // Textarea + Save button mirrors the message-compose pattern already on
@@ -951,9 +808,7 @@ function RequestDetail({ requestId, isAdmin }) {
   );
 
   if (!isAdmin) {
-    // G411-87: friend-facing lifecycle actions — same PATCH /:id route,
     // same applyStatus/handleDowngradeUrgency/confirm-modal machinery
-    // G411-39 built for admin's status pill, just a different (smaller,
     // fixed) set of offered actions and no dropdown. Cancel/Self-solved
     // both route through the confirm modal via STATUS_NEEDS_CONFIRM,
     // same as admin's disruptive-exit gate — ending your own request is
@@ -1095,9 +950,7 @@ function RequestDetail({ requestId, isAdmin }) {
     );
   }
 
-  // Admin: tabbed shell (G411-38) — status pill pinned near the top,
   // outside/above the tabs, so it stays visible across every tab switch.
-  // G411-39: the pill is now a real control surface — a dropdown offering
   // only the transitions ADMIN_STATUS_OPTIONS says are legal from the
   // current status, applying immediately on select (no separate "Change"
   // button — Gavi's live-testing call), a confirm step for the disruptive
@@ -1113,7 +966,7 @@ function RequestDetail({ requestId, isAdmin }) {
       <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-2)" }}>
         <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", justifyContent: "space-between", gap: "var(--space-3)" }}>
           <div style={{ display: "flex", alignItems: "center", gap: "var(--space-2)", flexWrap: "wrap" }}>
-            {/* G411-110: the dropdown itself now shows the current status
+            {/* the dropdown itself now shows the current status
                 as its resting value (see options below), so the separate
                 pill would just duplicate it — dropped except for a
                 terminal status (CLOSED/CANCELLED/SELF_SOLVED/etc.) where
@@ -1154,7 +1007,7 @@ function RequestDetail({ requestId, isAdmin }) {
                 </Button>
               )
             })()}
-            {/* G411-47: dedicated Approve/Deny buttons rather than making
+            {/* dedicated Approve/Deny buttons rather than making
                 the admin read "In Queue" off the generic status dropdown
                 and infer that means "approve the overdraft" — same
                 dedicated-button convention as Nudge/No-longer-urgent above

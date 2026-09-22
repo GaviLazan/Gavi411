@@ -6,29 +6,14 @@ import Input from '../components/Input'
 import Select from '../components/Select'
 import './CompleteProfile.css'
 
-// Complete profile — mandatory first-login gate (G411-69). Collects phone
-// number (required, unique) and optional profile photo. No onBack prop — this
-// is a hard gate, there's nowhere to go back to until phone is set.
-//
-// G411-112: onto the design system. No Gavi avatar / explanatory copy line
-// here (2026-09-20 correction, Gavi's call — the avatar concept was already
-// replaced app-wide by a presence dot as of G411-109, and friends already
-// know who Gavi is without a line explaining it).
+// Complete profile: mandatory first-login gate for phone + optional photo
 function CompleteProfile({ currentProfilePic, onComplete }) {
   const { user } = useUser()
   const fileInputRef = useRef(null)
-  // Holds the option's own id (unique even when two options share a
-  // calling code, e.g. US/CA both +1) — the Select needs a value that's
-  // actually unique per option; the calling code itself is derived via
-  // dialCodeOptions.find() wherever needed, see `dialCode` below.
-  const [dialCodeId, setDialCodeId] = useState('IL') // Israel default
+  const [dialCodeId, setDialCodeId] = useState('IL')
   const [localNumber, setLocalNumber] = useState('')
   const [selectedPhotoUrl, setSelectedPhotoUrl] = useState(currentProfilePic || null)
   const [photoError, setPhotoError] = useState(null)
-  // Sibling review finding: the submit button was only disabled by
-  // `submitting`, not by an in-flight photo upload — clicking Continue
-  // while a Clerk upload was still pending submitted before
-  // selectedPhotoUrl updated, silently dropping the photo with no error.
   const [uploadingPhoto, setUploadingPhoto] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState(null)
@@ -58,14 +43,6 @@ function CompleteProfile({ currentProfilePic, onComplete }) {
     setPhotoError(null)
     setUploadingPhoto(true)
     try {
-      // Upload to Clerk and get the image URL. Sibling review finding:
-      // ImageResource's real field is `publicUrl`, not `url` — the
-      // original draft read a field that doesn't exist, so the photo
-      // would upload to Clerk successfully but silently never get saved
-      // to our own profilePic (submitting `profilePic: undefined` just
-      // gets dropped by the PATCH's own spread-if-present logic).
-      // publicUrl is typed nullable by Clerk itself — guard it so a rare
-      // null doesn't silently overwrite an existing photo with nothing.
       const imageResource = await user.setProfileImage({ file })
       if (imageResource.publicUrl) {
         setSelectedPhotoUrl(imageResource.publicUrl)
@@ -176,10 +153,6 @@ function CompleteProfile({ currentProfilePic, onComplete }) {
               {selectedPhotoUrl ? 'Change photo' : 'Choose photo (optional)'}
             </Button>
             {photoError && <p role="alert" className="complete-profile-error">{photoError}</p>}
-            {/* No separate "Skip" control needed — profilePic is only ever
-                sent if selectedPhotoUrl is set, so simply not choosing a
-                photo already skips this step. A button with no effect of
-                its own would be misleading UI (Sibling review finding). */}
           </div>
 
           {error && <p role="alert" className="complete-profile-error">{error}</p>}

@@ -1,16 +1,9 @@
 import { useState } from 'react'
 import { recoverAndSaveBackup } from '../lib/escrow'
 
-// Escrow recovery page (G411-28 stage 4). Reached via a single-use
-// recovery link (?recover=<token>#<passphrase> — same URL-fragment
-// convention as the invite link itself, see App.jsx and
-// lib/inviteToken.js's doc comment for why the passphrase must never
-// travel as a query param). Restores the escrowed private key into this
-// device's keyStore.js so a friend who lost their original device can
-// pick back up on a new one, given by Gavi out-of-band (the same
-// passphrase from the original invite-creation CSV export).
+// Escrow recovery: restore escrowed private key on a new device
 function Recover({ token, passphrase, onDone }) {
-  const [status, setStatus] = useState('idle') // 'idle' | 'working' | 'done' | 'error'
+  const [status, setStatus] = useState('idle')
 
   async function handleRecover() {
     setStatus('working')
