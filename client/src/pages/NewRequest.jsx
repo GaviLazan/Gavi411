@@ -93,7 +93,7 @@ function NewRequest({ onDone, onExit, onFreeTextChange, isOnline }) {
       body: JSON.stringify({ freeText }),
     });
     if (!res.ok) {
-      setSubmitError("Something went wrong matching your request. Try again?");
+      setSubmitError("Something went wrong figuring out what you need help with. Try again?");
       return;
     }
     const { matchedTypes } = await res.json();
@@ -300,7 +300,7 @@ function NewRequest({ onDone, onExit, onFreeTextChange, isOnline }) {
 
       if (!res.ok) {
         const { error } = await res.json().catch(() => ({}));
-        setSubmitError(error || "Something went wrong submitting your request.");
+        setSubmitError(error || "Something went wrong sending this. Try again?");
         // G411-47: a 402 here is specifically "out of credits" (the only
         // thing this route ever 402s on) — offer the overdraft path
         // instead of just leaving the friend stuck on a dead-end error.
@@ -321,7 +321,7 @@ function NewRequest({ onDone, onExit, onFreeTextChange, isOnline }) {
       // for any exit besides the explicit "Back to my requests" button).
       onFreeTextChange?.("");
     } catch {
-      setSubmitError("Something went wrong submitting your request.");
+      setSubmitError("Something went wrong sending this. Try again?");
     } finally {
       setSubmitting(false);
     }
@@ -350,7 +350,7 @@ function NewRequest({ onDone, onExit, onFreeTextChange, isOnline }) {
 
       if (!res.ok) {
         const { error } = await res.json().catch(() => ({}));
-        setSubmitError(error || "Something went wrong submitting your overdraft request.");
+        setSubmitError(error || "Something went wrong sending that. Try again?");
         return;
       }
 
@@ -360,7 +360,7 @@ function NewRequest({ onDone, onExit, onFreeTextChange, isOnline }) {
       setOverdraftPending(true);
       setStep("done");
     } catch {
-      setSubmitError("Something went wrong submitting your overdraft request.");
+      setSubmitError("Something went wrong sending that. Try again?");
     } finally {
       setSubmitting(false);
     }
@@ -448,6 +448,11 @@ function NewRequest({ onDone, onExit, onFreeTextChange, isOnline }) {
           <>
             <h2>How can I help?</h2>
             <p>{freeText}</p>
+            <p className="meta">
+              {showFullTypeList
+                ? "Didn't quite catch what kind of ask this is — pick one:"
+                : "Which one of these request types is closest?"}
+            </p>
             <DisambiguationChips
               matchedTypes={matchedTypes}
               allTypes={ALL_TYPES}
@@ -517,7 +522,7 @@ function NewRequest({ onDone, onExit, onFreeTextChange, isOnline }) {
                 through; this button only sends the ask. */}
             {overdraftEligible && (
               <Button variant="secondary" onClick={handleOverdraftRequest} disabled={submitting}>
-                {submitting ? "Sending…" : "Request anyway"}
+                {submitting ? "Sending…" : "Ask anyway"}
               </Button>
             )}
             {/* No separate "Edit" button — every row above is click-to-edit
@@ -546,15 +551,15 @@ function NewRequest({ onDone, onExit, onFreeTextChange, isOnline }) {
 
         {step === "done" && submitted && createdRequest && (
           <>
-            <h2>Request sent!</h2>
+            <h2>Sent!</h2>
             <RequestCard request={createdRequest} showStatusChip onClick={() => onDone(createdRequest.id)} />
-            <p className="meta">{isOnline ? "Gavi's online — he'll see this soon" : "Gavi's offline right now — he'll get to it soon"}</p>
+            <p className="meta">{isOnline ? "Sent to Gavi" : "Sent to Gavi — responses might be a little slow"}</p>
             <div className="step-nav">
               <Button variant="ghost" onClick={() => onDone()}>
                 Back home
               </Button>
               <Button variant="primary" onClick={() => onDone(createdRequest.id)}>
-                Open request
+                Open it
               </Button>
             </div>
           </>
@@ -562,15 +567,15 @@ function NewRequest({ onDone, onExit, onFreeTextChange, isOnline }) {
 
         {step === "done" && overdraftPending && createdRequest && (
           <>
-            <h2>Request sent!</h2>
+            <h2>Sent!</h2>
             <RequestCard request={createdRequest} showStatusChip onClick={() => onDone(createdRequest.id)} />
-            <p className="meta">Gavi will review your overdraft request.</p>
+            <p className="meta">Gavi will take a look and let you know if it's approved.</p>
             <div className="step-nav">
               <Button variant="ghost" onClick={() => onDone()}>
                 Back home
               </Button>
               <Button variant="primary" onClick={() => onDone(createdRequest.id)}>
-                Open request
+                Open it
               </Button>
             </div>
           </>
@@ -578,7 +583,7 @@ function NewRequest({ onDone, onExit, onFreeTextChange, isOnline }) {
       </Card>
       <ConfirmModal
         open={showDiscardConfirm}
-        message="Discard this request?"
+        message="Discard this?"
         onConfirm={() => {
           setShowDiscardConfirm(false);
           onExit();

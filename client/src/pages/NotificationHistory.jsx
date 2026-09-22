@@ -30,7 +30,7 @@ function NotificationHistory({ onOpenRequest, onCleared }) {
   useEffect(() => {
     fetch('/api/notifications')
       .then((res) => {
-        if (!res.ok) throw new Error('Failed to fetch notifications')
+        if (!res.ok) throw new Error("Couldn't load your notifications. Try refreshing.")
         return res.json()
       })
       .then((data) => {
@@ -58,7 +58,7 @@ function NotificationHistory({ onOpenRequest, onCleared }) {
 
     fetch(`/api/notifications/${notif.id}/${method}`, { method: 'PATCH' })
       .then((res) => {
-        if (!res.ok) throw new Error('Failed to update notification')
+        if (!res.ok) throw new Error("Couldn't update that. Try again?")
         setWasUnreadIds((prev) => {
           const next = new Set(prev)
           if (isCurrentlyMarkedUnread) next.delete(notif.id)
@@ -66,20 +66,20 @@ function NotificationHistory({ onOpenRequest, onCleared }) {
           return next
         })
       })
-      .catch(() => setError('Failed to update notification'))
+      .catch(() => setError("Couldn't update that. Try again?"))
   }
 
   // G411-107: clear all notifications
   async function handleClearAll() {
     try {
       const res = await fetch('/api/notifications/clear-all', { method: 'POST' })
-      if (!res.ok) throw new Error('Failed to clear notifications')
+      if (!res.ok) throw new Error("Couldn't clear these. Try again?")
       setNotifications([])
       setWasUnreadIds(new Set())
       setError(null)
       onCleared?.()
     } catch {
-      setError('Failed to clear notifications')
+      setError("Couldn't clear these. Try again?")
     }
   }
 
@@ -95,7 +95,7 @@ function NotificationHistory({ onOpenRequest, onCleared }) {
           </div>
         )}
 
-        {error && <p role="alert" className="notification-history-error">Error: {error}</p>}
+        {error && <p role="alert" className="notification-history-error">{error}</p>}
 
         {loading && <p className="notification-history-status">Loading notifications…</p>}
 

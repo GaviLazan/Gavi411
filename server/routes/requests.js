@@ -759,17 +759,17 @@ router.patch('/:id', requireAuth, async (req, res) => {
     let notifyBody = ''
 
     if (status === Status.WAITING_ON_USER) {
-      notifyTitle = 'Your input needed'
+      notifyTitle = 'Gavi needs more info from you'
       notifyBody = 'Gavi is waiting for your response'
     } else if (status === Status.RESOLVED_PENDING_CONFIRMATION) {
-      notifyTitle = 'Request resolved'
-      notifyBody = 'Please confirm that your request has been resolved'
+      notifyTitle = 'Done — take a look?'
+      notifyBody = 'Did I manage to solve your issue?'
     } else if (status === Status.OVERDRAFT_DENIED) {
-      notifyTitle = 'Overdraft request denied'
-      notifyBody = 'Your overdraft request was not approved'
+      notifyTitle = "Extra favor wasn't approved"
+      notifyBody = "Your extra favor wasn't approved"
     } else if (isOverdraftApproval) {
-      notifyTitle = 'Overdraft approved'
-      notifyBody = 'Your overdraft request was approved'
+      notifyTitle = 'Extra favor approved'
+      notifyBody = "Extra favor approved, Gavi's on it"
     }
 
     notifyUser(
@@ -962,7 +962,7 @@ router.post('/', requireAuth, async (req, res) => {
     // Notify admins of new request (G411-51)
     notifyAdmins(
       {
-        title: `New request from ${req.user.firstName} ${req.user.lastName}`,
+        title: `New ask from ${req.user.firstName} ${req.user.lastName}`,
         body: request.urgency === 'HIGH' ? `${request.freeText}\nUrgent` : request.freeText,
         link: buildPermalink(request.publicId),
         requestId: request.id,
@@ -1055,7 +1055,7 @@ router.post('/overdraft-request', requireAuth, async (req, res) => {
     // new request, so it gets the same treatment.
     notifyAdmins(
       {
-        title: `Overdraft request pending from ${req.user.firstName} ${req.user.lastName}`,
+        title: `Overdraft ask from ${req.user.firstName} ${req.user.lastName}`,
         body: request.freeText,
         link: buildPermalink(request.publicId),
         requestId: request.id,

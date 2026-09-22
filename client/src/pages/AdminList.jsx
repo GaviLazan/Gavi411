@@ -208,7 +208,7 @@ function AdminList({ onOpenRequest, onNewRequest, filter: filterProp, onRequests
           onRequestsLoaded?.(data);
         }
       } catch {
-        if (!cancelled) setError("Couldn't load requests. Try again?");
+        if (!cancelled) setError("Couldn't load the list. Try again?");
       }
     }
     load();
@@ -301,7 +301,7 @@ function AdminList({ onOpenRequest, onNewRequest, filter: filterProp, onRequests
   const isGrouped = group === "person" && !matchingRequestIds;
   const groups = isGrouped ? groupByPerson(sorted) : [sorted];
 
-  // "+ New request" renders in EVERY state below (error, loading,
+  // "+ New ask" renders in EVERY state below (error, loading,
   // loaded) — creating a request has nothing to do with whether the
   // existing list could be fetched (same reasoning RequestList's own
   // button uses; a real bug in an earlier draft of this fix put the
@@ -313,7 +313,7 @@ function AdminList({ onOpenRequest, onNewRequest, filter: filterProp, onRequests
       <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-4)", width: "100%", maxWidth: 420 }}>
         {onNewRequest && (
           <Button variant="primary" onClick={onNewRequest}>
-            + New request
+            + New ask
           </Button>
         )}
         <Card>
@@ -329,7 +329,7 @@ function AdminList({ onOpenRequest, onNewRequest, filter: filterProp, onRequests
       <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-4)", width: "100%", maxWidth: 420 }}>
         {onNewRequest && (
           <Button variant="primary" onClick={onNewRequest}>
-            + New request
+            + New ask
           </Button>
         )}
         <Card>Loading…</Card>
@@ -341,7 +341,7 @@ function AdminList({ onOpenRequest, onNewRequest, filter: filterProp, onRequests
     <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-4)", width: "100%", maxWidth: 420 }}>
       {onNewRequest && (
         <Button variant="primary" onClick={onNewRequest}>
-          + New request
+          + New ask
         </Button>
       )}
 
@@ -368,7 +368,7 @@ function AdminList({ onOpenRequest, onNewRequest, filter: filterProp, onRequests
       </div>
 
       {sorted.length === 0 && (
-        <p>{matchingRequestIds ? "No matching conversations." : "No requests match this filter."}</p>
+        <p>{matchingRequestIds ? "No matching conversations." : "Nothing matches this filter."}</p>
       )}
 
       {groups.map((groupRequests, i) => (

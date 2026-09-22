@@ -843,7 +843,7 @@ describe('POST /api/requests/overdraft-request (G411-47)', () => {
     expect(res.status).toBe(201)
     expect(notifyAdmins).toHaveBeenCalledWith(
       expect.objectContaining({
-        title: expect.stringContaining('Overdraft request pending'),
+        title: expect.stringContaining('Overdraft ask'),
         body: 'help',
         link: expect.stringContaining('/r/abc123'),
       }),
@@ -2358,7 +2358,7 @@ describe('POST / request creation notification (G411-51)', () => {
     expect(res.status).toBe(201)
     expect(notifyAdmins).toHaveBeenCalledWith(
       expect.objectContaining({
-        title: expect.stringContaining('New request'),
+        title: expect.stringContaining('New ask'),
         body: 'help me',
         link: expect.stringContaining('/r/abc123')
       }),
@@ -2504,7 +2504,7 @@ describe('PATCH /:id status change notification (G411-51)', () => {
     expect(res.status).toBe(200)
     expect(notifyUser).toHaveBeenCalledWith(
       OWNER,
-      expect.objectContaining({ title: 'Your input needed' }),
+      expect.objectContaining({ title: 'Gavi needs more info from you' }),
       expect.objectContaining({ excludeClerkId: ADMIN }),
     )
   })
