@@ -69,7 +69,7 @@ const prismaMock = {
 
 vi.mock('../lib/prisma.js', () => ({ prisma: prismaMock }))
 
-// notifyAdminOfDeviceRequest (G411-29) pulls in web-push transitively via
+// notifyAdminOfDeviceRequest pulls in web-push transitively via
 // ../lib/webPush.js — mocked so POST / doesn't attempt a real network call
 // or require real VAPID env vars in the test environment.
 vi.mock('web-push', () => ({

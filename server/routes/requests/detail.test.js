@@ -309,14 +309,9 @@ describe('PATCH /api/requests/:id', () => {
     expect(prismaMock.request.update).not.toHaveBeenCalled()
   })
 
-  // Gavi, live testing: a fast double-click on ConfirmModal's "Yes" used
-  // to re-send an already-applied status, hitting the generic illegal-
-  // transition branch with a raw "Cannot move from SELF_SOLVED to
-  // SELF_SOLVED" message — fixed client-side (ConfirmModal's busy prop)
-  // and given a clearer server-side message as a backstop for any other
-  // stale-state path (e.g. two tabs open). Asserting the actual text so
-  // a future refactor that collapses this back to the generic message
-  // fails loudly instead of silently reintroducing the confusing UX.
+  // Asserting the actual text so a future refactor that collapses this
+  // back to the generic transition-error message fails loudly instead
+  // of silently reintroducing a confusing same-status resubmit UX.
   it('gives a "already changed" message specifically for a same-status resubmit', async () => {
     currentUserId = OWNER
     prismaMock.request.findUnique.mockResolvedValue({ ...sampleRequest, status: 'SELF_SOLVED' })
@@ -492,10 +487,10 @@ describe('PATCH /api/requests/:id', () => {
     })
   })
 
-  // G411-47 — an overdraft request never had a credit charged, so it must
-  // never refund one at any later exit either (would create free credits).
-  // Paired against the identical, otherwise-untouched CANCELLED-refund test
-  // above (line ~496) to prove the ONLY difference is isOverdraft.
+  // An overdraft request never had a credit charged, so it must never
+  // refund one at any later exit either (would create free credits) —
+  // paired against the identical CANCELLED-refund test above to prove
+  // the only difference is isOverdraft.
   describe('overdraft requests never refund', () => {
     it('does NOT refund an overdraft-approved request on CANCELLED, even fully untouched', async () => {
       currentUserId = OWNER
