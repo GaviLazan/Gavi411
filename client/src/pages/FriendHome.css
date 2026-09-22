@@ -112,7 +112,14 @@
      pointer-events: none so the hidden cards underneath stay
      non-interactive. */
   pointer-events: auto;
-  width: calc(100% - 2 * var(--space-4));
+  /* .friend-home-composer-fixed spans the raw viewport (no horizontal
+     padding of its own), but the cards it needs to match width with sit
+     inside two nested padded ancestors this button bypasses:
+     .app-shell's own padding (--space-6 each side) and .friend-home's
+     (--space-4 each side). Subtracting only --space-4*2 here left the
+     button ~64px wider than the cards on mobile — matching both
+     ancestors' padding instead of just one. */
+  width: calc(100% - 2 * var(--space-6) - 2 * var(--space-4));
   max-width: 420px;
   margin: 0 auto;
   padding: var(--space-3);
@@ -138,10 +145,4 @@
 
 .friend-home-send-icon {
   font-size: 18px;
-}
-
-@media (max-width: 420px) {
-  .friend-home-composer-bar {
-    border-radius: 0;
-  }
 }

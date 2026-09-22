@@ -12,7 +12,32 @@ accumulated. If something here turns out to matter long-term, promote it to
 
 ---
 
-## Where this session left off (2026-09-22, latest) — G411-54/55/56 (WP10, copy pass) built, Reviewing, PR #139 open, awaiting merge go-ahead
+## Where this session left off (2026-09-22, latest) — G411-125 (mobile-PWA visual bugs, split from WP10 wrap-up) built, Reviewing, PR #140 open, awaiting merge go-ahead
+
+**After G411-54/55/56 merged and Reconciled** (see entry below), Gavi sent 4 real mobile-PWA screenshots with UI quirks he wanted fixed. Filed fresh as **G411-125** (parented under G411-9, the still-open Copywriting & UI/UX Pass epic — matches the nature of the findings) rather than silently folding into the just-closed WP10, per STOP 1.
+
+**4 bugs found, 3 fixed + Gavi-confirmed live, 1 descoped to its own ticket**:
+1. **Composer button vs. request cards, mobile width+radius mismatch** — two stacked bugs. A mobile-only media query zeroed the "What's up?" button's border-radius (fixed: removed). Then a real miss on the first pass: assumed the radius was the whole visual gap, but Gavi tested live and the width mismatch was still there. Re-investigated: the button sits in a `position: fixed` overlay spanning the raw viewport, bypassing both `.app-shell`'s horizontal padding (`--space-6` each side) and `.friend-home`'s (`--space-4` each side) — its width calc only ever subtracted the second one. Fixed to subtract both, confirmed live on a second round.
+2. **ProfilePage long-email/username overflow** — `.profile-info-row` had no `overflow-wrap`/`min-width: 0`, so a long value ran past the card edge instead of wrapping. Fixed with the same pattern already used elsewhere in the codebase (`.app-shell > *`, `MessageThread.css`).
+3. **Intake textarea clipping its own placeholder** — `describe-textarea` started at `rows={1}`; the two-line placeholder got clipped before the auto-grow-on-input logic had anything to react to. Bumped to `rows={2}`.
+4. **Clerk sign-in box horizontally off-center on mobile** — investigated, not fixed. No custom CSS touches `<SignIn />`, no `appearance` prop passed, and the app's own app-bar layout is mathematically balanced (0=0) when signed out — ruled out the app's own code as the cause. Likely lives inside Clerk's internal rendered DOM; needs live device inspection this session didn't have. Split off to **G411-126** (filed, Open, parented under G411-9) rather than left as just a comment, per the standing "defer to a real ticket" rule.
+
+**Real process note**: first PR comment on #140 had broken backtick-escaping from a heredoc quoting issue — caught via the standing "spot-check the real posted comment body via `gh api`" rule, reposted clean via `--body-file` instead of inline `--body`.
+
+555/555 tests fresh, build clean at every step. Jira: G411-125 at **Reviewing**, description rewritten against real final scope (3 of 4 fixed, 1 descoped — not overstating what shipped). **Awaiting merge go-ahead — not yet Landed/Reconciled.**
+
+### Real state, right now
+Branch `you/G411-125-mobile-visual-bugs`, 2 commits (`305dc4a` radius fix, `e5fa3ef` width-calc fix), pushed, PR #140 open against `main`. CI green. Vercel preview live and tested by Gavi on his real phone for all 3 in-scope fixes.
+
+### What's next, concretely
+1. **Ask Gavi for the merge go-ahead on PR #140** — not yet done as of this write.
+2. Once merged: Jira Reviewing → Landed → Reconciled for G411-125 (steps 1-4 already covered this session). Parent G411-9 stays Implementing (G411-116/117/126 all still Open).
+3. Full sync check across primary + all `Gavi411-agent-*` worktrees — not yet re-run since the WP10 close-out earlier this session.
+4. **G411-126 (Clerk sign-in centering)** is Open, unscoped for a session — needs real device devtools inspection before any fix attempt, not a blind CSS guess.
+
+---
+
+## Where this session left off (2026-09-22, earlier) — G411-54/55/56 (WP10, copy pass) built, Reviewing, PR #139 open, awaiting merge go-ahead
 
 **Picked up mid-flight**: branch `you/G411-54-55-56-copy-pass` already had 7 files uncommitted from a prior session's artifact-comment review pass (before/after doc at https://claude.ai/artifact/8cUdZWnzhTehMxUjmKDeRK, all 20 comment threads resolved with Gavi). First checked Jira access was actually working (it was — prior session's MCP failures didn't recur) and re-ran the test suite fresh per standing rule: the "known 1/555 failing" issue noted in the prior handoff was already stale, 555/555 passed on first run.
 

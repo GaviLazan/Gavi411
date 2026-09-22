@@ -390,7 +390,7 @@ function NewRequest({ onDone, onExit, onFreeTextChange, isOnline }) {
             <textarea
               className="field-input describe-textarea"
               placeholder="Give a short description of what's up"
-              rows={1}
+              rows={2}
               value={freeText}
               onChange={(e) => setFreeText(e.target.value)}
               onInput={(e) => {
