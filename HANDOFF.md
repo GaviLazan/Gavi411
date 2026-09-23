@@ -12,7 +12,7 @@ accumulated. If something here turns out to matter long-term, promote it to
 
 ---
 
-## Where this session left off (2026-09-23, latest) — WP12 (close-out) done: critique/audit fixes shipped, DESIGN.md refreshed, demo prep n/a — awaiting merge go-ahead
+## Where this session left off (2026-09-23, latest) — WP12 (close-out) done and merged: critique/audit fixes shipped, DESIGN.md refreshed, demo prep n/a — PR #152 merged, full sync confirmed clean
 
 **WP12 run to completion, all 5 steps**: 1) `/impeccable critique` (dual-agent) + `/impeccable audit` on `client/src`, both bounded to one fix pass since Gavi chose "everything found." 2) live phone pass — skipped a fresh one; Gavi had already done a real device pass earlier this session and every fix this stretch is visual-only (colors, a variant name, a static divider, `minHeight` on loading states) with zero route/state/data-flow changes, confirmed via `git diff --stat` before treating that as safe to skip. 3) Docs: HANDOFF (this entry) + brain.md (decision below) + DESIGN.md refreshed via `/impeccable document` (existing file, refreshed per Gavi's explicit choice, not overwritten blind). 4) Jira reconcile step — already done in an earlier session's entry, re-confirmed live via JQL this session: all 9 non-V2 epics (G411-1 through G411-9) are genuinely Reconciled right now. 5) Demo prep — **Gavi's call: not needed**, real accounts already exist, no seeding or Render pre-warm required.
 
@@ -27,16 +27,14 @@ accumulated. If something here turns out to matter long-term, promote it to
 555/555 tests fresh, build clean, detector clean (0 findings) — all re-verified fresh at wrap-up, not carried over from mid-session.
 
 ### Real state, right now
-**Uncommitted**, all in one logical batch: `DESIGN.md`, `.impeccable/design.json`, `HANDOFF.md`, `gavi411-brain.md`, and 9 client source files (`ConfirmModal.jsx`, `CreditRing.css`, `index.css`, `AdminList.jsx`, `FriendHome.css`, `FriendHome.jsx`, `NewRequest.jsx`, `RequestCard.jsx`, `RequestDetail.css`, `RequestDetail.jsx`). No PR yet — **awaiting Gavi's go-ahead to branch/commit/push and merge** (this is process/polish work, not tied to a Jira child, but still goes through a PR per no-direct-commits-to-`main`).
+**PR #152 merged** (`you/wp12-close-out` → `main`, regular merge commit `0867fc7`) after Sibling review (posted as a real PR comment, spot-checked via `gh api` — no findings) and green CI. Primary worktree fast-forwarded clean to `0867fc7`, matches `origin/main`. **Full sync check run**: all 6 `Gavi411-agent-*` worktrees confirmed clean (`git status --short` empty in every one) — all idle on older commits well behind `main`, consistent with their established "not actively in use" pattern, not a gap to fix.
 
-**Jira**: no transitions this stretch — all 9 non-V2 epics were already Reconciled going in, re-confirmed live. G411-57 (V2/Stretch) stays Open by design. G411-130 (Clerk cutover, filed earlier this session) untouched, not started.
+**Jira**: no transitions this stretch — all 9 non-V2 epics were already Reconciled going in, re-confirmed live via JQL. G411-57 (V2/Stretch) stays Open by design. G411-130 (Clerk cutover, filed earlier this session) untouched, not started.
 
 ### What's next, concretely
-1. **Ask Gavi for the go-ahead to branch, commit, push, and open a PR** for this WP12 work — next action, not yet done.
-2. Once merged: no Jira transition needed (this work isn't a tracked child) — just confirm the merge landed and worktrees are back in sync.
-3. Full sync check across primary + all `Gavi411-agent-*` worktrees — not yet run this session.
-4. **WP12 is now fully done** per the finish-line plan — this was the last work package. Next real conversation is likely "what's actually left before the presentation," not another WP.
-5. G411-130 (Clerk cutover) and G411-57 (V2/Stretch) remain in the backlog, not blocking, not started.
+1. **WP12 is fully done and merged** — this was the last work package per the finish-line plan. Next real conversation is likely "what's actually left before the presentation" (a broader status check), not another WP.
+2. G411-130 (Clerk cutover) and G411-57 (V2/Stretch) remain in the backlog, not blocking, not started.
+3. Nothing else open or blocking from this session.
 
 ---
 
