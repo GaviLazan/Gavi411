@@ -17,7 +17,7 @@ match; `CLAUDE.md` stays at root for Claude Code's auto-load convention.
 
 ---
 
-## Where this session left off (2026-09-23, latest) — DEPLOY.md/DESIGN.md/PRODUCT.md also moved into docs/ (PR #155), correcting the prior entry's wrong "must stay at root" claim
+## Where this session left off (2026-09-23, latest) — DEPLOY.md/DESIGN.md/PRODUCT.md moved into docs/ (PR #155, merged); all stale local + remote branches cleaned up
 
 **Gavi opened his own PR (`doc-moves`, #155) moving `DEPLOY.md`, `DESIGN.md`, and `PRODUCT.md` into `docs/`** — a pure rename, no reference updates, submitted independently of this session's earlier reorg (which had deliberately left these three at root). Asked whether to merge as-is or fix references first; Gavi's call: fix references, verify impeccable's tooling actually supports the new location, then merge.
 
@@ -25,13 +25,16 @@ match; `CLAUDE.md` stays at root for Claude Code's auto-load convention.
 
 **Every remaining cross-reference to these three filenames fixed** — same verified rewrite approach as the earlier 18-doc reorg (`CLAUDE.md`, `gavi411-brain.md`'s own decision text). `HANDOFF.md`'s and `gavi411-brain.md`'s own prior-entry text needed a hand fix rather than the mechanical script, since those are historical narrative asserting "stays at root" — a straight path substitution would have left a self-contradicting sentence ("stays at root: `../../docs/DESIGN.md`") instead of correcting the actual claim.
 
+**PR #155 merged** (`doc-moves` → `main`, regular merge commit `9b20063`) after Sibling review (posted as a real PR comment, spot-checked via `gh api` — no findings) and green CI (test + both Vercel checks). Primary worktree fast-forwarded clean, matches `origin/main`.
+
+**Then, per Gavi's follow-up ask, a full branch cleanup**: checked every local branch (28 total) and every remote branch (41 total, including some with no local counterpart) for commits not already in `origin/main` before deleting anything — `git merge-base --is-ancestor <branch> origin/main` on all of them, zero exceptions found except one local branch (`agent-backend/G411-51-notification-triggers`) whose own remote-tracking ref was stale even though its content was genuinely already in `main` via an earlier PR merge — verified that specific case individually before force-deleting it. Deleted all 28 local branches (27 clean `-d`, 1 `-D` for the stale-tracking-ref case) and all 41 remote branches via `git push origin --delete`, then `git fetch --prune` to clear local tracking refs. Only `main` remains, locally and on GitHub.
+
 ### Real state, right now
-PR #155 (branch `doc-moves`, Gavi's own) updated with the reference fixes, not yet merged this turn — CI needs a fresh check before asking for merge go-ahead.
+Repo is fully clean: one branch (`main`) everywhere, no open PRs, no stale worktrees (removed earlier this session), no stale local or remote branches. Primary worktree matches `origin/main` exactly.
 
 ### What's next, concretely
-1. Run tests/build fresh, confirm CI green on PR #155, then merge.
-2. Once merged: sync primary worktree back to `main`.
-3. Nothing else open from this session.
+1. Nothing open or blocking from this session. G411-130 (Clerk cutover) and G411-57 (V2/Stretch) remain in the backlog, not started.
+2. Any future work starts a fresh branch — there's nothing left to resume.
 
 ---
 
