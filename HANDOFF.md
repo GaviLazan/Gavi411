@@ -12,7 +12,7 @@ accumulated. If something here turns out to matter long-term, promote it to
 
 ---
 
-## Where this session left off (2026-09-23, latest) — deploy env-var fixes (Telegram + Web Push both real, now working); PR #151 still open, awaiting merge go-ahead
+## Where this session left off (2026-09-23, latest) — deploy env-var fixes (Telegram + Web Push both real, now working); PR #151 merged
 
 **After G411-128/G411-7/G411-9 closed out (see entry directly below for that work), Gavi found two real live deployment bugs, both fixed this session — no code changes, pure deploy configuration:**
 
@@ -27,17 +27,16 @@ accumulated. If something here turns out to matter long-term, promote it to
 - **Clerk is still on `pk_test_`/`sk_test_` keys in production, deliberately not cut over to a live/production instance.** Real cost surfaced and discussed: Clerk cannot auto-migrate user *accounts* between dev and production instances (config can clone via `clerk deploy`, but every real person — Gavi's own admin account, Second Party, any real friend already signed up — would need to re-authenticate from scratch on the new instance; Clerk's own docs confirm no direct dev→prod user migration exists, only a separate open-source import tool for bulk-loading user *records*, which still doesn't restore passwords/OAuth sessions). Gavi's explicit call: defer this past tonight's presentation — not "never," just not now. **Not yet filed as a tracked ticket** — Gavi hadn't confirmed he wanted that when this session ended; worth asking early next session so it doesn't get lost as just a memory of a conversation.
 
 ### Real state, right now
-**Uncommitted:** none — `git status` clean. **Branch:** still on `you/handoff-g411-128-close-out` (not `main`) — this is the branch carrying **PR #151**, still **open, un-merged**, containing only the HANDOFF.md update from the G411-128/epic-rollup close-out (see entry below). No code changes on it. **Not yet asked for or given a merge go-ahead this turn.**
+**Uncommitted:** none. **PR #151 merged** (docs-only, HANDOFF.md, regular merge commit) — primary worktree should be back on `main`, matching `origin/main`, once the merge lands.
 
 No Jira changes this stretch — the Telegram/Vercel env-var fixes were live deployment configuration, not a ticket-tracked code change, so nothing to transition.
 
 ### What's next, concretely
-1. **Ask Gavi for the merge go-ahead on PR #151** (docs-only, HANDOFF.md) — first action, this was left hanging when the deploy-debugging detour started.
-2. Once merged: full sync check across primary + all `Gavi411-agent-*` worktrees (not run since before the detour).
-3. **Re-verify Telegram notifications with a real second test request** — Gavi added the env vars and redeployed Render, but that fix was never actually re-confirmed working end-to-end before the session moved to the Vercel/push-notification bug. Don't assume it's fixed just because the config looks right now — same standing rule as everything else in this project.
-4. **Ask Gavi whether to file a V2/Stretch Backlog ticket (under G411-57) for the Clerk production cutover** — a real, deliberately-deferred piece of work that isn't tracked anywhere in Jira yet. Don't silently create it; he hadn't said yes when this session ended.
-5. **WP12 (close-out)** is still the next real work package per the finish-line plan — untouched this stretch. Its Jira-reconciliation step is already done (G411-7/8/9 all Reconciled). Remaining WP12 parts: design re-critique (`/impeccable critique` + `/impeccable audit`), a live phone-in-hand pass on the now-actually-working deployed app (this is a good moment for it, given the Telegram/push fixes), a docs refresh (`DESIGN.md` via `/impeccable document`), and demo prep (seed a real friend account with 2-3 realistic requests, pre-warm Render before presenting). Confirm scope with Gavi at STOP 1 before starting, per usual.
-6. G411-57 (V2/Stretch Backlog) stays Open by design — not a gap.
+1. Full sync check across primary + all `Gavi411-agent-*` worktrees (not run since before the deploy-debugging detour) — first thing a fresh session should confirm.
+2. **Re-verify Telegram notifications with a real second test request** — Gavi added the env vars and redeployed Render, but that fix was never actually re-confirmed working end-to-end before the session moved to the Vercel/push-notification bug. Don't assume it's fixed just because the config looks right now — same standing rule as everything else in this project.
+3. **Ask Gavi whether to file a V2/Stretch Backlog ticket (under G411-57) for the Clerk production cutover** — a real, deliberately-deferred piece of work that isn't tracked anywhere in Jira yet. Don't silently create it; he hadn't said yes when this session ended.
+4. **WP12 (close-out)** is still the next real work package per the finish-line plan — untouched this stretch. Its Jira-reconciliation step is already done (G411-7/8/9 all Reconciled). Remaining WP12 parts: design re-critique (`/impeccable critique` + `/impeccable audit`), a live phone-in-hand pass on the now-actually-working deployed app (this is a good moment for it, given the Telegram/push fixes), a docs refresh (`DESIGN.md` via `/impeccable document`), and demo prep (seed a real friend account with 2-3 realistic requests, pre-warm Render before presenting). Confirm scope with Gavi at STOP 1 before starting, per usual.
+5. G411-57 (V2/Stretch Backlog) stays Open by design — not a gap.
 
 ---
 
