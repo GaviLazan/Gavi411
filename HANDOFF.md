@@ -12,7 +12,27 @@ accumulated. If something here turns out to matter long-term, promote it to
 
 ---
 
-## Where this session left off (2026-09-23, latest) — G411-117 (README) merged, Reconciled; G411-129 (bulk invites) built, Landed, PR #150, approved, awaiting merge go-ahead
+## Where this session left off (2026-09-23, latest) — G411-128 (demo/walkthrough Artifact) Reconciled; G411-7/G411-9 both fully Reconciled
+
+**G411-128 built as a published Artifact** (not a repo file, per Gavi's explicit choice): https://claude.ai/artifact/J7BRxvaXQWSyZ3oUUXZwC1 — live demo script (talking points, not narrated lines, per Gavi's correction), a detailed code walkthrough (3 real code blocks with exact file paths and line-level explanations: the Unicode-aware keyword matcher in `matchKeywords.js`, the transactional refund logic in `requests/detail.js`, the invite passphrase's one-response lifetime in `invites.js`), DB/schema table, testing/CI overview (real 555/555 count, real CI steps), an E2E section that defines the jargon (keypair, ECDH, wrapping, escrow, plaintext) in plain language and traces the real `E2E_ENABLED` flag mechanism in `server/lib/e2eConfig.js`, and a retro citing real `gavi411-brain.md` decision numbers.
+
+**Two real rounds of Gavi's own live feedback, both fixed same session**: (1) a CSS bug — the demo-steps' flex/grid layout had no `min-width` on its text column, causing every step's text to render one word per line at some widths; fixed by wrapping each step's content in a properly-sized flex child. (2) Gavi wanted talking-point bullets instead of a scripted narration, and wanted the code walkthrough and E2E section genuinely detailed rather than surface-level — both rebuilt with real, verified code pulled fresh from the repo (not paraphrased from memory), including catching and correcting one inaccurate claim mid-edit (initially guessed the message route had zero encryption-related logic; actually re-checked the real file and found a genuine `E2E_ENABLED` feature flag with real gated logic, which is a better and more accurate story to tell anyway).
+
+**Jira: G411-128 → Reconciled directly** (no Landed stage — no code, no PR, no merge for this ticket; the falsifier was "reviewed by Gavi before presenting," met once Gavi approved the final content).
+
+**Epic rollups, both real STOP 2 decisions this session, not automatic**: G411-7 (Notifications) was found already fully done but never rolled — every child Reconciled, just a missed epic-level transition; rolled to Reconciled directly, no real blocker. G411-9 (Copywriting & UI/UX Pass) hit the same condition once G411-128 closed (every child Reconciled) — the finish-line plan assigns this roll to WP12's own close-out step, not "whenever the last child finishes," so this was explicitly confirmed with Gavi before rolling early rather than assumed. Gavi's call: roll now.
+
+### Real state, right now
+**G411-7, G411-8, and G411-9 are all three Reconciled.** No open PRs. Primary worktree clean on `main`, matching `origin/main`.
+
+### What's next, concretely
+1. **WP12 (close-out)** is next per the finish-line plan — but note its own Jira step (reconcile G411-7/8/9) is now already done ahead of time, so WP12 picked up next only needs its other 4 parts: design re-critique (`/impeccable critique` + `/impeccable audit`), a live phone-in-hand pass on the deployed Vercel+Render build, a docs pass (DESIGN.md refresh via `/impeccable document`), and demo prep (seed a real friend account with 2-3 realistic requests, pre-warm Render). Confirm with Gavi at STOP 1 before starting — a Reconciled epic doesn't imply "start WP12" automatically.
+2. G411-57 (V2/Stretch Backlog) stays Open by design — not a gap, don't try to close it.
+3. Nothing else open or blocking from this session.
+
+---
+
+## Where this session left off (2026-09-23, earlier) — G411-117 (README) merged, Reconciled; G411-129 (bulk invites) built, Landed, PR #150, approved, awaiting merge go-ahead
 
 **G411-117 (README) fully closed out** — PR #149 merged (`c04d94e`, regular merge commit), Jira Landed → Reconciled, full sync check clean across primary + all 6 `Gavi411-agent-*` worktrees. See the entry below for the full build detail.
 
