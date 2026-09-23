@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { downloadInvitesCsv } from '../lib/inviteCsv'
+import { downloadInvitesCsv, downloadInviteLinks } from '../lib/inviteCsv'
 import { createAndUploadKeypair } from '../lib/escrow'
 import { getPendingDevices, approveDevice, rejectDevice } from '../lib/deviceLinking'
 import { loadPrivateKey } from '../lib/keyStore'
@@ -139,6 +139,7 @@ function InviteAdmin() {
         if (!res.ok) throw new Error('Failed to create invite')
         invites.push(await res.json())
       }
+      downloadInviteLinks(invites)
       downloadInvitesCsv(invites)
       setBulkLabels('')
       loadInvites()
@@ -212,8 +213,9 @@ function InviteAdmin() {
             rows={4}
           />
           <Button type="submit" variant="primary" disabled={bulkCreating || bulkLabels.trim() === ''}>
-            {bulkCreating ? 'Generating…' : 'Generate all + download CSV'}
+            {bulkCreating ? 'Generating…' : 'Generate all + download links'}
           </Button>
+          <p className="meta">Downloads two files: a links file (send these to people — this is the only place they exist after this moment) and a password-manager CSV.</p>
         </form>
         {bulkError && <p role="alert" className="invite-admin-error">{bulkError}</p>}
 

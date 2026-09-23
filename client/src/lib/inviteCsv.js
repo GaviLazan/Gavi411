@@ -32,3 +32,24 @@ export function downloadInvitesCsv(invites) {
   a.click()
   URL.revokeObjectURL(url)
 }
+
+// Triggers a browser download of the real, usable invite links — one per
+// line, "label: link" — separate from the password-manager CSV above.
+// This is the one place the passphrase-bearing link survives after the
+// create moment (it's never persisted server-side), so bulk generation
+// needs this file to actually send links to people, not just the CSV.
+export function downloadInviteLinks(invites) {
+  const origin = window.location.origin
+  const lines = invites.map(
+    (inv) => `${inv.label || '(no label)'}: ${origin}/?token=${inv.token}#${inv.passphrase}`,
+  )
+  const blob = new Blob([lines.join('\r\n')], { type: 'text/plain' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = invites.length === 1
+    ? `invite-link-${invites[0].token.slice(0, 8)}.txt`
+    : `invite-links-${invites.length}.txt`
+  a.click()
+  URL.revokeObjectURL(url)
+}
