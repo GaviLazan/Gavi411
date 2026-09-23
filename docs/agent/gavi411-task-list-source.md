@@ -94,7 +94,7 @@ _Visible for completeness per decision #42; not built now, not forgotten either.
 ---
  
 ## Notes on what's intentionally absent as its own Parent
-- **../../PRODUCT.md / ../../DESIGN.md (Impeccable)** — not planning-chat deliverables; generated interactively inside Claude Code once repo exists (decision #36). No task needed here.
+- **../../docs/PRODUCT.md / ../../docs/DESIGN.md (Impeccable)** — not planning-chat deliverables; generated interactively inside Claude Code once repo exists (decision #36). No task needed here.
 - **Repowise/Impeccable/Ponytail plugin installation** — environment setup, already tracked in `Setup_steps`, not app-delivery work — didn't duplicate it as a Jira child.
 - **Jira/commit-convention setup itself** — meta-work already done (decisions #34–35), not part of the product backlog.
  

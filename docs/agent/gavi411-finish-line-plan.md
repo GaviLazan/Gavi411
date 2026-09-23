@@ -117,7 +117,7 @@ WP9 is placed early on purpose: G411-107 adds a route and a migration that WP7 w
 1. Merge PR #119 (G411-103) with `gh pr merge --merge --admin` after Gavi's go-ahead; Jira Landed → Reconciled. Check `git worktree list` before `--delete-branch` (brain.md #130).
 2. Re-parent G411-83, 84, 85, 79, 105 under G411-57 (real parent field), each with a comment: "Parked to V2 per 2026-09-18 finish-line plan; not cancelled." Then G411-3 Messaging has no non-Reconciled children → Epic G411-3 → Reconciled.
 3. brain.md: one decision — E2E cut for v1, parked not killed, escrow-only rebuild is first post-finish item, `E2E_ENABLED` stays false. Update `../../docs/gavi411-e2e-encryption-plan.md` §8 to point at it.
-4. brain.md: one decision — visual-direction changes (ink-on-gold, lavender retired, sage limited to success states, shadow flattened). ../../DESIGN.md gets edited in WP2, not here.
+4. brain.md: one decision — visual-direction changes (ink-on-gold, lavender retired, sage limited to success states, shadow flattened). ../../docs/DESIGN.md gets edited in WP2, not here.
 5. Close G411-101 as superseded (comment linking the WP4 ticket), same Reconciled-as-cancelled pattern as G411-68.
 6. HANDOFF.md points at this plan as the source of order.
 
@@ -144,7 +144,7 @@ WP9 is placed early on purpose: G411-107 adds a route and a migration that WP7 w
 
 **Goal:** every later screen inherits correct contrast, one accent, a real focus ring, a flatter shadow, a status chip, an icon set, and date helpers — so no later package invents its own.
 
-**Files:** `client/src/index.css`, `components/Button.css`, `components/Card.css`, `components/Input.css`, `components/Chip.css`, new `components/StatusChip.jsx/.css`, new `components/Icon.jsx`, new `lib/format.js`, new `lib/requestStatus.js`, `../../DESIGN.md`. Plus the two `--color-border` fixes (`ProfilePage.jsx:251`, `UserManagement.css:45,79`).
+**Files:** `client/src/index.css`, `components/Button.css`, `components/Card.css`, `components/Input.css`, `components/Chip.css`, new `components/StatusChip.jsx/.css`, new `components/Icon.jsx`, new `lib/format.js`, new `lib/requestStatus.js`, `../../docs/DESIGN.md`. Plus the two `--color-border` fixes (`ProfilePage.jsx:251`, `UserManagement.css:45,79`).
 
 **Spec:**
 - **Buttons.** `.btn-primary` text becomes `var(--text-h)` (ink on gold, ~10:1). `.btn-secondary` text `var(--text-h)`, border `var(--border)`, hover `var(--accent-bg)`. New `.btn-ghost`: transparent, no border, text `var(--text)`, hover `var(--accent-bg)` — replaces `.btn-purple`. Delete `.btn-purple`; `.btn-success` stays but is used only for success/confirm moments (WP5's "Confirm — resolved"), not intake Submit. New `.btn-icon`: 44×44 min, pill, no fill.
@@ -156,7 +156,7 @@ WP9 is placed early on purpose: G411-107 adds a route and a migration that WP7 w
 - **Move** `CLOSED_STATUSES`, `statusLabel`, `URGENCY_ORDER` to `lib/requestStatus.js`; `RequestCard` to `components/RequestCard.jsx`; update the four importers; delete the dead body of `RequestList.jsx` (its own comment says it's export-only).
 - **Icon.jsx.** Inline SVG map, no dependency: `menu, back, bell, camera, send, close, check, copy, edit, plus, chevron`. 24px, `currentColor`, `aria-hidden` unless labelled. Copy paths from Lucide (ISC).
 - **format.js.** `formatDate(iso)` → `19 Sep 2026`; `formatTime(iso)` → `21:37`; `formatDayLabel(iso)` → `Today` / `Yesterday` / date. `Intl` only.
-- **../../DESIGN.md** edited in the same PR: primary button = ink on gold; lavender removed; sage = success only; shadow token; `--accent-text` rule ("gold as text uses `--accent-text`, never `--accent`").
+- **../../docs/DESIGN.md** edited in the same PR: primary button = ink on gold; lavender removed; sage = success only; shadow token; `--accent-text` rule ("gold as text uses `--accent-text`, never `--accent`").
 
 **Falsifier:** a small node script computes WCAG contrast for every (text, background) pair the tokens define — all ≥ 4.5 in light and dark. `grep -rnE '#[0-9a-f]{3,6}' client/src --include=*.jsx --include=*.css | grep -v index.css` returns nothing. Tab through the intake once: every stop has a visible ring.
 
@@ -323,7 +323,7 @@ Three independent, already-scoped tickets. One session, three PRs, in this order
 1. Re-run `/impeccable critique` on `client/src`; target ≥ 30/40 with zero P0. Re-run `/impeccable audit` for a11y/contrast numbers. Fix anything red in one bounded pass.
 2. Live pass on the deployed Vercel + Render build (pre-warm Render), phone in hand: sign-up via a fresh invite, intake, thread, notification tap, reload, dark mode.
 3. Jira: reconcile G411-7, G411-8, G411-9 (all children Reconciled); G411-57 stays Open by design.
-4. Docs: HANDOFF.md final state; brain.md entries for anything decided mid-stretch; `../../DESIGN.md` refreshed via `/impeccable document`; `../../docs/gavi411-e2e-encryption-plan.md` §8 already updated in WP0.
+4. Docs: HANDOFF.md final state; brain.md entries for anything decided mid-stretch; `../../docs/DESIGN.md` refreshed via `/impeccable document`; `../../docs/gavi411-e2e-encryption-plan.md` §8 already updated in WP0.
 5. Demo prep: a seeded friend account with 2–3 realistic requests (no "asfasf"), Render pre-warmed before presenting.
 
 **Falsifier:** every non-V2 epic is Reconciled; `npm test` and the CI check are green on `main`; the critique score is recorded in `.impeccable/critique/`.
