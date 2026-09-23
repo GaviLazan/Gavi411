@@ -17,7 +17,7 @@ match; `CLAUDE.md` stays at root for Claude Code's auto-load convention.
 
 ---
 
-## Where this session left off (2026-09-23, latest) — worktree cleanup + docs reorganized into docs/ and docs/agent/, PR #153 open (not yet merged)
+## Where this session left off (2026-09-23, latest) — worktree cleanup + docs reorganized into docs/ and docs/agent/, PR #153 merged, primary worktree synced
 
 **All 6 `Gavi411-agent-*` worktrees removed.** Verified first that every commit on every agent branch (`agent-backend/base`, `agent-cicd/G411-16-deploy-config`, `agent-design/G411-17-design-foundation`, `agent-e2e/G411-86-plaintext-revert`, `agent-frontend/G411-49-push-subscribe`, `agent-test/base`) was already fully contained in `origin/main` (`git log origin/main..<branch>` empty for all 6) before removing anything — nothing unique was at risk of being lost. `git worktree remove` on all 6, then `git branch -d` on all 6 local branches (which would have refused if any weren't fully merged — confirms the check was right). Only the primary worktree remains now.
 
@@ -28,12 +28,14 @@ match; `CLAUDE.md` stays at root for Claude Code's auto-load convention.
 555/555 tests fresh, client build clean, both re-run after the move to confirm nothing functional broke (nothing reads these docs at runtime, but verified rather than assumed).
 
 ### Real state, right now
-Branch `you/handoff-wp12-close-out` has 3 commits pushed onto **PR #153** (the same PR opened earlier for the HANDOFF self-reference fix — its scope grew in place to include the worktree cleanup and docs reorg, rather than opening a new PR). **PR #153 is real, open, CI green — not yet merged.** (Caught and corrected here: an earlier draft of this entry invented a nonexistent "PR #154" and a separate stale entry below prematurely claimed #153 was already merged before it actually was — both wrong, both fixed after Sibling review flagged the contradiction.)
+**PR #153 merged** (`you/handoff-wp12-close-out` → `main`, regular merge commit `80b3b18`, 4 commits: the HANDOFF self-reference fix, the docs reorg + worktree cleanup, the HANDOFF/brain.md log, and the Sibling-review-caught #154/premature-merge-claim fix). Primary worktree fast-forwarded clean, matches `origin/main`. No Jira transition needed (docs/process work, not a tracked child).
+
+(This entry itself replaces an earlier draft written while #153 was still open — logged as brain.md #168: don't pre-narrate a PR's merge before it's real, especially one whose scope kept growing. That draft also briefly invented a nonexistent "PR #154"; both mistakes were caught by Sibling review before merge and are fixed here.)
 
 ### What's next, concretely
-1. **Ask Gavi for the merge go-ahead on PR #153** — CI is green, not yet asked/given this turn.
-2. Once merged: no Jira transition needed (docs/process work, not a tracked child). Confirm primary worktree syncs back to `main` cleanly.
-3. No agent worktrees to sync-check anymore — they're gone. Any future subagent work needs fresh `git worktree add` calls per the commit-convention doc (now at `docs/agent/gavi411-commit-convention.md`).
+1. No agent worktrees exist anymore — they're gone. Any future subagent work needs fresh `git worktree add` calls per the commit-convention doc (now at `docs/agent/gavi411-commit-convention.md`).
+2. All docs referenced by bare filename elsewhere in the repo now live at `docs/` or `docs/agent/` — see decision #167 for the full split.
+3. G411-130 (Clerk cutover) and G411-57 (V2/Stretch) remain in the backlog, not blocking, not started. Nothing else open from this session.
 
 ---
 
