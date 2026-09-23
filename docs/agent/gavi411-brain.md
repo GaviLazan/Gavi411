@@ -1467,6 +1467,12 @@ But Assessment A also produced two claims that turned out wrong on verification:
 
 **Standing lesson**: a sub-agent report — even one running an isolated, structured, dual-assessment methodology explicitly designed to reduce single-model blind spots — is still a claim to verify against real source before acting on it, not a finding to act on directly. This applies to design/UX findings the same way it already applies to Haiku's coding-dispatch reports (#157/#159/#160/#162) — the failure mode (a plausible-sounding but unchecked claim) isn't specific to code generation.
 
+### Decision #167 — Docs reorganized into `docs/` (product reference) and `docs/agent/` (LLM process docs); `CLAUDE.md`/`README.md`/`DEPLOY.md`/`DESIGN.md`/`PRODUCT.md` stay at root (2026-09-23)
+
+18 root-level markdown files moved, per Gavi's explicit request, out of the repo root to reduce root clutter — split by Gavi's confirmed categorization: LLM/agent-session process docs (how Claude sessions should work — decision log, handoff state, git/Aegis conventions) into `docs/agent/`; general product-reference docs (what the product IS — PRD, journey walkthroughs, setup steps) into `docs/`. `CLAUDE.md` stays at root because Claude Code's auto-load only checks the project root; `README.md`/`DEPLOY.md` stay for conventional discoverability; `DESIGN.md`/`PRODUCT.md` stay because impeccable's own tooling reads them from root.
+
+**Standing lesson**: this file (`gavi411-brain.md`) and `HANDOFF.md` now live at `docs/agent/`, not the repo root — any future session citing either by bare filename should know the real path, and any doc written from now on that references them should use a relative path correct for its own new location, not assume root-adjacency.
+
 ## 7. Not Yet Discussed
  
 - Data model, architecture, tech decisions (schema itself not yet drafted — first task on deck).

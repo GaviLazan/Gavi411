@@ -10,6 +10,31 @@ Overwritten each handoff, not appended — stale entries get replaced, not
 accumulated. If something here turns out to matter long-term, promote it to
 `gavi411-brain.md` or `../../CLAUDE.md` instead of leaving it here indefinitely.
 
+**This file lives at `docs/agent/HANDOFF.md` now, not the repo root** — moved
+2026-09-23 along with every other non-app-functional doc, see the entry below
+for the full reorg. Every cross-reference in every other doc was updated to
+match; `CLAUDE.md` stays at root for Claude Code's auto-load convention.
+
+---
+
+## Where this session left off (2026-09-23, latest) — worktree cleanup + docs reorganized into docs/ and docs/agent/, PR #154 open
+
+**All 6 `Gavi411-agent-*` worktrees removed.** Verified first that every commit on every agent branch (`agent-backend/base`, `agent-cicd/G411-16-deploy-config`, `agent-design/G411-17-design-foundation`, `agent-e2e/G411-86-plaintext-revert`, `agent-frontend/G411-49-push-subscribe`, `agent-test/base`) was already fully contained in `origin/main` (`git log origin/main..<branch>` empty for all 6) before removing anything — nothing unique was at risk of being lost. `git worktree remove` on all 6, then `git branch -d` on all 6 local branches (which would have refused if any weren't fully merged — confirms the check was right). Only the primary worktree remains now.
+
+**18 non-app-functional docs moved out of the repo root**, per Gavi's explicit split: LLM/agent-process docs (how Claude sessions should work) into `docs/agent/` — `HANDOFF.md`, `gavi411-brain.md`, `Aegis-spec.md`, `gavi411-jira-aegis-template.md`, `gavi411-commit-convention.md`, `gavi411-jira-tree.md`, `gavi411-playwright-signin.md`, `gavi411-task-list-source.md`, `gavi411-finish-line-plan.md`, `gavi411-full-project-audit.md`, `gavi411-gap-analysis.md`, `gavi411-gap-analysis-followup.md`, `session-start-prompt.md`. General product-reference docs (what the product IS, not how to work on it) into `docs/` — `Setup-steps.md`, `gavi411-prd.md`, `gavi411-e2e-encryption-plan.md`, `gavi411-post-deadline-learning-backlog.md`, `gavi411-user-journey-walkthrough.md`, `user-journey-walkthrough-prompt.md`. **Stayed at root**: `CLAUDE.md` (Claude Code auto-loads it from the project root specifically — moving it would break that), `README.md`, `DEPLOY.md`, `DESIGN.md`, `PRODUCT.md` (the last two are impeccable-managed and its tooling reads them from root by convention).
+
+**Every cross-reference updated, not just the files themselves moved.** Found the full reference graph first (`grep` across every `.md` plus non-doc files) before touching anything — 5 non-markdown files (`.gitignore`, `.env.example`, `.githooks/pre-push`, `scripts/wipe-users.js`, `client/index.html`) had comment-only mentions of these filenames too, none of which functionally read the file at that path (confirmed via a separate `require`/`readFileSync` grep — nothing in `server/`, `client/src/`, or `scripts/` actually opens these docs at runtime), but still worth correcting so a human reader isn't sent to a stale location. Wrote a small Python script to compute the correct relative path per referencing-file's new location (same-directory references correctly stay bare; cross-directory references get the right number of `../`), tested it against one file by hand first and caught two real bugs in the regex before trusting it at scale (a wrong depth calculation for same-directory targets, and the `HANDOFF.md/brain.md` shorthand notation almost getting mis-rewritten into a broken nested path). Spot-checked a sample of the resulting diffs across small and large files (including the 290KB `gavi411-brain.md`) and verified a handful of the new relative paths actually resolve on disk before committing.
+
+555/555 tests fresh, client build clean, both re-run after the move to confirm nothing functional broke (nothing reads these docs at runtime, but verified rather than assumed).
+
+### Real state, right now
+Branch `you/handoff-wp12-close-out` has 2 commits pushed (the earlier #153 HANDOFF self-reference fix, now folded together with this reorg since both landed on overlapping lines of the same file — see the commit message for why they weren't split). PR #154 open (previously #153, same branch, scope grew to include the reorg) — not yet merged, CI not yet checked this stretch.
+
+### What's next, concretely
+1. **Check CI on PR #154, then ask Gavi for the merge go-ahead.**
+2. Once merged: no Jira transition needed (docs/process work, not a tracked child). Confirm primary worktree syncs back to `main` cleanly.
+3. No agent worktrees to sync-check anymore — they're gone. Any future subagent work needs fresh `git worktree add` calls per the commit-convention doc (now at `docs/agent/gavi411-commit-convention.md`).
+
 ---
 
 ## Where this session left off (2026-09-23, latest) — WP12 (close-out) done and merged: critique/audit fixes shipped, ../../DESIGN.md refreshed, demo prep n/a — PR #152 and #153 both merged, full sync confirmed clean
