@@ -31,12 +31,12 @@
 }
 
 .friend-home-request-card {
-  background-color: var(--bg-secondary);
+  background-color: var(--code-bg);
   border: 1px solid var(--border);
-  border-radius: var(--radius);
+  border-radius: var(--radius-md);
   padding: var(--space-3);
   text-align: center;
-  color: var(--text-secondary);
+  color: var(--text);
 }
 
 .friend-home-closed-details {
@@ -47,14 +47,14 @@
 .friend-home-closed-details summary {
   padding: var(--space-3);
   font-size: 14px;
-  color: var(--text-secondary);
-  background-color: var(--bg-secondary);
-  border-radius: var(--radius);
+  color: var(--text);
+  background-color: var(--code-bg);
+  border-radius: var(--radius-md);
   outline: none;
 }
 
 .friend-home-closed-details summary:hover {
-  background-color: var(--bg-tertiary);
+  background-color: var(--border);
 }
 
 .friend-home-closed-details[open] summary {

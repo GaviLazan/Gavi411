@@ -31,7 +31,7 @@ function ConfirmModal({ open, message, onConfirm, onCancel, busy }) {
     <dialog ref={ref} className="confirm-modal" onCancel={handleNativeCancel}>
       <p>{message}</p>
       <div className="step-nav">
-        <Button variant="purple" onClick={onCancel} disabled={busy}>
+        <Button variant="ghost" onClick={onCancel} disabled={busy}>
           No
         </Button>
         {/* busy prevents double-fire on rapid clicks */}

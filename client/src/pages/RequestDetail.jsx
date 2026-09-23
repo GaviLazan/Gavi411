@@ -572,7 +572,7 @@ function RequestDetail({ requestId, isAdmin }) {
   }
 
   if (!request) {
-    return <Card>Loading…</Card>;
+    return <Card style={{ minHeight: 300 }}>Loading…</Card>;
   }
 
   // friend-only branch below, where it originally lived) so threadCard —
@@ -986,6 +986,9 @@ function RequestDetail({ requestId, isAdmin }) {
                   ...statusOptions.map((s) => ({ value: s, label: labelize(s) })),
                 ]}
               />
+            )}
+            {(request.urgency === "HIGH" || request.status === 'WAITING_ON_USER' || request.status === 'OVERDRAFT_PENDING') && (
+              <span className="admin-action-divider" aria-hidden="true" />
             )}
             {request.urgency === "HIGH" && (
               <Button variant="secondary" onClick={handleDowngradeUrgency} disabled={statusSaving}>

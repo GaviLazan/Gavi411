@@ -238,7 +238,7 @@ function AdminList({ onOpenRequest, onNewRequest, filter: filterProp, onRequests
             + New ask
           </Button>
         )}
-        <Card>Loading…</Card>
+        <Card style={{ minHeight: 300 }}>Loading…</Card>
       </div>
     );
   }

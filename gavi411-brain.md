@@ -1445,6 +1445,28 @@ Correct fix: give the real data (with passphrase) as its own export at the one m
 
 **Standing lesson**: before proposing a UI convenience that reads back data via an existing GET/list endpoint, check whether that endpoint's response is missing something load-bearing because of a deliberate design choice (security, one-time-use, "never persisted" comments in the code) — not just whether the read technically succeeds. A workaround around a security boundary is usually a sign the real fix belongs at the point the data still exists, not after.
 
+### Decision #164 — Clerk dev→prod cutover (G411-130) scoped to include existing-user data preservation and re-signup minimization, not just a key swap (2026-09-23, G411-130)
+
+App runs on Clerk `pk_test_`/`sk_test_` in production — real, non-blocking limitations discussed (100-user cap, dev-instance rate limits, no custom domain on hosted auth, Clerk-branded/shared email sending with deliverability risk, shared-mode OAuth risk of Google throttling the credential without notice). Real cost that doesn't shrink by waiting: dev and prod are separate Clerk instances with separate user databases, no direct account migration — every existing real user (admin, Second Party, any signed-up friend) needs to re-authenticate on the new instance whenever this happens.
+
+Gavi's explicit call: don't scope this as just "cut over to prod keys" — scope it to also solve, on our end, as much of the transition pain as possible for people who already have accounts: (1) preserve their existing `Request`/`Message`/`Notification`/`CreditTransaction` history by re-linking a new Clerk production user id to the existing `User` row rather than creating a duplicate on next sign-in, (2) investigate Clerk's bulk user-import tool to see how much re-signup can be front-loaded server-side (pre-creating production accounts by email) rather than leaving every step to the user.
+
+**Standing lesson**: when a real limitation is discovered and deferred to V2, don't file it narrowly as "do the deferred thing" if the user has already stated a fuller scope in the same conversation — the ticket description should carry the actual ask (data preservation + friction minimization), not just the surface problem, so a future pickup doesn't have to re-derive intent from a chat transcript that's no longer available.
+
+### Decision #165 — WP12 critique/audit: a shared light/dark color token can pass in one theme and fail in the other — check both before touching it (2026-09-23, WP12)
+
+The sage-green "Submit" button's contrast failure (2.58:1, WCAG AA needs 4.5:1) looked like a straightforward "darken the color" fix, but `--accent-2` is one shared hex value used in both light and dark mode, while the *text* color on top of it (`--surface`) flips from white (light) to dark ink (dark). Computing dark mode's real contrast before touching anything showed it was already passing (6.09:1) — darkening the shared fill to fix light mode would have silently broken a mode that wasn't broken. Fix scoped to light mode's value only; dark mode's `--accent-2` (and its already-correct hover) left untouched.
+
+**Standing lesson**: any token shared across a light/dark split needs its contrast checked independently in both themes before changing it — a failure diagnosed in one theme is not evidence the other theme fails the same way, and "fix the number" without checking the paired theme risks trading one real bug for another.
+
+### Decision #166 — Critique's dual-agent sub-agent review produced two claims that didn't survive independent verification — both caught before acting, not after (2026-09-23, WP12)
+
+Running `/impeccable critique`'s required dual-agent pattern (Assessment A design-review sub-agent, Assessment B detector sub-agent, isolated from each other) surfaced two real P0 bugs Assessment A found that Assessment B's static regex scan couldn't catch on its own (an undefined `.btn-purple` variant, four undefined CSS custom properties) — both independently re-grepped against real source and confirmed exactly as reported before including them in the final report or fixing them.
+
+But Assessment A also produced two claims that turned out wrong on verification: (1) the P1 admin-action-row finding claimed 5-6 simultaneous controls; checking `RequestDetail.jsx`'s actual conditional-render logic against the real Prisma schema showed urgency is independent of status but Nudge/Overdraft are mutually exclusive by status, so the real max is 3 — enough to still warrant a fix, but a smaller one (a divider, not a menu restructure) than the overstated finding implied. (2) A persona red-flag claimed a first-timer hits the E2E encryption recovery UI "cold" — Gavi caught this was wrong before any fix was made; grepping `RequestDetail.jsx` showed both surfaces gate on `E2E_ENABLED`, hardcoded `false`, making the whole path unreachable dead code today.
+
+**Standing lesson**: a sub-agent report — even one running an isolated, structured, dual-assessment methodology explicitly designed to reduce single-model blind spots — is still a claim to verify against real source before acting on it, not a finding to act on directly. This applies to design/UX findings the same way it already applies to Haiku's coding-dispatch reports (#157/#159/#160/#162) — the failure mode (a plausible-sounding but unchecked claim) isn't specific to code generation.
+
 ## 7. Not Yet Discussed
  
 - Data model, architecture, tech decisions (schema itself not yet drafted — first task on deck).

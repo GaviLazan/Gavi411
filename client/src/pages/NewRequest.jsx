@@ -345,7 +345,7 @@ function NewRequest({ onDone, onExit, onFreeTextChange, isOnline }) {
             <button type="button" className="exit-flow" onClick={handleExit} aria-label="Cancel and go back">
               ×
             </button>
-            {submitError && <p style={{ color: "#b3261e" }}>{submitError}</p>}
+            {submitError && <p style={{ color: "var(--danger)" }}>{submitError}</p>}
             <Button variant="primary" onClick={handleContinue}>
               Continue
             </Button>
@@ -423,7 +423,7 @@ function NewRequest({ onDone, onExit, onFreeTextChange, isOnline }) {
               unlockedKeys={unlockedKeys}
               onUnlock={(key) => setUnlockedKeys((prev) => new Set(prev).add(key))}
             />
-            {submitError && <p style={{ color: "#b3261e" }}>{submitError}</p>}
+            {submitError && <p style={{ color: "var(--danger)" }}>{submitError}</p>}
             {overdraftEligible && (
               <Button variant="secondary" onClick={handleOverdraftRequest} disabled={submitting}>
                 {submitting ? "Sending…" : "Ask anyway"}

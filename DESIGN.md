@@ -12,8 +12,8 @@ colors:
   gold-strong: "#d99400"
   gold-text: "#946600"
   on-accent: "#221f19"
-  sage-green: "#6fae8f"
-  sage-green-strong: "#4f8a6c"
+  sage-green: "#436856"
+  sage-green-strong: "#35513f"
   danger: "#b3261e"
 dark:
   body-text: "#b3b0aa"
@@ -146,7 +146,7 @@ A warm-neutral ground with one confident primary accent (gold) and one narrower 
 - **On Accent** (`#221f19`, same in both themes): the text color for anything sitting directly on a solid accent-family fill (`.btn-primary`, `StatusChip`'s gold/strong/success variants) — a fixed dark ink, not `--text-h`, since `--text-h` is near-white in dark mode and would fail contrast against the bright dark-mode gold/sage fills underneath it.
 
 ### Secondary
-- **Sage Green** (`#6fae8f`, dark: `#6fae8f`): a narrower second accent — currently used only for the intake flow's "Submit" action (`.btn-success`), distinguishing it from the general-purpose gold CTA. Hover darkens to `#4f8a6c` (dark: `#8fc7ab`).
+- **Sage Green** (`#436856`, dark: `#6fae8f`): a narrower second accent — currently used only for the intake flow's "Submit" action (`.btn-success`), distinguishing it from the general-purpose gold CTA. Hover darkens to `#35513f` (dark: `#8fc7ab`). Light mode was darkened from an earlier `#6fae8f` (2026-09-23 audit): white button text on the original value measured 2.58:1, failing WCAG AA's 4.5:1 minimum — dark mode was already passing (its button text uses the dark-mode `--surface` value, which is dark, not white) and was left unchanged.
 
 Lavender (formerly a tertiary accent, `.btn-purple`) is retired — see Buttons below.
 
@@ -202,7 +202,7 @@ Two form languages: **pill** (full border-radius, 999px) for anything you click 
 - **Shape:** full pill (999px radius)
 - **Primary:** gold fill (`#f2a900`), dark-ink text, 14px/28px padding, 600 weight; hover darkens to Gold Strong
 - **Secondary:** transparent fill, dark-ink text, gold border at 40% opacity; hover fills with a faint gold wash (12% opacity)
-- **Success** (intake flow "Submit" only): sage-green fill, white text; hover darkens to Sage Strong
+- **Success** (intake flow "Submit" only): sage-green fill, white text; hover darkens to Sage Strong. `Button.jsx` has no `purple` variant — `ConfirmModal`'s "No" button briefly referenced one (fixed 2026-09-23 to use Ghost); lavender/purple is retired system-wide, including as a button variant name.
 - **Ghost:** transparent fill, body text color; hover fills with a faint gold wash (12% opacity)
 - **Icon:** 44px pill button with icon, transparent fill, body text color; hover fills with a faint gold wash (12% opacity)
 - **Disabled:** 50% opacity, `cursor: not-allowed`, same shape/colors otherwise
@@ -241,7 +241,7 @@ Two form languages: **pill** (full border-radius, 999px) for anything you click 
 - **Do** make every actionable trigger (button, chip, icon button) a full pill; every input, select, card, and modal a 20px-radius surface — never a pill input.
 - **Do** keep gold as the one general-purpose accent — reach for sage green only for its specific, already-assigned job (intake Submit), not as an alternate "brand color."
 - **Do** give every new color token both a light and a dark value before shipping it.
-- **Do** pair every transition/animation with a `prefers-reduced-motion: reduce` fallback that disables it — every current motion pattern (step-card slide-in, collapsible expand/collapse) already does this; new motion should match.
+- **Do** pair every transition/animation with a `prefers-reduced-motion: reduce` fallback that disables it — every current motion pattern (step-card slide-in, collapsible expand/collapse, the credit ring's fill animation) does this; new motion should match.
 
 ### Don't:
 - **Don't** reintroduce a serif headline font — tried once, explicitly reverted by Gavi after live review.
