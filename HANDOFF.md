@@ -12,7 +12,55 @@ accumulated. If something here turns out to matter long-term, promote it to
 
 ---
 
-## Where this session left off (2026-09-23, latest) — G411-117 (README) merged, Reconciled; G411-129 (bulk invites) built, Landed, PR #150, approved, awaiting merge go-ahead
+## Where this session left off (2026-09-23, latest) — deploy env-var fixes (Telegram + Web Push both real, now working); PR #151 merged
+
+**After G411-128/G411-7/G411-9 closed out (see entry directly below for that work), Gavi found two real live deployment bugs, both fixed this session — no code changes, pure deploy configuration:**
+
+1. **Telegram notifications never fired on a real new request.** Traced to the real code path (`server/lib/notify.js`'s `ensureTelegramConfigured()`/`sendTelegram()`, called from `server/routes/requests/create.js` with `{ telegram: true }`) — confirmed the server-side logic was correct and errors are caught/logged, not silently swallowed. Root cause: `TELEGRAM_BOT_TOKEN`/`TELEGRAM_CHAT_ID` were never set on **Render** (the actual deployed server) — `.env` is gitignored and never auto-deploys; Render needs its own copy of every server env var, added manually in its dashboard. **Gavi added both and redeployed — not yet re-verified with a real second test request**, since the session moved on to the second bug.
+
+2. **Push notification setup failed live with `VITE_VAPID_PUBLIC_KEY is not set`.** This is a **client-side, Vite build-time** variable (`client/src/lib/webPush.js:17`, `import.meta.env.VITE_VAPID_PUBLIC_KEY`) — completely different mechanism from #1's server-side vars, and needed on **Vercel** (the client's build host), not Render. Two real sub-problems, both hit and fixed live: (a) Gavi initially only had `VAPID_PUBLIC_KEY` (no `VITE_` prefix) on Vercel — Vite only exposes vars to client code that carry that exact prefix, by design (keeps server secrets out of the shipped bundle), so the un-prefixed var did nothing. (b) Once the correctly-named var was added, Vercel's newer Config/Secret variable-type split blocked saving it as the default "Secret" type with the error `Environment variables with a public framework prefix cannot use visibility: secret` — the "Config" option was greyed out on the existing row (can't convert Secret→Config in place per Vercel's own docs), fixed by deleting the row and re-adding it fresh, where Config became selectable. A red herring along the way: the first redeploy after adding the var still showed the same error — turned out the variable's *name* silently hadn't saved correctly during the delete/re-add, caught by Gavi himself.
+
+**Real verification, not just "should work now"**: after the final redeploy, the live deployed JS bundle at `https://gavi411-ten.vercel.app` was checked directly via `curl` against the built `<script src>` — confirmed the real VAPID key value is now genuinely present in the shipped bundle and the "not set" error string is gone. This is now actually fixed, verified against the real deployed artifact, not assumed from the fix having been applied.
+
+**Two things intentionally NOT done, both real decisions Gavi made, not oversights**:
+- **Telegram links open in-browser, not inside the installed PWA, when tapped from Telegram.** Investigated and confirmed this is a real, unavoidable platform limitation — Telegram (like most chat apps) never hands off plain `https://` links to an installed PWA's shell, regardless of `manifest.json`/`scope` config. Nothing in this app's code can fix it. Gavi's explicit call: accept as expected, don't chase further.
+- **Clerk is still on `pk_test_`/`sk_test_` keys in production, deliberately not cut over to a live/production instance.** Real cost surfaced and discussed: Clerk cannot auto-migrate user *accounts* between dev and production instances (config can clone via `clerk deploy`, but every real person — Gavi's own admin account, Second Party, any real friend already signed up — would need to re-authenticate from scratch on the new instance; Clerk's own docs confirm no direct dev→prod user migration exists, only a separate open-source import tool for bulk-loading user *records*, which still doesn't restore passwords/OAuth sessions). Gavi's explicit call: defer this past tonight's presentation — not "never," just not now. **Not yet filed as a tracked ticket** — Gavi hadn't confirmed he wanted that when this session ended; worth asking early next session so it doesn't get lost as just a memory of a conversation.
+
+### Real state, right now
+**Uncommitted:** none. **PR #151 merged** (docs-only, HANDOFF.md, regular merge commit) — primary worktree should be back on `main`, matching `origin/main`, once the merge lands.
+
+No Jira changes this stretch — the Telegram/Vercel env-var fixes were live deployment configuration, not a ticket-tracked code change, so nothing to transition.
+
+### What's next, concretely
+1. Full sync check across primary + all `Gavi411-agent-*` worktrees (not run since before the deploy-debugging detour) — first thing a fresh session should confirm.
+2. **Re-verify Telegram notifications with a real second test request** — Gavi added the env vars and redeployed Render, but that fix was never actually re-confirmed working end-to-end before the session moved to the Vercel/push-notification bug. Don't assume it's fixed just because the config looks right now — same standing rule as everything else in this project.
+3. **Ask Gavi whether to file a V2/Stretch Backlog ticket (under G411-57) for the Clerk production cutover** — a real, deliberately-deferred piece of work that isn't tracked anywhere in Jira yet. Don't silently create it; he hadn't said yes when this session ended.
+4. **WP12 (close-out)** is still the next real work package per the finish-line plan — untouched this stretch. Its Jira-reconciliation step is already done (G411-7/8/9 all Reconciled). Remaining WP12 parts: design re-critique (`/impeccable critique` + `/impeccable audit`), a live phone-in-hand pass on the now-actually-working deployed app (this is a good moment for it, given the Telegram/push fixes), a docs refresh (`DESIGN.md` via `/impeccable document`), and demo prep (seed a real friend account with 2-3 realistic requests, pre-warm Render before presenting). Confirm scope with Gavi at STOP 1 before starting, per usual.
+5. G411-57 (V2/Stretch Backlog) stays Open by design — not a gap.
+
+---
+
+## Where this session left off (2026-09-23, earlier) — G411-128 (demo/walkthrough Artifact) Reconciled; G411-7/G411-9 both fully Reconciled
+
+**G411-128 built as a published Artifact** (not a repo file, per Gavi's explicit choice): https://claude.ai/artifact/J7BRxvaXQWSyZ3oUUXZwC1 — live demo script (talking points, not narrated lines, per Gavi's correction), a detailed code walkthrough (3 real code blocks with exact file paths and line-level explanations: the Unicode-aware keyword matcher in `matchKeywords.js`, the transactional refund logic in `requests/detail.js`, the invite passphrase's one-response lifetime in `invites.js`), DB/schema table, testing/CI overview (real 555/555 count, real CI steps), an E2E section that defines the jargon (keypair, ECDH, wrapping, escrow, plaintext) in plain language and traces the real `E2E_ENABLED` flag mechanism in `server/lib/e2eConfig.js`, and a retro citing real `gavi411-brain.md` decision numbers.
+
+**Two real rounds of Gavi's own live feedback, both fixed same session**: (1) a CSS bug — the demo-steps' flex/grid layout had no `min-width` on its text column, causing every step's text to render one word per line at some widths; fixed by wrapping each step's content in a properly-sized flex child. (2) Gavi wanted talking-point bullets instead of a scripted narration, and wanted the code walkthrough and E2E section genuinely detailed rather than surface-level — both rebuilt with real, verified code pulled fresh from the repo (not paraphrased from memory), including catching and correcting one inaccurate claim mid-edit (initially guessed the message route had zero encryption-related logic; actually re-checked the real file and found a genuine `E2E_ENABLED` feature flag with real gated logic, which is a better and more accurate story to tell anyway).
+
+**Jira: G411-128 → Reconciled directly** (no Landed stage — no code, no PR, no merge for this ticket; the falsifier was "reviewed by Gavi before presenting," met once Gavi approved the final content).
+
+**Epic rollups, both real STOP 2 decisions this session, not automatic**: G411-7 (Notifications) was found already fully done but never rolled — every child Reconciled, just a missed epic-level transition; rolled to Reconciled directly, no real blocker. G411-9 (Copywriting & UI/UX Pass) hit the same condition once G411-128 closed (every child Reconciled) — the finish-line plan assigns this roll to WP12's own close-out step, not "whenever the last child finishes," so this was explicitly confirmed with Gavi before rolling early rather than assumed. Gavi's call: roll now.
+
+### Real state, right now
+**G411-7, G411-8, and G411-9 are all three Reconciled.** No open PRs. Primary worktree clean on `main`, matching `origin/main`.
+
+### What's next, concretely
+1. **WP12 (close-out)** is next per the finish-line plan — but note its own Jira step (reconcile G411-7/8/9) is now already done ahead of time, so WP12 picked up next only needs its other 4 parts: design re-critique (`/impeccable critique` + `/impeccable audit`), a live phone-in-hand pass on the deployed Vercel+Render build, a docs pass (DESIGN.md refresh via `/impeccable document`), and demo prep (seed a real friend account with 2-3 realistic requests, pre-warm Render). Confirm with Gavi at STOP 1 before starting — a Reconciled epic doesn't imply "start WP12" automatically.
+2. G411-57 (V2/Stretch Backlog) stays Open by design — not a gap, don't try to close it.
+3. Nothing else open or blocking from this session.
+
+---
+
+## Where this session left off (2026-09-23, earlier) — G411-117 (README) merged, Reconciled; G411-129 (bulk invites) built, Landed, PR #150, approved, awaiting merge go-ahead
 
 **G411-117 (README) fully closed out** — PR #149 merged (`c04d94e`, regular merge commit), Jira Landed → Reconciled, full sync check clean across primary + all 6 `Gavi411-agent-*` worktrees. See the entry below for the full build detail.
 
