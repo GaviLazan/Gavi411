@@ -354,7 +354,7 @@ Two things carry forward from the old regime:
   just when it's down (#90).
 - **Impeccable**: don't run `/impeccable document` before real styled
   components exist. Sequence is inspo screenshots → build components
-  against them → *then* document into `DESIGN.md`. `PRODUCT.md` comes
+  against them → *then* document into `docs/DESIGN.md`. `docs/PRODUCT.md` comes
   from `/impeccable init`, not pre-drafted.
 
 ## Reference docs
