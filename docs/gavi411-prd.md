@@ -122,7 +122,7 @@ below) shipped in full — device-linking (PR #35) and the admin search index
 (PR #36) both built/reviewed, live message thread wired to it via G411-82.
 The encryption-at-rest fallback described below never triggered (its
 precondition — running out of time before E2E landed — didn't happen) and
-was closed without code; see decision #92 in `gavi411-brain.md` and
+was closed without code; see decision #92 in `../docs/agent/gavi411-brain.md` and
 G411-27's own ticket for the disposition. Left in this doc as historical
 record of the original design tradeoff, not as live/pending scope.
 
@@ -189,7 +189,7 @@ The word "ticket" never appears in user-facing copy. Working user-facing term: *
 ## 7. Technical Requirements
  
 - **Frontend:** React (Vite), **JavaScript only — no TypeScript** (Gavi doesn't know TS yet; planned to learn it after this project). UI chrome is English-only/LTR; Hebrew can appear in any freeform text field, input or display, on either side of the app (friend-facing request text/messages, or Gavi/admin-facing notes/replies) — those fields need correct bidi text rendering (mixed Hebrew/English/numbers), not page-layout RTL support. Every "build a page/component" task includes a real design pass, not just logic-wiring to endpoints — see Design system below.
-- **Design system:** Impeccable (Claude Code design skill). Seeded from Gavi's existing inspo board — specifically the screenshot **image files** within it, viewed directly by Claude Code, not the board's own gallery-shell code (which was never styled to embody the direction itself). Sequence: show Claude Code the reference images → build early Gavi411 components against them → run `/impeccable document` to capture what actually landed into `DESIGN.md`. `PRODUCT.md` is generated interactively via `/impeccable init` once the repo exists, not pre-drafted.
+- **Design system:** Impeccable (Claude Code design skill). Seeded from Gavi's existing inspo board — specifically the screenshot **image files** within it, viewed directly by Claude Code, not the board's own gallery-shell code (which was never styled to embody the direction itself). Sequence: show Claude Code the reference images → build early Gavi411 components against them → run `/impeccable document` to capture what actually landed into `../DESIGN.md`. `../PRODUCT.md` is generated interactively via `/impeccable init` once the repo exists, not pre-drafted.
 - **Code discipline:** Ponytail (YAGNI/minimal-code plugin) adopted project-wide — least code that works, stdlib/native features preferred over custom code or dependencies, no speculative abstractions. Installed as an actual Claude Code plugin (not a copied skill file, which doesn't reliably self-activate).
 - **No LLM in v1 core flow.** Claude API may still appear elsewhere in the project if useful, but triage specifically is LLM-free by decision.
 - **Backend:** Node.js + Express. ES modules.
@@ -198,8 +198,8 @@ The word "ticket" never appears in user-facing copy. Working user-facing term: *
 - **APIs consumed:** Telegram Bot API (admin notifications), Hebcal or similar (zmanim, v2/stretch), Web Push — nice-to-haves, not requirement-driven. **Internal REST API** between front/back is the actual course requirement (confirmed: course has never required external APIs, always REST) — satisfied by construction via the Express routes.
 - **Testing:** Vitest, front and back. Built **collaboratively** — Gavi is weak in this area and wants to learn it, not just receive finished output; scaffolds land per-feature as each one ships, not batched at the end.
 - **CI/CD:** GitHub Actions. Built **collaboratively**, same reasoning as testing.
-- **Project management:** Jira + GitHub, implementing the **Aegis Method** discipline pattern — Parent/Child issue structure, mandatory falsifiers, evidence-bar requirements, adversarial review, closure-against-reality. Full field template defined in `gavi411-jira-aegis-template.md`.
-- **Agent-provenance tracking:** Repowise, adopted from day one since multiple Claude subagents (not just Gavi) will be committing code. Per-role commit identity/branch-prefix/trailer convention defined in `gavi411-commit-convention.md`.
+- **Project management:** Jira + GitHub, implementing the **Aegis Method** discipline pattern — Parent/Child issue structure, mandatory falsifiers, evidence-bar requirements, adversarial review, closure-against-reality. Full field template defined in `../docs/agent/gavi411-jira-aegis-template.md`.
+- **Agent-provenance tracking:** Repowise, adopted from day one since multiple Claude subagents (not just Gavi) will be committing code. Per-role commit identity/branch-prefix/trailer convention defined in `../docs/agent/gavi411-commit-convention.md`.
 - **Deployment:** Vercel (frontend) + Render free tier (backend; cold-start accepted, pre-warm before demos). DB on Neon free tier.
 - **Budget:** ~zero. Claude API pay-as-you-go (~$5 covers the project).
 ## 8. Constraints
@@ -214,7 +214,7 @@ The word "ticket" never appears in user-facing copy. Working user-facing term: *
 - Course requirements resolved — plan approved as-is, no longer a live constraint risk.
 ## 9. Open Questions
  
-Resolved since v0.1 (see decisions #45–49 in `gavi411-brain.md`):
+Resolved since v0.1 (see decisions #45–49 in `../docs/agent/gavi411-brain.md`):
 1. **Image storage** — Cloudinary (free tier), URL stored in DB.
 2. **Credit mechanics** — monthly reset, tiered by group tag: Limited 2/mo, Regular 5/mo, Close 7/mo. No rollover, one overdraft/period.
 3. **Auto-close** — "waiting on friend" requests auto-close after 14 days of inactivity, with a warning message sent first. Reopening happens by sending a message in the closed request — no separate reopen button (see §4.4).

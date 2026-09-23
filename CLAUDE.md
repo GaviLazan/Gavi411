@@ -2,7 +2,7 @@
 
 Auto-loaded every session. Read before touching code. This is a working
 index of **rules**, not their history — every `#N` points to
-`gavi411-brain.md`'s numbered decision log, where the full reasoning and
+`docs/agent/gavi411-brain.md`'s numbered decision log, where the full reasoning and
 the incident behind it live. Don't re-explain a rule here; cite it.
 
 **Read "The four stops" first.** Work here is not one unbroken chain from
@@ -70,10 +70,10 @@ in the same turn instead of days later.
    "it passed earlier."
 4. **Aegis fields** — write Claim/Falsifier/Evidence on the Jira child.
    Real custom fields (`customfield_10073`–`10079`, table in
-   `gavi411-jira-aegis-template.md`), not description prose (#99).
+   `docs/agent/gavi411-jira-aegis-template.md`), not description prose (#99).
 5. **Jira: Reviewing → Landed.** Code is proven ready but not yet
    merged — this asserts that, nothing more.
-6. **HANDOFF.md + `gavi411-brain.md`**, committed onto the same branch
+6. **docs/agent/HANDOFF.md + `docs/agent/gavi411-brain.md`**, committed onto the same branch
    as the code, so one PR carries both and there's no second sync
    round-trip after merge. HANDOFF: current state. brain.md: only a
    decision that outlives this ticket — its own item, not folded into
@@ -91,7 +91,7 @@ in the same turn instead of days later.
    step here; a passing Sibling review is a precondition for asking, not
    a substitute for it. On yes: merge, then Landed → Reconciled
    immediately — no separate re-check, steps 1–4 covered it. Merge
-   mechanics in `gavi411-commit-convention.md`.
+   mechanics in `docs/agent/gavi411-commit-convention.md`.
 8. **Full sync check, every worktree.** `git status --short` in the
    primary + every `Gavi411-agent-<role>` must come back completely
    empty — not "just the ticket's files are clean." Resolve leftovers
@@ -105,8 +105,8 @@ in the same turn instead of days later.
 ## Required workflow
 
 1. **Read before acting — don't reason from memory.** `CLAUDE.md`,
-   `HANDOFF.md`, `gavi411-brain.md` are edited by other sessions between
-   your turns. Re-read rather than recall, especially `HANDOFF.md` and
+   `docs/agent/HANDOFF.md`, `docs/agent/gavi411-brain.md` are edited by other sessions between
+   your turns. Re-read rather than recall, especially `docs/agent/HANDOFF.md` and
    anything a system-reminder flags as changed on disk. This is the
    first thing in a session, not something to skip because the request
    sounded simple.
@@ -117,7 +117,7 @@ in the same turn instead of days later.
    (#104) all need verification before being said. If you haven't
    checked, say so and check.
 
-3. **Log a decision to `gavi411-brain.md` when it's made, not at
+3. **Log a decision to `docs/agent/gavi411-brain.md` when it's made, not at
    wrap-up.** The wrap-up step is a backstop; waiting is too late if
    wrap-up gets skipped or the ticket crosses a session boundary. A
    status update belongs in HANDOFF only; a decision belongs in brain.md
@@ -141,7 +141,7 @@ in the same turn instead of days later.
 
 5. **Sibling review is mandatory on every agentic child, before merge is
    even asked about** (#62/#63) — verifies tests exist and pass, docs and
-   `HANDOFF.md` are updated, Aegis fields written, Jira transitioned.
+   `docs/agent/HANDOFF.md` are updated, Aegis fields written, Jira transitioned.
    Read the diff directly; a green build is not evidence the review
    happened. A passing review is a precondition for the merge ask
    (wrap-up step 7), never a substitute for it.
@@ -211,9 +211,9 @@ in the same turn instead of days later.
   **including when the session opens with a short, concrete instruction
   like "pick up G411-XX."** That's the case where skipping is most
   tempting and most costly.
-  0. **Read the docs, don't recall them**: `HANDOFF.md`, this file,
-     `gavi411-brain.md`.
-  1. **Recap**: `Setup-steps.md`, the Jira backlog, `git status`/`git log`
+  0. **Read the docs, don't recall them**: `docs/agent/HANDOFF.md`, this file,
+     `docs/agent/gavi411-brain.md`.
+  1. **Recap**: `docs/Setup-steps.md`, the Jira backlog, `git status`/`git log`
      — give Gavi a 3-5 line "where we left off, what's next."
   2. **Agent/subagent status**: anything running or recently finished in
      the `Gavi411-agent-*` worktrees or background subagents — in
@@ -222,8 +222,8 @@ in the same turn instead of days later.
   3. **Pick the task**: agree explicitly with Gavi which ticket, before
      any code. Work the lowest-numbered Open child of the Epic already in
      progress — Epics go in strict order, and "crucial" never jumps the
-     queue. Re-check the ticket's Description against `gavi411-prd.md`
-     and `gavi411-task-list-source.md` for staleness before starting.
+     queue. Re-check the ticket's Description against `docs/gavi411-prd.md`
+     and `docs/agent/gavi411-task-list-source.md` for staleness before starting.
      Then **STOP 1**.
 
 - **Trace real consequences before presenting a plan, not after Gavi asks
@@ -255,7 +255,7 @@ in the same turn instead of days later.
   don't trust claims of a `CLAUDE_CONTEXT_TOKEN_COUNT`-style env var.
   Two signals: Claude self-judges from session shape and proactively
   offers a handoff, or Gavi reports a number from his UI and asks at
-  ~60-70%. Either way: update `HANDOFF.md`, then suggest a fresh chat.
+  ~60-70%. Either way: update `docs/agent/HANDOFF.md`, then suggest a fresh chat.
 
 ## Ownership split — historical record only
 
@@ -322,7 +322,7 @@ Two things carry forward from the old regime:
 ## Process & discipline
 
 - **Jira** ("G411", Kanban, no sprints): Epic = Parent, Task = Child, no
-  Subtasks. Five states (`Aegis-spec.md` §4.1): Open → Implementing →
+  Subtasks. Five states (`docs/agent/Aegis-spec.md` §4.1): Open → Implementing →
   Reviewing → Landed → Reconciled. **Landed** = merged and live, but
   acceptance criteria not yet re-validated. **Reconciled** = criteria
   checked against the landed state — the real "Done." Named transitions:
@@ -330,12 +330,12 @@ Two things carry forward from the old regime:
   Reconciled. Every status also has a global "Any →" for
   corrections/reopens.
 - **Aegis Method**: every Child needs a Falsifier and Evidence bar before
-  Reconciled. Fields in `gavi411-jira-aegis-template.md`; consult
-  `Aegis-spec.md` for anything the template doesn't cover. Written at
+  Reconciled. Fields in `docs/agent/gavi411-jira-aegis-template.md`; consult
+  `docs/agent/Aegis-spec.md` for anything the template doesn't cover. Written at
   pickup against real state, never pre-drafted in bulk (#50).
 - **Repowise**: tracks agent provenance from git history — needs the
   per-role identity/branch/trailer scheme in
-  `gavi411-commit-convention.md` respected by every subagent.
+  `docs/agent/gavi411-commit-convention.md` respected by every subagent.
 - **Branching**: no direct commits to `main`. One branch per child —
   `you/G411-XX-slug` or `agent-<role>/G411-XX-slug` — merged via PR.
   Mechanically enforced (#106): a `require-pr-for-main` ruleset with no
@@ -344,7 +344,7 @@ Two things carry forward from the old regime:
   .githooks`) catches it locally first, plus the sibling mistake of
   pushing under one role's identity onto another's branch prefix.
 - **Merge mechanics** (policy is §5; full details in
-  `gavi411-commit-convention.md`): always a regular merge commit, never
+  `docs/agent/gavi411-commit-convention.md`): always a regular merge commit, never
   `--squash` (#68). A bare `gh pr merge` fails — branch protection
   requires an approving review, so use `gh pr merge --merge --admin`
   (#103). From an agent-worktree dispatch `gh pr merge` fails outright
@@ -361,17 +361,17 @@ Two things carry forward from the old regime:
 
 | File | What it's for |
 |---|---|
-| `gavi411-prd.md` | Full product spec — flows, features, priorities |
-| `gavi411-brain.md` | Numbered decision log — the "why" behind every `#N` cited here |
-| `HANDOFF.md` | Perishable session-to-session state — the **only** authority on current status and next task |
-| `Aegis-spec.md` | Primary source for the Aegis Method; `gavi411-jira-aegis-template.md` derives from it |
-| `gavi411-jira-aegis-template.md` | Parent/Child issue field template + custom-field IDs |
-| `gavi411-commit-convention.md` | Per-role git identity/branch/trailer scheme, merge and worktree mechanics |
-| `gavi411-jira-tree.md` | Snapshot of the G411 Epic → Task structure with issue keys |
-| `gavi411-task-list-source.md` | Original hour-costed backlog used to populate Jira; Jira is live now |
-| `gavi411-e2e-encryption-plan.md` | Living doc for the paused E2E work — read before touching messaging/encryption |
-| `gavi411-post-deadline-learning-backlog.md` | Post-deadline study list — doesn't affect how you build now |
-| `gavi411-playwright-signin.md` | Working recipe for driving Clerk sign-in with Playwright — read before writing a login-flow test script |
+| `docs/gavi411-prd.md` | Full product spec — flows, features, priorities |
+| `docs/agent/gavi411-brain.md` | Numbered decision log — the "why" behind every `#N` cited here |
+| `docs/agent/HANDOFF.md` | Perishable session-to-session state — the **only** authority on current status and next task |
+| `docs/agent/Aegis-spec.md` | Primary source for the Aegis Method; `docs/agent/gavi411-jira-aegis-template.md` derives from it |
+| `docs/agent/gavi411-jira-aegis-template.md` | Parent/Child issue field template + custom-field IDs |
+| `docs/agent/gavi411-commit-convention.md` | Per-role git identity/branch/trailer scheme, merge and worktree mechanics |
+| `docs/agent/gavi411-jira-tree.md` | Snapshot of the G411 Epic → Task structure with issue keys |
+| `docs/agent/gavi411-task-list-source.md` | Original hour-costed backlog used to populate Jira; Jira is live now |
+| `docs/gavi411-e2e-encryption-plan.md` | Living doc for the paused E2E work — read before touching messaging/encryption |
+| `docs/gavi411-post-deadline-learning-backlog.md` | Post-deadline study list — doesn't affect how you build now |
+| `docs/agent/gavi411-playwright-signin.md` | Working recipe for driving Clerk sign-in with Playwright — read before writing a login-flow test script |
 
 ## Standing facts
 
@@ -380,8 +380,8 @@ Two things carry forward from the old regime:
   Requests/Intake (G411-2) are long since Reconciled.
 - E2E messaging encryption is **paused**, explicitly optional/stretch
   (#98) — message content is plaintext-in-DB meanwhile. Read
-  `gavi411-e2e-encryption-plan.md` before touching that area.
-- **Current status and next task live in `HANDOFF.md`** — deliberately
+  `docs/gavi411-e2e-encryption-plan.md` before touching that area.
+- **Current status and next task live in `docs/agent/HANDOFF.md`** — deliberately
   not duplicated here, so two sources can't disagree.
 - Once `server/` and `client/` are both fleshed out, consider splitting
   this into a leaner root file plus `server/CLAUDE.md` and

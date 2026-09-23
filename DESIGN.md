@@ -249,4 +249,4 @@ Two form languages: **pill** (full border-radius, 999px) for anything you click 
 - **Don't** give an input, select, or any container a pill radius — pills are for actionable triggers only.
 - **Don't** introduce the purple/lavender *gradient* look seen in some inspo images (the Stranger Chat kit's actual gradient treatment, distinct from using lavender as a flat accent) — off-brand, dating/social-app category noise.
 - **Don't** add a UI component library or CSS-in-JS dependency — this system is plain CSS + custom properties by project convention (Ponytail/YAGNI), and stays that way.
-- **Don't** apply logical/bidi CSS properties system-wide — UI chrome is English/LTR only; bidi handling is scoped to specific freeform text fields, not the design system (per `gavi411-brain.md` decision #22).
+- **Don't** apply logical/bidi CSS properties system-wide — UI chrome is English/LTR only; bidi handling is scoped to specific freeform text fields, not the design system (per `docs/agent/gavi411-brain.md` decision #22).

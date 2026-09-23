@@ -20,7 +20,7 @@ _Nothing else can start until this lands. No commit-triggering here — this is 
 _Depends on: Foundation (DB, Express, Auth)._
  
 - Intake UI: free-text box + urgency preset **[You]** — done, Reconciled (G411-18)
-- Keyword-matching engine, run-on-Continue (DB-backed trigger list, deterministic, no LLM) **[Collab]** (moved from [You] 2026-08-20, Gavi's call — see CLAUDE.md ownership split)
+- Keyword-matching engine, run-on-Continue (DB-backed trigger list, deterministic, no LLM) **[Collab]** (moved from [You] 2026-08-20, Gavi's call — see ../../CLAUDE.md ownership split)
 - Trigger taxonomy seed data (Admin builds/edits the trigger UI itself — see Admin parent) **[Collab]**
 - Disambiguation UI — single-select chips + always-present "None of these" **[Collab]**
 - Generic fallback field ("please provide any additional info you can"), shown only on "None of these" **[Collab]**
@@ -94,7 +94,7 @@ _Visible for completeness per decision #42; not built now, not forgotten either.
 ---
  
 ## Notes on what's intentionally absent as its own Parent
-- **PRODUCT.md / DESIGN.md (Impeccable)** — not planning-chat deliverables; generated interactively inside Claude Code once repo exists (decision #36). No task needed here.
+- **../../PRODUCT.md / ../../DESIGN.md (Impeccable)** — not planning-chat deliverables; generated interactively inside Claude Code once repo exists (decision #36). No task needed here.
 - **Repowise/Impeccable/Ponytail plugin installation** — environment setup, already tracked in `Setup_steps`, not app-delivery work — didn't duplicate it as a Jira child.
 - **Jira/commit-convention setup itself** — meta-work already done (decisions #34–35), not part of the product backlog.
  

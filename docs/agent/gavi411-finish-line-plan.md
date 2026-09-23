@@ -6,7 +6,7 @@ The definition layer for the last stretch: every remaining piece of work as a sc
 
 ## How to use this plan
 
-This is the **definition layer**. It settles the calls that would otherwise stop a coding session (scope, files, shapes, acceptance), so the executing session can spend its turns on building and reviewing, not re-deriving. CLAUDE.md still governs process; this doc governs *what* and *in which order*.
+This is the **definition layer**. It settles the calls that would otherwise stop a coding session (scope, files, shapes, acceptance), so the executing session can spend its turns on building and reviewing, not re-deriving. ../../CLAUDE.md still governs process; this doc governs *what* and *in which order*.
 
 **Roles.** Sonnet runs each work package end to end: confirms scope with Gavi at STOP 1, dispatches Haiku with the package's spec (foregrounded), runs the Sibling review, writes Aegis fields, asks for the merge. Haiku implements exactly the spec and makes no architectural calls. Opus is not scheduled anywhere below; escalate to it only confirm-first, for a pinpointed problem.
 
@@ -29,7 +29,7 @@ This is the **definition layer**. It settles the calls that would otherwise stop
 - **A full codebase cleanup pass (G411-116), after the copy pass, before close-out — v1, so the presented code is the clean one** — strip history and teaching comments, strip placeholders, add chapter-header banners for navigation, split the oversized files; behaviour byte-for-byte preserved. Added at Gavi's request 2026-09-18; comment rule is *what, not why*.
 
 **Parked to V2 (G411-57), not cut:**
-- **E2E encryption** — cut for v1, formally. G411-83/84/85 re-parent under G411-57 with a comment; `E2E_ENABLED` stays `false`; no code removed. The escrow-only rebuild (`gavi411-e2e-encryption-plan.md` §2) is the **first post-finish item** if time appears. Log as a brain.md decision.
+- **E2E encryption** — cut for v1, formally. G411-83/84/85 re-parent under G411-57 with a comment; `E2E_ENABLED` stays `false`; no code removed. The escrow-only rebuild (`../../docs/gavi411-e2e-encryption-plan.md` §2) is the **first post-finish item** if time appears. Log as a brain.md decision.
 - **Full home-as-conversation** (intake steps rendered inline on home) — after lite ships, if time appears.
 - **G411-105** (Vercel-only permalink slowness) and **G411-79** (video/document attachments) — re-parent under G411-57.
 
@@ -116,8 +116,8 @@ WP9 is placed early on purpose: G411-107 adds a route and a migration that WP7 w
 
 1. Merge PR #119 (G411-103) with `gh pr merge --merge --admin` after Gavi's go-ahead; Jira Landed → Reconciled. Check `git worktree list` before `--delete-branch` (brain.md #130).
 2. Re-parent G411-83, 84, 85, 79, 105 under G411-57 (real parent field), each with a comment: "Parked to V2 per 2026-09-18 finish-line plan; not cancelled." Then G411-3 Messaging has no non-Reconciled children → Epic G411-3 → Reconciled.
-3. brain.md: one decision — E2E cut for v1, parked not killed, escrow-only rebuild is first post-finish item, `E2E_ENABLED` stays false. Update `gavi411-e2e-encryption-plan.md` §8 to point at it.
-4. brain.md: one decision — visual-direction changes (ink-on-gold, lavender retired, sage limited to success states, shadow flattened). DESIGN.md gets edited in WP2, not here.
+3. brain.md: one decision — E2E cut for v1, parked not killed, escrow-only rebuild is first post-finish item, `E2E_ENABLED` stays false. Update `../../docs/gavi411-e2e-encryption-plan.md` §8 to point at it.
+4. brain.md: one decision — visual-direction changes (ink-on-gold, lavender retired, sage limited to success states, shadow flattened). ../../DESIGN.md gets edited in WP2, not here.
 5. Close G411-101 as superseded (comment linking the WP4 ticket), same Reconciled-as-cancelled pattern as G411-68.
 6. HANDOFF.md points at this plan as the source of order.
 
@@ -134,7 +134,7 @@ WP9 is placed early on purpose: G411-107 adds a route and a migration that WP7 w
 - One job, `ubuntu-latest`, `actions/setup-node@v4` with `node-version: 22` and `cache: npm` (two lockfiles — use `cache-dependency-path: ['package-lock.json', 'client/package-lock.json']`).
 - Steps: `npm ci` (root) → `npm ci --prefix client` → `npx prisma generate` (needs no DB; the suite imports the generated client) → `npm test` → `npm run build --prefix client`.
 - ⚠ verify: whether `client` build needs `VITE_CLERK_PUBLISHABLE_KEY` at build time. If it fails without it, pass a placeholder via `env:` — never a real key. ⚠ verify: no test touches the real Neon DB (HANDOFF says all-mocked; confirm `DATABASE_URL` absent still passes).
-- After the first green run, add the job as a **required status check** on the `require-pr-for-main` ruleset — the mechanical enforcement CLAUDE.md rule 8 asks for.
+- After the first green run, add the job as a **required status check** on the `require-pr-for-main` ruleset — the mechanical enforcement ../../CLAUDE.md rule 8 asks for.
 
 **Collaborative note:** PRD marks this [Collab] because Gavi wants to learn it. At STOP 3 Sonnet walks the yml line by line; Gavi should be able to explain every step.
 
@@ -144,7 +144,7 @@ WP9 is placed early on purpose: G411-107 adds a route and a migration that WP7 w
 
 **Goal:** every later screen inherits correct contrast, one accent, a real focus ring, a flatter shadow, a status chip, an icon set, and date helpers — so no later package invents its own.
 
-**Files:** `client/src/index.css`, `components/Button.css`, `components/Card.css`, `components/Input.css`, `components/Chip.css`, new `components/StatusChip.jsx/.css`, new `components/Icon.jsx`, new `lib/format.js`, new `lib/requestStatus.js`, `DESIGN.md`. Plus the two `--color-border` fixes (`ProfilePage.jsx:251`, `UserManagement.css:45,79`).
+**Files:** `client/src/index.css`, `components/Button.css`, `components/Card.css`, `components/Input.css`, `components/Chip.css`, new `components/StatusChip.jsx/.css`, new `components/Icon.jsx`, new `lib/format.js`, new `lib/requestStatus.js`, `../../DESIGN.md`. Plus the two `--color-border` fixes (`ProfilePage.jsx:251`, `UserManagement.css:45,79`).
 
 **Spec:**
 - **Buttons.** `.btn-primary` text becomes `var(--text-h)` (ink on gold, ~10:1). `.btn-secondary` text `var(--text-h)`, border `var(--border)`, hover `var(--accent-bg)`. New `.btn-ghost`: transparent, no border, text `var(--text)`, hover `var(--accent-bg)` — replaces `.btn-purple`. Delete `.btn-purple`; `.btn-success` stays but is used only for success/confirm moments (WP5's "Confirm — resolved"), not intake Submit. New `.btn-icon`: 44×44 min, pill, no fill.
@@ -156,7 +156,7 @@ WP9 is placed early on purpose: G411-107 adds a route and a migration that WP7 w
 - **Move** `CLOSED_STATUSES`, `statusLabel`, `URGENCY_ORDER` to `lib/requestStatus.js`; `RequestCard` to `components/RequestCard.jsx`; update the four importers; delete the dead body of `RequestList.jsx` (its own comment says it's export-only).
 - **Icon.jsx.** Inline SVG map, no dependency: `menu, back, bell, camera, send, close, check, copy, edit, plus, chevron`. 24px, `currentColor`, `aria-hidden` unless labelled. Copy paths from Lucide (ISC).
 - **format.js.** `formatDate(iso)` → `19 Sep 2026`; `formatTime(iso)` → `21:37`; `formatDayLabel(iso)` → `Today` / `Yesterday` / date. `Intl` only.
-- **DESIGN.md** edited in the same PR: primary button = ink on gold; lavender removed; sage = success only; shadow token; `--accent-text` rule ("gold as text uses `--accent-text`, never `--accent`").
+- **../../DESIGN.md** edited in the same PR: primary button = ink on gold; lavender removed; sage = success only; shadow token; `--accent-text` rule ("gold as text uses `--accent-text`, never `--accent`").
 
 **Falsifier:** a small node script computes WCAG contrast for every (text, background) pair the tokens define — all ≥ 4.5 in light and dark. `grep -rnE '#[0-9a-f]{3,6}' client/src --include=*.jsx --include=*.css | grep -v index.css` returns nothing. Tab through the intake once: every stop has a visible ring.
 
@@ -305,25 +305,25 @@ Three independent, already-scoped tickets. One session, three PRs, in this order
 
 ### WP11.5 — Write project README (G411-117)
 
-**Goal:** a root `README.md` — the standard setup-and-orient doc a grader or new reader hits first. **Runs after WP11** (cleanup) so it documents the final, cleaned file structure rather than something about to be restructured, and **before WP12** (close-out) so it's in place for the final re-critique/deploy-check pass. Added at Gavi's request 2026-09-18.
+**Goal:** a root `../../README.md` — the standard setup-and-orient doc a grader or new reader hits first. **Runs after WP11** (cleanup) so it documents the final, cleaned file structure rather than something about to be restructured, and **before WP12** (close-out) so it's in place for the final re-critique/deploy-check pass. Added at Gavi's request 2026-09-18.
 
 **Spec:**
 1. Setup/install steps (clone, `npm install` in root + `client/`, `npx prisma generate`).
 2. Required env vars (name + one-line purpose each — no real values; `.env.example` is the source of truth, this just points at it).
 3. Run scripts — dev servers (client + server), tests, build.
-4. Architecture overview / tech stack — React (Vite) client, Node/Express server, Prisma/Neon, Clerk auth, Cloudinary, Web Push — matching CLAUDE.md's Tech stack section, not duplicating its full detail.
+4. Architecture overview / tech stack — React (Vite) client, Node/Express server, Prisma/Neon, Clerk auth, Cloudinary, Web Push — matching ../../CLAUDE.md's Tech stack section, not duplicating its full detail.
 5. A short walkthrough section at the end — the app's real flow (friend intake → thread → admin cockpit → credits/notifications), enough for a grader to orient, not a full feature tour.
 
 **Not this package's job:** the finish-line plan, brain.md, or the E2E plan — those stay separate docs, README only links to them if useful.
 
-**Falsifier:** `README.md` exists at repo root; a reader with zero context can get the app running locally from it alone; no env var value (only names) appears in it.
+**Falsifier:** `../../README.md` exists at repo root; a reader with zero context can get the app running locally from it alone; no env var value (only names) appears in it.
 
 ### WP12 — Close-out
 
 1. Re-run `/impeccable critique` on `client/src`; target ≥ 30/40 with zero P0. Re-run `/impeccable audit` for a11y/contrast numbers. Fix anything red in one bounded pass.
 2. Live pass on the deployed Vercel + Render build (pre-warm Render), phone in hand: sign-up via a fresh invite, intake, thread, notification tap, reload, dark mode.
 3. Jira: reconcile G411-7, G411-8, G411-9 (all children Reconciled); G411-57 stays Open by design.
-4. Docs: HANDOFF.md final state; brain.md entries for anything decided mid-stretch; `DESIGN.md` refreshed via `/impeccable document`; `gavi411-e2e-encryption-plan.md` §8 already updated in WP0.
+4. Docs: HANDOFF.md final state; brain.md entries for anything decided mid-stretch; `../../DESIGN.md` refreshed via `/impeccable document`; `../../docs/gavi411-e2e-encryption-plan.md` §8 already updated in WP0.
 5. Demo prep: a seeded friend account with 2–3 realistic requests (no "asfasf"), Render pre-warmed before presenting.
 
 **Falsifier:** every non-V2 epic is Reconciled; `npm test` and the CI check are green on `main`; the critique score is recorded in `.impeccable/critique/`.
@@ -346,7 +346,7 @@ The nine new tickets were **filed 2026-09-18** (G411-108 … G411-116); a tenth,
 | ✅ Filed 2026-09-18 | **G411-112** — WP7 Native screens onto components | under G411-9 |
 | ✅ Filed 2026-09-18 | **G411-113** — WP8 Credits ring | under G411-9 |
 | ✅ Filed 2026-09-18 | **G411-114** — Full home-as-conversation (inline intake) | under G411-57; "after WP4, if time" |
-| ✅ Filed 2026-09-18 | **G411-115** — E2E escrow-only rebuild | under G411-57; points at `gavi411-e2e-encryption-plan.md` §2; first post-finish item |
+| ✅ Filed 2026-09-18 | **G411-115** — E2E escrow-only rebuild | under G411-57; points at `../../docs/gavi411-e2e-encryption-plan.md` §2; first post-finish item |
 | ✅ Filed 2026-09-18 | **G411-116** — WP11 Codebase cleanup pass | under G411-9; runs after WP10, before close-out |
 | ✅ Filed 2026-09-18 | **G411-117** — WP11.5 Write project README | under G411-9; runs after WP11, before close-out |
 | Unchanged | G411-53, 54, 55, 56, 104, 106, 107 | already scoped; picked up per the order table |

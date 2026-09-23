@@ -1,6 +1,6 @@
 # Gavi411 session-start prompt
 
-Pick up where we left off, per HANDOFF.md and CLAUDE.md. Follow CLAUDE.md's
+Pick up where we left off, per HANDOFF.md and ../../CLAUDE.md. Follow ../../CLAUDE.md's
 "The four stops" and Required workflow sections in full — including the
 mandatory Sibling review before self-merge. Use ScheduleWakeup to check in on
 any dispatched agent instead of waiting on me to prompt you.
@@ -35,7 +35,7 @@ A few things I want kept from how this went well last time:
 - **Short, itemized status updates — not long paragraphs.** Use the same
   ✓/✗ checklist style for the final wrap-up *and* for progress updates
   mid-ticket. I lose track of long prose; I don't lose track of a list.
-- **Full wrap-up sequence, every ticket** (per CLAUDE.md's "Wrap it up"
+- **Full wrap-up sequence, every ticket** (per ../../CLAUDE.md's "Wrap it up"
   section): all 9 steps, in order, each with its own tool call. Scope check,
   Falsifier, Evidence bar, Aegis fields, Jira→Landed, HANDOFF.md/brain.md,
   ask for merge approval + execute merge + Jira→Reconciled, full sync check,
