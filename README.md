@@ -11,8 +11,6 @@ info requests; an admin picks them up and handles them over a shared thread.
 Render's free tier — the first request after idle can take a few seconds
 to wake it up)
 
-![Gavi411 home screen, friend view](docs/assets/home-with-request.png)
-
 ## Table of Contents
 
 - [Features](#features)
@@ -217,18 +215,23 @@ screen and a "What's up?" composer:
 
 ![Empty home screen](docs/assets/home.png)
 
-Typing a request kicks off a short guided intake. If the free text doesn't
+Typing a request kicks off a short guided intake:
+
+![Intake describe step](docs/assets/intake-filled.png)
+
+If the free text doesn't
 clearly match a known category, the app asks a quick disambiguating
 question instead of guessing:
 
-![Intake describe step](docs/assets/intake-filled.png)
 ![Intake disambiguation step](docs/assets/intake-disambiguation.png)
 
-Once submitted, the request becomes a card on the friend's home screen —
+Once submitted, the request becomes a card on the friend's home screen:
+
+![Home screen with a submitted request](docs/assets/home-with-request.png)
+
 tapping it opens the thread, where the friend and admin exchange messages
 until it's resolved:
 
-![Home screen with a submitted request](docs/assets/home-with-request.png)
 ![Request thread](docs/assets/thread.png)
 
 The admin has the same thread view across every open request in one
@@ -248,16 +251,25 @@ exist in the code but aren't wired into the actual message send/receive
 path. See `gavi411-e2e-encryption-plan.md` for the full design and what's
 left to finish it.
 
-## Project Documentation
+## V2 Goals
 
-This README covers "how do I run it." Process, design decisions, and
-project history live in separate docs at the repo root:
+Ideas that are scoped but deliberately parked past this project's current
+timeline:
 
-| File | What it's for |
-| --- | --- |
-| `CLAUDE.md` | Working process rules for anyone (human or agent) picking up a ticket |
-| `gavi411-prd.md` | Full product spec |
-| `gavi411-brain.md` | Numbered decision log — the "why" behind non-obvious calls |
-| `gavi411-finish-line-plan.md` | The remaining-work plan this project was executed against |
-| `gavi411-e2e-encryption-plan.md` | Full E2E encryption design (see above) |
-| `HANDOFF.md` | Most recent session's state (perishable, overwritten each session) |
+- **Finish real end-to-end encryption** — resume the paused work above on
+  an escrow-only key architecture (no more per-device admin approval step).
+- **Home as a full conversation** — fold the intake steps directly into
+  the home screen's timeline instead of a separate guided flow.
+- **Auto-presence for Shabbat/Yom Tov** — detect and show Gavi as
+  unavailable automatically around Jewish holidays/Shabbat, instead of a
+  manually toggled status.
+- **Reminders** — time-based nudges, for Gavi or a friend, on a request
+  that needs following up.
+- **Guest request view** — let someone without an account see request
+  history tied to their phone number.
+- **Post-close reaction** — a lightweight thumbs-up-style response once a
+  request is resolved.
+- **Tips/donation link** — an optional Bit/Paybox link for friends who
+  want to say thanks.
+- **Richer attachments** — video and document uploads in the message
+  thread, beyond the current image support.
