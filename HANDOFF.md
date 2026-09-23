@@ -12,6 +12,39 @@ accumulated. If something here turns out to matter long-term, promote it to
 
 ---
 
+## Where this session left off (2026-09-23, latest) — G411-7 Reconciled; G411-117 (WP11.5, README) built, Landed, PR #149, approved, awaiting merge go-ahead; two new tickets filed under G411-9 (G411-128, G411-129)
+
+**G411-7 (Notifications epic) transitioned to Reconciled** — found un-rolled despite every child already being Reconciled (all of G411-49/50/51/78/94/98/102/103/106/107/118 were done; the epic itself just hadn't been rolled). Not a real blocker, just a missed rollup — fixed directly.
+
+**G411-117 (WP11.5, README) picked up at STOP 1**, scope already locked in `gavi411-finish-line-plan.md`. Built a root `README.md`: setup/install, env var names only (from `.env.example`/`client/.env.example`), run scripts (verified against both `package.json` files), architecture/tech-stack overview, DB/schema table (from `prisma/schema.prisma`), testing/CI section (555/555 real fresh count, what CI actually gates), and a walkthrough section — then, per Gavi's follow-up request, expanded it further to match the richer style of a reference README (badges, table of contents, feature list, project-structure tree, real screenshots).
+
+**Screenshots are real**, captured via Playwright against the "Second Party" test account per `gavi411-playwright-signin.md`'s recipe (home, intake describe step, disambiguation chips, home-with-request, thread) — no mocked or hand-drawn images. Submitting the screenshot request consumed one real credit on that test account; left as-is per Gavi's explicit call (it's a test account with 500 credits for exactly this). The throwaway `Request` row (id 55) and its `Message`/`Notification` rows were deleted afterward; `CreditTransaction` isn't linked to a request at all (no `requestId` field) so the single deduction couldn't be cleanly reversed and wasn't — not worth it per Gavi.
+
+**One real mistake caught and fixed before commit**: a `# ponytail:`-style internal comment (about the known admin-self-request gap, G411-37/38) got typed directly into the README's Markdown prose by mistake — caught and removed before the first push; the underlying gap itself is unaffected and already tracked.
+
+**Gavi then edited the pushed draft directly**: removed the "Project Documentation" section entirely (it listed CLAUDE.md/brain.md/HANDOFF.md — Gavi's own process docs, not relevant to a README reader) and asked for a **V2 Goals** section instead. Built that section from the real G411-57 (V2/Stretch Backlog) children — escrow-only E2E rebuild, home-as-full-conversation, auto Shabbat/Yom Tov presence, reminders, guest request view, post-close reaction, tips/donation link, richer attachments — not invented items. Gavi approved the result.
+
+**Wrap-up run this session**: scope re-checked against the ticket, falsifier/evidence re-verified fresh (555/555 tests, all 3 CI checks green on PR #149), Aegis Evidence-bar-met field written, Jira Reviewing → Landed. No new brain.md decision logged — this ticket executed an already-locked scope with one live approval-edit, not a standing process correction.
+
+**Also this session**: two new tickets filed under G411-9 (Copywriting & UI/UX Pass, the one open epic invites/UI work can attach to — G411-1 Foundation, which invites structurally belong to, is already Reconciled/closed):
+- **G411-128** — demo script + code walkthrough for tonight's course presentation. Scope grew twice mid-session at Gavi's request: originally just demo flow + code walkthrough + E2E overview (why it's paused), then added CI/CD+testing overview and a retro citing real `gavi411-brain.md` decision numbers, then added a DB setup + schema overview section. Queued behind G411-117 per Gavi's explicit call (README is a hard project requirement; there's runway to do both before tonight).
+- **G411-129** — bulk invite generation (generate several invites in one action, one combined CSV instead of one-per-invite). Real constraint driving the design: each invite's passphrase only ever exists in the `POST /api/invites` response body, never persisted server-side — bulk means collecting N responses client-side before building one CSV, not a schema change. Labels stay real per-invite names (Gavi's explicit call, not an auto "Name 1/2/3" scheme). Not yet started — filed only.
+
+**Gavi is separately doing a manual DB cleanup in the Neon UI** (not via any script from this session): deleting all `Message`/`Request`/`PendingInvite`/`Notification` rows and one of the two test users (keeping Second Party + Admin). Flagged to him: no cascade deletes exist in the schema (effectively `RESTRICT` on every relation except `Notification.request`), so deletion order matters (Message/Notification/PendingInvite before Request, Request before User) or Neon will just reject the delete with an FK error — nothing will silently cascade wrong.
+
+### Real state, right now
+PR #149 (`you/G411-117-readme`, 3 commits) open, CI green, **Gavi approved — awaiting the actual merge go-ahead** (not yet asked/given this turn). Jira: G411-117 **Landed** (not yet Reconciled — merge hasn't happened). G411-7 **Reconciled**. G411-128 and G411-129 **Open** under G411-9, neither started.
+
+### What's next, concretely
+1. **Ask Gavi for the merge go-ahead on PR #149** (wrap-up step 7) — next action.
+2. Once merged: Jira Landed → Reconciled for G411-117 (steps 1-4 already covered this session's fresh re-verification, no separate re-check needed per wrap-up step 7's own rule).
+3. **Full sync check across primary + all `Gavi411-agent-*` worktrees** (wrap-up step 8) — not yet run this session.
+4. Per `gavi411-finish-line-plan.md`, **WP12 (close-out)** is next after G411-117 — but per STOP 4, don't auto-start it; confirm explicitly with Gavi first, same as every ticket boundary.
+5. G411-128 (demo/walkthrough, tonight's presentation) and G411-129 (bulk invites) are both filed and queued, not started — pick up explicitly when Gavi says so.
+6. Gavi's manual Neon DB cleanup (delete old requests/messages/invites/notifications + one test user) is his own in-progress task, not this session's — no action needed unless he asks for help.
+
+---
+
 ## Where this session left off (2026-09-23, latest) — G411-116 (WP11, all 5 PRs) fully merged, Reconciled, closed out
 
 **G411-116 is done.** All 5 PRs merged (server routes split, server lib+middleware, client pages, client components+lib, tests + a real scope-gap fill covering 8 more server route files and `App.jsx`'s `useSession()` extraction). This ticket's own whole-repo falsifier — `grep -rn 'Sibling review|G411-[0-9]' server client/src --include=*.js --include=*.jsx | grep -v test`, plus the same across every `.test.js` file — passes clean across the entire codebase for the first time, with exactly one deliberate exception (a corrected ponytail comment in `auth.js` pointing at its real tracked ticket, G411-127).
