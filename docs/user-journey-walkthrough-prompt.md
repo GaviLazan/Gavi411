@@ -1,6 +1,6 @@
 # User journey walkthrough — find silently-assumed gaps
 
-Read `gavi411-prd.md`, `gavi411-brain.md`, and the full live Jira backlog
+Read `gavi411-prd.md`, `../docs/agent/gavi411-brain.md`, and the full live Jira backlog
 (all G411 issues, not just Open ones — a step can be "covered" by a
 Reconciled ticket, that's fine, the point is confirming it actually is).
 

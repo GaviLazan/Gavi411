@@ -248,7 +248,7 @@ passphrase was meant to let a lost device recover its key. That work is
 content is currently stored as **plaintext** in the database. The
 `Device`/`ConversationDeviceKey` scaffolding and the escrow passphrase flow
 exist in the code but aren't wired into the actual message send/receive
-path. See `gavi411-e2e-encryption-plan.md` for the full design and what's
+path. See `docs/gavi411-e2e-encryption-plan.md` for the full design and what's
 left to finish it.
 
 ## V2 Goals

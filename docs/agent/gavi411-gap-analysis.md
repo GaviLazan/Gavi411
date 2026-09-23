@@ -24,7 +24,7 @@ when you check the actual mechanics against the PRD's specific wording, and
 
 ## Methodology
 
-- Read `CLAUDE.md`, `gavi411-prd.md` (full), `gavi411-brain.md` (full),
+- Read `../../CLAUDE.md`, `../../docs/gavi411-prd.md` (full), `gavi411-brain.md` (full),
   `gavi411-task-list-source.md`, `gavi411-jira-tree.md`,
   `HANDOFF.md` in full before analysis.
 - Pulled **live** Jira state via `searchJiraIssuesUsingJql` for all 10 Epics
@@ -118,7 +118,7 @@ iPhone' help page | Must." `client/public/install-ios.md` already exists as
 a file — so the content likely already has a home, but it's a markdown file
 sitting in `public/`, not yet wired to any route a friend would actually
 navigate to. G411-15's Description (PWA manifest + service worker) is
-infra-only per CLAUDE.md's own framing of `agent-frontend`'s narrow scope
+infra-only per ../../CLAUDE.md's own framing of `agent-frontend`'s narrow scope
 ("never product UI") — the help-page *screen* that surfaces this markdown
 is arguably product UI, i.e. `[You]` territory, and isn't in any ticket.
 _Adjacent tickets:_ G411-15. _Action:_ small addition to A2's ticket (or its
@@ -211,7 +211,7 @@ mention a flights-array case specifically, and TravelFields (`flights: []`)
 is the only array-shaped field in any of the three type-detail schemas.
 Not urgent — but worth a specific check before G411-23 moves Landed →
 Reconciled, since "acceptance criteria re-validated against landed state"
-(the actual definition of Reconciled per CLAUDE.md) should include the one
+(the actual definition of Reconciled per ../../CLAUDE.md) should include the one
 genuinely tricky code path (recursive array cleaning) in the file, not just
 the top-level scalar-field case.
 _Adjacent tickets:_ G411-23, G411-65 (which built `flights`).
@@ -269,7 +269,7 @@ reached from somewhere. If G411-24 is picked up next per the natural
 Jira order, whoever builds it will hit the same "wait, there's no page to
 navigate from" wall C1/C2 already hit once. _Action:_ sequence A2/A3 ahead
 of G411-24, or explicitly note the dependency in G411-24's scope before
-pickup (the CLAUDE.md session-start ritual's staleness-check step is the
+pickup (the ../../CLAUDE.md session-start ritual's staleness-check step is the
 natural place to catch this).
 
 **D2. [Medium] Credits (Parent 6) "ties into Lifecycle" on both ends, and
@@ -410,7 +410,7 @@ period, any tier... no additional PRD detail on overdraft UX beyond the
 mechanic itself"). Comments are easy to miss at pickup if the
 session-start ritual's staleness check only looks at the Description field
 literally, not comments. Low-severity since it's not lost information (the
-comment exists), but worth surfacing since CLAUDE.md's own ritual says
+comment exists), but worth surfacing since ../../CLAUDE.md's own ritual says
 "re-check the task's Description field... for staleness" — the Description,
 not comments, meaning this real design decision could be invisible to that
 specific check. _Action:_ fold the comment's content into the Description

@@ -1,5 +1,5 @@
 // One-time reset before the escrow-only E2E reframe (decision #98,
-// gavi411-e2e-encryption-plan.md). Every current account predates a
+// ../docs/gavi411-e2e-encryption-plan.md). Every current account predates a
 // coherent key/escrow story — this wipes all User-linked data and every
 // User row so accounts can be freshly re-onboarded through a real
 // invite-signup (which runs escrow-at-signup automatically). No real
@@ -22,8 +22,8 @@
 // onboarding plan breaks (Gavi self-issues an invite for their own
 // account BEFORE running this script, since POST /api/invites requires
 // requireAdmin — wiping first would permanently lock admin out of ever
-// issuing themself one; see gavi411-e2e-encryption-plan.md §4/§6 and
-// CLAUDE.md's "trace consequences before proposing" rule, added after
+// issuing themself one; see ../docs/gavi411-e2e-encryption-plan.md §4/§6 and
+// ../CLAUDE.md's "trace consequences before proposing" rule, added after
 // this exact ordering hazard was nearly missed live).
 //
 // Trigger (keyword-matching config) has no relation to User — untouched.

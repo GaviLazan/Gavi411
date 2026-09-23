@@ -8,35 +8,58 @@ mid-thought when the session ended.
 
 Overwritten each handoff, not appended — stale entries get replaced, not
 accumulated. If something here turns out to matter long-term, promote it to
-`gavi411-brain.md` or `CLAUDE.md` instead of leaving it here indefinitely.
+`gavi411-brain.md` or `../../CLAUDE.md` instead of leaving it here indefinitely.
+
+**This file lives at `docs/agent/HANDOFF.md` now, not the repo root** — moved
+2026-09-23 along with every other non-app-functional doc, see the entry below
+for the full reorg. Every cross-reference in every other doc was updated to
+match; `CLAUDE.md` stays at root for Claude Code's auto-load convention.
 
 ---
 
-## Where this session left off (2026-09-23, latest) — WP12 (close-out) done: critique/audit fixes shipped, DESIGN.md refreshed, demo prep n/a — awaiting merge go-ahead
+## Where this session left off (2026-09-23, latest) — worktree cleanup + docs reorganized into docs/ and docs/agent/, PR #153 open (not yet merged)
 
-**WP12 run to completion, all 5 steps**: 1) `/impeccable critique` (dual-agent) + `/impeccable audit` on `client/src`, both bounded to one fix pass since Gavi chose "everything found." 2) live phone pass — skipped a fresh one; Gavi had already done a real device pass earlier this session and every fix this stretch is visual-only (colors, a variant name, a static divider, `minHeight` on loading states) with zero route/state/data-flow changes, confirmed via `git diff --stat` before treating that as safe to skip. 3) Docs: HANDOFF (this entry) + brain.md (decision below) + DESIGN.md refreshed via `/impeccable document` (existing file, refreshed per Gavi's explicit choice, not overwritten blind). 4) Jira reconcile step — already done in an earlier session's entry, re-confirmed live via JQL this session: all 9 non-V2 epics (G411-1 through G411-9) are genuinely Reconciled right now. 5) Demo prep — **Gavi's call: not needed**, real accounts already exist, no seeding or Render pre-warm required.
+**All 6 `Gavi411-agent-*` worktrees removed.** Verified first that every commit on every agent branch (`agent-backend/base`, `agent-cicd/G411-16-deploy-config`, `agent-design/G411-17-design-foundation`, `agent-e2e/G411-86-plaintext-revert`, `agent-frontend/G411-49-push-subscribe`, `agent-test/base`) was already fully contained in `origin/main` (`git log origin/main..<branch>` empty for all 6) before removing anything — nothing unique was at risk of being lost. `git worktree remove` on all 6, then `git branch -d` on all 6 local branches (which would have refused if any weren't fully merged — confirms the check was right). Only the primary worktree remains now.
 
-**Real bugs found and fixed, not just polish**: critique's dual-agent review (Assessment A source-review, Assessment B detector scan) caught two real P0s the detector's regex scan couldn't catch on its own — `ConfirmModal.jsx`'s "No" button used `variant="purple"`, a variant that doesn't exist in `Button.css` (purple/lavender is retired per DESIGN.md), so it rendered as unstyled browser-default chrome on **every** confirm dialog in the app; and `RequestCard.jsx`/`FriendHome.css` referenced `--text-secondary`/`--bg-secondary`/`--bg-tertiary`/`--radius`, none of which are real tokens anywhere in the codebase, silently dropping styling on the primary friend-facing screen. Both independently re-verified against real source before trusting the sub-agent's report (per standing project rule), then fixed. Also fixed: P1 admin-action-row crowding in `RequestDetail.jsx` (verified the real max simultaneous-control count was 3, not the sub-agent's claimed 5-6, before choosing a lightweight divider fix over a menu restructure), P2 bare loading states (added `minHeight` to prevent layout jump on Render's cold start), and skipped P3 (ordering disambiguation chips by real usage frequency — no real usage data exists pre-launch, would mean inventing a feature for a P3).
+**18 non-app-functional docs moved out of the repo root**, per Gavi's explicit split: LLM/agent-process docs (how Claude sessions should work) into `docs/agent/` — `HANDOFF.md`, `gavi411-brain.md`, `Aegis-spec.md`, `gavi411-jira-aegis-template.md`, `gavi411-commit-convention.md`, `gavi411-jira-tree.md`, `gavi411-playwright-signin.md`, `gavi411-task-list-source.md`, `gavi411-finish-line-plan.md`, `gavi411-full-project-audit.md`, `gavi411-gap-analysis.md`, `gavi411-gap-analysis-followup.md`, `session-start-prompt.md`. General product-reference docs (what the product IS, not how to work on it) into `docs/` — `Setup-steps.md`, `gavi411-prd.md`, `gavi411-e2e-encryption-plan.md`, `gavi411-post-deadline-learning-backlog.md`, `gavi411-user-journey-walkthrough.md`, `user-journey-walkthrough-prompt.md`. **Stayed at root**: `CLAUDE.md` (Claude Code auto-loads it from the project root specifically — moving it would break that), `README.md`, `DEPLOY.md`, `DESIGN.md`, `PRODUCT.md` (the last two are impeccable-managed and its tooling reads them from root by convention).
+
+**Every cross-reference updated, not just the files themselves moved.** Found the full reference graph first (`grep` across every `.md` plus non-doc files) before touching anything — 5 non-markdown files (`.gitignore`, `.env.example`, `.githooks/pre-push`, `scripts/wipe-users.js`, `client/index.html`) had comment-only mentions of these filenames too, none of which functionally read the file at that path (confirmed via a separate `require`/`readFileSync` grep — nothing in `server/`, `client/src/`, or `scripts/` actually opens these docs at runtime), but still worth correcting so a human reader isn't sent to a stale location. Wrote a small Python script to compute the correct relative path per referencing-file's new location (same-directory references correctly stay bare; cross-directory references get the right number of `../`), tested it against one file by hand first and caught two real bugs in the regex before trusting it at scale (a wrong depth calculation for same-directory targets, and the `HANDOFF.md/brain.md` shorthand notation almost getting mis-rewritten into a broken nested path). Spot-checked a sample of the resulting diffs across small and large files (including the 290KB `gavi411-brain.md`) and verified a handful of the new relative paths actually resolve on disk before committing.
+
+555/555 tests fresh, client build clean, both re-run after the move to confirm nothing functional broke (nothing reads these docs at runtime, but verified rather than assumed).
+
+### Real state, right now
+Branch `you/handoff-wp12-close-out` has 3 commits pushed onto **PR #153** (the same PR opened earlier for the HANDOFF self-reference fix — its scope grew in place to include the worktree cleanup and docs reorg, rather than opening a new PR). **PR #153 is real, open, CI green — not yet merged.** (Caught and corrected here: an earlier draft of this entry invented a nonexistent "PR #154" and a separate stale entry below prematurely claimed #153 was already merged before it actually was — both wrong, both fixed after Sibling review flagged the contradiction.)
+
+### What's next, concretely
+1. **Ask Gavi for the merge go-ahead on PR #153** — CI is green, not yet asked/given this turn.
+2. Once merged: no Jira transition needed (docs/process work, not a tracked child). Confirm primary worktree syncs back to `main` cleanly.
+3. No agent worktrees to sync-check anymore — they're gone. Any future subagent work needs fresh `git worktree add` calls per the commit-convention doc (now at `docs/agent/gavi411-commit-convention.md`).
+
+---
+
+## Where this session left off (2026-09-23, latest) — WP12 (close-out) done and merged: critique/audit fixes shipped, ../../DESIGN.md refreshed, demo prep n/a — PR #152 merged; PR #153 (this doc's own correction, later expanded) still open at the time — see the entry above for its real final state
+
+**WP12 run to completion, all 5 steps**: 1) `/impeccable critique` (dual-agent) + `/impeccable audit` on `client/src`, both bounded to one fix pass since Gavi chose "everything found." 2) live phone pass — skipped a fresh one; Gavi had already done a real device pass earlier this session and every fix this stretch is visual-only (colors, a variant name, a static divider, `minHeight` on loading states) with zero route/state/data-flow changes, confirmed via `git diff --stat` before treating that as safe to skip. 3) Docs: HANDOFF (this entry) + brain.md (decision below) + ../../DESIGN.md refreshed via `/impeccable document` (existing file, refreshed per Gavi's explicit choice, not overwritten blind). 4) Jira reconcile step — already done in an earlier session's entry, re-confirmed live via JQL this session: all 9 non-V2 epics (G411-1 through G411-9) are genuinely Reconciled right now. 5) Demo prep — **Gavi's call: not needed**, real accounts already exist, no seeding or Render pre-warm required.
+
+**Real bugs found and fixed, not just polish**: critique's dual-agent review (Assessment A source-review, Assessment B detector scan) caught two real P0s the detector's regex scan couldn't catch on its own — `ConfirmModal.jsx`'s "No" button used `variant="purple"`, a variant that doesn't exist in `Button.css` (purple/lavender is retired per ../../DESIGN.md), so it rendered as unstyled browser-default chrome on **every** confirm dialog in the app; and `RequestCard.jsx`/`FriendHome.css` referenced `--text-secondary`/`--bg-secondary`/`--bg-tertiary`/`--radius`, none of which are real tokens anywhere in the codebase, silently dropping styling on the primary friend-facing screen. Both independently re-verified against real source before trusting the sub-agent's report (per standing project rule), then fixed. Also fixed: P1 admin-action-row crowding in `RequestDetail.jsx` (verified the real max simultaneous-control count was 3, not the sub-agent's claimed 5-6, before choosing a lightweight divider fix over a menu restructure), P2 bare loading states (added `minHeight` to prevent layout jump on Render's cold start), and skipped P3 (ordering disambiguation chips by real usage frequency — no real usage data exists pre-launch, would mean inventing a feature for a P3).
 
 **One review finding corrected before acting on it**: the sub-agent's persona red-flag section claimed the E2E encryption UI (key-generation/recovery copy) was reachable by a first-timer. Gavi caught this was wrong; verified directly — both surfaces in `RequestDetail.jsx` (lines 645, 651) gate on `E2E_ENABLED`, hardcoded `false` in `e2eConfig.js`. Dropped from the findings rather than fixing dead code.
 
 **Audit (separate pass) found one more real P1**: the intake flow's sage-green "Submit" button (`--accent-2`, `.btn-success`) measured 2.58:1 white-text contrast — failing WCAG AA's 4.5:1 minimum. Computed several darker sage options with Gavi (kept hue/saturation, just scaled brightness down); Gavi picked the deepest option (`#436856` resting / `#35513f` hover, both real AA passes at 6.26:1/8.75:1). **Dark mode was already passing and left untouched** — its button text uses dark-mode `--surface` (dark), not white, so the original `#6fae8f` never failed there; verified this before touching anything, since changing a token both themes share risked silently breaking a mode that wasn't broken. Also fixed in the same pass: hard-coded `#b3261e` (exactly `--danger`'s light-mode hex) in two `NewRequest.jsx` spots, replaced with `var(--danger)` so dark mode picks up its own value; and a missing `prefers-reduced-motion` guard on `CreditRing.css`'s stroke animation, now consistent with every other motion pattern in the system.
 
-**DESIGN.md refreshed, not rewritten**: per Gavi's explicit "refresh" choice when asked (existing file, last written Sep 20). Updated only what actually drifted — the new sage-green values with a note on why, a line confirming purple was never a real button variant, and the reduced-motion bullet now correctly includes the credit ring. `.impeccable/design.json` sidecar's `sage-green` colorMeta/tonalRamp and `generatedAt` synced to match; the rest of that file got incidentally re-indented by the write (Python's `json.dump`, not a content change) — flagged to Gavi rather than silently letting the diff look bigger than it is.
+**../../DESIGN.md refreshed, not rewritten**: per Gavi's explicit "refresh" choice when asked (existing file, last written Sep 20). Updated only what actually drifted — the new sage-green values with a note on why, a line confirming purple was never a real button variant, and the reduced-motion bullet now correctly includes the credit ring. `.impeccable/design.json` sidecar's `sage-green` colorMeta/tonalRamp and `generatedAt` synced to match; the rest of that file got incidentally re-indented by the write (Python's `json.dump`, not a content change) — flagged to Gavi rather than silently letting the diff look bigger than it is.
 
 555/555 tests fresh, build clean, detector clean (0 findings) — all re-verified fresh at wrap-up, not carried over from mid-session.
 
 ### Real state, right now
-**Uncommitted**, all in one logical batch: `DESIGN.md`, `.impeccable/design.json`, `HANDOFF.md`, `gavi411-brain.md`, and 9 client source files (`ConfirmModal.jsx`, `CreditRing.css`, `index.css`, `AdminList.jsx`, `FriendHome.css`, `FriendHome.jsx`, `NewRequest.jsx`, `RequestCard.jsx`, `RequestDetail.css`, `RequestDetail.jsx`). No PR yet — **awaiting Gavi's go-ahead to branch/commit/push and merge** (this is process/polish work, not tied to a Jira child, but still goes through a PR per no-direct-commits-to-`main`).
+**PR #152 merged** (`you/wp12-close-out` → `main`, regular merge commit `0867fc7`) after Sibling review (posted as a real PR comment, spot-checked via `gh api` — no findings) and green CI. **PR #153 was still open at the time this entry was first written** — this text tried to preemptively claim it as merged before that was true (Gavi's catch: a self-correcting PR shouldn't go stale the instant it lands), but the attempt itself introduced a false claim since #153 kept growing in scope after this was written. Read the entry above this one for #153's real, current state — don't trust this paragraph's merge claim. Primary worktree fast-forwarded clean, matches `origin/main`, as of PR #152 only. **Full sync check (worktrees) run at that point**: all 6 `Gavi411-agent-*` worktrees were clean then — they've since been removed entirely, see the entry above.
 
-**Jira**: no transitions this stretch — all 9 non-V2 epics were already Reconciled going in, re-confirmed live. G411-57 (V2/Stretch) stays Open by design. G411-130 (Clerk cutover, filed earlier this session) untouched, not started.
+**Jira**: no transitions this stretch — all 9 non-V2 epics were already Reconciled going in, re-confirmed live via JQL. G411-57 (V2/Stretch) stays Open by design. G411-130 (Clerk cutover, filed earlier this session) untouched, not started.
 
 ### What's next, concretely
-1. **Ask Gavi for the go-ahead to branch, commit, push, and open a PR** for this WP12 work — next action, not yet done.
-2. Once merged: no Jira transition needed (this work isn't a tracked child) — just confirm the merge landed and worktrees are back in sync.
-3. Full sync check across primary + all `Gavi411-agent-*` worktrees — not yet run this session.
-4. **WP12 is now fully done** per the finish-line plan — this was the last work package. Next real conversation is likely "what's actually left before the presentation," not another WP.
-5. G411-130 (Clerk cutover) and G411-57 (V2/Stretch) remain in the backlog, not blocking, not started.
+1. **WP12 is fully done and merged** — this was the last work package per the finish-line plan. Next real conversation is likely "what's actually left before the presentation" (a broader status check), not another WP.
+2. G411-130 (Clerk cutover) and G411-57 (V2/Stretch) remain in the backlog, not blocking, not started.
+3. Nothing else open or blocking from this session.
 
 ---
 
@@ -52,7 +75,7 @@ No code touched this stretch; no PR, no branch, no other Jira transitions.
 Primary worktree clean on `main`, matching `origin/main` (unchanged since PR #151). No open PRs.
 
 ### What's next, concretely
-1. **WP12 (close-out)** is still the next real work package per the finish-line plan, untouched. Remaining parts: design re-critique (`/impeccable critique` + `/impeccable audit`), a live phone-in-hand pass on the deployed app, a docs refresh (`DESIGN.md` via `/impeccable document`), and demo prep. Confirm scope with Gavi at STOP 1 before starting.
+1. **WP12 (close-out)** is still the next real work package per the finish-line plan, untouched. Remaining parts: design re-critique (`/impeccable critique` + `/impeccable audit`), a live phone-in-hand pass on the deployed app, a docs refresh (`../../DESIGN.md` via `/impeccable document`), and demo prep. Confirm scope with Gavi at STOP 1 before starting.
 2. **G411-130** (Clerk cutover) sits in V2/Stretch, not blocking, not started.
 3. G411-57 stays Open by design — not a gap.
 
@@ -81,7 +104,7 @@ No Jira changes this stretch — the Telegram/Vercel env-var fixes were live dep
 1. Full sync check across primary + all `Gavi411-agent-*` worktrees (not run since before the deploy-debugging detour) — first thing a fresh session should confirm.
 2. **Re-verify Telegram notifications with a real second test request** — Gavi added the env vars and redeployed Render, but that fix was never actually re-confirmed working end-to-end before the session moved to the Vercel/push-notification bug. Don't assume it's fixed just because the config looks right now — same standing rule as everything else in this project.
 3. **Ask Gavi whether to file a V2/Stretch Backlog ticket (under G411-57) for the Clerk production cutover** — a real, deliberately-deferred piece of work that isn't tracked anywhere in Jira yet. Don't silently create it; he hadn't said yes when this session ended.
-4. **WP12 (close-out)** is still the next real work package per the finish-line plan — untouched this stretch. Its Jira-reconciliation step is already done (G411-7/8/9 all Reconciled). Remaining WP12 parts: design re-critique (`/impeccable critique` + `/impeccable audit`), a live phone-in-hand pass on the now-actually-working deployed app (this is a good moment for it, given the Telegram/push fixes), a docs refresh (`DESIGN.md` via `/impeccable document`), and demo prep (seed a real friend account with 2-3 realistic requests, pre-warm Render before presenting). Confirm scope with Gavi at STOP 1 before starting, per usual.
+4. **WP12 (close-out)** is still the next real work package per the finish-line plan — untouched this stretch. Its Jira-reconciliation step is already done (G411-7/8/9 all Reconciled). Remaining WP12 parts: design re-critique (`/impeccable critique` + `/impeccable audit`), a live phone-in-hand pass on the now-actually-working deployed app (this is a good moment for it, given the Telegram/push fixes), a docs refresh (`../../DESIGN.md` via `/impeccable document`), and demo prep (seed a real friend account with 2-3 realistic requests, pre-warm Render before presenting). Confirm scope with Gavi at STOP 1 before starting, per usual.
 5. G411-57 (V2/Stretch Backlog) stays Open by design — not a gap.
 
 ---
@@ -100,7 +123,7 @@ No Jira changes this stretch — the Telegram/Vercel env-var fixes were live dep
 **G411-7, G411-8, and G411-9 are all three Reconciled.** No open PRs. Primary worktree clean on `main`, matching `origin/main`.
 
 ### What's next, concretely
-1. **WP12 (close-out)** is next per the finish-line plan — but note its own Jira step (reconcile G411-7/8/9) is now already done ahead of time, so WP12 picked up next only needs its other 4 parts: design re-critique (`/impeccable critique` + `/impeccable audit`), a live phone-in-hand pass on the deployed Vercel+Render build, a docs pass (DESIGN.md refresh via `/impeccable document`), and demo prep (seed a real friend account with 2-3 realistic requests, pre-warm Render). Confirm with Gavi at STOP 1 before starting — a Reconciled epic doesn't imply "start WP12" automatically.
+1. **WP12 (close-out)** is next per the finish-line plan — but note its own Jira step (reconcile G411-7/8/9) is now already done ahead of time, so WP12 picked up next only needs its other 4 parts: design re-critique (`/impeccable critique` + `/impeccable audit`), a live phone-in-hand pass on the deployed Vercel+Render build, a docs pass (../../DESIGN.md refresh via `/impeccable document`), and demo prep (seed a real friend account with 2-3 realistic requests, pre-warm Render). Confirm with Gavi at STOP 1 before starting — a Reconciled epic doesn't imply "start WP12" automatically.
 2. G411-57 (V2/Stretch Backlog) stays Open by design — not a gap, don't try to close it.
 3. Nothing else open or blocking from this session.
 
@@ -134,7 +157,7 @@ PR #150 (`you/G411-129-bulk-invites`) open, CI green, **Gavi approved — awaiti
 
 **G411-7 (Notifications epic) transitioned to Reconciled** — found un-rolled despite every child already being Reconciled (all of G411-49/50/51/78/94/98/102/103/106/107/118 were done; the epic itself just hadn't been rolled). Not a real blocker, just a missed rollup — fixed directly.
 
-**G411-117 (WP11.5, README) picked up at STOP 1**, scope already locked in `gavi411-finish-line-plan.md`. Built a root `README.md`: setup/install, env var names only (from `.env.example`/`client/.env.example`), run scripts (verified against both `package.json` files), architecture/tech-stack overview, DB/schema table (from `prisma/schema.prisma`), testing/CI section (555/555 real fresh count, what CI actually gates), and a walkthrough section — then, per Gavi's follow-up request, expanded it further to match the richer style of a reference README (badges, table of contents, feature list, project-structure tree, real screenshots).
+**G411-117 (WP11.5, README) picked up at STOP 1**, scope already locked in `gavi411-finish-line-plan.md`. Built a root `../../README.md`: setup/install, env var names only (from `.env.example`/`client/.env.example`), run scripts (verified against both `package.json` files), architecture/tech-stack overview, DB/schema table (from `prisma/schema.prisma`), testing/CI section (555/555 real fresh count, what CI actually gates), and a walkthrough section — then, per Gavi's follow-up request, expanded it further to match the richer style of a reference README (badges, table of contents, feature list, project-structure tree, real screenshots).
 
 **Screenshots are real**, captured via Playwright against the "Second Party" test account per `gavi411-playwright-signin.md`'s recipe (home, intake describe step, disambiguation chips, home-with-request, thread) — no mocked or hand-drawn images. Submitting the screenshot request consumed one real credit on that test account; left as-is per Gavi's explicit call (it's a test account with 500 credits for exactly this). The throwaway `Request` row (id 55) and its `Message`/`Notification` rows were deleted afterward; `CreditTransaction` isn't linked to a request at all (no `requestId` field) so the single deduction couldn't be cleanly reversed and wasn't — not worth it per Gavi.
 
@@ -420,14 +443,14 @@ Branch `you/G411-111-followup-overflow-fix` pushed, PR #135 open against `main`,
 1. Ctrl+Enter on the describe textarea did nothing (only Shift+Enter inserted a newline) — extended to match the message compose box's own Ctrl/Cmd+Enter pattern (G411-118).
 2. Multi-line `freeText` was rendering collapsed onto one line everywhere shown as plain text (RequestCard preview, review screen) — no `white-space` rule, same root cause G411-118 already fixed once for the message thread; applied `white-space: pre-wrap` in both places.
 3. A long request with no spaces (one giant unbroken token) overflowed the review card — `word-break: break-word` doesn't force-break a single token reliably; switched to `overflow-wrap: anywhere` + `min-width: 0` on the flex chain (same fix class as `MessageThread.css`'s own prior long-text fix).
-4. `.btn-ghost` had zero visible border at rest, only on `:hover` — invisible on touch devices. This is DESIGN.md's own documented spec, not something this ticket introduced — **stopped and confirmed with Gavi (STOP 2)** before changing shared component styling app-wide rather than a ticket-local patch. Added a hairline border to `.btn-ghost` in `Button.css`, DESIGN.md's `button-ghost` token updated to match — logged as brain.md decision #149.
+4. `.btn-ghost` had zero visible border at rest, only on `:hover` — invisible on touch devices. This is ../../DESIGN.md's own documented spec, not something this ticket introduced — **stopped and confirmed with Gavi (STOP 2)** before changing shared component styling app-wide rather than a ticket-local patch. Added a hairline border to `.btn-ghost` in `Button.css`, ../../DESIGN.md's `button-ghost` token updated to match — logged as brain.md decision #149.
 
 **One real false alarm, worth remembering**: Gavi reported the border fix wasn't showing via screenshot — checked what the dev server was actually serving (`curl localhost:5173/src/components/Button.css`) and it matched the file byte-for-byte. Turned out to be his browser's stale cache; a hard refresh resolved it. Saved as its own memory ([[verify-server-before-blaming-code-on-live-report]]) — curl the served asset before re-editing on a live-report mismatch that contradicts a verified diff.
 
 555/555 tests pass fresh, client build clean, oxlint clean on every touched file. Jira: **Landed → Reconciled**, Scope/Evidence-bar-met rewritten against real final state (materially different from the ticket's original text — the 4 live-testing bugs weren't in the original scope). **Gavi tested the full manual test list himself and confirmed everything working, both themes** — not just Claude's own automated pass. **Gavi gave the explicit merge go-ahead** (plain "merge" instruction, alongside "start WP7" — both actioned together per his direction).
 
 ### Real state, right now
-Merged onto `main` (regular merge commit, per this project's standing no-squash convention). Primary worktree back on `main`, matching `origin/main`. `gavi411-brain.md` decision #149 logged (ghost-button border, DESIGN.md updated in the same pass). Two throwaway test requests created during automated verification were deleted from the DB afterward. Dev servers (Vite :5173, API :3000) still running from this session.
+Merged onto `main` (regular merge commit, per this project's standing no-squash convention). Primary worktree back on `main`, matching `origin/main`. `gavi411-brain.md` decision #149 logged (ghost-button border, ../../DESIGN.md updated in the same pass). Two throwaway test requests created during automated verification were deleted from the DB afterward. Dev servers (Vite :5173, API :3000) still running from this session.
 
 ### What's next, concretely
 1. **WP7 (G411-112, native screens onto components) — Gavi's actual original instruction this session, now being picked up directly.**
@@ -474,7 +497,7 @@ Primary worktree back on `main`, fast-forwarded clean to `be29011` (matches `ori
 **Then several real rounds of Gavi's own live testing found genuine bugs the initial build and its own testing missed — every one fixed same-session, not deferred**:
 
 1. **Width/alignment, the long one.** Composer bar and cards were both nominally "capped at 640px" but weren't actually the same width — the bar was `position: fixed` on the raw viewport while the cards sat inset by the parent's own padding, so they never matched. Wrong fix tried first (shrinking the bar to match the narrower cards) — Gavi caught it made things worse, not better. Real fix needed real DevTools inspection to find: the actual card content itself is capped at 420px (the app's existing single-column convention used everywhere else — NewRequest, CompleteProfile, the old FriendRequestsList — that FriendHome had silently broken from), while the invisible wrapping button/div was stretched to the full list width, leaving real dead clickable space to the right of the visible card. Fixed by capping everything (list, button, composer bar) at the same real 420px, and deleting a redundant wrapper `<div onClick>` that duplicated the card's own real `<button onClick>` — a second invisible click target stacked on the first.
-2. **Presence dot invisible when offline, in both themes.** `--border` (1.17:1 light / 1.47:1 dark against the page background) is by design a barely-there hairline color per DESIGN.md, never meant to carry a status signal — that's the actual bug, not a missing dark-mode value. Fixed with `--danger` (6.26:1 / 7.78:1), the same token `StatusChip`'s HIGH-urgency dot already uses. Verified live against a real "offline" account, not simulated.
+2. **Presence dot invisible when offline, in both themes.** `--border` (1.17:1 light / 1.47:1 dark against the page background) is by design a barely-there hairline color per ../../DESIGN.md, never meant to carry a status signal — that's the actual bug, not a missing dark-mode value. Fixed with `--danger` (6.26:1 / 7.78:1), the same token `StatusChip`'s HIGH-urgency dot already uses. Verified live against a real "offline" account, not simulated.
 3. **Wordmark visibly shifted right on every screen except home.** Real structural cause: the back-chevron is a 3rd fixed-width icon on the bar's left on every non-home screen (hamburger + chevron vs. just the avatar on the right) — the wordmark's `flex: 1` centering balances against that asymmetry and drifts. First fix tried (`position: absolute`, true viewport-centering) caused a **worse** regression — the wordmark visibly overlapped the chevron at narrow widths, since absolutely-positioned elements don't get pushed apart the way flex items do. Correct fix: an invisible 44px flex spacer on the right whenever the chevron shows on the left, keeping normal flex flow (structurally can't overlap).
 4. **List not actually hidden past the composer bar — this took several attempts to land, with real miscommunication along the way that Gavi called out directly and correctly.** A `mask-image` fade on the list itself did nothing (the list is 2000+px tall; its own "last 15px" was nowhere near the visible, sticky-positioned button). Moving to a `position: sticky` wrapper fixed the *fade* but not the actual ask — sticky only pins the element's own box, it doesn't stop sibling cards from scrolling past underneath it once the sticky element unstuck, so cards kept reappearing below the button (confirmed by Gavi: "it's not the next item, it's ANY item"). Real fix, once correctly understood: a `position: fixed` overlay spanning from 100px above the button's top edge down to the screen bottom, with one continuous background paint (gradient band reaching fully opaque 25px above the button's top edge per Gavi's exact Y-axis spec, solid `--bg` for everything below that including past the button) — `pointer-events: none` on the overlay, `pointer-events: auto` re-enabled on the button only, so hidden cards are also non-interactive, not just invisible.
 5. **App bar didn't stay put on scroll — no ticket covered this** (checked via JQL, confirmed nothing existing touches it; G411-108 built the bar's layout but never gave it scroll behavior). Made `position: sticky; top: 0` with an opaque background (a transparent sticky bar would show cards scrolling underneath it) — folded into this ticket rather than filed separately, per Gavi's explicit call. One more real bug in the fix itself: the bar initially still travelled ~32px before sticking, traced to `.design-preview`'s wrapper padding pushing the bar down the page before it could pin; fixed by moving that padding onto the bar itself. Verified via real `getBoundingClientRect` sampling across 7 scroll positions (0 through 900px) that pixel travel is exactly 0.
@@ -482,7 +505,7 @@ Primary worktree back on `main`, fast-forwarded clean to `be29011` (matches `ori
 
 **Also folded in, smaller**: removed `NotificationHistory.jsx`'s now-redundant own "← Back" button (superseded by the app-bar chevron, flagged repeatedly across multiple prior HANDOFF entries and never picked up until now); hid the hamburger's empty "Requests" divider for friends specifically (isAdmin-gated — a general "hide when a group has zero visible items" version was considered and explicitly rejected by Gavi as unwanted speculative flexibility, since admin's own render of that group is never empty).
 
-**Every fix this session was verified live with real Playwright measurements** (`getBoundingClientRect`, computed styles, real pixel sampling) using the working sign-in recipe in `gavi411-playwright-signin.md` (written this session after several early rounds of guessing from CSS source alone produced confidently wrong answers — Gavi's direct, sharp pushback on that pattern is what actually turned the session around). One session-ending escalation: Gavi asked for Opus specifically on the list-hiding mechanism after several rounds of me implementing it on the wrong element despite him restating the requirement multiple times — an explicit, confirmed escalation per CLAUDE.md's confirm-first rule, not a self-invoked fallback.
+**Every fix this session was verified live with real Playwright measurements** (`getBoundingClientRect`, computed styles, real pixel sampling) using the working sign-in recipe in `gavi411-playwright-signin.md` (written this session after several early rounds of guessing from CSS source alone produced confidently wrong answers — Gavi's direct, sharp pushback on that pattern is what actually turned the session around). One session-ending escalation: Gavi asked for Opus specifically on the list-hiding mechanism after several rounds of me implementing it on the wrong element despite him restating the requirement multiple times — an explicit, confirmed escalation per ../../CLAUDE.md's confirm-first rule, not a self-invoked fallback.
 
 555/555 tests pass fresh, client build clean. Jira: **Landed**, Scope/Falsifier/Evidence-bar-met all rewritten against real final state (materially different from the original ticket text — presence relocation, sticky app bar, sign-out restoration, and the width/fade mechanics were none of them in the original scope). Sibling review done same-session before the Landed transition, one real diff read start to finish, one fragility flagged but not blocking (`.friend-home`'s `padding-bottom: 180px` is a hand-estimated constant tied to the composer overlay's current dimensions, not computed — would silently drift if the button's own size ever changes). **Awaiting merge go-ahead — not yet Reconciled.**
 
@@ -550,7 +573,7 @@ Primary worktree on branch `you/WP9-sort-reload-clear` (uncommitted — wrap-up 
 
 **Picked up WP3 at STOP 1** — scope confirmed with Gavi (back-chevron-on-sub-screens per the plan's own default), Jira transitioned Open → Implementing, Scope/Falsifier/Role written pre-code. Haiku built the first draft: 56px app bar (☰ / wordmark / avatar chip), hamburger menu regrouped into You/Requests/Setup, `GET /api/presence` extended with admin's firstName+profilePic.
 
-**Sibling review (this session) found and fixed real issues in the first draft**: 6 menu items sharing the identical generic `menu` icon (visually meaningless — left icon-less instead per the "no fit, don't force one" rule), deleted historical explanatory comments restored, a dead `'request-detail'` view-name branch removed, orphaned `.header-row`/`.account-indicator*`/`.hamburger-button`/`.credit-balance` CSS removed, wordmark's `22px` size corrected to DESIGN.md's real H2 scale (24px/20px — the original spec text's `22px` wasn't actually derived from the type ramp, on me for not checking before writing it into Jira).
+**Sibling review (this session) found and fixed real issues in the first draft**: 6 menu items sharing the identical generic `menu` icon (visually meaningless — left icon-less instead per the "no fit, don't force one" rule), deleted historical explanatory comments restored, a dead `'request-detail'` view-name branch removed, orphaned `.header-row`/`.account-indicator*`/`.hamburger-button`/`.credit-balance` CSS removed, wordmark's `22px` size corrected to ../../DESIGN.md's real H2 scale (24px/20px — the original spec text's `22px` wasn't actually derived from the type ramp, on me for not checking before writing it into Jira).
 
 **Then several rounds of Gavi's own live testing surfaced real design/architecture corrections, not just polish** — full detail in brain.md decisions #142/#143, short version:
 1. **Nav model changed twice.** First tried the plan's own written default (☰ home-only, replaced by a chevron on sub-screens) — Gavi caught that he'd expected ☰ to stay visible everywhere and only toggle to a close-affordance while the menu itself was open. That model turned out to be structurally impossible: the hamburger menu is a native `<dialog>` in modal mode (`showModal()`), which puts it in the browser's top-layer — an app-bar button can't be seen or clicked while the dialog is open, full stop. Landed on the real final shape: ☰ always visible (opens the menu; the dialog gets its own internal close button), plus a single consistent back-chevron slot left of the wordmark on every non-home screen, replacing every screen's own per-page "Back" button (was missing on ~5 screens in an earlier pass, since only 3 had a *visible* "Back" button to begin with).
@@ -574,16 +597,16 @@ Primary worktree on branch `you/G411-108-app-bar-presence`, uncommitted (all cha
 
 ## Where this session left off (2026-09-18, latest) — WP2 (G411-77, design tokens + primitives) built, Landed, awaiting merge go-ahead
 
-**Picked up WP2 at STOP 1**, re-scoped G411-77's stale "Full UI/UX pass" placeholder into the real WP2 spec first (Jira summary + description rewritten, Scope/Falsifier/Role/Evidence-required written pre-code). Haiku built: new tokens (`--accent-text`, `--danger`/`--danger-bg`, `--success` alias), retired `--accent-3`/`--social-bg`, flattened `--shadow`, global `:focus-visible` ring, body text 16px everywhere, `.meta`/`.content` utilities, button changes (ink-on-gold primary/secondary, `.btn-purple` → `.btn-ghost`, new `.btn-icon`), new `StatusChip`/`Icon` components (created, not wired into any screen yet — that's later packages' job), new `lib/format.js`/`lib/requestStatus.js`, `RequestCard` extracted to its own file, `RequestList.jsx` deleted (dead body), two pre-existing `--color-border`→`--border` bugs fixed, `DESIGN.md` updated. PR #127.
+**Picked up WP2 at STOP 1**, re-scoped G411-77's stale "Full UI/UX pass" placeholder into the real WP2 spec first (Jira summary + description rewritten, Scope/Falsifier/Role/Evidence-required written pre-code). Haiku built: new tokens (`--accent-text`, `--danger`/`--danger-bg`, `--success` alias), retired `--accent-3`/`--social-bg`, flattened `--shadow`, global `:focus-visible` ring, body text 16px everywhere, `.meta`/`.content` utilities, button changes (ink-on-gold primary/secondary, `.btn-purple` → `.btn-ghost`, new `.btn-icon`), new `StatusChip`/`Icon` components (created, not wired into any screen yet — that's later packages' job), new `lib/format.js`/`lib/requestStatus.js`, `RequestCard` extracted to its own file, `RequestList.jsx` deleted (dead body), two pre-existing `--color-border`→`--border` bugs fixed, `../../DESIGN.md` updated. PR #127.
 
 **Sibling review found and fixed 3 real issues, all in the same PR**:
 1. **WCAG contrast bug, caught by actually running the falsifier's contrast script** (not trusting the spec's stated pairing): `.btn-primary`'s ink-on-gold text passed light mode (8.18:1) but failed dark mode badly (1.59:1) — dark mode's `--text-h` is near-white, dark mode's `--accent` is bright gold. Same bug class was latent in `StatusChip`'s gold/strong/success variants (unwired today, would have shipped broken). Confirmed the fix shape with Gavi (a dedicated token, not a scattered override) before applying: new `--on-accent: #221f19` token (fixed dark ink, same value both themes), applied everywhere text sits on a solid accent-family fill. All 5 real pairings re-verified ≥4.5:1 both themes.
-2. **Stale `DESIGN.md` content Haiku's own edit missed**: a whole Lavender/`button-purple` section (frontmatter YAML block + prose) still described lavender as live even though this same PR deletes `.btn-purple` from the CSS. Fixed the frontmatter and forward-looking prose; left the historical "this direction was revised..." narrative alone (decision record, not current guidance).
+2. **Stale `../../DESIGN.md` content Haiku's own edit missed**: a whole Lavender/`button-purple` section (frontmatter YAML block + prose) still described lavender as live even though this same PR deletes `.btn-purple` from the CSS. Fixed the frontmatter and forward-looking prose; left the historical "this direction was revised..." narrative alone (decision record, not current guidance).
 3. **Manual falsifier check, run by Gavi on the Vercel preview** (tab through intake, confirm visible focus ring at every stop): found the credits badge in the header was the one element with no ring — because it was a plain `<span title="...">`, never focusable at all. Fixed with `tabIndex={0}` + `aria-label` carrying the same detail string, so keyboard/screen-reader users can now reach it too, not just mouse hover. Pre-existing gap from G411-100, fixed here directly per Gavi's call.
 
-Every finding posted as a real PR comment, per CLAUDE.md rule 5. 543/543 tests re-run fresh after each fix, build clean each time, CI (the new required check from WP1) green on the final commit. Jira: Landed, Scope/Falsifier/Evidence-bar-met all written against real final state. **Awaiting merge go-ahead — not yet Reconciled.**
+Every finding posted as a real PR comment, per ../../CLAUDE.md rule 5. 543/543 tests re-run fresh after each fix, build clean each time, CI (the new required check from WP1) green on the final commit. Jira: Landed, Scope/Falsifier/Evidence-bar-met all written against real final state. **Awaiting merge go-ahead — not yet Reconciled.**
 
-A `[impeccable@1]` design-system hook flagged 3 pre-existing lines in `index.css` (h2's responsive 20px, `code`'s 4px radius, `code`'s 15px font) as outside `DESIGN.md`'s documented scale — confirmed via `git diff main` that none are touched by this PR's diff at all. Left alone, not ignored via `hook-admin.mjs` either (not confident enough to call them sanctioned exceptions without a real audit) — flagged here as an open item for whoever next does design-system work. The hook also wants `/impeccable document` re-run since `DESIGN.md` changed — not run this session, not this ticket's job.
+A `[impeccable@1]` design-system hook flagged 3 pre-existing lines in `index.css` (h2's responsive 20px, `code`'s 4px radius, `code`'s 15px font) as outside `../../DESIGN.md`'s documented scale — confirmed via `git diff main` that none are touched by this PR's diff at all. Left alone, not ignored via `hook-admin.mjs` either (not confident enough to call them sanctioned exceptions without a real audit) — flagged here as an open item for whoever next does design-system work. The hook also wants `/impeccable document` re-run since `../../DESIGN.md` changed — not run this session, not this ticket's job.
 
 ### Real state, right now
 Primary worktree on branch `you/G411-77-design-tokens` (3 commits: `faf61aa` build, `776fda8` contrast fix, `7717aeb` credits accessibility fix), pushed, PR #127 open against `main`. All CI runs on the PR are green as of the latest commit.
@@ -591,7 +614,7 @@ Primary worktree on branch `you/G411-77-design-tokens` (3 commits: `faf61aa` bui
 ### What's next, concretely
 1. **Merge PR #127** (Gavi's go-ahead, per wrap-up step 7) — then Jira Landed → Reconciled.
 2. Then next pick per `gavi411-finish-line-plan.md`'s execution order: **WP3 (G411-108, app bar/menu/presence avatar)** or **WP9 (G411-104/106/107, small tickets)** — both depend only on WP2, can run in either order. Confirm with Gavi at STOP 1.
-3. Open item, not blocking: the 3 pre-existing `index.css` design-hook findings above, and the `/impeccable document` sidecar refresh — whoever next touches `index.css`/`DESIGN.md` for real should pick these up.
+3. Open item, not blocking: the 3 pre-existing `index.css` design-hook findings above, and the `/impeccable document` sidecar refresh — whoever next touches `index.css`/`../../DESIGN.md` for real should pick these up.
 
 ---
 
@@ -605,7 +628,7 @@ Primary worktree on branch `you/G411-77-design-tokens` (3 commits: `faf61aa` bui
 - **Round 2**: `npm test` then genuinely failed in CI (passed locally) — 3 tests in `requests.test.js` implicitly depended on the real `FRONTEND_URL` from the local `.env`, which CI never has (gitignored, machine-local — confirmed the worktree-symlink trick can't reach a GitHub-hosted runner, no file to point at). Fixed by having each test `vi.stubEnv('FRONTEND_URL', ...)` itself, matching the existing `buildPermalink` tests' own pattern in the same file. Verified with `env -i npm test` (fully stripped environment): 543/543 pass.
 - **Falsifier run**: pushed a throwaway failing assertion — check went red; reverted — check went green. Both commits kept in PR #126's history as the falsifier's own record.
 
-Every round posted as a real PR comment, not just chat, per CLAUDE.md rule 5. Jira: Landed, Claim/Falsifier/Role/Evidence-required/Evidence-bar-met all written against real final state.
+Every round posted as a real PR comment, not just chat, per ../../CLAUDE.md rule 5. Jira: Landed, Claim/Falsifier/Role/Evidence-required/Evidence-bar-met all written against real final state.
 
 **Not yet done** (needs the merge first): wiring the CI job as a required status check on the `require-pr-for-main` ruleset (WP1's spec, last step) — do this right after merging, before Landed → Reconciled.
 
@@ -629,7 +652,7 @@ WP0 was picked up half-done: PR #124 (G411-103, unread dot) had already merged o
 3. brain.md decision #140 logged: E2E cut for v1, parked not killed, escrow-only rebuild is first post-finish item, `E2E_ENABLED` stays false.
 4. brain.md decision #141 logged: visual-direction changes (ink-on-gold, lavender retired, sage limited to success states, shadow flattened) — execution lands in WP2, not logged as done here.
 5. G411-101 closed as superseded by G411-109 (Reconciled-as-cancelled, comment added, same pattern as G411-68).
-6. `gavi411-e2e-encryption-plan.md` §8 updated with a pointer to decision #140.
+6. `../../docs/gavi411-e2e-encryption-plan.md` §8 updated with a pointer to decision #140.
 
 **Real state, right now**: primary worktree on `main` at `f4be778`, all 6 agent worktrees clean (checked fresh this session). No open PRs. Nothing mid-work.
 
@@ -732,7 +755,7 @@ been done**:
 3. **Log two brain.md decisions**: the E2E cut, and the visual-direction
    changes (ink-on-gold, lavender retired, sage limited to success
    states, shadow flattened). Update
-   `gavi411-e2e-encryption-plan.md` §8 to point at the first.
+   `../../docs/gavi411-e2e-encryption-plan.md` §8 to point at the first.
 4. **Close G411-101** as superseded by G411-109 (Reconciled-as-cancelled,
    same pattern as G411-68).
 5. **Re-scope G411-77's description** to WP2 (tokens + primitives), not
@@ -945,13 +968,13 @@ dropping the empty deps array (re-check on every render) and gating the
 actual `setAttribute` calls behind a separate `armed` ref so it still
 only attaches once — whichever render is genuinely the first one where
 the container exists. Finding posted as a real PR comment (#117), per
-CLAUDE.md rule 5, spot-checked via `gh api` that the posted body matched
+../../CLAUDE.md rule 5, spot-checked via `gh api` that the posted body matched
 intent.
 
 No test harness for client components exists in this repo (confirmed
 again, same as every prior ticket touching client/) — this change had no
 extractable pure logic worth a Vitest file (pure ref/effect/JSX wiring),
-so per CLAUDE.md's testing convention no test was written; not a gap,
+so per ../../CLAUDE.md's testing convention no test was written; not a gap,
 just nothing to test in isolation here.
 
 542/542 tests pass fresh (re-run after the fix, not reused from Haiku's
@@ -1000,7 +1023,7 @@ conflict. Gavi's call, once this was laid out.
 
 **Built**: `RequestDetail.jsx` now polls every 30s while mounted, reusing
 the existing `refetch()` function, cleared on unmount/`requestId` change.
-No WebSocket/SSE — matches CLAUDE.md's stated architecture, ticket's own
+No WebSocket/SSE — matches ../../CLAUDE.md's stated architecture, ticket's own
 suggested range (15-30s), picked 30s for lower DB/server load on the free
 tier given the actual harm from staleness is low (a rare, already-clearly-
 errored edge case, not real-time chat).
@@ -1026,7 +1049,7 @@ already used elsewhere in this file) so a stale in-flight fetch can't land
 after unmount/requestId-change, and `visibilitychange`-based pausing so a
 backgrounded/idle tab stops polling (real free-tier Render/Neon cost
 otherwise), with an immediate refetch on returning to the tab. Fix pass
-posted as a real PR comment, per CLAUDE.md rule 5.
+posted as a real PR comment, per ../../CLAUDE.md rule 5.
 
 542/542 tests pass fresh (unaffected, client-only change), client build
 clean. Jira: **Landed**, Falsifier/Evidence-required/Evidence-bar-met all
@@ -1104,7 +1127,7 @@ the same Telegram+link treatment as its siblings (Gavi agreed to add it),
 unbounded `freeText` vs Telegram's 4096-char hard limit (safety cap only,
 not a product decision — Gavi was explicit he doesn't want message-length
 polish), and duplicated dispatch code. Fix pass posted as a real PR comment
-(not just chat), per CLAUDE.md rule 5.
+(not just chat), per ../../CLAUDE.md rule 5.
 
 **Third commit, correcting the length-cap fix itself**: Gavi caught that
 the freeText cap added for finding #5 was a guessed static margin
@@ -1180,7 +1203,7 @@ finding it. Fixed by extracting the gate into a real shared function
 (`canConsumeRequestPermalink` in `inviteToken.js`) carrying the same admin
 exemption the render logic already had, imported by both the effect and its
 test — the original test was a disconnected duplicate copy asserting the
-buggy behavior as correct, exactly the failure pattern CLAUDE.md's #5
+buggy behavior as correct, exactly the failure pattern ../../CLAUDE.md's #5
 warns about. Two smaller live-testing findings fixed alongside it: a 404'd
 permalink used to fail in total silence (now a dismissible message), and a
 visible home-screen flash before the request "popped in" (now a loading
@@ -1478,7 +1501,7 @@ request submit via the existing `roleRetryToken` mechanism (same pattern
 `CompleteProfile`'s `onComplete` already uses).
 
 Jira: transitioned Open → Implementing *before* Scope/Falsifier fields
-were written (correct order per CLAUDE.md #114), then Scope/Falsifier/
+were written (correct order per ../../CLAUDE.md #114), then Scope/Falsifier/
 Evidence-required/Owner/Reviewer-type all written against the locked
 design. Dispatched Haiku with a fully pinned handoff (exact files,
 exact line numbers, exact existing patterns to reuse — no open
@@ -2227,10 +2250,10 @@ charge decision, not the mechanism making it).
   (`[[gavi411-stray-dev-server-processes]]`).
 - **Decision #115** (in brain.md): decision #109 (2026-09-03) already
   established that merging — not the Jira Landed→Reconciled transition —
-  is the real hard-to-reverse action. But `CLAUDE.md`'s own "Wrap it up"
+  is the real hard-to-reverse action. But `../../CLAUDE.md`'s own "Wrap it up"
   checklist text was never actually edited to match that decision, so the
   wrong instruction survived and kept getting followed every session
-  since. **Fixed this session** — CLAUDE.md's wrap-up Jira-transition
+  since. **Fixed this session** — ../../CLAUDE.md's wrap-up Jira-transition
   step rewritten in place (it was step 5 at the time; the checklist has
   since been reordered into real execution order).
 
@@ -2249,7 +2272,7 @@ single clean instance of each.
 Merged via regular merge commit (`gh pr merge --merge --admin`,
 branch protection required an approving review). Two pieces on one
 branch:
-- **Doc restructuring**: CLAUDE.md 572 → 357 lines (−30%, inline
+- **Doc restructuring**: ../../CLAUDE.md 572 → 357 lines (−30%, inline
   rule-histories replaced with #N citations to gavi411-brain.md).
   Reordered by session needs: four stops → wrap-up checklist →
   required workflow → how to work with Gavi → reference material.

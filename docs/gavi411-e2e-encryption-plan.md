@@ -1,8 +1,8 @@
 # Gavi411 — E2E Messaging Encryption: Status, Findings, and Plan
 
-Living doc, not a decision log (`gavi411-brain.md` has the numbered
+Living doc, not a decision log (`../docs/agent/gavi411-brain.md` has the numbered
 history — decisions #92/#96/#97/#98 are the ones that matter here, all
-cross-referenced below) and not session continuity (`HANDOFF.md`). This
+cross-referenced below) and not session continuity (`../docs/agent/HANDOFF.md`). This
 is the one place to read the full current state of E2E encryption:
 what's real, what's broken, what was decided, and what's still open —
 so a session picking this back up doesn't have to reconstruct it from
@@ -25,7 +25,7 @@ if-time-remains again, matching the PRD's original framing.
 code change (§5) has NOT.** Real sequence, same session:
 1. Gavi self-issued two invites for his own re-signup (labeled "Admin
    Invite" / "Admin Invite backup") while still admin, BEFORE the wipe —
-   correctly avoiding the lockout hazard traced in CLAUDE.md's "trace
+   correctly avoiding the lockout hazard traced in ../CLAUDE.md's "trace
    consequences" rule (`POST /api/invites` requires `requireAdmin`).
 2. `scripts/wipe-users.js` run for real (not just `--dry-run`) — deleted
    all `User`/`Request`/`Message`/`Device`/`ConversationDeviceKey`/
@@ -202,7 +202,7 @@ was needed:
 
 Admin's re-onboarding sequence actually used (works, confirmed): self-
 issue an invite while still admin (BEFORE wiping — `POST /api/invites`
-requires `requireAdmin`, so order matters, see CLAUDE.md's "trace
+requires `requireAdmin`, so order matters, see ../CLAUDE.md's "trace
 consequences" rule) → wipe → sign up through that invite → manually
 promote `role` back to `ADMIN` via `scripts/promote-admin.js`. Same
 sequence applies to re-adding any other account, including Allysa,

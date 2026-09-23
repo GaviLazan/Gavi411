@@ -13,7 +13,7 @@ node_modules/
 .env.*.local
 
 # Aegis docs — internal planning artifacts, not part of the shipped product.
-# Aegis-spec.md is intentionally NOT ignored — it's the source spec the
+# docs/agent/Aegis-spec.md is intentionally NOT ignored — it's the source spec the
 # other Aegis docs were derived from, kept as a true reference.
 Aegis docs/
 

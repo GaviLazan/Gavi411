@@ -115,7 +115,7 @@ subagent into a role worktree:
 
 This is a manual pre-flight (and post-flight check), not automated — same
 "no enforcement layer, just a checklist that has to actually be followed"
-situation as the wrap-up checklist in `CLAUDE.md`.
+situation as the wrap-up checklist in `../../CLAUDE.md`.
 
 **Same staleness risk applies on merge-back, not just launch**: merging
 an agent branch into `main` brings in `package.json` changes, but
@@ -320,7 +320,7 @@ one-off download/resolve per session.
   Applies regardless of who wrote the code — a subjective call always
   needs Gavi's own eyes, whether the ticket was tagged `[Agentic]`,
   `[Collab]`, or `[You]` back when that tag meant something (the tag is
-  historical record only as of decision #63 — see `CLAUDE.md`'s Ownership
+  historical record only as of decision #63 — see `../../CLAUDE.md`'s Ownership
   split section).
 - Judgment call on "is this one load-bearing" or "subjective": ask rather
   than assume when a child isn't a clean fit either way.
@@ -334,7 +334,7 @@ one-off download/resolve per session.
   actually updated, Aegis fields are actually written, Jira is actually
   transitioned — not just "does the diff look reasonable." This is in
   addition to each agent self-running the "wrap it up" checklist
-  (`CLAUDE.md`) before reporting done; neither step alone is trusted to
+  (`../../CLAUDE.md`) before reporting done; neither step alone is trusted to
   catch a silently-dropped one. **Once it passes: self-merge** — no
   outside human approval required or waited on (decision #63).
 - **Merge strategy: regular merge commit, never squash (decision #68,
@@ -432,10 +432,10 @@ behalf, or a GUI like VS Code's Source Control panel). So the question is
 never "who clicked commit," it's **who is actually responsible for the
 change** — updated 2026-08-24: this used to be answered by the ticket's
 `[You]`/`[Agentic]`/`[Collab]` tag, but that tag is historical record only
-now (decision #63, `CLAUDE.md`). The real question going forward:
+now (decision #63, `../../CLAUDE.md`). The real question going forward:
 
 - An agent produced the change autonomously (the default now, per
-  `CLAUDE.md`'s Required workflow) → run the matching `git-as-agent-*`
+  `../../CLAUDE.md`'s Required workflow) → run the matching `git-as-agent-*`
   first, and make sure the launch prompt itself said to (see the launch
   checklist above — this is the step that silently didn't happen for
   G411-66).

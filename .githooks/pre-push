@@ -1,6 +1,6 @@
 #!/bin/sh
 # pre-push guardrail — tripwire against two real, logged mistakes
-# (gavi411-brain.md decision #105):
+# (../docs/agent/gavi411-brain.md decision #105):
 #
 #   1. Pushing a branch under one agent role's name/identity that was
 #      actually written by a different role (e.g. product UI work
@@ -22,7 +22,7 @@ z40=0000000000000000000000000000000000000000
 current_email=$(git config user.email)
 current_branch=$(git rev-parse --abbrev-ref HEAD)
 
-# Roles per gavi411-commit-convention.md — keep in sync with that doc.
+# Roles per ../docs/agent/gavi411-commit-convention.md — keep in sync with that doc.
 role_for_email() {
   case "$1" in
     agent-backend@*)  echo "agent-backend" ;;
@@ -54,7 +54,7 @@ while read -r local_ref local_sha remote_ref remote_sha; do
         ;;
       agent-*)
         echo "pre-push: pushing under '$current_email' ($role) but branch is '$branch' — role/branch prefix mismatch." >&2
-        echo "pre-push: product UI/page work is agent-backend's job, not agent-frontend (infra-only) — check gavi411-commit-convention.md before renaming/bypassing." >&2
+        echo "pre-push: product UI/page work is agent-backend's job, not agent-frontend (infra-only) — check ../docs/agent/gavi411-commit-convention.md before renaming/bypassing." >&2
         exit 1
         ;;
     esac
