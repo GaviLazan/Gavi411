@@ -1473,6 +1473,12 @@ But Assessment A also produced two claims that turned out wrong on verification:
 
 **Standing lesson**: this file (`gavi411-brain.md`) and `HANDOFF.md` now live at `docs/agent/`, not the repo root — any future session citing either by bare filename should know the real path, and any doc written from now on that references them should use a relative path correct for its own new location, not assume root-adjacency.
 
+### Decision #168 — Pre-writing a PR's own future merge state into HANDOFF is fragile when the PR's scope keeps growing after that text is written — verify PR state live, don't narrate ahead of it (2026-09-23)
+
+Wrote a HANDOFF paragraph claiming "PR #153 merged" while #153 was still open, on the theory that the correction PR's own content should already read correctly once it landed (per the standing pre-merge-staleness convention). But #153's scope grew twice after that text was written — first to include the worktree cleanup, then the docs reorg — so by the time it actually merged, the pre-written "merged" claim was already describing a different, narrower PR than what actually shipped. Separately, in the same stretch, a fresh HANDOFF entry invented a nonexistent "PR #154" (misremembering that #153's growing scope meant a new PR number, when it didn't — same branch, same PR, just more commits). Sibling review caught both by comparing the entry's claims against `gh pr view` directly rather than trusting the narrative.
+
+**Standing lesson**: pre-writing a PR's future merge state only holds if that PR's content is genuinely frozen at write time. If a PR might still grow (more commits on the same branch), don't narrate its outcome in advance — write the current real state (open, CI status) and update it after the real merge happens, same as any other HANDOFF fact. Always confirm a cited PR number is real via `gh pr view <n>` before writing it into a doc, not just incrementing from the last known number.
+
 ## 7. Not Yet Discussed
  
 - Data model, architecture, tech decisions (schema itself not yet drafted — first task on deck).

@@ -17,7 +17,7 @@ match; `CLAUDE.md` stays at root for Claude Code's auto-load convention.
 
 ---
 
-## Where this session left off (2026-09-23, latest) — worktree cleanup + docs reorganized into docs/ and docs/agent/, PR #154 open
+## Where this session left off (2026-09-23, latest) — worktree cleanup + docs reorganized into docs/ and docs/agent/, PR #153 open (not yet merged)
 
 **All 6 `Gavi411-agent-*` worktrees removed.** Verified first that every commit on every agent branch (`agent-backend/base`, `agent-cicd/G411-16-deploy-config`, `agent-design/G411-17-design-foundation`, `agent-e2e/G411-86-plaintext-revert`, `agent-frontend/G411-49-push-subscribe`, `agent-test/base`) was already fully contained in `origin/main` (`git log origin/main..<branch>` empty for all 6) before removing anything — nothing unique was at risk of being lost. `git worktree remove` on all 6, then `git branch -d` on all 6 local branches (which would have refused if any weren't fully merged — confirms the check was right). Only the primary worktree remains now.
 
@@ -28,16 +28,16 @@ match; `CLAUDE.md` stays at root for Claude Code's auto-load convention.
 555/555 tests fresh, client build clean, both re-run after the move to confirm nothing functional broke (nothing reads these docs at runtime, but verified rather than assumed).
 
 ### Real state, right now
-Branch `you/handoff-wp12-close-out` has 2 commits pushed (the earlier #153 HANDOFF self-reference fix, now folded together with this reorg since both landed on overlapping lines of the same file — see the commit message for why they weren't split). PR #154 open (previously #153, same branch, scope grew to include the reorg) — not yet merged, CI not yet checked this stretch.
+Branch `you/handoff-wp12-close-out` has 3 commits pushed onto **PR #153** (the same PR opened earlier for the HANDOFF self-reference fix — its scope grew in place to include the worktree cleanup and docs reorg, rather than opening a new PR). **PR #153 is real, open, CI green — not yet merged.** (Caught and corrected here: an earlier draft of this entry invented a nonexistent "PR #154" and a separate stale entry below prematurely claimed #153 was already merged before it actually was — both wrong, both fixed after Sibling review flagged the contradiction.)
 
 ### What's next, concretely
-1. **Check CI on PR #154, then ask Gavi for the merge go-ahead.**
+1. **Ask Gavi for the merge go-ahead on PR #153** — CI is green, not yet asked/given this turn.
 2. Once merged: no Jira transition needed (docs/process work, not a tracked child). Confirm primary worktree syncs back to `main` cleanly.
 3. No agent worktrees to sync-check anymore — they're gone. Any future subagent work needs fresh `git worktree add` calls per the commit-convention doc (now at `docs/agent/gavi411-commit-convention.md`).
 
 ---
 
-## Where this session left off (2026-09-23, latest) — WP12 (close-out) done and merged: critique/audit fixes shipped, ../../DESIGN.md refreshed, demo prep n/a — PR #152 and #153 both merged, full sync confirmed clean
+## Where this session left off (2026-09-23, latest) — WP12 (close-out) done and merged: critique/audit fixes shipped, ../../DESIGN.md refreshed, demo prep n/a — PR #152 merged; PR #153 (this doc's own correction, later expanded) still open at the time — see the entry above for its real final state
 
 **WP12 run to completion, all 5 steps**: 1) `/impeccable critique` (dual-agent) + `/impeccable audit` on `client/src`, both bounded to one fix pass since Gavi chose "everything found." 2) live phone pass — skipped a fresh one; Gavi had already done a real device pass earlier this session and every fix this stretch is visual-only (colors, a variant name, a static divider, `minHeight` on loading states) with zero route/state/data-flow changes, confirmed via `git diff --stat` before treating that as safe to skip. 3) Docs: HANDOFF (this entry) + brain.md (decision below) + ../../DESIGN.md refreshed via `/impeccable document` (existing file, refreshed per Gavi's explicit choice, not overwritten blind). 4) Jira reconcile step — already done in an earlier session's entry, re-confirmed live via JQL this session: all 9 non-V2 epics (G411-1 through G411-9) are genuinely Reconciled right now. 5) Demo prep — **Gavi's call: not needed**, real accounts already exist, no seeding or Render pre-warm required.
 
@@ -52,7 +52,7 @@ Branch `you/handoff-wp12-close-out` has 2 commits pushed (the earlier #153 HANDO
 555/555 tests fresh, build clean, detector clean (0 findings) — all re-verified fresh at wrap-up, not carried over from mid-session.
 
 ### Real state, right now
-**PR #152 merged** (`you/wp12-close-out` → `main`, regular merge commit `0867fc7`) after Sibling review (posted as a real PR comment, spot-checked via `gh api` — no findings) and green CI. **PR #153 merged** (`you/handoff-wp12-close-out` → `main`) — a docs-only correction to this same entry, written pre-merge and merged in the same stretch; this text was drafted inside #153 itself before its own merge, per Gavi's catch that the correction PR would otherwise go stale the instant it landed. Primary worktree fast-forwarded clean, matches `origin/main`. **Full sync check run**: all 6 `Gavi411-agent-*` worktrees confirmed clean (`git status --short` empty in every one) — all idle on older commits well behind `main`, consistent with their established "not actively in use" pattern, not a gap to fix.
+**PR #152 merged** (`you/wp12-close-out` → `main`, regular merge commit `0867fc7`) after Sibling review (posted as a real PR comment, spot-checked via `gh api` — no findings) and green CI. **PR #153 was still open at the time this entry was first written** — this text tried to preemptively claim it as merged before that was true (Gavi's catch: a self-correcting PR shouldn't go stale the instant it lands), but the attempt itself introduced a false claim since #153 kept growing in scope after this was written. Read the entry above this one for #153's real, current state — don't trust this paragraph's merge claim. Primary worktree fast-forwarded clean, matches `origin/main`, as of PR #152 only. **Full sync check (worktrees) run at that point**: all 6 `Gavi411-agent-*` worktrees were clean then — they've since been removed entirely, see the entry above.
 
 **Jira**: no transitions this stretch — all 9 non-V2 epics were already Reconciled going in, re-confirmed live via JQL. G411-57 (V2/Stretch) stays Open by design. G411-130 (Clerk cutover, filed earlier this session) untouched, not started.
 
