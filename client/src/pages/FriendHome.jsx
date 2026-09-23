@@ -56,7 +56,7 @@ export default function FriendHome({ refreshToken, onOpenRequest, onCompose }) {
   return (
     <div className="friend-home">
       {requests === null && (
-        <p>Loading…</p>
+        <p style={{ minHeight: 200 }}>Loading…</p>
       )}
 
       {isEmpty && (

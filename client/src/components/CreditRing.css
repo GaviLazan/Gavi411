@@ -19,6 +19,12 @@
   transition: stroke-dashoffset 0.3s ease;
 }
 
+@media (prefers-reduced-motion: reduce) {
+  .credit-ring svg circle {
+    transition: none;
+  }
+}
+
 .credit-ring-number {
   position: absolute;
   font-size: 12px;

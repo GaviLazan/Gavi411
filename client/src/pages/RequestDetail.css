@@ -34,6 +34,15 @@
   align-items: start;
 }
 
+/* Separates the always-present status control from situational
+   action buttons (nudge, urgency downgrade, overdraft approve/deny)
+   so they don't read as one flat unranked row. */
+.admin-action-divider {
+  width: 1px;
+  height: 24px;
+  background: var(--border);
+}
+
 .admin-layout-toggle {
   font: inherit;
   font-size: 14px;

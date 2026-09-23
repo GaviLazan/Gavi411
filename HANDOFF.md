@@ -12,6 +12,52 @@ accumulated. If something here turns out to matter long-term, promote it to
 
 ---
 
+## Where this session left off (2026-09-23, latest) — WP12 (close-out) done: critique/audit fixes shipped, DESIGN.md refreshed, demo prep n/a — awaiting merge go-ahead
+
+**WP12 run to completion, all 5 steps**: 1) `/impeccable critique` (dual-agent) + `/impeccable audit` on `client/src`, both bounded to one fix pass since Gavi chose "everything found." 2) live phone pass — skipped a fresh one; Gavi had already done a real device pass earlier this session and every fix this stretch is visual-only (colors, a variant name, a static divider, `minHeight` on loading states) with zero route/state/data-flow changes, confirmed via `git diff --stat` before treating that as safe to skip. 3) Docs: HANDOFF (this entry) + brain.md (decision below) + DESIGN.md refreshed via `/impeccable document` (existing file, refreshed per Gavi's explicit choice, not overwritten blind). 4) Jira reconcile step — already done in an earlier session's entry, re-confirmed live via JQL this session: all 9 non-V2 epics (G411-1 through G411-9) are genuinely Reconciled right now. 5) Demo prep — **Gavi's call: not needed**, real accounts already exist, no seeding or Render pre-warm required.
+
+**Real bugs found and fixed, not just polish**: critique's dual-agent review (Assessment A source-review, Assessment B detector scan) caught two real P0s the detector's regex scan couldn't catch on its own — `ConfirmModal.jsx`'s "No" button used `variant="purple"`, a variant that doesn't exist in `Button.css` (purple/lavender is retired per DESIGN.md), so it rendered as unstyled browser-default chrome on **every** confirm dialog in the app; and `RequestCard.jsx`/`FriendHome.css` referenced `--text-secondary`/`--bg-secondary`/`--bg-tertiary`/`--radius`, none of which are real tokens anywhere in the codebase, silently dropping styling on the primary friend-facing screen. Both independently re-verified against real source before trusting the sub-agent's report (per standing project rule), then fixed. Also fixed: P1 admin-action-row crowding in `RequestDetail.jsx` (verified the real max simultaneous-control count was 3, not the sub-agent's claimed 5-6, before choosing a lightweight divider fix over a menu restructure), P2 bare loading states (added `minHeight` to prevent layout jump on Render's cold start), and skipped P3 (ordering disambiguation chips by real usage frequency — no real usage data exists pre-launch, would mean inventing a feature for a P3).
+
+**One review finding corrected before acting on it**: the sub-agent's persona red-flag section claimed the E2E encryption UI (key-generation/recovery copy) was reachable by a first-timer. Gavi caught this was wrong; verified directly — both surfaces in `RequestDetail.jsx` (lines 645, 651) gate on `E2E_ENABLED`, hardcoded `false` in `e2eConfig.js`. Dropped from the findings rather than fixing dead code.
+
+**Audit (separate pass) found one more real P1**: the intake flow's sage-green "Submit" button (`--accent-2`, `.btn-success`) measured 2.58:1 white-text contrast — failing WCAG AA's 4.5:1 minimum. Computed several darker sage options with Gavi (kept hue/saturation, just scaled brightness down); Gavi picked the deepest option (`#436856` resting / `#35513f` hover, both real AA passes at 6.26:1/8.75:1). **Dark mode was already passing and left untouched** — its button text uses dark-mode `--surface` (dark), not white, so the original `#6fae8f` never failed there; verified this before touching anything, since changing a token both themes share risked silently breaking a mode that wasn't broken. Also fixed in the same pass: hard-coded `#b3261e` (exactly `--danger`'s light-mode hex) in two `NewRequest.jsx` spots, replaced with `var(--danger)` so dark mode picks up its own value; and a missing `prefers-reduced-motion` guard on `CreditRing.css`'s stroke animation, now consistent with every other motion pattern in the system.
+
+**DESIGN.md refreshed, not rewritten**: per Gavi's explicit "refresh" choice when asked (existing file, last written Sep 20). Updated only what actually drifted — the new sage-green values with a note on why, a line confirming purple was never a real button variant, and the reduced-motion bullet now correctly includes the credit ring. `.impeccable/design.json` sidecar's `sage-green` colorMeta/tonalRamp and `generatedAt` synced to match; the rest of that file got incidentally re-indented by the write (Python's `json.dump`, not a content change) — flagged to Gavi rather than silently letting the diff look bigger than it is.
+
+555/555 tests fresh, build clean, detector clean (0 findings) — all re-verified fresh at wrap-up, not carried over from mid-session.
+
+### Real state, right now
+**Uncommitted**, all in one logical batch: `DESIGN.md`, `.impeccable/design.json`, `HANDOFF.md`, `gavi411-brain.md`, and 9 client source files (`ConfirmModal.jsx`, `CreditRing.css`, `index.css`, `AdminList.jsx`, `FriendHome.css`, `FriendHome.jsx`, `NewRequest.jsx`, `RequestCard.jsx`, `RequestDetail.css`, `RequestDetail.jsx`). No PR yet — **awaiting Gavi's go-ahead to branch/commit/push and merge** (this is process/polish work, not tied to a Jira child, but still goes through a PR per no-direct-commits-to-`main`).
+
+**Jira**: no transitions this stretch — all 9 non-V2 epics were already Reconciled going in, re-confirmed live. G411-57 (V2/Stretch) stays Open by design. G411-130 (Clerk cutover, filed earlier this session) untouched, not started.
+
+### What's next, concretely
+1. **Ask Gavi for the go-ahead to branch, commit, push, and open a PR** for this WP12 work — next action, not yet done.
+2. Once merged: no Jira transition needed (this work isn't a tracked child) — just confirm the merge landed and worktrees are back in sync.
+3. Full sync check across primary + all `Gavi411-agent-*` worktrees — not yet run this session.
+4. **WP12 is now fully done** per the finish-line plan — this was the last work package. Next real conversation is likely "what's actually left before the presentation," not another WP.
+5. G411-130 (Clerk cutover) and G411-57 (V2/Stretch) remain in the backlog, not blocking, not started.
+
+---
+
+## Where this session left off (2026-09-23, latest) — Telegram re-verified working; Clerk cutover filed as G411-130
+
+**Telegram notifications confirmed working by Gavi with a real second test request** — item #2 from the prior entry's "what's next" is resolved, no further action needed on it.
+
+**Clerk dev→prod cutover filed as G411-130** (Open, under G411-57/V2-Stretch), per Gavi's explicit ask — not just "do the cutover eventually" but specifically: preserve existing users' app data/history across the cutover (re-link a new Clerk production user id to the existing `User` row rather than creating a duplicate), and minimize what each already-signed-up person has to manually redo (investigate Clerk's bulk user-import tool for pre-staging production accounts by email, front-loading as much as possible server-side before asking any user to act). Full limitations list (100-user cap, dev-instance rate limits, no custom domain on hosted auth, Clerk-branded/shared email sending, shared-mode OAuth risk) and the real "waiting doesn't remove the migration pain" cost are both in the ticket description — not repeated here. **Research only, nothing built** — first real step when picked up is investigating the bulk-import API's actual capabilities and how `User.clerkId` needs to change to support a remap.
+
+No code touched this stretch; no PR, no branch, no other Jira transitions.
+
+### Real state, right now
+Primary worktree clean on `main`, matching `origin/main` (unchanged since PR #151). No open PRs.
+
+### What's next, concretely
+1. **WP12 (close-out)** is still the next real work package per the finish-line plan, untouched. Remaining parts: design re-critique (`/impeccable critique` + `/impeccable audit`), a live phone-in-hand pass on the deployed app, a docs refresh (`DESIGN.md` via `/impeccable document`), and demo prep. Confirm scope with Gavi at STOP 1 before starting.
+2. **G411-130** (Clerk cutover) sits in V2/Stretch, not blocking, not started.
+3. G411-57 stays Open by design — not a gap.
+
+---
+
 ## Where this session left off (2026-09-23, latest) — deploy env-var fixes (Telegram + Web Push both real, now working); PR #151 merged
 
 **After G411-128/G411-7/G411-9 closed out (see entry directly below for that work), Gavi found two real live deployment bugs, both fixed this session — no code changes, pure deploy configuration:**

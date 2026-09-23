@@ -20,12 +20,12 @@ export function RequestCard({ request, onClick, showStatusChip, showLastMessage,
           )}
         </div>
         {showLastMessage && lastMessagePreview && (
-          <p style={{ color: "var(--text-secondary)", fontSize: 13, marginTop: "var(--space-2)", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+          <p style={{ color: "var(--text)", fontSize: 13, marginTop: "var(--space-2)", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
             {lastMessageSender}: {lastMessagePreview}
           </p>
         )}
         {showMeta && meta && (
-          <p style={{ color: "var(--text-secondary)", fontSize: 12, marginTop: "var(--space-1)", margin: 0 }}>
+          <p style={{ color: "var(--text)", fontSize: 12, marginTop: "var(--space-1)", margin: 0 }}>
             {meta}
           </p>
         )}

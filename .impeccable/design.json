@@ -1,32 +1,136 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-08-30T00:00:00.000Z",
+  "generatedAt": "2026-09-23T15:58:00Z",
   "title": "Design System: Gavi411",
   "extensions": {
     "colorMeta": {
-      "gold": { "role": "primary", "displayName": "Gold", "canonical": "#f2a900", "tonalRamp": ["#3d2c00", "#5c4200", "#7a5900", "#996f00", "#d99400", "#f2a900", "#f7c34d", "#fbdfa0"] },
-      "sage-green": { "role": "secondary", "displayName": "Sage Green", "canonical": "#6fae8f", "tonalRamp": ["#122019", "#1f3729", "#2e5039", "#4f8a6c", "#6fae8f", "#8fc7ab", "#b6dcc9", "#dcf0e6"] },
-      "lavender": { "role": "tertiary", "displayName": "Lavender", "canonical": "#9b8cce", "tonalRamp": ["#1f1a30", "#332a4e", "#493c6e", "#6a5a99", "#9b8cce", "#b3a5e0", "#cdc3ec", "#e6e1f6"] },
-      "ink": { "role": "neutral", "displayName": "Ink", "canonical": "#221f19", "tonalRamp": ["#0c0b09", "#221f19", "#3a362d", "#524c40", "#6b6355", "#b3b0aa", "#d8d6d1", "#f5f4f0"] },
-      "cream-bg": { "role": "neutral", "displayName": "Cream", "canonical": "#fbfaf6", "tonalRamp": ["#17181a", "#212327", "#34363b", "#5c5e63", "#8c8e92", "#c9c8c3", "#ece8dc", "#fbfaf6"] }
+      "gold": {
+        "role": "primary",
+        "displayName": "Gold",
+        "canonical": "#f2a900",
+        "tonalRamp": [
+          "#3d2c00",
+          "#5c4200",
+          "#7a5900",
+          "#996f00",
+          "#d99400",
+          "#f2a900",
+          "#f7c34d",
+          "#fbdfa0"
+        ]
+      },
+      "sage-green": {
+        "role": "secondary",
+        "displayName": "Sage Green",
+        "canonical": "#436856",
+        "tonalRamp": [
+          "#0e1712",
+          "#182920",
+          "#233b2e",
+          "#35513f",
+          "#436856",
+          "#5f8a71",
+          "#8bb29c",
+          "#c3ddd0"
+        ]
+      },
+      "lavender": {
+        "role": "tertiary",
+        "displayName": "Lavender",
+        "canonical": "#9b8cce",
+        "tonalRamp": [
+          "#1f1a30",
+          "#332a4e",
+          "#493c6e",
+          "#6a5a99",
+          "#9b8cce",
+          "#b3a5e0",
+          "#cdc3ec",
+          "#e6e1f6"
+        ]
+      },
+      "ink": {
+        "role": "neutral",
+        "displayName": "Ink",
+        "canonical": "#221f19",
+        "tonalRamp": [
+          "#0c0b09",
+          "#221f19",
+          "#3a362d",
+          "#524c40",
+          "#6b6355",
+          "#b3b0aa",
+          "#d8d6d1",
+          "#f5f4f0"
+        ]
+      },
+      "cream-bg": {
+        "role": "neutral",
+        "displayName": "Cream",
+        "canonical": "#fbfaf6",
+        "tonalRamp": [
+          "#17181a",
+          "#212327",
+          "#34363b",
+          "#5c5e63",
+          "#8c8e92",
+          "#c9c8c3",
+          "#ece8dc",
+          "#fbfaf6"
+        ]
+      }
     },
     "typographyMeta": {
-      "h1": { "displayName": "H1", "purpose": "Page-level heading." },
-      "h2": { "displayName": "H2", "purpose": "Card and section headings." },
-      "body": { "displayName": "Body", "purpose": "Running text, request/message content." },
-      "label": { "displayName": "Label", "purpose": "Form field labels, above the input." },
-      "wordmark": { "displayName": "Wordmark", "purpose": "The literal \"Gavi411\" logo text only, in Google Sans — never used for page headings." }
+      "h1": {
+        "displayName": "H1",
+        "purpose": "Page-level heading."
+      },
+      "h2": {
+        "displayName": "H2",
+        "purpose": "Card and section headings."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Running text, request/message content."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Form field labels, above the input."
+      },
+      "wordmark": {
+        "displayName": "Wordmark",
+        "purpose": "The literal \"Gavi411\" logo text only, in Google Sans \u2014 never used for page headings."
+      }
     },
     "shadows": [
-      { "name": "ambient", "value": "rgba(0,0,0,0.1) 0 10px 15px -3px, rgba(0,0,0,0.05) 0 4px 6px -2px", "purpose": "The only shadow in the system — cards and the confirm modal. Darkens in dark mode." }
+      {
+        "name": "ambient",
+        "value": "rgba(0,0,0,0.1) 0 10px 15px -3px, rgba(0,0,0,0.05) 0 4px 6px -2px",
+        "purpose": "The only shadow in the system \u2014 cards and the confirm modal. Darkens in dark mode."
+      }
     ],
     "motion": [
-      { "name": "state-transition", "value": "opacity 0.15s ease, background-color 0.15s ease", "purpose": "Button hover/disabled transitions." },
-      { "name": "step-slide-in", "value": "@keyframes translateX(24px)→0, opacity 0→1, 0.25s ease-out", "purpose": "Intake flow step-card enter animation (NewRequest.css). Respects prefers-reduced-motion (animation: none)." },
-      { "name": "collapsible-transition", "value": "max-height 0.25s ease-out, opacity 0.2s ease-out", "purpose": "Open-requests collapsible section expand/collapse (App.css), paired with a 0.2s arrow rotation. Respects prefers-reduced-motion (transition: none)." }
+      {
+        "name": "state-transition",
+        "value": "opacity 0.15s ease, background-color 0.15s ease",
+        "purpose": "Button hover/disabled transitions."
+      },
+      {
+        "name": "step-slide-in",
+        "value": "@keyframes translateX(24px)\u21920, opacity 0\u21921, 0.25s ease-out",
+        "purpose": "Intake flow step-card enter animation (NewRequest.css). Respects prefers-reduced-motion (animation: none)."
+      },
+      {
+        "name": "collapsible-transition",
+        "value": "max-height 0.25s ease-out, opacity 0.2s ease-out",
+        "purpose": "Open-requests collapsible section expand/collapse (App.css), paired with a 0.2s arrow rotation. Respects prefers-reduced-motion (transition: none)."
+      }
     ],
     "breakpoints": [
-      { "name": "mobile", "value": "1024px" }
+      {
+        "name": "mobile",
+        "value": "1024px"
+      }
     ]
   },
   "components": [
@@ -97,9 +201,9 @@
   ],
   "narrative": {
     "northStar": "The Concierge's Ledger",
-    "overview": "Gavi411 reads like a trusted assistant's warm, well-kept ledger rather than a slick SaaS dashboard: a cream page, ink-dark text, white index cards for every request and message, and a confident gold accent for the actions that matter. Sage green and a soft lavender sit alongside gold as secondary/data accents — a chat bubble, a \"Submit\" vs. \"Back\" distinction in the intake flow — but gold leads. Plain sans throughout (no serif) keeps every screen feeling like a functional, well-organized tool a person actually runs, not a decorative brochure. This direction was revised directly by Gavi from an earlier forest-green/serif draft, after live review against the Design Inspo board.",
+    "overview": "Gavi411 reads like a trusted assistant's warm, well-kept ledger rather than a slick SaaS dashboard: a cream page, ink-dark text, white index cards for every request and message, and a confident gold accent for the actions that matter. Sage green and a soft lavender sit alongside gold as secondary/data accents \u2014 a chat bubble, a \"Submit\" vs. \"Back\" distinction in the intake flow \u2014 but gold leads. Plain sans throughout (no serif) keeps every screen feeling like a functional, well-organized tool a person actually runs, not a decorative brochure. This direction was revised directly by Gavi from an earlier forest-green/serif draft, after live review against the Design Inspo board.",
     "keyCharacteristics": [
-      "Warm cream page background (#fbfaf6), never stark white behind the whole viewport — only cards and inputs are pure white.",
+      "Warm cream page background (#fbfaf6), never stark white behind the whole viewport \u2014 only cards and inputs are pure white.",
       "Gold (#f2a900) is the primary accent. Sage green and lavender are secondary/tertiary accents with specific, narrow jobs.",
       "No serif anywhere. Rubik for all headings and body text; Google Sans reserved solely for the literal Gavi411 wordmark.",
       "Everything interactive (buttons, chips) is a full pill; inputs/selects use the large-rounded (20px) card radius, not a pill.",
@@ -107,24 +211,36 @@
       "A full dark palette exists (manual toggle over prefers-color-scheme), not just a light-only system."
     ],
     "rules": [
-      { "name": "The One Lead Accent Rule", "body": "Gold is the only accent used for general-purpose primary actions. Sage green and lavender are reserved for their two specific, already-assigned jobs (intake Submit / Back) — don't reach for them as a second brand color option elsewhere.", "section": "colors" },
-      { "name": "The Dark-Mode-Is-Real Rule", "body": "Every color token has a confirmed dark-mode value. New colors need a dark counterpart before shipping, not just a light one.", "section": "colors" },
-      { "name": "The Pill-Is-For-Actions Rule", "body": "A pill radius means click this to do something (button, chip, icon button). Inputs, selects, and containers are never pills — they use the 20px card radius instead.", "section": "shapes" }
+      {
+        "name": "The One Lead Accent Rule",
+        "body": "Gold is the only accent used for general-purpose primary actions. Sage green and lavender are reserved for their two specific, already-assigned jobs (intake Submit / Back) \u2014 don't reach for them as a second brand color option elsewhere.",
+        "section": "colors"
+      },
+      {
+        "name": "The Dark-Mode-Is-Real Rule",
+        "body": "Every color token has a confirmed dark-mode value. New colors need a dark counterpart before shipping, not just a light one.",
+        "section": "colors"
+      },
+      {
+        "name": "The Pill-Is-For-Actions Rule",
+        "body": "A pill radius means click this to do something (button, chip, icon button). Inputs, selects, and containers are never pills \u2014 they use the 20px card radius instead.",
+        "section": "shapes"
+      }
     ],
     "dos": [
       "Do keep the page background cream (#fbfaf6 / dark #17181a) and reserve the surface-white token for cards, inputs, and modals only.",
       "Do use Rubik for everything except the literal wordmark, which uses Google Sans.",
-      "Do make every actionable trigger (button, chip, icon button) a full pill; every input, select, card, and modal a 20px-radius surface — never a pill input.",
-      "Do keep gold as the one general-purpose accent — reach for sage green or lavender only for their specific, already-assigned jobs.",
+      "Do make every actionable trigger (button, chip, icon button) a full pill; every input, select, card, and modal a 20px-radius surface \u2014 never a pill input.",
+      "Do keep gold as the one general-purpose accent \u2014 reach for sage green or lavender only for their specific, already-assigned jobs.",
       "Do give every new color token both a light and a dark value before shipping it."
     ],
     "donts": [
-      "Don't reintroduce a serif headline font — tried once, explicitly reverted by Gavi after live review.",
-      "Don't make deep forest green the primary accent — an earlier, since-corrected direction; gold leads now.",
-      "Don't give an input, select, or any container a pill radius — pills are for actionable triggers only.",
-      "Don't introduce the purple/lavender gradient look seen in some inspo images — off-brand, dating/social-app category noise.",
-      "Don't add a UI component library or CSS-in-JS dependency — plain CSS + custom properties by project convention (Ponytail/YAGNI).",
-      "Don't apply logical/bidi CSS properties system-wide — UI chrome is English/LTR only; bidi handling is scoped to specific freeform text fields."
+      "Don't reintroduce a serif headline font \u2014 tried once, explicitly reverted by Gavi after live review.",
+      "Don't make deep forest green the primary accent \u2014 an earlier, since-corrected direction; gold leads now.",
+      "Don't give an input, select, or any container a pill radius \u2014 pills are for actionable triggers only.",
+      "Don't introduce the purple/lavender gradient look seen in some inspo images \u2014 off-brand, dating/social-app category noise.",
+      "Don't add a UI component library or CSS-in-JS dependency \u2014 plain CSS + custom properties by project convention (Ponytail/YAGNI).",
+      "Don't apply logical/bidi CSS properties system-wide \u2014 UI chrome is English/LTR only; bidi handling is scoped to specific freeform text fields."
     ]
   }
 }
