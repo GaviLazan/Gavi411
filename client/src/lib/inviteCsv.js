@@ -1,7 +1,9 @@
-// CSV export for invite: label, "Gavi411", passphrase, notes.
-// No header row (1Password treats it as a data row). Passphrase only exists in response.
+// CSV export for invite: title, name, password, site — title and name are
+// both the invite's label (Gavi's call: makes password-manager import
+// quicker). No header row (1Password treats it as a data row). Passphrase
+// only exists in response.
 export function inviteCsvRow(invite) {
-  const row = [invite.label || '', 'Gavi411', invite.passphrase, '']
+  const row = [invite.label || '', invite.label || '', invite.passphrase, 'Gavi411']
   return row.map(csvEscape).join(',')
 }
 
@@ -15,15 +17,39 @@ function csvEscape(value) {
   return str
 }
 
-// Triggers a browser download of the CSV for one invite. Browser-only —
-// not called from tests, same convention as keyStore.js.
-export function downloadInviteCsv(invite) {
-  const csv = inviteCsvRow(invite)
+// Triggers a browser download of one CSV containing one row per invite —
+// used for both the single-invite export and the bulk-generate export.
+// Browser-only — not called from tests, same convention as keyStore.js.
+export function downloadInvitesCsv(invites) {
+  const csv = invites.map(inviteCsvRow).join('\r\n')
   const blob = new Blob([csv], { type: 'text/csv' })
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url
-  a.download = `invite-${invite.token.slice(0, 8)}.csv`
+  a.download = invites.length === 1
+    ? `invite-${invites[0].token.slice(0, 8)}.csv`
+    : `invites-${invites.length}.csv`
+  a.click()
+  URL.revokeObjectURL(url)
+}
+
+// Triggers a browser download of the real, usable invite links — one per
+// line, "label: link" — separate from the password-manager CSV above.
+// This is the one place the passphrase-bearing link survives after the
+// create moment (it's never persisted server-side), so bulk generation
+// needs this file to actually send links to people, not just the CSV.
+export function downloadInviteLinks(invites) {
+  const origin = window.location.origin
+  const lines = invites.map(
+    (inv) => `${inv.label || '(no label)'}: ${origin}/?token=${inv.token}#${inv.passphrase}`,
+  )
+  const blob = new Blob([lines.join('\r\n')], { type: 'text/plain' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = invites.length === 1
+    ? `invite-link-${invites[0].token.slice(0, 8)}.txt`
+    : `invite-links-${invites.length}.txt`
   a.click()
   URL.revokeObjectURL(url)
 }

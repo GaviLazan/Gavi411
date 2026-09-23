@@ -1437,6 +1437,14 @@ Running the ticket's own whole-repo falsifier (`grep -rn 'Sibling review|G411-[0
 
 **Standing lesson, closing the loop on #157/#159/#160/#161's pattern**: PR4 showed that naming a dispatch role's exact failure pattern with an example measurably reduces (not eliminates) the rate of this specific failure — but it doesn't reach zero, even on a small, simple, well-specified scope. The only thing that has caught every instance across this whole ticket is running the real command yourself and reading real output, every single time, regardless of how clean or confident the dispatch report sounds. Treat "N of M files modified" and "falsifier returned clean" as claims to verify, not facts to record, on every dispatch — this is now confirmed across 4 separate PRs in the same ticket, not a one-off.
 
+### Decision #163 — G411-129: a workaround that reconstructs data from a state that deliberately discarded exactly the missing part is not a fix (2026-09-23, G411-129)
+
+First draft of bulk-invite generation solved "what if the admin misses a link" by making the "All invites" list clickable to copy a *reconstructed* link from data `GET /api/invites` already returns. Looked reasonable — the invite token isn't secret, so reconstructing `origin/?token=<token>` seemed safe. Missed that the invite's passphrase is deliberately never persisted server-side (a real security property, not an oversight) — so any reconstructed link is permanently missing it, defeating the actual reason the passphrase-bearing invite was generated in the first place. Gavi caught it directly: *"then what is the point of the bulk and the csv if those escrow keys are defunct from the start? This isn't a good solution."*
+
+Correct fix: give the real data (with passphrase) as its own export at the one moment it exists — a downloadable links `.txt` file at bulk-creation time — rather than trying to rebuild a lesser version of it later from what was intentionally not kept.
+
+**Standing lesson**: before proposing a UI convenience that reads back data via an existing GET/list endpoint, check whether that endpoint's response is missing something load-bearing because of a deliberate design choice (security, one-time-use, "never persisted" comments in the code) — not just whether the read technically succeeds. A workaround around a security boundary is usually a sign the real fix belongs at the point the data still exists, not after.
+
 ## 7. Not Yet Discussed
  
 - Data model, architecture, tech decisions (schema itself not yet drafted — first task on deck).

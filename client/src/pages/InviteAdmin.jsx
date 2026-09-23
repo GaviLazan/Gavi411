@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { downloadInviteCsv } from '../lib/inviteCsv'
+import { downloadInvitesCsv, downloadInviteLinks } from '../lib/inviteCsv'
 import { createAndUploadKeypair } from '../lib/escrow'
 import { getPendingDevices, approveDevice, rejectDevice } from '../lib/deviceLinking'
 import { loadPrivateKey } from '../lib/keyStore'
@@ -110,6 +110,46 @@ function InviteAdmin() {
     }
   }
 
+  // Bulk invite generation: one label per line, one POST per label, one
+  // combined CSV at the end (per-invite passphrases only ever exist in
+  // each response — never persisted server-side — so they have to be
+  // collected client-side before the CSV is built).
+  const [bulkLabels, setBulkLabels] = useState('')
+  const [bulkCreating, setBulkCreating] = useState(false)
+  const [bulkError, setBulkError] = useState(null)
+
+  async function handleBulkCreate(e) {
+    e.preventDefault()
+    const labels = bulkLabels
+      .split('\n')
+      .map((l) => l.trim())
+      .filter(Boolean)
+    if (labels.length === 0) return
+
+    setBulkCreating(true)
+    setBulkError(null)
+    try {
+      const invites = []
+      for (const label of labels) {
+        const res = await fetch('/api/invites', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ label }),
+        })
+        if (!res.ok) throw new Error('Failed to create invite')
+        invites.push(await res.json())
+      }
+      downloadInviteLinks(invites)
+      downloadInvitesCsv(invites)
+      setBulkLabels('')
+      loadInvites()
+    } catch {
+      setBulkError('Could not create all invites — check "All invites" below for what went through, then retry the rest.')
+    } finally {
+      setBulkCreating(false)
+    }
+  }
+
   // Passphrase in URL fragment (#), not query string
   const lastLink = lastInvite
     ? `${window.location.origin}/?token=${lastInvite.token}#${lastInvite.passphrase}`
@@ -156,11 +196,28 @@ function InviteAdmin() {
               Passphrase (for CSV/backup use — this is the only time it's shown):{' '}
               <code className="invite-admin-code">{lastInvite.passphrase}</code>
             </p>
-            <Button type="button" variant="secondary" onClick={() => downloadInviteCsv(lastInvite)}>
+            <Button type="button" variant="secondary" onClick={() => downloadInvitesCsv([lastInvite])}>
               Export CSV
             </Button>
           </div>
         )}
+
+        <h3>Bulk generate</h3>
+        <form onSubmit={handleBulkCreate} className="invite-admin-form">
+          <textarea
+            className="field-input"
+            dir="auto"
+            placeholder={'One name per line, e.g.\nDana\nYossi\nMichal'}
+            value={bulkLabels}
+            onChange={(e) => setBulkLabels(e.target.value)}
+            rows={4}
+          />
+          <Button type="submit" variant="primary" disabled={bulkCreating || bulkLabels.trim() === ''}>
+            {bulkCreating ? 'Generating…' : 'Generate all + download links'}
+          </Button>
+          <p className="meta">Downloads two files: a links file (send these to people — this is the only place they exist after this moment) and a password-manager CSV.</p>
+        </form>
+        {bulkError && <p role="alert" className="invite-admin-error">{bulkError}</p>}
 
         <h3>All invites</h3>
         {invites.length === 0 ? (
