@@ -12,7 +12,31 @@ accumulated. If something here turns out to matter long-term, promote it to
 
 ---
 
-## Where this session left off (2026-09-23, latest) — G411-7 Reconciled; G411-117 (WP11.5, README) built, Landed, PR #149, approved, awaiting merge go-ahead; two new tickets filed under G411-9 (G411-128, G411-129)
+## Where this session left off (2026-09-23, latest) — G411-117 (README) merged, Reconciled; G411-129 (bulk invites) built, Landed, PR #150, approved, awaiting merge go-ahead
+
+**G411-117 (README) fully closed out** — PR #149 merged (`c04d94e`, regular merge commit), Jira Landed → Reconciled, full sync check clean across primary + all 6 `Gavi411-agent-*` worktrees. See the entry below for the full build detail.
+
+**G411-129 (bulk invite generation) picked up at STOP 1**, scope already filed this session (see below). Built: a "Bulk generate" textarea in `InviteAdmin.jsx` (one real label per line, Gavi's explicit call — no auto "Name 1/2/3" naming), firing one `POST /api/invites` per line and collecting every response before building anything, since each invite's passphrase only ever exists in that one response body and is never persisted server-side.
+
+**Real design miss, caught by Gavi mid-ticket, logged in full as brain.md #163**: first draft solved "what if I miss a bulk link" by making the "All invites" list clickable to copy a *reconstructed* link (`origin/?token=<token>`, no passphrase) — since the token itself isn't secret. Gavi caught the real problem directly: a reconstructed link is missing the passphrase, which defeats the actual point of generating a passphrase-bearing invite in the first place — "then what is the point of the bulk and the csv if those escrow keys are defunct from the start?" Corrected: bulk generate now downloads a real links `.txt` file (label + full link *with* passphrase, one per invite) alongside the CSV, at the one moment those real links exist — not a reconstruction after the fact. The click-to-copy approach was fully reverted, not layered over.
+
+**CSV column order also changed** (both single-invite and bulk exports): `title, name, password, site` — title and name are both the invite's label (Gavi's call, for quicker password-manager import). `inviteCsv.test.js` updated to match; `downloadInviteCsv` renamed to `downloadInvitesCsv` (now takes an array, used for both 1-invite and N-invite cases).
+
+555/555 tests fresh, all 3 CI checks green on PR #150 (2 commits — 2nd corrects the reconstructed-link miss). Jira: G411-129 **Landed** (not yet Reconciled — merge hasn't happened this turn). Gavi approved.
+
+### Real state, right now
+PR #150 (`you/G411-129-bulk-invites`) open, CI green, **Gavi approved — awaiting the actual merge go-ahead** (not yet asked/given this turn). Jira: G411-129 Landed. G411-117 Reconciled, G411-7 Reconciled.
+
+### What's next, concretely
+1. **Ask Gavi for the merge go-ahead on PR #150** — next action.
+2. Once merged: Jira Landed → Reconciled for G411-129.
+3. Full sync check across primary + all `Gavi411-agent-*` worktrees — not yet run this turn.
+4. **G411-128** (demo/walkthrough for the course presentation — demo flow, code walkthrough, E2E overview, CI/CD+testing overview, DB/schema overview, retro citing real brain.md decisions) is filed and Open under G411-9, not started. Given tonight's presentation, this is the natural next pickup — confirm with Gavi first, per STOP 4, don't assume.
+5. Per `gavi411-finish-line-plan.md`, **WP12 (close-out)** is the last item after G411-9's children are done — not next yet, G411-128 is still open under that epic.
+
+---
+
+## Where this session left off (2026-09-23, earlier) — G411-7 Reconciled; G411-117 (WP11.5, README) built, Landed, PR #149, approved, awaiting merge go-ahead; two new tickets filed under G411-9 (G411-128, G411-129)
 
 **G411-7 (Notifications epic) transitioned to Reconciled** — found un-rolled despite every child already being Reconciled (all of G411-49/50/51/78/94/98/102/103/106/107/118 were done; the epic itself just hadn't been rolled). Not a real blocker, just a missed rollup — fixed directly.
 
